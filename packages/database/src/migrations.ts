@@ -7,5 +7,8 @@ export const databaseMigrationDirectory = (
 ): string =>
   fileURLToPath(new URL(`../migrations/${vendor}/`, import.meta.url));
 
+export const databaseDemoSeedFile = (): string =>
+  fileURLToPath(new URL("../demo/seed.sql", import.meta.url));
+
 export const databaseSchemaFile = (vendor: DatabaseMigrationVendor): string =>
   fileURLToPath(new URL(`../src/schema/${vendor}.ts`, import.meta.url));
