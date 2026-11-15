@@ -2,6 +2,8 @@ import { sql } from "drizzle-orm";
 import type { AnySQLiteColumn } from "drizzle-orm/sqlite-core";
 import {
   check,
+  customType,
+  foreignKey,
   uniqueIndex,
   index,
   integer,
@@ -10,6 +12,36 @@ import {
   sqliteTable,
   text,
 } from "drizzle-orm/sqlite-core";
+
+const nocaseText = customType<{ data: string; driverData: string }>({
+  dataType: () => "text COLLATE NOCASE",
+});
+
+const integerChecks = (
+  table: string,
+  columns: readonly AnySQLiteColumn[]
+): readonly ReturnType<typeof check>[] =>
+  columns.map((column) =>
+    check(
+      `${table}_${column.name}_integer_check`,
+      column.notNull
+        ? sql`typeof(${column}) = 'integer'`
+        : sql`${column} IS NULL OR typeof(${column}) = 'integer'`
+    )
+  );
+
+const currencyCodeChecks = (
+  table: string,
+  columns: readonly AnySQLiteColumn[]
+): readonly ReturnType<typeof check>[] =>
+  columns.map((column) =>
+    check(
+      `${table}_${column.name}_code_check`,
+      column.notNull
+        ? sql`${column} GLOB '[A-Z][A-Z][A-Z]'`
+        : sql`${column} IS NULL OR ${column} GLOB '[A-Z][A-Z][A-Z]'`
+    )
+  );
 
 export const RunLogs = sqliteTable(
   "run_logs",
@@ -27,6 +59,7 @@ export const RunLogs = sqliteTable(
       table.recordedAt,
       table.id
     ),
+    ...integerChecks("run_logs", [table.recordedAt]),
     check(
       "run_logs_outcome_check",
       sql`${table.outcome} IN ('Succeeded', 'Failed')`
@@ -50,13 +83,11 @@ export const Profiles = sqliteTable(
   },
   (table) => [
     uniqueIndex("profiles_name_idx").on(table.name),
+    ...integerChecks("profiles", [table.archivedAt, table.createdAt]),
+    ...currencyCodeChecks("profiles", [table.baseCurrency]),
     check(
       "profiles_kind_check",
       sql`${table.kind} IN ('personal', 'business')`
-    ),
-    check(
-      "profiles_base_currency_check",
-      sql`length(${table.baseCurrency}) = 3`
     ),
   ]
 );
@@ -65,7 +96,7 @@ export const Members = sqliteTable(
   "members",
   {
     createdAt: integer("created_at").notNull(),
-    email: text("email").notNull(),
+    email: nocaseText("email").notNull(),
     id: text("id").primaryKey().notNull(),
     profileId: text("profile_id")
       .notNull()
@@ -75,6 +106,7 @@ export const Members = sqliteTable(
   (table) => [
     uniqueIndex("members_profile_email_idx").on(table.profileId, table.email),
     index("members_email_idx").on(table.email),
+    ...integerChecks("members", [table.createdAt]),
     check("members_role_check", sql`${table.role} IN ('owner', 'viewer')`),
   ]
 );
@@ -90,7 +122,10 @@ export const AppSetting = sqliteTable(
     timezone: text("timezone").notNull(),
     updatedAt: integer("updated_at").notNull(),
   },
-  (table) => [check("app_setting_singleton_check", sql`${table.id} = 1`)]
+  (table) => [
+    ...integerChecks("app_setting", [table.updatedAt]),
+    check("app_setting_singleton_check", sql`${table.id} = 1`),
+  ]
 );
 
 export const Providers = sqliteTable(
@@ -102,6 +137,7 @@ export const Providers = sqliteTable(
     label: text("label").notNull(),
   },
   (table) => [
+    ...integerChecks("providers", [table.enabled]),
     check(
       "providers_kind_check",
       sql`${table.kind} IN ('bank', 'investment', 'books', 'csv', 'manual')`
@@ -134,7 +170,16 @@ export const ProviderAccounts = sqliteTable(
       table.providerId,
       table.externalId
     ),
+    uniqueIndex("provider_accounts_profile_id_idx").on(
+      table.profileId,
+      table.id
+    ),
     index("provider_accounts_profile_idx").on(table.profileId),
+    ...integerChecks("provider_accounts", [
+      table.archivedAt,
+      table.createdAt,
+      table.lastSyncedAt,
+    ]),
   ]
 );
 
@@ -147,9 +192,44 @@ export const InvestmentPlatforms = sqliteTable(
     label: text("label").notNull(),
   },
   (table) => [
+    ...integerChecks("investment_platforms", [table.enabled]),
     check(
       "investment_platforms_connector_check",
       sql`${table.connector} IN ('trading212', 'manual')`
+    ),
+  ]
+);
+
+export const Categories = sqliteTable(
+  "categories",
+  {
+    archivedAt: integer("archived_at"),
+    color: text("color").notNull(),
+    createdAt: integer("created_at").notNull(),
+    id: text("id").primaryKey().notNull(),
+    name: text("name").notNull(),
+    parentId: text("parent_id"),
+    profileId: text("profile_id")
+      .notNull()
+      .references(() => Profiles.id),
+    spendingType: text("spending_type").notNull(),
+  },
+  (table) => [
+    uniqueIndex("categories_profile_name_idx").on(table.profileId, table.name),
+    uniqueIndex("categories_profile_id_idx").on(table.profileId, table.id),
+    index("categories_profile_parent_idx").on(table.profileId, table.parentId),
+    foreignKey({
+      columns: [table.profileId, table.parentId],
+      foreignColumns: [table.profileId, table.id],
+    }),
+    ...integerChecks("categories", [table.archivedAt, table.createdAt]),
+    check(
+      "categories_spending_type_check",
+      sql`${table.spendingType} IN ('personal', 'business', 'mixed')`
+    ),
+    check(
+      "categories_parent_check",
+      sql`${table.parentId} IS NULL OR ${table.parentId} <> ${table.id}`
     ),
   ]
 );
@@ -164,14 +244,22 @@ export const Payees = sqliteTable(
     kind: text("kind").notNull(),
     name: text("name").notNull(),
     normalizedName: text("normalized_name").notNull(),
-    profileId: text("profile_id").notNull(),
+    profileId: text("profile_id")
+      .notNull()
+      .references(() => Profiles.id),
   },
   (table) => [
     uniqueIndex("payees_profile_name_idx").on(
       table.profileId,
       table.normalizedName
     ),
+    uniqueIndex("payees_profile_id_idx").on(table.profileId, table.id),
     index("payees_profile_kind_idx").on(table.profileId, table.kind),
+    foreignKey({
+      columns: [table.profileId, table.defaultCategoryId],
+      foreignColumns: [Categories.profileId, Categories.id],
+    }),
+    ...integerChecks("payees", [table.archivedAt, table.createdAt]),
     check(
       "payees_kind_check",
       sql`${table.kind} IN ('merchant', 'client', 'employer', 'tax_authority')`
@@ -179,39 +267,11 @@ export const Payees = sqliteTable(
   ]
 );
 
-export const Categories = sqliteTable(
-  "categories",
-  {
-    archivedAt: integer("archived_at"),
-    color: text("color").notNull(),
-    createdAt: integer("created_at").notNull(),
-    id: text("id").primaryKey().notNull(),
-    name: text("name").notNull(),
-    parentId: text("parent_id").references(
-      (): AnySQLiteColumn => Categories.id
-    ),
-    profileId: text("profile_id").notNull(),
-    spendingType: text("spending_type").notNull(),
-  },
-  (table) => [
-    uniqueIndex("categories_profile_name_idx").on(table.profileId, table.name),
-    index("categories_profile_parent_idx").on(table.profileId, table.parentId),
-    check(
-      "categories_spending_type_check",
-      sql`${table.spendingType} IN ('personal', 'business', 'mixed')`
-    ),
-    check(
-      "categories_parent_check",
-      sql`${table.parentId} IS NULL OR ${table.parentId} <> ${table.id}`
-    ),
-  ]
-);
-
 export const Rules = sqliteTable(
   "rules",
   {
-    categoryId: text("category_id").references(() => Categories.id),
-    clientPayeeId: text("client_payee_id").references(() => Payees.id),
+    categoryId: text("category_id"),
+    clientPayeeId: text("client_payee_id"),
     counterpartProfileId: text("counterpart_profile_id").references(
       () => Profiles.id
     ),
@@ -227,7 +287,9 @@ export const Rules = sqliteTable(
     obligationKind: text("obligation_kind"),
     pattern: text("pattern").notNull(),
     priority: integer("priority").notNull().default(0),
-    profileId: text("profile_id").notNull(),
+    profileId: text("profile_id")
+      .notNull()
+      .references(() => Profiles.id),
     updatedAt: integer("updated_at").notNull(),
   },
   (table) => [
@@ -236,6 +298,7 @@ export const Rules = sqliteTable(
       table.enabled,
       sql`${table.priority} DESC`
     ),
+    uniqueIndex("rules_profile_id_idx").on(table.profileId, table.id),
     uniqueIndex("rules_match_idx").on(
       table.profileId,
       table.kind,
@@ -246,6 +309,22 @@ export const Rules = sqliteTable(
       table.minAmountMinor,
       table.maxAmountMinor
     ),
+    foreignKey({
+      columns: [table.profileId, table.categoryId],
+      foreignColumns: [Categories.profileId, Categories.id],
+    }),
+    foreignKey({
+      columns: [table.profileId, table.clientPayeeId],
+      foreignColumns: [Payees.profileId, Payees.id],
+    }),
+    ...integerChecks("rules", [
+      table.createdAt,
+      table.enabled,
+      table.maxAmountMinor,
+      table.minAmountMinor,
+      table.priority,
+      table.updatedAt,
+    ]),
     check(
       "rules_kind_check",
       sql`${table.kind} IN ('categorize', 'self_transfer', 'refund', 'internal_transfer', 'exclude', 'income_client', 'tax_payment')`
@@ -280,10 +359,10 @@ export const MerchantAliases = sqliteTable(
     id: text("id").primaryKey().notNull(),
     matchType: text("match_type").notNull(),
     pattern: text("pattern").notNull(),
-    payeeId: text("payee_id")
+    payeeId: text("payee_id").notNull(),
+    profileId: text("profile_id")
       .notNull()
-      .references(() => Payees.id),
-    profileId: text("profile_id").notNull(),
+      .references(() => Profiles.id),
   },
   (table) => [
     uniqueIndex("merchant_aliases_match_idx").on(
@@ -292,6 +371,11 @@ export const MerchantAliases = sqliteTable(
       table.pattern
     ),
     index("merchant_aliases_pattern_idx").on(table.profileId, table.pattern),
+    foreignKey({
+      columns: [table.profileId, table.payeeId],
+      foreignColumns: [Payees.profileId, Payees.id],
+    }),
+    ...integerChecks("merchant_aliases", [table.createdAt]),
     check(
       "merchant_aliases_match_type_check",
       sql`${table.matchType} IN ('exact', 'prefix', 'contains')`
@@ -299,19 +383,107 @@ export const MerchantAliases = sqliteTable(
   ]
 );
 
+export const SyncRuns = sqliteTable(
+  "sync_runs",
+  {
+    chunkIndex: integer("chunk_index").notNull().default(0),
+    failureMessage: text("failure_message"),
+    failureTag: text("failure_tag"),
+    finishedAt: integer("finished_at"),
+    id: text("id").primaryKey().notNull(),
+    imported: integer("imported").notNull().default(0),
+    kind: text("kind").notNull(),
+    leaseExpiresAt: integer("lease_expires_at").notNull(),
+    leaseOwner: text("lease_owner").notNull(),
+    profileId: text("profile_id")
+      .notNull()
+      .references(() => Profiles.id),
+    providerAccountId: text("provider_account_id"),
+    rejected: integer("rejected").notNull().default(0),
+    skipped: integer("skipped").notNull().default(0),
+    startedAt: integer("started_at").notNull(),
+    state: text("state").notNull(),
+    updatedAt: integer("updated_at").notNull(),
+    windowFrom: text("window_from"),
+    windowTo: text("window_to"),
+  },
+  (table) => [
+    uniqueIndex("sync_runs_one_open_per_account")
+      .on(table.providerAccountId)
+      .where(sql`${table.state} IN ('running', 'chunk_done', 'categorizing')`),
+    uniqueIndex("sync_runs_one_open_without_account")
+      .on(table.profileId, table.kind)
+      .where(
+        sql`${table.providerAccountId} IS NULL AND ${table.state} IN ('running', 'chunk_done', 'categorizing')`
+      ),
+    uniqueIndex("sync_runs_profile_id_idx").on(table.profileId, table.id),
+    index("sync_runs_profile_started_idx").on(
+      table.profileId,
+      sql`${table.startedAt} DESC`
+    ),
+    index("sync_runs_state_lease_idx").on(table.state, table.leaseExpiresAt),
+    foreignKey({
+      columns: [table.profileId, table.providerAccountId],
+      foreignColumns: [ProviderAccounts.profileId, ProviderAccounts.id],
+    }),
+    ...integerChecks("sync_runs", [
+      table.chunkIndex,
+      table.finishedAt,
+      table.imported,
+      table.leaseExpiresAt,
+      table.rejected,
+      table.skipped,
+      table.startedAt,
+      table.updatedAt,
+    ]),
+    check(
+      "sync_runs_kind_check",
+      sql`${table.kind} IN ('bank_sync', 'categorization')`
+    ),
+    check(
+      "sync_runs_state_check",
+      sql`${table.state} IN ('running', 'chunk_done', 'categorizing', 'succeeded', 'failed', 'cancelled')`
+    ),
+    check(
+      "sync_runs_finished_check",
+      sql`(${table.state} IN ('succeeded', 'failed', 'cancelled')) = (${table.finishedAt} IS NOT NULL)`
+    ),
+    check(
+      "sync_runs_failure_check",
+      sql`${table.state} <> 'failed' OR ${table.failureTag} IS NOT NULL`
+    ),
+  ]
+);
+
+export const SyncRunRejections = sqliteTable(
+  "sync_run_rejections",
+  {
+    createdAt: integer("created_at").notNull(),
+    detail: text("detail").notNull(),
+    externalId: text("external_id"),
+    id: text("id").primaryKey().notNull(),
+    reason: text("reason").notNull(),
+    runId: text("run_id")
+      .notNull()
+      .references(() => SyncRuns.id),
+  },
+  (table) => [
+    index("sync_run_rejections_run_idx").on(table.runId),
+    ...integerChecks("sync_run_rejections", [table.createdAt]),
+  ]
+);
+
 export const Transactions = sqliteTable(
   "transactions",
   {
-    appliedRuleId: text("applied_rule_id").references(() => Rules.id),
+    appliedRuleId: text("applied_rule_id"),
     baseCurrency: text("base_currency").notNull(),
     baseMinor: integer("base_minor").notNull(),
     categorization: text("categorization").notNull().default("none"),
-    categoryId: text("category_id").references(() => Categories.id),
+    categoryId: text("category_id"),
     classification: text("classification").notNull().default("none"),
-    classificationRuleId: text("classification_rule_id").references(
-      () => Rules.id
-    ),
-    clientPayeeId: text("client_payee_id").references(() => Payees.id),
+    classificationRuleId: text("classification_rule_id"),
+    clientPayeeId: text("client_payee_id"),
     counterpartProfileId: text("counterpart_profile_id").references(
       () => Profiles.id
     ),
@@ -321,11 +493,13 @@ export const Transactions = sqliteTable(
     feeCurrency: text("fee_currency"),
     feeMinor: integer("fee_minor"),
     id: text("id").primaryKey().notNull(),
-    importRunId: text("import_run_id").references(() => SyncRuns.id),
+    importRunId: text("import_run_id"),
     note: text("note").notNull().default(""),
     occurredAt: integer("occurred_at").notNull(),
-    payeeId: text("payee_id").references(() => Payees.id),
-    profileId: text("profile_id").notNull(),
+    payeeId: text("payee_id"),
+    profileId: text("profile_id")
+      .notNull()
+      .references(() => Profiles.id),
     providerAccountId: text("provider_account_id").notNull(),
     rate: real("rate"),
     rateAsOf: text("rate_as_of"),
@@ -345,6 +519,7 @@ export const Transactions = sqliteTable(
       table.providerAccountId,
       table.externalId
     ),
+    uniqueIndex("transactions_profile_id_idx").on(table.profileId, table.id),
     index("transactions_profile_recent_idx").on(
       table.profileId,
       sql`${table.occurredAt} DESC`,
@@ -374,6 +549,48 @@ export const Transactions = sqliteTable(
       table.profileId,
       table.rawMerchant
     ),
+    foreignKey({
+      columns: [table.profileId, table.categoryId],
+      foreignColumns: [Categories.profileId, Categories.id],
+    }),
+    foreignKey({
+      columns: [table.profileId, table.payeeId],
+      foreignColumns: [Payees.profileId, Payees.id],
+    }),
+    foreignKey({
+      columns: [table.profileId, table.clientPayeeId],
+      foreignColumns: [Payees.profileId, Payees.id],
+    }),
+    foreignKey({
+      columns: [table.profileId, table.appliedRuleId],
+      foreignColumns: [Rules.profileId, Rules.id],
+    }),
+    foreignKey({
+      columns: [table.profileId, table.classificationRuleId],
+      foreignColumns: [Rules.profileId, Rules.id],
+    }),
+    foreignKey({
+      columns: [table.profileId, table.importRunId],
+      foreignColumns: [SyncRuns.profileId, SyncRuns.id],
+    }),
+    foreignKey({
+      columns: [table.profileId, table.providerAccountId],
+      foreignColumns: [ProviderAccounts.profileId, ProviderAccounts.id],
+    }),
+    ...currencyCodeChecks("transactions", [
+      table.sourceCurrency,
+      table.baseCurrency,
+      table.feeCurrency,
+    ]),
+    ...integerChecks("transactions", [
+      table.baseMinor,
+      table.createdAt,
+      table.feeMinor,
+      table.occurredAt,
+      table.sourceMinor,
+      table.suggestedAt,
+      table.updatedAt,
+    ]),
     check(
       "transactions_status_check",
       sql`${table.status} IN ('posted', 'pending', 'reversed')`
@@ -408,7 +625,7 @@ export const Transactions = sqliteTable(
     ),
     check(
       "transactions_rate_check",
-      sql`(${table.sourceCurrency} = ${table.baseCurrency} AND ${table.rate} IS NULL AND ${table.rateAsOf} IS NULL) OR (${table.sourceCurrency} <> ${table.baseCurrency} AND ${table.rate} > 0 AND ${table.rateAsOf} IS NOT NULL)`
+      sql`(${table.sourceCurrency} = ${table.baseCurrency} AND ${table.sourceCurrency} GLOB '[A-Z][A-Z][A-Z]' AND ${table.rate} IS NULL AND ${table.rateAsOf} IS NULL) OR (${table.sourceCurrency} <> ${table.baseCurrency} AND ${table.rate} > 0 AND ${table.rateAsOf} IS NOT NULL)`
     ),
     check(
       "transactions_fee_currency_check",
@@ -438,6 +655,11 @@ export const ExchangeRates = sqliteTable(
       table.quoteCurrency,
       sql`${table.asOf} DESC`
     ),
+    ...currencyCodeChecks("exchange_rates", [
+      table.baseCurrency,
+      table.quoteCurrency,
+    ]),
+    ...integerChecks("exchange_rates", [table.fetchedAt]),
     check("exchange_rates_rate_check", sql`${table.rate} > 0`),
   ]
 );
@@ -460,7 +682,9 @@ export const Holdings = sqliteTable(
       .notNull()
       .references(() => InvestmentPlatforms.id),
     pricedAt: integer("priced_at"),
-    profileId: text("profile_id").notNull(),
+    profileId: text("profile_id")
+      .notNull()
+      .references(() => Profiles.id),
     quantityMicros: integer("quantity_micros").notNull(),
     state: text("state").notNull(),
     symbol: text("symbol").notNull(),
@@ -472,7 +696,21 @@ export const Holdings = sqliteTable(
       table.platformId,
       table.symbol
     ),
+    uniqueIndex("holdings_profile_id_idx").on(table.profileId, table.id),
     index("holdings_profile_state_idx").on(table.profileId, table.state),
+    ...currencyCodeChecks("holdings", [
+      table.currency,
+      table.costBasisCurrency,
+      table.lastPriceCurrency,
+    ]),
+    ...integerChecks("holdings", [
+      table.costBasisMinor,
+      table.createdAt,
+      table.lastPriceMinor,
+      table.pricedAt,
+      table.quantityMicros,
+      table.updatedAt,
+    ]),
     check(
       "holdings_asset_type_check",
       sql`${table.assetType} IN ('stock', 'etf', 'fund', 'crypto', 'cash')`
@@ -502,7 +740,7 @@ export const Subscriptions = sqliteTable(
   {
     amountCv: real("amount_cv").notNull().default(0),
     baseCurrency: text("base_currency").notNull(),
-    categoryId: text("category_id").references(() => Categories.id),
+    categoryId: text("category_id"),
     confidence: real("confidence").notNull().default(0),
     createdAt: integer("created_at").notNull(),
     frequency: text("frequency").notNull(),
@@ -512,7 +750,9 @@ export const Subscriptions = sqliteTable(
     notes: text("notes").notNull().default(""),
     occurrenceCount: integer("occurrence_count").notNull().default(0),
     payeeId: text("payee_id").notNull(),
-    profileId: text("profile_id").notNull(),
+    profileId: text("profile_id")
+      .notNull()
+      .references(() => Profiles.id),
     status: text("status").notNull(),
     statusChangedAt: integer("status_changed_at").notNull(),
     typicalBaseMinor: integer("typical_base_minor").notNull(),
@@ -523,6 +763,26 @@ export const Subscriptions = sqliteTable(
   (table) => [
     uniqueIndex("subscriptions_payee_idx").on(table.profileId, table.payeeId),
     index("subscriptions_profile_status_idx").on(table.profileId, table.status),
+    foreignKey({
+      columns: [table.profileId, table.payeeId],
+      foreignColumns: [Payees.profileId, Payees.id],
+    }),
+    foreignKey({
+      columns: [table.profileId, table.categoryId],
+      foreignColumns: [Categories.profileId, Categories.id],
+    }),
+    ...currencyCodeChecks("subscriptions", [
+      table.baseCurrency,
+      table.typicalCurrency,
+    ]),
+    ...integerChecks("subscriptions", [
+      table.createdAt,
+      table.occurrenceCount,
+      table.statusChangedAt,
+      table.typicalBaseMinor,
+      table.typicalMinor,
+      table.updatedAt,
+    ]),
     check(
       "subscriptions_frequency_check",
       sql`${table.frequency} IN ('weekly', 'monthly', 'quarterly', 'annual')`
@@ -534,78 +794,15 @@ export const Subscriptions = sqliteTable(
   ]
 );
 
-export const SyncRuns = sqliteTable(
-  "sync_runs",
-  {
-    chunkIndex: integer("chunk_index").notNull().default(0),
-    failureMessage: text("failure_message"),
-    failureTag: text("failure_tag"),
-    finishedAt: integer("finished_at"),
-    id: text("id").primaryKey().notNull(),
-    imported: integer("imported").notNull().default(0),
-    kind: text("kind").notNull(),
-    leaseExpiresAt: integer("lease_expires_at").notNull(),
-    leaseOwner: text("lease_owner").notNull(),
-    profileId: text("profile_id").notNull(),
-    providerAccountId: text("provider_account_id"),
-    rejected: integer("rejected").notNull().default(0),
-    skipped: integer("skipped").notNull().default(0),
-    startedAt: integer("started_at").notNull(),
-    state: text("state").notNull(),
-    updatedAt: integer("updated_at").notNull(),
-    windowFrom: text("window_from"),
-    windowTo: text("window_to"),
-  },
-  (table) => [
-    uniqueIndex("sync_runs_one_open_per_account")
-      .on(table.providerAccountId)
-      .where(sql`${table.state} IN ('running', 'chunk_done', 'categorizing')`),
-    index("sync_runs_profile_started_idx").on(
-      table.profileId,
-      sql`${table.startedAt} DESC`
-    ),
-    index("sync_runs_state_lease_idx").on(table.state, table.leaseExpiresAt),
-    check(
-      "sync_runs_kind_check",
-      sql`${table.kind} IN ('bank_sync', 'categorization')`
-    ),
-    check(
-      "sync_runs_state_check",
-      sql`${table.state} IN ('running', 'chunk_done', 'categorizing', 'succeeded', 'failed', 'cancelled')`
-    ),
-    check(
-      "sync_runs_finished_check",
-      sql`(${table.state} IN ('succeeded', 'failed', 'cancelled')) = (${table.finishedAt} IS NOT NULL)`
-    ),
-    check(
-      "sync_runs_failure_check",
-      sql`${table.state} <> 'failed' OR ${table.failureTag} IS NOT NULL`
-    ),
-  ]
-);
-
-export const SyncRunRejections = sqliteTable(
-  "sync_run_rejections",
-  {
-    createdAt: integer("created_at").notNull(),
-    detail: text("detail").notNull(),
-    externalId: text("external_id"),
-    id: text("id").primaryKey().notNull(),
-    reason: text("reason").notNull(),
-    runId: text("run_id")
-      .notNull()
-      .references(() => SyncRuns.id),
-  },
-  (table) => [index("sync_run_rejections_run_idx").on(table.runId)]
-);
-
 export const ArchiveTargets = sqliteTable(
   "archive_targets",
   {
     blocklist: text("blocklist").notNull().default("[]"),
     createdAt: integer("created_at").notNull(),
     id: text("id").primaryKey().notNull(),
-    profileId: text("profile_id").notNull(),
+    profileId: text("profile_id")
+      .notNull()
+      .references(() => Profiles.id),
     provider: text("provider").notNull(),
     rootRef: text("root_ref").notNull(),
   },
@@ -614,6 +811,8 @@ export const ArchiveTargets = sqliteTable(
       table.profileId,
       table.provider
     ),
+    uniqueIndex("archive_targets_profile_id_idx").on(table.profileId, table.id),
+    ...integerChecks("archive_targets", [table.createdAt]),
     check(
       "archive_targets_provider_check",
       sql`${table.provider} IN ('drive', 'local', 'none')`
@@ -630,7 +829,9 @@ export const InvoiceSources = sqliteTable(
     notes: text("notes"),
     pattern: text("pattern").notNull(),
     portalUrl: text("portal_url"),
-    profileId: text("profile_id").notNull(),
+    profileId: text("profile_id")
+      .notNull()
+      .references(() => Profiles.id),
     retrievalBookkeeper: integer("retrieval_bookkeeper").notNull().default(0),
     retrievalEmail: integer("retrieval_email").notNull().default(0),
     retrievalPortal: integer("retrieval_portal").notNull().default(0),
@@ -643,7 +844,22 @@ export const InvoiceSources = sqliteTable(
       table.profileId,
       table.pattern
     ),
-    index("invoice_sources_pattern_idx").on(table.profileId, table.pattern),
+    index("invoice_sources_pattern_idx").on(
+      table.profileId,
+      sql`${table.pattern} COLLATE NOCASE`
+    ),
+    foreignKey({
+      columns: [table.profileId, table.vendorPayeeId],
+      foreignColumns: [Payees.profileId, Payees.id],
+    }),
+    ...integerChecks("invoice_sources", [
+      table.createdAt,
+      table.retrievalBookkeeper,
+      table.retrievalEmail,
+      table.retrievalPortal,
+      table.retrievalTwoFactor,
+      table.updatedAt,
+    ]),
   ]
 );
 
@@ -654,9 +870,7 @@ export const InvoiceDocuments = sqliteTable(
     amountMinor: integer("amount_minor"),
     archiveFileId: text("archive_file_id"),
     archiveState: text("archive_state").notNull().default("unarchived"),
-    archiveTargetId: text("archive_target_id").references(
-      () => ArchiveTargets.id
-    ),
+    archiveTargetId: text("archive_target_id"),
     archivedAt: integer("archived_at"),
     contentType: text("content_type").notNull(),
     createdAt: integer("created_at").notNull(),
@@ -664,13 +878,15 @@ export const InvoiceDocuments = sqliteTable(
     documentType: text("document_type").notNull(),
     id: text("id").primaryKey().notNull(),
     originalFilename: text("original_filename").notNull(),
-    profileId: text("profile_id").notNull(),
+    profileId: text("profile_id")
+      .notNull()
+      .references(() => Profiles.id),
     r2Key: text("r2_key").notNull(),
     sha256: text("sha256").notNull(),
     sizeBytes: integer("size_bytes").notNull(),
     source: text("source").notNull(),
     sourceRef: text("source_ref"),
-    transactionId: text("transaction_id").references(() => Transactions.id),
+    transactionId: text("transaction_id"),
     vendorPayeeId: text("vendor_payee_id"),
   },
   (table) => [
@@ -686,6 +902,25 @@ export const InvoiceDocuments = sqliteTable(
       sql`${table.documentDate} DESC`
     ),
     index("invoice_documents_transaction_idx").on(table.transactionId),
+    foreignKey({
+      columns: [table.profileId, table.archiveTargetId],
+      foreignColumns: [ArchiveTargets.profileId, ArchiveTargets.id],
+    }),
+    foreignKey({
+      columns: [table.profileId, table.transactionId],
+      foreignColumns: [Transactions.profileId, Transactions.id],
+    }),
+    foreignKey({
+      columns: [table.profileId, table.vendorPayeeId],
+      foreignColumns: [Payees.profileId, Payees.id],
+    }),
+    ...currencyCodeChecks("invoice_documents", [table.amountCurrency]),
+    ...integerChecks("invoice_documents", [
+      table.amountMinor,
+      table.archivedAt,
+      table.createdAt,
+      table.sizeBytes,
+    ]),
     check(
       "invoice_documents_type_check",
       sql`${table.documentType} IN ('invoice', 'receipt', 'statement', 'credit_note', 'other')`
@@ -716,16 +951,20 @@ export const InvoiceDocuments = sqliteTable(
 export const InvoiceExceptions = sqliteTable(
   "invoice_exceptions",
   {
-    profileId: text("profile_id").notNull(),
+    profileId: text("profile_id")
+      .notNull()
+      .references(() => Profiles.id),
     reason: text("reason").notNull(),
     recordedAt: integer("recorded_at").notNull(),
-    transactionId: text("transaction_id")
-      .primaryKey()
-      .notNull()
-      .references(() => Transactions.id),
+    transactionId: text("transaction_id").primaryKey().notNull(),
   },
   (table) => [
     index("invoice_exceptions_profile_idx").on(table.profileId),
+    foreignKey({
+      columns: [table.profileId, table.transactionId],
+      foreignColumns: [Transactions.profileId, Transactions.id],
+    }),
+    ...integerChecks("invoice_exceptions", [table.recordedAt]),
     check(
       "invoice_exceptions_reason_check",
       sql`length(trim(${table.reason})) > 0`
@@ -740,7 +979,9 @@ export const TaxProfiles = sqliteTable(
     id: text("id").primaryKey().notNull(),
     jurisdiction: text("jurisdiction").notNull(),
     primary: integer("primary").notNull().default(0),
-    profileId: text("profile_id").notNull(),
+    profileId: text("profile_id")
+      .notNull()
+      .references(() => Profiles.id),
     yearStartDay: integer("year_start_day").notNull(),
     yearStartMonth: integer("year_start_month").notNull(),
   },
@@ -748,6 +989,13 @@ export const TaxProfiles = sqliteTable(
     uniqueIndex("tax_profiles_primary_idx")
       .on(table.profileId)
       .where(sql`${table.primary} = 1`),
+    uniqueIndex("tax_profiles_profile_id_idx").on(table.profileId, table.id),
+    ...integerChecks("tax_profiles", [
+      table.createdAt,
+      table.primary,
+      table.yearStartDay,
+      table.yearStartMonth,
+    ]),
     check(
       "tax_profiles_year_start_month_check",
       sql`${table.yearStartMonth} BETWEEN 1 AND 12`
@@ -771,10 +1019,10 @@ export const TaxObligations = sqliteTable(
     kind: text("kind").notNull(),
     label: text("label").notNull().default(""),
     periodEndsOn: text("period_ends_on").notNull(),
-    profileId: text("profile_id").notNull(),
-    settledTransactionId: text("settled_transaction_id").references(
-      () => Transactions.id
-    ),
+    profileId: text("profile_id")
+      .notNull()
+      .references(() => Profiles.id),
+    settledTransactionId: text("settled_transaction_id"),
     status: text("status").notNull(),
     syncedAt: integer("synced_at").notNull(),
     taxProfileId: text("tax_profile_id").notNull(),
@@ -788,6 +1036,20 @@ export const TaxObligations = sqliteTable(
       table.label
     ),
     index("tax_obligations_profile_due_idx").on(table.profileId, table.dueOn),
+    foreignKey({
+      columns: [table.profileId, table.taxProfileId],
+      foreignColumns: [TaxProfiles.profileId, TaxProfiles.id],
+    }),
+    foreignKey({
+      columns: [table.profileId, table.settledTransactionId],
+      foreignColumns: [Transactions.profileId, Transactions.id],
+    }),
+    ...currencyCodeChecks("tax_obligations", [table.amountCurrency]),
+    ...integerChecks("tax_obligations", [
+      table.amountMinor,
+      table.createdAt,
+      table.syncedAt,
+    ]),
     check(
       "tax_obligations_status_check",
       sql`${table.status} IN ('estimated', 'paid', 'written_off')`
@@ -810,13 +1072,16 @@ export const Reports = sqliteTable(
     html: text("html").notNull(),
     id: text("id").primaryKey().notNull(),
     kind: text("kind").notNull(),
-    profileId: text("profile_id").notNull(),
+    profileId: text("profile_id")
+      .notNull()
+      .references(() => Profiles.id),
     slug: text("slug").notNull(),
     title: text("title").notNull(),
     updatedAt: integer("updated_at").notNull(),
   },
   (table) => [
     uniqueIndex("reports_profile_slug_idx").on(table.profileId, table.slug),
+    ...integerChecks("reports", [table.createdAt, table.updatedAt]),
     check(
       "reports_kind_check",
       sql`${table.kind} IN ('report', 'exploration')`

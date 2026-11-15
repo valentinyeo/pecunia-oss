@@ -4,6 +4,37 @@ import { Effect } from "effect";
 
 import { RunLogs } from "../src/schema/d1.js";
 import {
+  aliasRow,
+  archiveTargetRow,
+  checkHoldingRow,
+  checkPayeeRow,
+  checkTransactionRow,
+  currencyCases,
+  holdingRow,
+  integerCases,
+  invoiceDocumentRow,
+  invoiceExceptionRow,
+  invoiceSourceRow,
+  memberRow,
+  otherAccountRow,
+  otherArchiveTargetRow,
+  otherCategoryRow,
+  otherPayeeRow,
+  otherRuleRow,
+  otherSubscriptionRow,
+  otherSyncRunRow,
+  otherTaxProfileRow,
+  otherTransactionRow,
+  payeeRow,
+  reportRow,
+  ruleRow,
+  setupSteps,
+  subscriptionRow,
+  syncRunRow,
+  taxObligationRow,
+  transactionRow,
+} from "./rows.js";
+import {
   insertStep,
   openMigratedDatabase,
   rowCount,
@@ -20,131 +51,27 @@ const schemaTables: readonly string[] = Object.values(schemaModule).map(
   (table) => getTableName(table)
 );
 
-const profileRow: Row = {
-  base_currency: "EUR",
-  created_at: 1_767_225_600_000,
-  id: "profile-demo",
-  kind: "business",
-  name: "Example Ltd",
+const migratedBook = Effect.gen(function* openBook() {
+  const database = yield* openMigratedDatabase;
+
+  for (const [table, row] of setupSteps) {
+    runStep(database, insertStep(table, row));
+  }
+
+  return database;
+});
+
+const rejectedMessage = (run: () => void): string => {
+  try {
+    run();
+  } catch (error) {
+    return error instanceof Error ? error.message : String(error);
+  }
+
+  return "";
 };
 
-const accountRow: Row = {
-  created_at: 1_767_225_600_000,
-  external_id: "account-external-demo",
-  id: "account-demo",
-  kind: "bank",
-  label: "Demo Bank",
-  profile_id: "profile-demo",
-  provider_id: "wise",
-};
-
-const categoryRow: Row = {
-  color: "accent",
-  created_at: 1_767_225_600_000,
-  id: "category-demo",
-  name: "Software",
-  profile_id: "profile-demo",
-  spending_type: "business",
-};
-
-const payeeRow: Row = {
-  created_at: 1_767_225_600_000,
-  id: "payee-demo",
-  kind: "client",
-  name: "Example Ltd",
-  normalized_name: "example-ltd",
-  profile_id: "profile-demo",
-};
-
-const transactionRow: Row = {
-  base_currency: "EUR",
-  base_minor: 12_000,
-  created_at: 1_767_225_600_000,
-  direction: "out",
-  external_id: "transaction-external-demo",
-  id: "transaction-demo",
-  occurred_at: 1_767_225_600_000,
-  profile_id: "profile-demo",
-  provider_account_id: "account-demo",
-  source_currency: "EUR",
-  source_minor: 12_000,
-  status: "posted",
-  updated_at: 1_767_225_600_000,
-  value_date: "2026-01-01",
-};
-
-const setupSteps = [
-  insertStep("profiles", profileRow),
-  insertStep("provider_accounts", accountRow),
-  insertStep("categories", categoryRow),
-  insertStep("payees", payeeRow),
-  insertStep("transactions", transactionRow),
-];
-
-const ruleRow: Row = {
-  created_at: 1_767_225_600_000,
-  id: "rule-demo",
-  kind: "categorize",
-  match_field: "merchant",
-  match_type: "contains",
-  pattern: "Example",
-  profile_id: "profile-demo",
-  updated_at: 1_767_225_600_000,
-};
-
-const syncRunRow: Row = {
-  id: "run-demo",
-  kind: "bank_sync",
-  lease_expires_at: 1_767_225_900_000,
-  lease_owner: "worker-demo",
-  profile_id: "profile-demo",
-  started_at: 1_767_225_600_000,
-  state: "running",
-  updated_at: 1_767_225_600_000,
-};
-
-const taxObligationRow: Row = {
-  amount_currency: "EUR",
-  amount_minor: 250_000,
-  created_at: 1_767_225_600_000,
-  due_on: "2026-01-31",
-  id: "obligation-demo",
-  kind: "vat",
-  period_ends_on: "2025-12-31",
-  profile_id: "profile-demo",
-  status: "estimated",
-  synced_at: 1_767_225_600_000,
-  tax_profile_id: "tax-profile-demo",
-};
-
-const invoiceDocumentRow: Row = {
-  content_type: "application/pdf",
-  created_at: 1_767_225_600_000,
-  document_date: "2026-01-05",
-  document_type: "invoice",
-  id: "document-demo",
-  original_filename: "invoice.pdf",
-  profile_id: "profile-demo",
-  r2_key: "documents/invoice.pdf",
-  sha256: "a".repeat(64),
-  size_bytes: 4096,
-  source: "upload",
-};
-
-const holdingRow: Row = {
-  asset_type: "etf",
-  created_at: 1_767_225_600_000,
-  currency: "EUR",
-  id: "holding-demo",
-  name: "Demo World ETF",
-  opened_on: "2026-01-02",
-  platform_id: "generic-broker",
-  profile_id: "profile-demo",
-  quantity_micros: 100_000_000,
-  state: "pending",
-  symbol: "DEMO",
-  updated_at: 1_767_225_600_000,
-};
+const foreignKeyMessage = "FOREIGN KEY constraint failed";
 
 interface ConstraintCase {
   readonly constraint: string;
@@ -200,10 +127,31 @@ const constraintCases: readonly ConstraintCase[] = [
     ],
   },
   {
+    constraint: "transactions_source_currency_code_check",
+    legal: [
+      insertStep("transactions", {
+        ...transactionRow,
+        external_id: "transaction-external-legal",
+        id: "transaction-legal",
+      }),
+    ],
+    name: "an empty currency pair that a rate check would read as equal",
+    rejected: [
+      insertStep("transactions", {
+        ...transactionRow,
+        base_currency: "",
+        external_id: "transaction-external-rejected",
+        id: "transaction-rejected",
+        source_currency: "",
+      }),
+    ],
+  },
+  {
     constraint: "rules_amount_bounds_check",
     legal: [
       insertStep("rules", {
         ...ruleRow,
+        category_id: null,
         id: "rule-legal",
         kind: "exclude",
         max_amount_minor: 2000,
@@ -214,6 +162,7 @@ const constraintCases: readonly ConstraintCase[] = [
     rejected: [
       insertStep("rules", {
         ...ruleRow,
+        category_id: null,
         id: "rule-rejected",
         kind: "exclude",
         max_amount_minor: 1000,
@@ -243,6 +192,41 @@ const constraintCases: readonly ConstraintCase[] = [
         ...syncRunRow,
         id: "run-rejected-open",
         provider_account_id: "account-demo",
+      }),
+    ],
+  },
+  {
+    constraint:
+      "UNIQUE constraint failed: sync_runs.profile_id, sync_runs.kind",
+    legal: [
+      insertStep("sync_runs", {
+        ...syncRunRow,
+        id: "run-legal-open",
+        provider_account_id: null,
+        state: "running",
+      }),
+      insertStep("sync_runs", {
+        ...syncRunRow,
+        id: "run-legal-closed",
+        provider_account_id: null,
+        state: "succeeded",
+        finished_at: 1_767_225_700_000,
+      }),
+      insertStep("sync_runs", {
+        ...syncRunRow,
+        id: "run-legal-other-kind",
+        kind: "categorization",
+        provider_account_id: null,
+        state: "running",
+      }),
+    ],
+    name: "two open sync runs for one profile without an account",
+    rejected: [
+      insertStep("sync_runs", {
+        ...syncRunRow,
+        id: "run-rejected-open",
+        provider_account_id: null,
+        state: "running",
       }),
     ],
   },
@@ -296,6 +280,7 @@ const constraintCases: readonly ConstraintCase[] = [
         id: "holding-rejected",
         last_price_currency: "EUR",
         last_price_minor: 150_000,
+        state: "pending",
       }),
     ],
   },
@@ -320,15 +305,238 @@ const constraintCases: readonly ConstraintCase[] = [
   },
 ];
 
-const rejectedMessage = (run: () => void): string => {
-  try {
-    run();
-  } catch (error) {
-    return error instanceof Error ? error.message : String(error);
-  }
+const integerValues = [1.5];
 
-  return "";
-};
+const currencyValues = ["", "eur", "EURO", "123"];
+
+interface CrossProfileCase {
+  readonly child: SqlStep;
+  readonly name: string;
+  readonly parents: readonly SqlStep[];
+}
+
+const crossProfileCases: readonly CrossProfileCase[] = [
+  {
+    child: insertStep("transactions", {
+      ...transactionRow,
+      categorization: "confirmed",
+      category_id: "category-other",
+      external_id: "transaction-external-cross",
+      id: "transaction-cross",
+    }),
+    name: "a transaction pointing at another profile's category",
+    parents: [insertStep("categories", otherCategoryRow)],
+  },
+  {
+    child: insertStep("transactions", {
+      ...transactionRow,
+      external_id: "transaction-external-cross",
+      id: "transaction-cross",
+      payee_id: "payee-other",
+    }),
+    name: "a transaction pointing at another profile's payee",
+    parents: [insertStep("payees", otherPayeeRow)],
+  },
+  {
+    child: insertStep("transactions", {
+      ...transactionRow,
+      classification: "income",
+      client_payee_id: "payee-other",
+      external_id: "transaction-external-cross",
+      id: "transaction-cross",
+    }),
+    name: "a transaction pointing at another profile's client payee",
+    parents: [insertStep("payees", otherPayeeRow)],
+  },
+  {
+    child: insertStep("transactions", {
+      ...transactionRow,
+      external_id: "transaction-external-cross",
+      id: "transaction-cross",
+      provider_account_id: "account-other",
+    }),
+    name: "a transaction pointing at another profile's provider account",
+    parents: [insertStep("provider_accounts", otherAccountRow)],
+  },
+  {
+    child: insertStep("transactions", {
+      ...transactionRow,
+      applied_rule_id: "rule-other",
+      categorization: "applied",
+      category_id: "category-demo",
+      external_id: "transaction-external-cross",
+      id: "transaction-cross",
+    }),
+    name: "a transaction pointing at another profile's rule",
+    parents: [
+      insertStep("categories", otherCategoryRow),
+      insertStep("rules", otherRuleRow),
+    ],
+  },
+  {
+    child: insertStep("transactions", {
+      ...transactionRow,
+      external_id: "transaction-external-cross",
+      id: "transaction-cross",
+      import_run_id: "run-other",
+    }),
+    name: "a transaction pointing at another profile's import run",
+    parents: [
+      insertStep("provider_accounts", otherAccountRow),
+      insertStep("sync_runs", otherSyncRunRow),
+    ],
+  },
+  {
+    child: insertStep("merchant_aliases", {
+      ...aliasRow,
+      payee_id: "payee-other",
+    }),
+    name: "a merchant alias pointing at another profile's payee",
+    parents: [insertStep("payees", otherPayeeRow)],
+  },
+  {
+    child: insertStep("rules", {
+      ...ruleRow,
+      category_id: "category-other",
+      pattern: "Cross",
+    }),
+    name: "a rule pointing at another profile's category",
+    parents: [insertStep("categories", otherCategoryRow)],
+  },
+  {
+    child: insertStep("rules", {
+      ...ruleRow,
+      category_id: null,
+      client_payee_id: "payee-other",
+      kind: "income_client",
+      pattern: "Cross",
+    }),
+    name: "a rule pointing at another profile's client payee",
+    parents: [insertStep("payees", otherPayeeRow)],
+  },
+  {
+    child: insertStep("payees", {
+      ...payeeRow,
+      default_category_id: "category-other",
+      id: "payee-cross",
+      name: "Cross Merchant",
+      normalized_name: "cross-merchant",
+    }),
+    name: "a payee defaulting to another profile's category",
+    parents: [insertStep("categories", otherCategoryRow)],
+  },
+  {
+    child: insertStep("categories", {
+      ...otherCategoryRow,
+      id: "category-cross",
+      name: "Cross Software",
+      parent_id: "category-other",
+      profile_id: "profile-demo",
+    }),
+    name: "a category parented by another profile's category",
+    parents: [insertStep("categories", otherCategoryRow)],
+  },
+  {
+    child: insertStep("subscriptions", {
+      ...subscriptionRow,
+      payee_id: "payee-other",
+    }),
+    name: "a subscription pointing at another profile's payee",
+    parents: [insertStep("payees", otherPayeeRow)],
+  },
+  {
+    child: insertStep("subscriptions", {
+      ...subscriptionRow,
+      category_id: "category-other",
+    }),
+    name: "a subscription pointing at another profile's category",
+    parents: [insertStep("categories", otherCategoryRow)],
+  },
+  {
+    child: insertStep("invoice_documents", {
+      ...invoiceDocumentRow,
+      transaction_id: "transaction-other",
+    }),
+    name: "an invoice document pointing at another profile's transaction",
+    parents: [
+      insertStep("provider_accounts", otherAccountRow),
+      insertStep("transactions", otherTransactionRow),
+    ],
+  },
+  {
+    child: insertStep("invoice_documents", {
+      ...invoiceDocumentRow,
+      archive_target_id: "archive-target-other",
+    }),
+    name: "an invoice document pointing at another profile's archive target",
+    parents: [insertStep("archive_targets", otherArchiveTargetRow)],
+  },
+  {
+    child: insertStep("invoice_documents", {
+      ...invoiceDocumentRow,
+      vendor_payee_id: "payee-other",
+    }),
+    name: "an invoice document pointing at another profile's vendor",
+    parents: [insertStep("payees", otherPayeeRow)],
+  },
+  {
+    child: insertStep("invoice_sources", {
+      ...invoiceSourceRow,
+      vendor_payee_id: "payee-other",
+    }),
+    name: "an invoice source pointing at another profile's vendor",
+    parents: [insertStep("payees", otherPayeeRow)],
+  },
+  {
+    child: insertStep("invoice_exceptions", {
+      ...invoiceExceptionRow,
+      transaction_id: "transaction-other",
+    }),
+    name: "an invoice exception pointing at another profile's transaction",
+    parents: [
+      insertStep("provider_accounts", otherAccountRow),
+      insertStep("transactions", otherTransactionRow),
+    ],
+  },
+  {
+    child: insertStep("tax_obligations", {
+      ...taxObligationRow,
+      tax_profile_id: "tax-profile-other",
+    }),
+    name: "a tax obligation pointing at another profile's tax profile",
+    parents: [insertStep("tax_profiles", otherTaxProfileRow)],
+  },
+  {
+    child: insertStep("tax_obligations", {
+      ...taxObligationRow,
+      settled_transaction_id: "transaction-other",
+      status: "paid",
+    }),
+    name: "a tax obligation settling another profile's transaction",
+    parents: [
+      insertStep("provider_accounts", otherAccountRow),
+      insertStep("transactions", otherTransactionRow),
+    ],
+  },
+];
+
+const profileColumns: readonly (readonly [string, Row])[] = [
+  ["archive_targets", archiveTargetRow],
+  ["categories", otherCategoryRow],
+  ["holdings", holdingRow],
+  ["invoice_documents", invoiceDocumentRow],
+  ["invoice_exceptions", invoiceExceptionRow],
+  ["invoice_sources", invoiceSourceRow],
+  ["merchant_aliases", aliasRow],
+  ["payees", checkPayeeRow],
+  ["reports", reportRow],
+  ["rules", ruleRow],
+  ["subscriptions", otherSubscriptionRow],
+  ["sync_runs", syncRunRow],
+  ["tax_obligations", taxObligationRow],
+  ["tax_profiles", otherTaxProfileRow],
+  ["transactions", checkTransactionRow],
+];
 
 it.effect("migrations create every table the schema declares", () =>
   Effect.gen(function* applyMigrations() {
@@ -378,11 +586,7 @@ it.effect.each(constraintCases)(
   "rejects $name",
   ({ constraint, legal, rejected }) =>
     Effect.gen(function* rejectIllegalRow() {
-      const database = yield* openMigratedDatabase;
-
-      for (const step of setupSteps) {
-        runStep(database, step);
-      }
+      const database = yield* migratedBook;
 
       for (const step of legal) {
         runStep(database, step);
@@ -396,4 +600,214 @@ it.effect.each(constraintCases)(
 
       expect(message).toContain(constraint);
     })
+);
+
+it.effect.each(integerCases)(
+  "rejects non-integer values in $table integer columns",
+  ({ columns, parents, row, table }) =>
+    Effect.gen(function* rejectRealNumber() {
+      const database = yield* migratedBook;
+
+      for (const parent of parents ?? []) {
+        runStep(database, parent);
+      }
+
+      for (const column of columns) {
+        for (const value of integerValues) {
+          const message = rejectedMessage(() => {
+            runStep(database, insertStep(table, { ...row, [column]: value }));
+          });
+
+          expect(message, `${table}.${column} = ${String(value)}`).toContain(
+            `${table}_${column}_integer_check`
+          );
+        }
+      }
+    })
+);
+
+it.effect.each(currencyCases)(
+  "rejects malformed currency codes in $table",
+  ({ columns, row, table }) =>
+    Effect.gen(function* rejectBadCurrency() {
+      const database = yield* migratedBook;
+
+      for (const column of columns) {
+        for (const value of currencyValues) {
+          const message = rejectedMessage(() => {
+            runStep(database, insertStep(table, { ...row, [column]: value }));
+          });
+
+          expect(
+            message,
+            `${table}.${column} = ${JSON.stringify(value)}`
+          ).toContain(`${table}_${column}_code_check`);
+        }
+      }
+    })
+);
+
+it.effect.each([
+  { column: "quantity_micros", row: checkHoldingRow, table: "holdings" },
+  {
+    column: "source_minor",
+    row: checkTransactionRow,
+    table: "transactions",
+  },
+])(
+  "rejects a decimal or text value stored in $table $column",
+  ({ column, row, table }) =>
+    Effect.gen(function* rejectStoredText() {
+      const database = yield* migratedBook;
+
+      for (const value of [10.5, "12.50", "nope"]) {
+        const message = rejectedMessage(() => {
+          runStep(database, insertStep(table, { ...row, [column]: value }));
+        });
+
+        expect(message, `${table}.${column} = ${String(value)}`).toContain(
+          `${table}_${column}_integer_check`
+        );
+      }
+    })
+);
+
+it.effect.each(
+  profileColumns.map(([table, row]) => ({
+    name: table.replaceAll("_", " "),
+    row,
+    table,
+  }))
+)("rejects a $name row whose profile does not exist", ({ row, table }) =>
+  Effect.gen(function* rejectMissingProfile() {
+    const database = yield* migratedBook;
+
+    const message = rejectedMessage(() => {
+      runStep(
+        database,
+        insertStep(table, { ...row, profile_id: "profile-missing" })
+      );
+    });
+
+    expect(message).toContain(foreignKeyMessage);
+  })
+);
+
+it.effect.each(crossProfileCases)("rejects $name", ({ child, parents }) =>
+  Effect.gen(function* rejectCrossProfileLink() {
+    const database = yield* migratedBook;
+
+    for (const parent of parents) {
+      runStep(database, parent);
+    }
+
+    const message = rejectedMessage(() => {
+      runStep(database, child);
+    });
+
+    expect(message).toContain(foreignKeyMessage);
+  })
+);
+
+it.effect("rejects a tax obligation whose tax profile does not exist", () =>
+  Effect.gen(function* rejectMissingTaxProfile() {
+    const database = yield* migratedBook;
+
+    const message = rejectedMessage(() => {
+      runStep(
+        database,
+        insertStep("tax_obligations", {
+          ...taxObligationRow,
+          tax_profile_id: "tax-profile-missing",
+        })
+      );
+    });
+
+    expect(message).toContain(foreignKeyMessage);
+  })
+);
+
+it.effect("rejects a sync run whose provider account does not exist", () =>
+  Effect.gen(function* rejectMissingAccount() {
+    const database = yield* migratedBook;
+
+    const message = rejectedMessage(() => {
+      runStep(
+        database,
+        insertStep("sync_runs", {
+          ...syncRunRow,
+          provider_account_id: "account-missing",
+        })
+      );
+    });
+
+    expect(message).toContain(foreignKeyMessage);
+  })
+);
+
+it.effect("rejects a member email that differs only by case", () =>
+  Effect.gen(function* rejectCaseVariantEmail() {
+    const database = yield* migratedBook;
+
+    const message = rejectedMessage(() => {
+      runStep(
+        database,
+        insertStep("members", {
+          ...memberRow,
+          email: "MEMBER@EXAMPLE.COM",
+          id: "member-case",
+        })
+      );
+    });
+
+    expect(message).toContain(
+      "UNIQUE constraint failed: members.profile_id, members.email"
+    );
+  })
+);
+
+it.effect("compares member emails without case", () =>
+  Effect.gen(function* readCaseInsensitiveEmail() {
+    const database = yield* migratedBook;
+
+    const [members] = database.exec(
+      `SELECT id FROM members WHERE email = 'MEMBER@EXAMPLE.COM'`
+    );
+
+    expect(members?.values.map(([id]) => id)).toEqual(["member-demo"]);
+  })
+);
+
+it.effect("serves invoice source lookups that ignore case", () =>
+  Effect.gen(function* readCaseInsensitivePattern() {
+    const database = yield* migratedBook;
+
+    const [plan] = database.exec(
+      `EXPLAIN QUERY PLAN SELECT id FROM invoice_sources WHERE profile_id = 'profile-demo' AND pattern = 'demo design tool' COLLATE NOCASE`
+    );
+
+    const detail = (plan?.values ?? []).map((row) => row.join(" ")).join(" ");
+
+    expect(detail).toContain("invoice_sources_pattern_idx");
+  })
+);
+
+it.effect("rejects a profile that is not referenced by a member row", () =>
+  Effect.gen(function* rejectOrphanMember() {
+    const database = yield* migratedBook;
+
+    const message = rejectedMessage(() => {
+      runStep(
+        database,
+        insertStep("members", {
+          ...memberRow,
+          email: "orphan@example.com",
+          id: "member-orphan",
+          profile_id: "profile-missing",
+        })
+      );
+    });
+
+    expect(message).toContain(foreignKeyMessage);
+  })
 );

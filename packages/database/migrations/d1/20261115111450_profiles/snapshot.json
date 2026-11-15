@@ -1,7 +1,7 @@
 {
   "version": "7",
   "dialect": "sqlite",
-  "id": "11385992-40ff-46d9-ba40-996317d6b0bb",
+  "id": "9195d413-acf4-4b6a-ba4e-0395e51a5578",
   "prevIds": ["f7737ae2-cd0b-4504-bf9e-a80b383ca461"],
   "ddl": [
     {
@@ -83,7 +83,7 @@
     {
       "table": "members",
       "name": "email",
-      "type": "text",
+      "type": "text COLLATE NOCASE",
       "notNull": true,
       "autoincrement": false,
       "default": null,
@@ -360,8 +360,20 @@
     },
     {
       "table": "app_setting",
+      "name": "app_setting_updated_at_integer_check",
+      "value": "typeof(\"updated_at\") = 'integer'",
+      "entityType": "checks"
+    },
+    {
+      "table": "app_setting",
       "name": "app_setting_singleton_check",
       "value": "\"id\" = 1",
+      "entityType": "checks"
+    },
+    {
+      "table": "members",
+      "name": "members_created_at_integer_check",
+      "value": "typeof(\"created_at\") = 'integer'",
       "entityType": "checks"
     },
     {
@@ -372,14 +384,32 @@
     },
     {
       "table": "profiles",
+      "name": "profiles_archived_at_integer_check",
+      "value": "\"archived_at\" IS NULL OR typeof(\"archived_at\") = 'integer'",
+      "entityType": "checks"
+    },
+    {
+      "table": "profiles",
+      "name": "profiles_created_at_integer_check",
+      "value": "typeof(\"created_at\") = 'integer'",
+      "entityType": "checks"
+    },
+    {
+      "table": "profiles",
+      "name": "profiles_base_currency_code_check",
+      "value": "\"base_currency\" GLOB '[A-Z][A-Z][A-Z]'",
+      "entityType": "checks"
+    },
+    {
+      "table": "profiles",
       "name": "profiles_kind_check",
       "value": "\"kind\" IN ('personal', 'business')",
       "entityType": "checks"
     },
     {
-      "table": "profiles",
-      "name": "profiles_base_currency_check",
-      "value": "length(\"base_currency\") = 3",
+      "table": "run_logs",
+      "name": "run_logs_recorded_at_integer_check",
+      "value": "typeof(\"recorded_at\") = 'integer'",
       "entityType": "checks"
     },
     {

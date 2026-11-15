@@ -18,7 +18,17 @@ CREATE TABLE `subscriptions` (
 	`typical_currency` text NOT NULL,
 	`typical_minor` integer NOT NULL,
 	`updated_at` integer NOT NULL,
-	CONSTRAINT `fk_subscriptions_category_id_categories_id_fk` FOREIGN KEY (`category_id`) REFERENCES `categories`(`id`),
+	CONSTRAINT `fk_subscriptions_profile_id_profiles_id_fk` FOREIGN KEY (`profile_id`) REFERENCES `profiles`(`id`),
+	CONSTRAINT `fk_subscriptions_profile_id_payee_id_payees_profile_id_id_fk` FOREIGN KEY (`profile_id`,`payee_id`) REFERENCES `payees`(`profile_id`,`id`),
+	CONSTRAINT `fk_subscriptions_profile_id_category_id_categories_profile_id_id_fk` FOREIGN KEY (`profile_id`,`category_id`) REFERENCES `categories`(`profile_id`,`id`),
+	CONSTRAINT "subscriptions_base_currency_code_check" CHECK("base_currency" GLOB '[A-Z][A-Z][A-Z]'),
+	CONSTRAINT "subscriptions_typical_currency_code_check" CHECK("typical_currency" GLOB '[A-Z][A-Z][A-Z]'),
+	CONSTRAINT "subscriptions_created_at_integer_check" CHECK(typeof("created_at") = 'integer'),
+	CONSTRAINT "subscriptions_occurrence_count_integer_check" CHECK(typeof("occurrence_count") = 'integer'),
+	CONSTRAINT "subscriptions_status_changed_at_integer_check" CHECK(typeof("status_changed_at") = 'integer'),
+	CONSTRAINT "subscriptions_typical_base_minor_integer_check" CHECK(typeof("typical_base_minor") = 'integer'),
+	CONSTRAINT "subscriptions_typical_minor_integer_check" CHECK(typeof("typical_minor") = 'integer'),
+	CONSTRAINT "subscriptions_updated_at_integer_check" CHECK(typeof("updated_at") = 'integer'),
 	CONSTRAINT "subscriptions_frequency_check" CHECK("frequency" IN ('weekly', 'monthly', 'quarterly', 'annual')),
 	CONSTRAINT "subscriptions_status_check" CHECK("status" IN ('detected', 'confirmed', 'dismissed', 'not_recurring', 'cancelled'))
 );

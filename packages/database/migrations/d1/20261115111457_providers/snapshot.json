@@ -1,8 +1,8 @@
 {
   "version": "7",
   "dialect": "sqlite",
-  "id": "d28eb5c9-29e1-4628-b699-02dc36649370",
-  "prevIds": ["11385992-40ff-46d9-ba40-996317d6b0bb"],
+  "id": "c8cdbeee-5e0b-446c-a953-d43693ed2952",
+  "prevIds": ["9195d413-acf4-4b6a-ba4e-0395e51a5578"],
   "ddl": [
     {
       "name": "app_setting",
@@ -135,7 +135,7 @@
     {
       "table": "members",
       "name": "email",
-      "type": "text",
+      "type": "text COLLATE NOCASE",
       "notNull": true,
       "autoincrement": false,
       "default": null,
@@ -512,6 +512,24 @@
     },
     {
       "table": "provider_accounts",
+      "name": "provider_accounts_profile_id_idx",
+      "columns": [
+        {
+          "value": "profile_id",
+          "isExpression": false
+        },
+        {
+          "value": "id",
+          "isExpression": false
+        }
+      ],
+      "isUnique": true,
+      "where": null,
+      "origin": "manual",
+      "entityType": "indexes"
+    },
+    {
+      "table": "provider_accounts",
       "name": "provider_accounts_profile_idx",
       "columns": [
         {
@@ -641,8 +659,20 @@
     },
     {
       "table": "app_setting",
+      "name": "app_setting_updated_at_integer_check",
+      "value": "typeof(\"updated_at\") = 'integer'",
+      "entityType": "checks"
+    },
+    {
+      "table": "app_setting",
       "name": "app_setting_singleton_check",
       "value": "\"id\" = 1",
+      "entityType": "checks"
+    },
+    {
+      "table": "investment_platforms",
+      "name": "investment_platforms_enabled_integer_check",
+      "value": "typeof(\"enabled\") = 'integer'",
       "entityType": "checks"
     },
     {
@@ -653,8 +683,32 @@
     },
     {
       "table": "members",
+      "name": "members_created_at_integer_check",
+      "value": "typeof(\"created_at\") = 'integer'",
+      "entityType": "checks"
+    },
+    {
+      "table": "members",
       "name": "members_role_check",
       "value": "\"role\" IN ('owner', 'viewer')",
+      "entityType": "checks"
+    },
+    {
+      "table": "profiles",
+      "name": "profiles_archived_at_integer_check",
+      "value": "\"archived_at\" IS NULL OR typeof(\"archived_at\") = 'integer'",
+      "entityType": "checks"
+    },
+    {
+      "table": "profiles",
+      "name": "profiles_created_at_integer_check",
+      "value": "typeof(\"created_at\") = 'integer'",
+      "entityType": "checks"
+    },
+    {
+      "table": "profiles",
+      "name": "profiles_base_currency_code_check",
+      "value": "\"base_currency\" GLOB '[A-Z][A-Z][A-Z]'",
       "entityType": "checks"
     },
     {
@@ -664,15 +718,39 @@
       "entityType": "checks"
     },
     {
-      "table": "profiles",
-      "name": "profiles_base_currency_check",
-      "value": "length(\"base_currency\") = 3",
+      "table": "provider_accounts",
+      "name": "provider_accounts_archived_at_integer_check",
+      "value": "\"archived_at\" IS NULL OR typeof(\"archived_at\") = 'integer'",
+      "entityType": "checks"
+    },
+    {
+      "table": "provider_accounts",
+      "name": "provider_accounts_created_at_integer_check",
+      "value": "typeof(\"created_at\") = 'integer'",
+      "entityType": "checks"
+    },
+    {
+      "table": "provider_accounts",
+      "name": "provider_accounts_last_synced_at_integer_check",
+      "value": "\"last_synced_at\" IS NULL OR typeof(\"last_synced_at\") = 'integer'",
+      "entityType": "checks"
+    },
+    {
+      "table": "providers",
+      "name": "providers_enabled_integer_check",
+      "value": "typeof(\"enabled\") = 'integer'",
       "entityType": "checks"
     },
     {
       "table": "providers",
       "name": "providers_kind_check",
       "value": "\"kind\" IN ('bank', 'investment', 'books', 'csv', 'manual')",
+      "entityType": "checks"
+    },
+    {
+      "table": "run_logs",
+      "name": "run_logs_recorded_at_integer_check",
+      "value": "typeof(\"recorded_at\") = 'integer'",
       "entityType": "checks"
     },
     {
