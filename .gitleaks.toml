@@ -1,6 +1,70 @@
 [extend]
 useDefault = true
 
+# A git commit SHA is not a key, but two default rules read one: gitleaks' sourcegraph rule reads
+# any bare 40-character hex run, and a 40-character value next to a Cloudflare word looks like a
+# token. The peer study notes and the peer refresh data quote upstream commit SHAs constantly, so
+# both rules are restated here with the same regex, entropy and keywords, plus an allowlist for
+# that rule only. A finding drops when the SHA sits in a documented commit place: a JSON commit
+# field, a GitHub tree/blob/commit URL path, backticks right after commit or sha, an `at `<sha>`
+# citation, or a repo pin `owner/repo#<sha>`. A 40-hex value anywhere else still blocks, and every
+# other rule still runs unchanged on these lines.
+[[rules]]
+id = "sourcegraph-access-token"
+description = "Sourcegraph is a code search and navigation engine."
+regex = '''(?i)\b(\b(sgp_(?:[a-fA-F0-9]{16}|local)_[a-fA-F0-9]{40}|sgp_[a-fA-F0-9]{40}|[a-fA-F0-9]{40})\b)(?:[\x60'"\s;]|\\[nr]|$)'''
+entropy = 3
+keywords = ["sgp_", "sourcegraph"]
+[[rules.allowlists]]
+description = "A git commit SHA quoted in a commit place is not a Sourcegraph token"
+condition = "AND"
+regexTarget = "line"
+regexes = [
+  '''"(?:sha|commit|commits|previousCommit|previousSha|sourceCommit|provenanceCommit|pinnedCommit|mergeCommit|headCommit)"\s*:\s*"[0-9a-f]{40}"|/(?:tree|commits?|blob)/[0-9a-f]{40}(?:[\x60'"\s)#,/]|$)|(?:^|[^A-Za-z0-9_-])(?:commit|sha)(?:\s+sha)?:? \x60[0-9a-f]{40}\x60|(?:^|[^A-Za-z0-9_-])at \x60[0-9a-f]{40}\x60|[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+#[0-9a-f]{40}''',
+]
+
+# The default rules missed a Cloudflare token written as `value <token>` in a markdown table, so a
+# 40-character token near a Cloudflare word counts as a key.
+[[rules]]
+id = "cloudflare-token-named-nearby"
+description = "Cloudflare API token with Cloudflare named on the same line"
+regex = '''(?i)(?:cloudflare|\bcf\b|\bcf_|wrangler)[^\n]{0,120}?[\x60'"= ]([A-Za-z0-9_-]{40})(?:[\x60'"\s]|$)'''
+secretGroup = 1
+entropy = 3.5
+keywords = ["cloudflare", "cf", "wrangler"]
+[[rules.allowlists]]
+description = "A git commit SHA quoted next to a Cloudflare word is not a Cloudflare token"
+condition = "AND"
+regexTarget = "line"
+regexes = [
+  '''"(?:sha|commit|commits|previousCommit|previousSha|sourceCommit|provenanceCommit|pinnedCommit|mergeCommit|headCommit)"\s*:\s*"[0-9a-f]{40}"|/(?:tree|commits?|blob)/[0-9a-f]{40}(?:[\x60'"\s)#,/]|$)|(?:^|[^A-Za-z0-9_-])(?:commit|sha)(?:\s+sha)?:? \x60[0-9a-f]{40}\x60|(?:^|[^A-Za-z0-9_-])at \x60[0-9a-f]{40}\x60|[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+#[0-9a-f]{40}''',
+]
+
+# A long random value in quotes or backticks next to token, secret, key or password.
+[[rules]]
+id = "quoted-token-named-nearby"
+description = "Quoted long random value next to the word token, secret, key or password"
+regex = '''(?i)(?:token|secret|api[ _-]?key|password)[^\n]{0,60}?[\x60'"]([A-Za-z0-9_-]{32,})[\x60'"]'''
+secretGroup = 1
+entropy = 4.0
+keywords = ["token", "secret", "key", "password"]
+
+# The crash tests plant a made-up JWT to prove that crash traces redact credentials. It is a
+# fixture, not a token: the header decodes to {"alg":"HS256"} and the signature is a placeholder.
+[[rules]]
+id = "jwt"
+description = "Uncovered a JSON Web Token, which may lead to unauthorized access to web applications and sensitive user data."
+regex = '''\b(ey[a-zA-Z0-9]{17,}\.ey[a-zA-Z0-9\/\\_-]{17,}\.(?:[a-zA-Z0-9\/\\_-]{10,}={0,2})?)(?:[\x60'"\s;]|\\[nr]|$)'''
+entropy = 3
+keywords = ["ey"]
+[[rules.allowlists]]
+description = "The planted fixture JWT in the crash redaction tests"
+condition = "AND"
+regexTarget = "line"
+regexes = [
+  '''eyJhbGciOiJIUzI1NiJ9\.eyJzdWIiOiIxMjM0NTY3ODkwIn0\.signatureValue''',
+]
+
 [allowlist]
-description = "Generated map of file paths to content hashes"
+description = "Generated files whose contents the guard already reads at the source"
 paths = ['''^\.brain/data/git-snapshot\.json$''']
