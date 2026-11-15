@@ -1,5 +1,5 @@
 import { describe, expect, it } from "@effect/vitest";
-import { DateTime, Option, Predicate, Schema } from "effect";
+import { DateTime, Effect, Option, Predicate, Schema } from "effect";
 
 import {
   ArchiveStateSchema,
@@ -21,6 +21,7 @@ import {
   ProfileSchema,
   ProviderAccountSchema,
   ProviderSchema,
+  RateOnSameCurrency,
   ReportSchema,
   RuleSchema,
   SubscriptionSchema,
@@ -35,12 +36,15 @@ import {
 import {
   AliasIdSchema,
   ArchiveTargetIdSchema,
+  BaseAmountSchema,
   CategoryIdSchema,
+  CurrencyCodeSchema,
   DateOnlySchema,
   DocumentIdSchema,
   HoldingIdSchema,
   InvoiceSourceIdSchema,
   MemberIdSchema,
+  MoneySchema,
   PayeeIdSchema,
   ProfileIdSchema,
   ProviderAccountIdSchema,
@@ -56,6 +60,7 @@ import {
 import type { DateOnly } from "../../src/model/primitives.js";
 import { RateSchema } from "../../src/model/rate.js";
 import type { Rate } from "../../src/model/rate.js";
+import { convertedAmounts } from "../../src/model/transaction.js";
 
 const at = Schema.decodeSync(TimestampSchema)(
   DateTime.makeUnsafe("2024-01-31T10:00:00Z")
@@ -130,6 +135,12 @@ const reportId = Schema.decodeSync(ReportIdSchema)(
 );
 
 const euro = (minor: number) => ({ currency: "EUR", minor });
+
+const moneyOf = (code: string, minor: number) =>
+  Schema.decodeSync(MoneySchema)({ currency: code, minor });
+
+const currencyOf = (code: string) =>
+  Schema.decodeSync(CurrencyCodeSchema)(code);
 
 const dateOnly = (value: string): DateOnly =>
   Schema.decodeSync(DateOnlySchema)(value);
@@ -495,6 +506,88 @@ describe("the transaction type forbids a mixed conversion", () => {
       })
     ).toThrow();
   });
+
+  it("rejects a stored base amount the rate does not produce", () => {
+    expect(() =>
+      Schema.decodeSync(TransactionSchema)({
+        ...transactionWire(),
+        base: euro(1),
+      })
+    ).toThrow();
+  });
+
+  it("rejects a same-currency base amount that differs from the source", () => {
+    expect(() =>
+      Schema.decodeSync(TransactionSchema)({
+        ...transactionWire(),
+        base: euro(900),
+        conversion: wire(
+          ConversionSchema,
+          ConversionSchema.cases.SameCurrency.make({})
+        ),
+        source: euro(1000),
+      })
+    ).toThrow();
+  });
+
+  it("accepts a same-currency base amount equal to the source", () => {
+    expect(
+      Schema.decodeSync(TransactionSchema)({
+        ...transactionWire(),
+        base: euro(1000),
+        conversion: wire(
+          ConversionSchema,
+          ConversionSchema.cases.SameCurrency.make({})
+        ),
+        source: euro(1000),
+      }).base.minor
+    ).toBe(1000);
+  });
+
+  it.effect("builds a conversion whose base the rate produces", () =>
+    Effect.gen(function* constructorRoundTrips() {
+      const stored = yield* convertedAmounts(
+        moneyOf("USD", 1000),
+        currencyOf("EUR"),
+        rateOf("0.85"),
+        dateOnly("2024-01-30")
+      );
+
+      expect(stored.base).toStrictEqual({ currency: "EUR", minor: 850 });
+      expect(stored.conversion).toStrictEqual(
+        ConversionSchema.cases.Converted.make({
+          asOf: dateOnly("2024-01-30"),
+          rate: rateOf("0.85"),
+        })
+      );
+
+      const decoded = yield* Schema.decodeEffect(TransactionSchema)({
+        ...transactionWire(),
+        base: wire(BaseAmountSchema, stored.base),
+        conversion: wire(ConversionSchema, stored.conversion),
+      });
+
+      expect(decoded.base.minor).toBe(850);
+      expect(Predicate.isTagged(decoded.conversion, "Converted")).toBe(true);
+    })
+  );
+
+  it.effect("refuses a rate for a source already in the base currency", () =>
+    Effect.gen(function* sameCurrencyRefused() {
+      const failure = yield* Effect.flip(
+        convertedAmounts(
+          moneyOf("EUR", 1000),
+          currencyOf("EUR"),
+          rateOf("1"),
+          dateOnly("2024-01-30")
+        )
+      );
+
+      expect(failure).toStrictEqual(
+        new RateOnSameCurrency({ currency: currencyOf("EUR") })
+      );
+    })
+  );
 
   it("rejects a fee in another currency than the source", () => {
     expect(() =>

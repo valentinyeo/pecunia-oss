@@ -71,6 +71,8 @@ export {
   subtractMoney,
 } from "./money.js";
 
+export { RateOnSameCurrency } from "./rate-on-same-currency.js";
+
 export type { ConversionQuery, RateLookup } from "./money.js";
 
 export {
@@ -96,12 +98,14 @@ export {
   ConversionSchema,
   DirectionSchema,
   TransactionSchema,
+  convertedAmounts,
 } from "./transaction.js";
 
 export type {
   Categorization,
   Classification,
   Conversion,
+  ConvertedAmounts,
   Direction,
   Transaction,
 } from "./transaction.js";

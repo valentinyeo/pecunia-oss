@@ -1,5 +1,13 @@
-import { Option, Predicate, Schema } from "effect";
+import { Effect, Option, Predicate, Schema } from "effect";
 
+import { ConversionOverflow } from "./conversion-overflow.js";
+import { convertMinor } from "./money.js";
+import type {
+  BaseAmount,
+  CurrencyCode,
+  DateOnly,
+  Money,
+} from "./primitives.js";
 import {
   BaseAmountSchema,
   CategoryIdSchema,
@@ -12,8 +20,9 @@ import {
   TimestampSchema,
   TransactionIdSchema,
 } from "./primitives.js";
-import type { BaseAmount, Money } from "./primitives.js";
+import { RateOnSameCurrency } from "./rate-on-same-currency.js";
 import { RateSchema } from "./rate.js";
+import type { Rate } from "./rate.js";
 
 export const DirectionSchema = Schema.Literals(["in", "neutral", "out"]);
 
@@ -61,6 +70,42 @@ export const ConversionSchema = Schema.TaggedUnion({
 
 export type Conversion = typeof ConversionSchema.Type;
 
+export interface ConvertedAmounts {
+  readonly base: BaseAmount;
+  readonly conversion: Conversion;
+}
+
+export const convertedAmounts = (
+  source: Money,
+  baseCurrency: CurrencyCode,
+  rate: Rate,
+  asOf: DateOnly
+): Effect.Effect<ConvertedAmounts, ConversionOverflow | RateOnSameCurrency> =>
+  source.currency === baseCurrency
+    ? Effect.fail(new RateOnSameCurrency({ currency: source.currency }))
+    : Option.match(
+        convertMinor(source.minor, source.currency, baseCurrency, rate),
+        {
+          onNone: () =>
+            Effect.fail(
+              new ConversionOverflow({
+                baseCurrency,
+                currency: source.currency,
+                minor: source.minor,
+                rate,
+              })
+            ),
+          onSome: (minor) =>
+            Effect.succeed({
+              base: Schema.decodeSync(BaseAmountSchema)({
+                currency: baseCurrency,
+                minor,
+              }),
+              conversion: ConversionSchema.cases.Converted.make({ asOf, rate }),
+            }),
+        }
+      );
+
 interface CurrencyLinkedAmounts {
   readonly base: BaseAmount;
   readonly conversion: Conversion;
@@ -76,6 +121,31 @@ const conversionMatchesCurrencies = Schema.makeFilter<CurrencyLinkedAmounts>(
     expected:
       "SameCurrency when the source currency is the base currency, Converted otherwise",
   }
+);
+
+const sameCurrencyBaseMatchesSource = Schema.makeFilter<CurrencyLinkedAmounts>(
+  (transaction) =>
+    !Predicate.isTagged(transaction.conversion, "SameCurrency") ||
+    transaction.base.minor === transaction.source.minor,
+  { expected: "a base amount equal to the source amount when no rate applies" }
+);
+
+const convertedBaseMatchesRate = Schema.makeFilter<CurrencyLinkedAmounts>(
+  (transaction) =>
+    !Predicate.isTagged(transaction.conversion, "Converted") ||
+    Option.match(
+      convertMinor(
+        transaction.source.minor,
+        transaction.source.currency,
+        transaction.base.currency,
+        transaction.conversion.rate
+      ),
+      {
+        onNone: () => false,
+        onSome: (minor) => minor === transaction.base.minor,
+      }
+    ),
+  { expected: "a base amount equal to the converted source amount" }
 );
 
 const feeSharesSourceCurrency = Schema.makeFilter<CurrencyLinkedAmounts>(
@@ -108,6 +178,11 @@ export const TransactionSchema = Schema.Struct({
   source: MoneySchema,
   status: Schema.Literals(["posted", "pending", "reversed"]),
   valueDate: DateOnlySchema,
-}).check(conversionMatchesCurrencies, feeSharesSourceCurrency);
+}).check(
+  conversionMatchesCurrencies,
+  sameCurrencyBaseMatchesSource,
+  convertedBaseMatchesRate,
+  feeSharesSourceCurrency
+);
 
 export type Transaction = typeof TransactionSchema.Type;
