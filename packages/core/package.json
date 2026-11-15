@@ -79,6 +79,11 @@
       "import": "./dist/contracts.js",
       "default": "./dist/contracts.js"
     },
+    "./model": {
+      "types": "./src/model/index.ts",
+      "import": "./dist/model/index.js",
+      "default": "./dist/model/index.js"
+    },
     "./intake": {
       "types": "./src/intake.ts",
       "import": "./dist/intake.js",
