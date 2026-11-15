@@ -282,6 +282,9 @@ importers:
       '@pecunia/flags':
         specifier: workspace:*
         version: link:../../packages/flags
+      '@pecunia/site':
+        specifier: workspace:*
+        version: link:../site
       alchemy:
         specifier: 2.0.0-beta.87
         version: 2.0.0-beta.87(@effect/platform-bun@4.1.4(effect@4.1.4))(@effect/platform-node@4.1.4(effect@4.1.4)(redis@6.2.1))(effect@4.1.4)(vite@8.3.8(@types/node@24.19.2)(jiti@2.7.0)(yaml@2.9.1))(ws@8.22.1)

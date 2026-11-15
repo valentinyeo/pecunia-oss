@@ -3,6 +3,8 @@ import PecuniaRpcBackend from "@pecunia/api/rpc-worker";
 import { Effect } from "effect";
 import { HttpServerResponse } from "effect/http";
 
+import { privateObservability } from "../../site/src/observability.js";
+
 export const SWEEP_CRON = "*/5 * * * *";
 
 export const SYNC_CRON = "0 6,14,22 * * *";
@@ -15,8 +17,10 @@ const scheduledWorkLandsWithSync =
 export default class SyncWorker extends Cloudflare.Worker<SyncWorker>()(
   "SyncWorker",
   {
+    compatibility: { date: "2026-05-28" },
     env: { BACKEND: PecuniaRpcBackend },
     main: import.meta.url,
+    observability: privateObservability,
     workersDev: false,
   },
   Effect.gen(function* syncWorkerRuntime() {

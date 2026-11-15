@@ -27,6 +27,7 @@
     "@pecunia/core": "workspace:*",
     "@pecunia/database": "workspace:*",
     "@pecunia/flags": "workspace:*",
+    "@pecunia/site": "workspace:*",
     "alchemy": "2.0.0-beta.87",
     "effect": "4.1.4"
   },

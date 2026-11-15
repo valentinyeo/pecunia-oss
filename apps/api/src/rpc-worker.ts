@@ -11,6 +11,8 @@ import { Config, Context, Effect, Layer, Predicate } from "effect";
 import { identity } from "effect/Function";
 import { RpcSerialization, RpcServer } from "effect/rpc";
 
+import { privateObservability } from "../../site/src/observability.js";
+
 const retainInProd =
   globalThis.__ALCHEMY_RUNTIME__ === true
     ? identity
@@ -26,12 +28,14 @@ export const rpcProjection = toRpc(flagCapabilities);
 export default class PecuniaRpcBackend extends Cloudflare.Workers.RpcWorker<PecuniaRpcBackend>()(
   "PecuniaRpcBackend",
   {
+    compatibility: { date: "2026-05-28" },
     env: {
       ACCESS_AUDIENCE: Config.String("ACCESS_AUDIENCE"),
       ACCESS_TEAM_DOMAIN: Config.String("ACCESS_TEAM_DOMAIN"),
       PUBLIC_ORIGIN: Config.String("PECUNIA_ORIGIN"),
     },
     main: import.meta.url,
+    observability: privateObservability,
     schema: rpcProjection.group,
     workersDev: false,
   },

@@ -287,16 +287,19 @@ const sourceFiles = [
   "apps/sync/src/sync-worker.ts",
 ];
 
-const readSources = Effect.all(
-  sourceFiles.map((source) =>
-    Effect.gen(function* readSource() {
-      const fs = yield* FileSystem.FileSystem;
-      const text = yield* fs.readFileString(`${repoRoot}${source}`);
+const readSources = Effect.gen(function* readAllSources() {
+  const fs = yield* FileSystem.FileSystem;
+  const sources: { path: string; text: string }[] = [];
 
-      return { path: source, text };
-    })
-  )
-);
+  for (const source of sourceFiles) {
+    sources.push({
+      path: source,
+      text: yield* fs.readFileString(`${repoRoot}${source}`),
+    });
+  }
+
+  return sources;
+});
 
 it.effect(
   "keeps account ids out of apps/infra and hostnames out of the Pecunia workers",
