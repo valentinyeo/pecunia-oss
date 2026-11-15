@@ -30,6 +30,38 @@ export interface ConversionQuery {
 
 export type RateLookup = (query: ConversionQuery) => Option.Option<Rate>;
 
+const minorUnitExponents = new Map([
+  ["BHD", 3],
+  ["BIF", 0],
+  ["CLF", 4],
+  ["CLP", 0],
+  ["DJF", 0],
+  ["GNF", 0],
+  ["IQD", 3],
+  ["ISK", 0],
+  ["JOD", 3],
+  ["JPY", 0],
+  ["KMF", 0],
+  ["KRW", 0],
+  ["KWD", 3],
+  ["LYD", 3],
+  ["OMR", 3],
+  ["PYG", 0],
+  ["RWF", 0],
+  ["TND", 3],
+  ["UGX", 0],
+  ["UYI", 0],
+  ["UYW", 4],
+  ["VND", 0],
+  ["VUV", 0],
+  ["XAF", 0],
+  ["XOF", 0],
+  ["XPF", 0],
+]);
+
+export const minorUnitExponent = (currency: CurrencyCode): number =>
+  minorUnitExponents.get(currency) ?? 2;
+
 const moneyOf = (currency: CurrencyCode, minor: number): Money =>
   Schema.decodeSync(MoneySchema)({ currency, minor });
 
@@ -64,7 +96,10 @@ export const convertMinor = (
   from === to
     ? minorUnitsOf(BigInt(minor))
     : minorUnitsOf(
-        divideRoundHalfAwayFromZero(BigInt(minor) * rate, RATE_SCALE_FACTOR)
+        divideRoundHalfAwayFromZero(
+          BigInt(minor) * rate * 10n ** BigInt(minorUnitExponent(to)),
+          10n ** BigInt(minorUnitExponent(from)) * RATE_SCALE_FACTOR
+        )
       );
 
 const mismatch = (

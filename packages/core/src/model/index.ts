@@ -67,6 +67,7 @@ export {
   addMoney,
   convert,
   convertMinor,
+  minorUnitExponent,
   subtractMoney,
 } from "./money.js";
 

@@ -9,6 +9,7 @@ import {
   addMoney,
   convert,
   convertMinor,
+  minorUnitExponent,
   subtractMoney,
 } from "../../src/model/money.js";
 import type { RateLookup } from "../../src/model/money.js";
@@ -183,6 +184,15 @@ describe("conversion", () => {
     })
   );
 
+  it.effect("scales by both currencies' minor unit exponents", () =>
+    Effect.gen(function* exponentScaling() {
+      expect(yield* convertedMinor(1000, "USD", "JPY", "150")).toBe(1500);
+      expect(yield* convertedMinor(1500, "JPY", "USD", "0.0067")).toBe(1005);
+      expect(yield* convertedMinor(1000, "USD", "BHD", "0.376")).toBe(3760);
+      expect(yield* convertedMinor(1234, "EUR", "GBP", "0.85")).toBe(1049);
+    })
+  );
+
   it.effect("fails with ConversionOverflow instead of losing precision", () =>
     Effect.gen(function* overflowFails() {
       const large = moneyOf("USD", Number.MAX_SAFE_INTEGER);
@@ -231,4 +241,48 @@ describe("conversion", () => {
     },
     { arbitrary: { runs: 200 } }
   );
+});
+
+describe("minor unit exponents", () => {
+  const zeroExponent = [
+    "BIF",
+    "CLP",
+    "DJF",
+    "GNF",
+    "ISK",
+    "JPY",
+    "KMF",
+    "KRW",
+    "PYG",
+    "RWF",
+    "UGX",
+    "UYI",
+    "VND",
+    "VUV",
+    "XAF",
+    "XOF",
+    "XPF",
+  ];
+
+  const threeExponent = ["BHD", "IQD", "JOD", "KWD", "LYD", "OMR", "TND"];
+  const fourExponent = ["CLF", "UYW"];
+  const twoExponent = ["CHF", "EUR", "GBP", "USD", "ZAR"];
+
+  it("reads each code's exponent from the one ISO 4217 table", () => {
+    for (const code of zeroExponent) {
+      expect(minorUnitExponent(currencyOf(code))).toBe(0);
+    }
+
+    for (const code of threeExponent) {
+      expect(minorUnitExponent(currencyOf(code))).toBe(3);
+    }
+
+    for (const code of fourExponent) {
+      expect(minorUnitExponent(currencyOf(code))).toBe(4);
+    }
+
+    for (const code of twoExponent) {
+      expect(minorUnitExponent(currencyOf(code))).toBe(2);
+    }
+  });
 });
