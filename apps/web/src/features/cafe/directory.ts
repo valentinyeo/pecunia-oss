@@ -5,11 +5,11 @@ import {
   cafeLetters,
   filterCafeProjects,
   verifiedLetters,
-} from "@rat-stack/core/contracts";
+} from "@pecunia/core/contracts";
 import type {
   CafeLetterValue,
   CafeProjectValue,
-} from "@rat-stack/core/contracts";
+} from "@pecunia/core/contracts";
 import * as stylex from "@stylexjs/stylex";
 import { Array } from "effect";
 import type { Html, HtmlBuilder } from "foldkit/html";

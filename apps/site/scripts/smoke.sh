@@ -18,7 +18,7 @@ post_json() {
 assert_json() {
   (cd "$(dirname "${BASH_SOURCE[0]}")/.." && node --input-type=module - "$1" "$2" "${3:-}" <<'NODE'
 import { readFile } from "node:fs/promises";
-import { ExecuteError } from "@rat-stack/capability";
+import { ExecuteError } from "@pecunia/capability";
 import { Schema } from "effect";
 const [file, kind, status] = process.argv.slice(2);
 const response = JSON.parse(await readFile(file, "utf8"));
@@ -124,8 +124,8 @@ printf '%s\n' "$mcp_summary"
 
 rpc_search() {
   (cd "$(dirname "${BASH_SOURCE[0]}")/.." && node --input-type=module - "$base_url" <<'NODE'
-import { toRpcGroup } from "@rat-stack/capability/rpc-group";
-import { searchContract } from "@rat-stack/core/contracts";
+import { toRpcGroup } from "@pecunia/capability/rpc-group";
+import { searchContract } from "@pecunia/core/contracts";
 import { Effect, Layer } from "effect";
 import { FetchHttpClient, HttpClient } from "effect/http";
 import { RpcClient, RpcSerialization } from "effect/rpc";

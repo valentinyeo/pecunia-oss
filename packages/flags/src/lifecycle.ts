@@ -1,4 +1,4 @@
-import { watchActor } from "@rat-stack/capability/actor-watch";
+import { watchActor } from "@pecunia/capability/actor-watch";
 import {
   createEffectActor,
   createEffectLogic,
@@ -21,7 +21,7 @@ export class FlagLifecycleJournal extends Context.Service<
     ) => Effect.Effect<void>;
     readonly entries: Effect.Effect<readonly (typeof FlagTransition.Type)[]>;
   }
->()("@rat-stack/flags/FlagLifecycleJournal") {
+>()("@pecunia/flags/FlagLifecycleJournal") {
   static memory = Layer.effect(
     FlagLifecycleJournal,
     Effect.gen(function* makeJournal() {

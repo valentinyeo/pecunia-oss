@@ -67,7 +67,7 @@ Nothing else stores the profile.
 Run the core tests:
 
 ```sh
-pnpm --filter @rat-stack/core exec vitest run test/cafe-people.test.ts
+pnpm --filter @pecunia/core exec vitest run test/cafe-people.test.ts
 ```
 
 They check that a generated news row lands on exactly the profile that authored it, newest first.

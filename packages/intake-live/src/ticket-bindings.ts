@@ -18,7 +18,7 @@ export class TicketBindings extends Context.Service<
       expiresAt: number
     ) => Effect.Effect<TicketBinding>;
   }
->()("@rat-stack/intake-live/TicketBindings") {
+>()("@pecunia/intake-live/TicketBindings") {
   static readonly memoryLayer = Layer.effect(
     this,
     Effect.gen(function* makeMemoryBindings() {

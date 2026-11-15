@@ -1,4 +1,4 @@
-import { codeIdentity, isConfiguredFence } from "@rat-stack/code-snippets";
+import { codeIdentity, isConfiguredFence } from "@pecunia/code-snippets";
 import { Predicate, Schema } from "effect";
 import type { Nodes, Root, RootContent } from "mdast";
 
@@ -549,7 +549,7 @@ const componentRanges = (
         violation(
           "HTML token has no source span.",
           "The content build cannot place a component it cannot locate in the source.",
-          "this is a content-build defect, so rerun `pnpm --filter @rat-stack/site generate` and, if it repeats, report the page and the component tag."
+          "this is a content-build defect, so rerun `pnpm --filter @pecunia/site generate` and, if it repeats, report the page and the component tag."
         )
       );
     }

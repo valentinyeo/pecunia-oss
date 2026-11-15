@@ -1,5 +1,5 @@
 import { expect, it } from "@effect/vitest";
-import { intakeRedeliver } from "@rat-stack/core/join-interest";
+import { intakeRedeliver } from "@pecunia/core/join-interest";
 import { ConfigProvider, Effect, Layer, Match } from "effect";
 import { HttpClient, HttpClientResponse } from "effect/http";
 

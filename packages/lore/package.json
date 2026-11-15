@@ -1,5 +1,5 @@
 {
-  "name": "@rat-stack/lore",
+  "name": "@pecunia/lore",
   "version": "0.1.0",
   "private": true,
   "files": [
@@ -30,7 +30,7 @@
     "pretest": "pnpm run --silent build"
   },
   "dependencies": {
-    "@rat-stack/core": "workspace:*",
+    "@pecunia/core": "workspace:*",
     "effect": "4.1.4"
   },
   "devDependencies": {

@@ -12,7 +12,7 @@ import {
   SnippetSchema,
   learnNextContract,
   learnRecordContract,
-} from "@rat-stack/core/learn";
+} from "@pecunia/core/learn";
 import { Effect, Exit, Schema } from "effect";
 import * as Arbitrary from "effect/Arbitrary";
 

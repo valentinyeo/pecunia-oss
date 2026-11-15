@@ -1,6 +1,6 @@
-import { toCommand } from "@rat-stack/capability";
-import { formatFileStats, inspectFile } from "@rat-stack/core";
-import { flipFeatureFlag } from "@rat-stack/core/flag-write-capabilities";
+import { toCommand } from "@pecunia/capability";
+import { formatFileStats, inspectFile } from "@pecunia/core";
+import { flipFeatureFlag } from "@pecunia/core/flag-write-capabilities";
 import { Console, Effect, Layer } from "effect";
 import { Command, Flag } from "effect/cli";
 
@@ -117,7 +117,7 @@ const catalogCommand = Command.make(
   )
 );
 
-export const rootCommand = Command.make("rat-stack").pipe(
+export const rootCommand = Command.make("pecunia").pipe(
   Command.withDescription("Agent-first file inspection: CLI, REST, and MCP"),
   Command.withSubcommands([
     ...capabilityCommands,

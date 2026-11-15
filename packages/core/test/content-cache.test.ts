@@ -69,13 +69,13 @@ it.layer(NodeServices.layer)("content task cache", (test) => {
         yield* write(
           "apps/site/package.json",
           JSON.stringify({
-            name: "@rat-stack/site",
+            name: "@pecunia/site",
             scripts: Object.fromEntries(tasks.map((task) => [task, "echo ok"])),
           })
         );
         yield* write(
           "packages/core/package.json",
-          JSON.stringify({ name: "@rat-stack/core" })
+          JSON.stringify({ name: "@pecunia/core" })
         );
         yield* write(
           "turbo.json",
@@ -94,7 +94,7 @@ it.layer(NodeServices.layer)("content task cache", (test) => {
                 path.join(root, "node_modules/turbo/bin/turbo"),
                 "run",
                 ...tasks,
-                "--filter=@rat-stack/site",
+                "--filter=@pecunia/site",
                 "--dry=json",
                 "--cache=local:rw",
               ],
@@ -106,7 +106,7 @@ it.layer(NodeServices.layer)("content task cache", (test) => {
 
           return Object.fromEntries(
             result.tasks
-              .filter(({ taskId }) => taskId.startsWith("@rat-stack/site#"))
+              .filter(({ taskId }) => taskId.startsWith("@pecunia/site#"))
               .map(({ hash, taskId }) => [taskId, hash])
           );
         });
@@ -115,8 +115,8 @@ it.layer(NodeServices.layer)("content task cache", (test) => {
         expect(Object.keys(before)).toHaveLength(tasks.length);
         yield* write("scratch/unrelated.txt", "after");
         const unrelated = yield* hashes();
-        expect(unrelated["@rat-stack/site#build"]).toBe(
-          before["@rat-stack/site#build"]
+        expect(unrelated["@pecunia/site#build"]).toBe(
+          before["@pecunia/site#build"]
         );
         yield* Effect.forEach((input: string) =>
           Effect.gen(function* changesContentInput() {
@@ -124,7 +124,7 @@ it.layer(NodeServices.layer)("content task cache", (test) => {
             const after = yield* hashes();
 
             for (const task of tasks) {
-              const taskId = `@rat-stack/site#${task}`;
+              const taskId = `@pecunia/site#${task}`;
               expect(after[taskId], `${input}: ${task}`).not.toBe(
                 before[taskId]
               );

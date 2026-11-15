@@ -1,6 +1,6 @@
-import { Approval } from "@rat-stack/capability/approval";
-import { defineContract } from "@rat-stack/capability/contract";
-import { implement } from "@rat-stack/capability/implement";
+import { Approval } from "@pecunia/capability/approval";
+import { defineContract } from "@pecunia/capability/contract";
+import { implement } from "@pecunia/capability/implement";
 import { Effect, Option, Runtime, Schema } from "effect";
 
 import { DeployReportSchema, deployReport } from "./contracts.js";

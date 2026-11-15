@@ -1,6 +1,6 @@
-import { watchActor } from "@rat-stack/capability/actor-watch";
-import { defineContract } from "@rat-stack/capability/contract";
-import { implement } from "@rat-stack/capability/implement";
+import { watchActor } from "@pecunia/capability/actor-watch";
+import { defineContract } from "@pecunia/capability/contract";
+import { implement } from "@pecunia/capability/implement";
 import {
   createEffectActor,
   createEffectLogic,

@@ -1,4 +1,4 @@
-import { ReadOutput, SearchOutput } from "@rat-stack/core/contracts";
+import { ReadOutput, SearchOutput } from "@pecunia/core/contracts";
 import { Option, Schema } from "effect";
 import { defineTaggedUnion } from "foldkit/schema";
 

@@ -1,5 +1,5 @@
 import * as Cloudflare from "@alchemy.run/cloudflare";
-import { webCryptoLayer } from "@rat-stack/core/web-crypto";
+import { webCryptoLayer } from "@pecunia/core/web-crypto";
 import { retain } from "alchemy/RemovalPolicy";
 import * as RuntimeContext from "alchemy/RuntimeContext";
 import { Stage } from "alchemy/Stage";

@@ -1,12 +1,12 @@
-import { toHttpApi } from "@rat-stack/capability/http-api";
-import { CafeDirectory } from "@rat-stack/core/cafe-directory";
-import { AssetReadError } from "@rat-stack/core/contracts";
-import type { ResourceNotFound } from "@rat-stack/core/contracts";
-import { Flags } from "@rat-stack/core/flags";
-import { IntakeTicket } from "@rat-stack/core/intake";
-import type { InterestTokens } from "@rat-stack/core/interest";
-import { webCryptoLayer } from "@rat-stack/core/web-crypto";
-import { Learner } from "@rat-stack/learn/learner";
+import { toHttpApi } from "@pecunia/capability/http-api";
+import { CafeDirectory } from "@pecunia/core/cafe-directory";
+import { AssetReadError } from "@pecunia/core/contracts";
+import type { ResourceNotFound } from "@pecunia/core/contracts";
+import { Flags } from "@pecunia/core/flags";
+import { IntakeTicket } from "@pecunia/core/intake";
+import type { InterestTokens } from "@pecunia/core/interest";
+import { webCryptoLayer } from "@pecunia/core/web-crypto";
+import { Learner } from "@pecunia/learn/learner";
 import * as AlchemyHttp from "alchemy/Http";
 import {
   Cause,

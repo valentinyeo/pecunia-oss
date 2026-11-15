@@ -270,16 +270,16 @@ importers:
       '@effect/platform-node':
         specifier: 4.1.4
         version: 4.1.4(effect@4.1.4)(redis@6.2.1)
-      '@rat-stack/capability':
+      '@pecunia/capability':
         specifier: workspace:*
         version: link:../../packages/capability
-      '@rat-stack/core':
+      '@pecunia/core':
         specifier: workspace:*
         version: link:../../packages/core
-      '@rat-stack/devtools':
+      '@pecunia/devtools':
         specifier: workspace:*
         version: link:../../packages/devtools
-      '@rat-stack/learn':
+      '@pecunia/learn':
         specifier: workspace:*
         version: link:../../packages/learn
       effect:
@@ -313,10 +313,10 @@ importers:
       '@effect/platform-node':
         specifier: 4.1.4
         version: 4.1.4(effect@4.1.4)(redis@6.2.1)
-      '@rat-stack/site':
+      '@pecunia/site':
         specifier: workspace:*
         version: link:../site
-      '@rat-stack/turbo-cache':
+      '@pecunia/turbo-cache':
         specifier: workspace:*
         version: link:../../packages/turbo-cache
       alchemy:
@@ -344,37 +344,37 @@ importers:
       '@alchemy.run/cloudflare':
         specifier: 2.0.0-beta.87
         version: 2.0.0-beta.87(@effect/platform-bun@4.1.4(effect@4.1.4))(@effect/platform-node@4.1.4(effect@4.1.4)(redis@6.2.1))(@effect/sql-pg@4.1.4(effect@4.1.4))(@types/node@24.19.2)(alchemy@2.0.0-beta.87(@effect/platform-bun@4.1.4(effect@4.1.4))(@effect/platform-node@4.1.4(effect@4.1.4)(redis@6.2.1))(effect@4.1.4)(vite@8.3.8(@types/node@24.19.2)(jiti@2.7.0)(yaml@2.9.1))(ws@8.22.1))(effect@4.1.4)(pg@8.23.1)(typescript@7.0.2)(vite@8.3.8(@types/node@24.19.2)(jiti@2.7.0)(yaml@2.9.1))
-      '@rat-stack/auth':
+      '@pecunia/auth':
         specifier: workspace:*
         version: link:../../packages/auth
-      '@rat-stack/capability':
+      '@pecunia/capability':
         specifier: workspace:*
         version: link:../../packages/capability
-      '@rat-stack/core':
+      '@pecunia/core':
         specifier: workspace:*
         version: link:../../packages/core
-      '@rat-stack/crash':
+      '@pecunia/crash':
         specifier: workspace:*
         version: link:../../packages/crash
-      '@rat-stack/database':
+      '@pecunia/database':
         specifier: workspace:*
         version: link:../../packages/database
-      '@rat-stack/events':
+      '@pecunia/events':
         specifier: workspace:*
         version: link:../../packages/events
-      '@rat-stack/flags':
+      '@pecunia/flags':
         specifier: workspace:*
         version: link:../../packages/flags
-      '@rat-stack/intake-live':
+      '@pecunia/intake-live':
         specifier: workspace:*
         version: link:../../packages/intake-live
-      '@rat-stack/learn':
+      '@pecunia/learn':
         specifier: workspace:*
         version: link:../../packages/learn
-      '@rat-stack/lore':
+      '@pecunia/lore':
         specifier: workspace:*
         version: link:../../packages/lore
-      '@rat-stack/subscriber-delivery':
+      '@pecunia/subscriber-delivery':
         specifier: workspace:*
         version: link:../../packages/subscriber-delivery
       alchemy:
@@ -399,7 +399,7 @@ importers:
       '@foldkit/markdown':
         specifier: 0.15.0
         version: 0.15.0(effect@4.1.4)(foldkit@0.170.0(@effect/platform-browser@4.1.4(effect@4.1.4))(effect@4.1.4))(vite@8.3.8(@types/node@24.19.2)(jiti@2.7.0)(yaml@2.9.1))
-      '@rat-stack/code-snippets':
+      '@pecunia/code-snippets':
         specifier: workspace:*
         version: link:../../packages/code-snippets
       '@resvg/resvg-js':
@@ -456,22 +456,22 @@ importers:
       '@foldkit/ui':
         specifier: 0.170.0
         version: 0.170.0(effect@4.1.4)(foldkit@0.170.0(@effect/platform-browser@4.1.4(effect@4.1.4))(effect@4.1.4))
-      '@rat-stack/auth':
+      '@pecunia/auth':
         specifier: workspace:*
         version: link:../../packages/auth
-      '@rat-stack/capability':
+      '@pecunia/capability':
         specifier: workspace:*
         version: link:../../packages/capability
-      '@rat-stack/core':
+      '@pecunia/core':
         specifier: workspace:*
         version: link:../../packages/core
-      '@rat-stack/devtools':
+      '@pecunia/devtools':
         specifier: workspace:*
         version: link:../../packages/devtools
-      '@rat-stack/motion':
+      '@pecunia/motion':
         specifier: workspace:*
         version: link:../../packages/motion
-      '@rat-stack/site':
+      '@pecunia/site':
         specifier: workspace:*
         version: link:../site
       '@stylexjs/stylex':
@@ -526,10 +526,10 @@ importers:
       '@alchemy.run/better-auth':
         specifier: 2.0.0-beta.87
         version: 2.0.0-beta.87(1c3d77adfa6f94c34d58e19e1636b1c5)
-      '@rat-stack/capability':
+      '@pecunia/capability':
         specifier: workspace:*
         version: link:../capability
-      '@rat-stack/database':
+      '@pecunia/database':
         specifier: workspace:*
         version: link:../database
       alchemy:
@@ -557,7 +557,7 @@ importers:
       '@effect/vitest':
         specifier: 4.1.4
         version: 4.1.4(effect@4.1.4)(vitest@5.1.0(@types/node@24.19.2)(jsdom@31.0.0(@noble/hashes@2.4.0))(vite@8.3.8(@types/node@24.19.2)(jiti@2.7.0)(yaml@2.9.1)))
-      '@rat-stack/devtools':
+      '@pecunia/devtools':
         specifier: workspace:*
         version: link:../devtools
       '@types/node':
@@ -669,7 +669,7 @@ importers:
       '@effect/platform-node':
         specifier: 4.1.4
         version: 4.1.4(effect@4.1.4)(redis@6.2.1)
-      '@rat-stack/capability':
+      '@pecunia/capability':
         specifier: workspace:*
         version: link:../capability
       '@xstate/effect':
@@ -703,7 +703,7 @@ importers:
       '@alchemy.run/cloudflare':
         specifier: 2.0.0-beta.87
         version: 2.0.0-beta.87(@effect/platform-bun@4.1.4(effect@4.1.4))(@effect/platform-node@4.1.4(effect@4.1.4)(redis@6.2.1))(@effect/sql-pg@4.1.4(effect@4.1.4))(@types/node@24.19.2)(alchemy@2.0.0-beta.87(@effect/platform-bun@4.1.4(effect@4.1.4))(@effect/platform-node@4.1.4(effect@4.1.4)(redis@6.2.1))(effect@4.1.4)(vite@8.3.8(@types/node@24.19.2)(jiti@2.7.0)(yaml@2.9.1))(ws@8.22.1))(effect@4.1.4)(pg@8.23.1)(typescript@7.0.2)(vite@8.3.8(@types/node@24.19.2)(jiti@2.7.0)(yaml@2.9.1))
-      '@rat-stack/core':
+      '@pecunia/core':
         specifier: workspace:*
         version: link:../core
       alchemy:
@@ -798,13 +798,13 @@ importers:
       '@effect/platform-node':
         specifier: 4.1.4
         version: 4.1.4(effect@4.1.4)(redis@6.2.1)
-      '@rat-stack/capability':
+      '@pecunia/capability':
         specifier: workspace:*
         version: link:../capability
-      '@rat-stack/check-harness':
+      '@pecunia/check-harness':
         specifier: workspace:*
         version: link:../check-harness
-      '@rat-stack/core':
+      '@pecunia/core':
         specifier: workspace:*
         version: link:../core
       '@xstate/effect':
@@ -838,7 +838,7 @@ importers:
 
   packages/devtools:
     dependencies:
-      '@rat-stack/capability':
+      '@pecunia/capability':
         specifier: workspace:*
         version: link:../capability
       effect:
@@ -863,10 +863,10 @@ importers:
       '@alchemy.run/cloudflare':
         specifier: 2.0.0-beta.87
         version: 2.0.0-beta.87(@effect/platform-bun@4.1.4(effect@4.1.4))(@effect/platform-node@4.1.4(effect@4.1.4)(redis@6.2.1))(@effect/sql-pg@4.1.4(effect@4.1.4))(@types/node@24.19.2)(alchemy@2.0.0-beta.87(@effect/platform-bun@4.1.4(effect@4.1.4))(@effect/platform-node@4.1.4(effect@4.1.4)(redis@6.2.1))(effect@4.1.4)(vite@8.3.8(@types/node@24.19.2)(jiti@2.7.0)(yaml@2.9.1))(ws@8.22.1))(effect@4.1.4)(pg@8.23.1)(typescript@7.0.2)(vite@8.3.8(@types/node@24.19.2)(jiti@2.7.0)(yaml@2.9.1))
-      '@rat-stack/basin':
+      '@pecunia/basin':
         specifier: workspace:*
         version: link:../basin
-      '@rat-stack/core':
+      '@pecunia/core':
         specifier: workspace:*
         version: link:../core
       alchemy:
@@ -897,10 +897,10 @@ importers:
       '@alchemy.run/cloudflare':
         specifier: 2.0.0-beta.87
         version: 2.0.0-beta.87(@effect/platform-bun@4.1.4(effect@4.1.4))(@effect/platform-node@4.1.4(effect@4.1.4)(redis@6.2.1))(@effect/sql-pg@4.1.4(effect@4.1.4))(@types/node@24.19.2)(alchemy@2.0.0-beta.87(@effect/platform-bun@4.1.4(effect@4.1.4))(@effect/platform-node@4.1.4(effect@4.1.4)(redis@6.2.1))(effect@4.1.4)(vite@8.3.8(@types/node@24.19.2)(jiti@2.7.0)(yaml@2.9.1))(ws@8.22.1))(effect@4.1.4)(pg@8.23.1)(typescript@7.0.2)(vite@8.3.8(@types/node@24.19.2)(jiti@2.7.0)(yaml@2.9.1))
-      '@rat-stack/capability':
+      '@pecunia/capability':
         specifier: workspace:*
         version: link:../capability
-      '@rat-stack/core':
+      '@pecunia/core':
         specifier: workspace:*
         version: link:../core
       '@xstate/effect':
@@ -937,10 +937,10 @@ importers:
       '@alchemy.run/cloudflare':
         specifier: 2.0.0-beta.87
         version: 2.0.0-beta.87(@effect/platform-bun@4.1.4(effect@4.1.4))(@effect/platform-node@4.1.4(effect@4.1.4)(redis@6.2.1))(@effect/sql-pg@4.1.4(effect@4.1.4))(@types/node@24.19.2)(alchemy@2.0.0-beta.87(@effect/platform-bun@4.1.4(effect@4.1.4))(@effect/platform-node@4.1.4(effect@4.1.4)(redis@6.2.1))(effect@4.1.4)(vite@8.3.8(@types/node@24.19.2)(jiti@2.7.0)(yaml@2.9.1))(ws@8.22.1))(effect@4.1.4)(pg@8.23.1)(typescript@7.0.2)(vite@8.3.8(@types/node@24.19.2)(jiti@2.7.0)(yaml@2.9.1))
-      '@rat-stack/basin':
+      '@pecunia/basin':
         specifier: workspace:*
         version: link:../basin
-      '@rat-stack/core':
+      '@pecunia/core':
         specifier: workspace:*
         version: link:../core
       alchemy:
@@ -965,10 +965,10 @@ importers:
 
   packages/learn:
     dependencies:
-      '@rat-stack/capability':
+      '@pecunia/capability':
         specifier: workspace:*
         version: link:../capability
-      '@rat-stack/core':
+      '@pecunia/core':
         specifier: workspace:*
         version: link:../core
       '@xstate/effect':
@@ -996,7 +996,7 @@ importers:
 
   packages/lore:
     dependencies:
-      '@rat-stack/core':
+      '@pecunia/core':
         specifier: workspace:*
         version: link:../core
       effect:
@@ -1039,7 +1039,7 @@ importers:
 
   packages/subscriber-delivery:
     dependencies:
-      '@rat-stack/core':
+      '@pecunia/core':
         specifier: workspace:*
         version: link:../core
       effect:

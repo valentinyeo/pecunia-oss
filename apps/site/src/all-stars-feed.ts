@@ -1,4 +1,4 @@
-import type { CafeProfileValue } from "@rat-stack/core/contracts";
+import type { CafeProfileValue } from "@pecunia/core/contracts";
 
 const xmlEscapes = new Map([
   ['"', "&quot;"],

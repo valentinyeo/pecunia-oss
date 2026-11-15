@@ -5,13 +5,13 @@ import {
   FlagScopeMismatch,
   FlagLedger as LedgerPort,
   flagPartition,
-} from "@rat-stack/core/flag-control";
-import type { Flag, Flags } from "@rat-stack/core/flags";
+} from "@pecunia/core/flag-control";
+import type { Flag, Flags } from "@pecunia/core/flags";
 import {
   FlagStorageError,
   InvalidFlagValue,
   UnknownFlag,
-} from "@rat-stack/core/flags";
+} from "@pecunia/core/flags";
 import * as RuntimeContext from "alchemy/RuntimeContext";
 import { Effect, Layer, Schema } from "effect";
 

@@ -1,12 +1,12 @@
 import { expect, it } from "@effect/vitest";
-import { toHttpApi } from "@rat-stack/capability/http-api";
-import { toRpcGroup } from "@rat-stack/capability/rpc-group";
-import { toToolkit } from "@rat-stack/capability/toolkit";
+import { toHttpApi } from "@pecunia/capability/http-api";
+import { toRpcGroup } from "@pecunia/capability/rpc-group";
+import { toToolkit } from "@pecunia/capability/toolkit";
 import {
   LearnError,
   LearnUnauthenticated,
   learnFeedbackPollContract,
-} from "@rat-stack/core/learn";
+} from "@pecunia/core/learn";
 import { Effect, Schema } from "effect";
 
 import { learnFeedbackPoll } from "../src/feedback-capabilities.js";

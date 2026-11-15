@@ -34,7 +34,7 @@ export class RunLog extends Context.Service<
       DatabaseError | InvalidDatabaseInput
     >;
   }
->()("@rat-stack/database/RunLog") {}
+>()("@pecunia/database/RunLog") {}
 
 const makeRunLogService = (
   store: RunLogRepository,

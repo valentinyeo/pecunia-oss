@@ -1,4 +1,4 @@
-import { Sandbox, SandboxError } from "@rat-stack/capability/sandbox";
+import { Sandbox, SandboxError } from "@pecunia/capability/sandbox";
 import { Effect, Layer, Schema } from "effect";
 
 import { FileAssets } from "./generated-content.js";

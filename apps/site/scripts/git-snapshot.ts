@@ -3,8 +3,8 @@ import {
   SourceRepository,
   decodeRepositories,
   parseCodeRequest,
-} from "@rat-stack/code-snippets";
-import type { FenceJob } from "@rat-stack/code-snippets";
+} from "@pecunia/code-snippets";
+import type { FenceJob } from "@pecunia/code-snippets";
 import { Effect, FileSystem, Layer, Path, Result, Schema } from "effect";
 import * as Digest from "effect/crypto/Digest";
 import { ChildProcess, ChildProcessSpawner } from "effect/process";

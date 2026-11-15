@@ -52,7 +52,7 @@ export class JoinContactStore extends Context.Service<
     ) => Effect.Effect<void>;
     readonly erase: (submissionId: string) => Effect.Effect<void>;
   }
->()("@rat-stack/core/JoinContactStore") {
+>()("@pecunia/core/JoinContactStore") {
   static readonly testLayer = Layer.effect(
     this,
     Effect.gen(function* makeTestContacts() {

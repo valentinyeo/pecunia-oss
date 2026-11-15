@@ -3,8 +3,8 @@ import {
   EventSink,
   EventSinkError,
   RawEventSchema,
-} from "@rat-stack/core/event-sink";
-import type { IdentityMode, RawEvent } from "@rat-stack/core/event-sink";
+} from "@pecunia/core/event-sink";
+import type { IdentityMode, RawEvent } from "@pecunia/core/event-sink";
 import { Effect, Layer, Schema } from "effect";
 import * as Arbitrary from "effect/Arbitrary";
 import * as HttpServerRequest from "effect/http/HttpServerRequest";

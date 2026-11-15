@@ -1,14 +1,14 @@
-import { toExecuteCapability } from "@rat-stack/capability/code-mode/execute";
+import { toExecuteCapability } from "@pecunia/capability/code-mode/execute";
 import {
   listCafeNews,
   listCafeProjects,
   peopleCapabilities,
-} from "@rat-stack/core/cafe-directory";
-import { flagCapabilities } from "@rat-stack/core/flag-capabilities";
-import type { Flags } from "@rat-stack/core/flags";
-import { joinInterest } from "@rat-stack/core/join-interest";
-import { getPrompt, listPrompts } from "@rat-stack/core/prompts";
-import { feedbackCapabilities } from "@rat-stack/learn/feedback-capabilities";
+} from "@pecunia/core/cafe-directory";
+import { flagCapabilities } from "@pecunia/core/flag-capabilities";
+import type { Flags } from "@pecunia/core/flags";
+import { joinInterest } from "@pecunia/core/join-interest";
+import { getPrompt, listPrompts } from "@pecunia/core/prompts";
+import { feedbackCapabilities } from "@pecunia/learn/feedback-capabilities";
 import { Layer } from "effect";
 
 import { cafeDirectoryLayer } from "../cafe-directory.js";
@@ -27,7 +27,7 @@ export {
   listCafeProjects,
   listPeople,
   readPerson,
-} from "@rat-stack/core/cafe-directory";
+} from "@pecunia/core/cafe-directory";
 
 export { backlinks, mentions, neighbors, path } from "./lore.js";
 
@@ -47,7 +47,7 @@ export {
   ResourceNotFound,
   SearchMatch,
   SearchOutput,
-} from "@rat-stack/core/contracts";
+} from "@pecunia/core/contracts";
 
 export { search } from "./search.js";
 

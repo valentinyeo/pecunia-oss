@@ -5,7 +5,7 @@ import {
   learnPreferencesContract,
   learnRecordContract,
   learnSetPreferencesContract,
-} from "@rat-stack/core/contracts";
+} from "@pecunia/core/contracts";
 import { Effect, Schema } from "effect";
 
 import { tokenmaxxTitle } from "../src/house-ad-copy.ts";

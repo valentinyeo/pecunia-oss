@@ -1,8 +1,8 @@
-import { ExecuteError } from "@rat-stack/capability";
-import { toRpcGroup } from "@rat-stack/capability/rpc-group";
-import { gateOutcome, runCheck } from "@rat-stack/check-harness";
-import type { Verdict } from "@rat-stack/check-harness";
-import { searchContract } from "@rat-stack/core/contracts";
+import { ExecuteError } from "@pecunia/capability";
+import { toRpcGroup } from "@pecunia/capability/rpc-group";
+import { gateOutcome, runCheck } from "@pecunia/check-harness";
+import type { Verdict } from "@pecunia/check-harness";
+import { searchContract } from "@pecunia/core/contracts";
 import { Clock, Config, DateTime, Effect, Layer, Option, Schema } from "effect";
 import * as HttpClient from "effect/http/HttpClient";
 import * as HttpClientRequest from "effect/http/HttpClientRequest";

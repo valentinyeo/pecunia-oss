@@ -1,8 +1,8 @@
 import { fileURLToPath } from "node:url";
 
 import * as Cloudflare from "@alchemy.run/cloudflare";
-import PreviewRpcBackend from "@rat-stack/site/preview-rpc-worker";
-import RpcBackend from "@rat-stack/site/rpc-worker";
+import PreviewRpcBackend from "@pecunia/site/preview-rpc-worker";
+import RpcBackend from "@pecunia/site/rpc-worker";
 import { Stage } from "alchemy/Stage";
 import * as Config from "effect/Config";
 import * as Effect from "effect/Effect";

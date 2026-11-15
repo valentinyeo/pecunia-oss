@@ -1,4 +1,4 @@
-import { IsoDate } from "@rat-stack/core/contracts";
+import { IsoDate } from "@pecunia/core/contracts";
 import { Array, Order, Schema } from "effect";
 
 export const TubeTheme = Schema.Literals([

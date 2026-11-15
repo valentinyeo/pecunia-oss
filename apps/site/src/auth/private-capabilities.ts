@@ -1,14 +1,14 @@
-import { defineContract } from "@rat-stack/capability/contract";
-import { toHttpApi } from "@rat-stack/capability/http-api";
-import { implement } from "@rat-stack/capability/implement";
+import { defineContract } from "@pecunia/capability/contract";
+import { toHttpApi } from "@pecunia/capability/http-api";
+import { implement } from "@pecunia/capability/implement";
 import {
   FeedbackCredential,
   FeedbackDevice,
   FeedbackGrant,
   FeedbackRequest,
   LearnUnauthenticated,
-} from "@rat-stack/core/learn";
-import { FeedbackAuthor } from "@rat-stack/learn/feedback-author";
+} from "@pecunia/core/learn";
+import { FeedbackAuthor } from "@pecunia/learn/feedback-author";
 import { Schema } from "effect";
 
 const failure = LearnUnauthenticated.annotate({ httpApiStatus: 401 });

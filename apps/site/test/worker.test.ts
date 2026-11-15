@@ -2,8 +2,8 @@ import { fileURLToPath } from "node:url";
 
 import { NodeServices } from "@effect/platform-node";
 import { expect, it } from "@effect/vitest";
-import { ExecuteResult } from "@rat-stack/capability/code-mode";
-import { parseCodeRequest } from "@rat-stack/code-snippets";
+import { ExecuteResult } from "@pecunia/capability/code-mode";
+import { parseCodeRequest } from "@pecunia/code-snippets";
 import {
   CafeNewsList,
   CafePeopleList,
@@ -12,7 +12,7 @@ import {
   NeighborsOutput,
   ReadOutput,
   SearchOutput,
-} from "@rat-stack/core/contracts";
+} from "@pecunia/core/contracts";
 import { Effect, FileSystem, Layer, Schema } from "effect";
 import * as McpSchema from "effect/ai/McpSchema";
 import * as HttpRouter from "effect/http/HttpRouter";

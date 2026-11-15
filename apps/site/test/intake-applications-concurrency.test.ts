@@ -1,15 +1,15 @@
 import { expect, it } from "@effect/vitest";
-import { ContactRefSchema, IntakeEvents } from "@rat-stack/core/intake";
-import type { ContactRef, IntakeStatement } from "@rat-stack/core/intake";
+import { ContactRefSchema, IntakeEvents } from "@pecunia/core/intake";
+import type { ContactRef, IntakeStatement } from "@pecunia/core/intake";
 import {
   IntakeApplications,
   JoinContactStore,
-} from "@rat-stack/core/join-interest";
-import type { IntakeApplication } from "@rat-stack/core/join-interest";
+} from "@pecunia/core/join-interest";
+import type { IntakeApplication } from "@pecunia/core/join-interest";
 import {
   makeMemoryIntakeVault,
   sealedIntakeEventsLayer,
-} from "@rat-stack/intake-live";
+} from "@pecunia/intake-live";
 import { Deferred, Effect, Option, Layer, Ref, Schema } from "effect";
 import * as Arbitrary from "effect/Arbitrary";
 

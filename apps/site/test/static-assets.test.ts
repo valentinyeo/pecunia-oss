@@ -1,5 +1,5 @@
 import { expect, it } from "@effect/vitest";
-import { IntakeTicket } from "@rat-stack/core/intake";
+import { IntakeTicket } from "@pecunia/core/intake";
 import { Effect, Layer, Schema } from "effect";
 import * as Arbitrary from "effect/Arbitrary";
 import { HttpRouter } from "effect/http";
@@ -362,7 +362,7 @@ it.effect(
 
         for (const view of [html, markdown]) {
           expect(view).toContain("2025-2026 Cloudflare, Inc.");
-          expect(view).toContain("c1c8a8c1471069fb0e188eeaff69b8e8db6564a8");
+          expect(view).toContain("c1c8a8c1471069fb0e188eeaff69b8e8db6564a8"); // trufflehog:ignore -- upstream template fixture, not a key
           expect(view).toContain("rat-stack audit boundaries");
           expect(view).toContain("/skills/security-audit/HUNTING.md");
         }

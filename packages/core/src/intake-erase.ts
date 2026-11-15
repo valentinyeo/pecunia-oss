@@ -1,6 +1,6 @@
-import { CallWatch } from "@rat-stack/capability/call-watch";
-import { defineContract } from "@rat-stack/capability/contract";
-import { implement } from "@rat-stack/capability/implement";
+import { CallWatch } from "@pecunia/capability/call-watch";
+import { defineContract } from "@pecunia/capability/contract";
+import { implement } from "@pecunia/capability/implement";
 import { Context, Effect, Layer, Logger, Schedule, Schema } from "effect";
 
 import { IntakeApplicationsUnavailable } from "./intake-applications-unavailable.js";
@@ -75,7 +75,7 @@ export class IntakeErasure extends Context.Service<
       submissionIds: readonly string[]
     ) => Effect.Effect<IntakeEraseCounts, IntakeApplicationsUnavailable>;
   }
->()("@rat-stack/core/IntakeErasure") {
+>()("@pecunia/core/IntakeErasure") {
   static readonly layer = Layer.effect(
     this,
     Effect.gen(function* makeIntakeErasure() {

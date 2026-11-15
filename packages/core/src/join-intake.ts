@@ -46,7 +46,7 @@ export const JoinRequest = Context.Reference<{
     "allowed" | "ip_limited" | "agent_limited" | "unavailable"
   >;
   readonly afterResponse: (work: Effect.Effect<void>) => Effect.Effect<void>;
-}>("@rat-stack/core/JoinRequest", {
+}>("@pecunia/core/JoinRequest", {
   defaultValue: () => ({
     afterResponse: (work) => work,
     allow: () => Effect.succeed("unavailable"),

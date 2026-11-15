@@ -1,27 +1,27 @@
 import { expect, it } from "@effect/vitest";
-import { CallWatch } from "@rat-stack/capability/call-watch";
+import { CallWatch } from "@pecunia/capability/call-watch";
 import {
   ContactRefSchema,
   IntakeAnswersSchema,
   IntakeEvents,
   QuestionIdSchema,
-} from "@rat-stack/core/intake";
-import type { IntakeAnswers, IntakeStatement } from "@rat-stack/core/intake";
+} from "@pecunia/core/intake";
+import type { IntakeAnswers, IntakeStatement } from "@pecunia/core/intake";
 import {
   InterestDirectory,
   InterestMode,
   InterestTokens,
   SubscriberConfirm,
-} from "@rat-stack/core/interest";
+} from "@pecunia/core/interest";
 import {
   IntakeApplications,
   IntakeErasure,
   JoinContactStore,
-} from "@rat-stack/core/join-interest";
+} from "@pecunia/core/join-interest";
 import {
   makeMemoryIntakeVault,
   sealedIntakeEventsLayer,
-} from "@rat-stack/intake-live";
+} from "@pecunia/intake-live";
 import { Effect, Layer, Logger, Redacted, Ref, Schema, Tracer } from "effect";
 import * as Arbitrary from "effect/Arbitrary";
 import * as HttpRouter from "effect/http/HttpRouter";

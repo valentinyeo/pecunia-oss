@@ -144,10 +144,10 @@ The idle lease of 250 ms is a guess. drovr lists the same value with an expiry. 
 
 ## How to check
 
-1. Run `pnpm --filter @rat-stack/database exec vitest run test/connection-lease.test.ts`.
-2. Run `pnpm --filter @rat-stack/core exec vitest run test/join-answer-at-commit.model.test.ts`.
-3. Run `pnpm --filter @rat-stack/subscriber-delivery exec vitest run test/intake-timeout.test.ts`.
-4. Run `pnpm --filter @rat-stack/site exec vitest run test/intake-applications-concurrency.test.ts`.
+1. Run `pnpm --filter @pecunia/database exec vitest run test/connection-lease.test.ts`.
+2. Run `pnpm --filter @pecunia/core exec vitest run test/join-answer-at-commit.model.test.ts`.
+3. Run `pnpm --filter @pecunia/subscriber-delivery exec vitest run test/intake-timeout.test.ts`.
+4. Run `pnpm --filter @pecunia/site exec vitest run test/intake-applications-concurrency.test.ts`.
 5. Plant a bug and watch its fence fail:
    - Hold the lease for the whole request.
    - Run delivery before the answer.

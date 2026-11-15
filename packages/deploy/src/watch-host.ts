@@ -23,7 +23,7 @@ const inline: WatchHostService = {
 };
 
 export const WatchHost = Context.Reference<WatchHostService>(
-  "@rat-stack/deploy/WatchHost",
+  "@pecunia/deploy/WatchHost",
   { defaultValue: () => inline }
 );
 

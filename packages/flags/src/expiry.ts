@@ -1,4 +1,4 @@
-import type { Flag } from "@rat-stack/core/flags";
+import type { Flag } from "@pecunia/core/flags";
 import { DateTime, Effect, Schema } from "effect";
 
 export class ExpiredFlags extends Schema.TaggedError<

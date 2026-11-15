@@ -35,7 +35,7 @@ export class WorkerDeployments extends Context.Service<
       profile: string
     ) => Effect.Effect<WorkerDeploymentSession, DeployStepError>;
   }
->()("@rat-stack/deploy/WorkerDeployments") {
+>()("@pecunia/deploy/WorkerDeployments") {
   static layer = (entrypoint: string) =>
     Layer.effect(
       WorkerDeployments,

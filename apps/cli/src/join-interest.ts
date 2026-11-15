@@ -2,8 +2,8 @@ import {
   JoinInterest,
   JOIN_NOT_OPEN,
   joinInterestContract,
-} from "@rat-stack/core/join-interest";
-import type { JoinInput } from "@rat-stack/core/join-interest";
+} from "@pecunia/core/join-interest";
+import type { JoinInput } from "@pecunia/core/join-interest";
 import { Effect, Layer, Schema } from "effect";
 import { FetchHttpClient, HttpClient, HttpClientRequest } from "effect/http";
 

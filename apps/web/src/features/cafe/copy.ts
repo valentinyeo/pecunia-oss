@@ -2,12 +2,12 @@ import {
   CAFE_DIVERSITY_PENALTY,
   CAFE_FRESHNESS_HOURS,
   cafeSignalWeights,
-} from "@rat-stack/core/contracts";
+} from "@pecunia/core/contracts";
 import type {
   CafeHandleKind,
   CafeLetterValue,
   CafeNewsKindValue,
-} from "@rat-stack/core/contracts";
+} from "@pecunia/core/contracts";
 
 export const letterNames = {
   alchemy: "Alchemy",

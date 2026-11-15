@@ -1,7 +1,7 @@
-import { watchActor } from "@rat-stack/capability/actor-watch";
-import { Approval } from "@rat-stack/capability/approval";
-import { gateOutcome } from "@rat-stack/check-harness";
-import type { Verdict } from "@rat-stack/check-harness";
+import { watchActor } from "@pecunia/capability/actor-watch";
+import { Approval } from "@pecunia/capability/approval";
+import { gateOutcome } from "@pecunia/check-harness";
+import type { Verdict } from "@pecunia/check-harness";
 import {
   createEffectActor,
   createEffectLogic,

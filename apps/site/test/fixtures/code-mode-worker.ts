@@ -4,11 +4,11 @@ import {
   ExecuteResult,
   ExecuteFailure,
   toExecuteCapability,
-} from "@rat-stack/capability/code-mode";
-import { defineContract } from "@rat-stack/capability/contract";
-import { toHttpApi } from "@rat-stack/capability/http-api";
-import { implement } from "@rat-stack/capability/implement";
-import { AssetReadError } from "@rat-stack/core/contracts";
+} from "@pecunia/capability/code-mode";
+import { defineContract } from "@pecunia/capability/contract";
+import { toHttpApi } from "@pecunia/capability/http-api";
+import { implement } from "@pecunia/capability/implement";
+import { AssetReadError } from "@pecunia/core/contracts";
 import * as AlchemyHttp from "alchemy/Http";
 import { Effect, Layer, Schema } from "effect";
 import { HttpRouter } from "effect/http";

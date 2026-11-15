@@ -1,4 +1,4 @@
-import { CafeLetter } from "@rat-stack/core/contracts";
+import { CafeLetter } from "@pecunia/core/contracts";
 import { defineMessageUnion } from "foldkit/message";
 
 export const Message = defineMessageUnion({

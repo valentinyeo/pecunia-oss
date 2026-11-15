@@ -1,5 +1,5 @@
 import { it } from "@effect/vitest";
-import { IsoDate } from "@rat-stack/core/contracts";
+import { IsoDate } from "@pecunia/core/contracts";
 import { Option, Schema } from "effect";
 import { click, expect, given, role, scene, selector } from "foldkit/scene";
 

@@ -1,7 +1,7 @@
 import { NodeCrypto, NodeServices } from "@effect/platform-node";
 import { expect, it } from "@effect/vitest";
-import { parseCodeRequest, sourceLines } from "@rat-stack/code-snippets";
-import { CafeNewsItem, sortCafeNewsNewest } from "@rat-stack/core/contracts";
+import { parseCodeRequest, sourceLines } from "@pecunia/code-snippets";
+import { CafeNewsItem, sortCafeNewsNewest } from "@pecunia/core/contracts";
 import { Effect, FileSystem, Layer, Path, Schema, Stream } from "effect";
 import { ChildProcess, ChildProcessSpawner } from "effect/process";
 import { DomUtils, parseDocument } from "htmlparser2";

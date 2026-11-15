@@ -1,4 +1,4 @@
-import { ResourceNotFound } from "@rat-stack/core/contracts";
+import { ResourceNotFound } from "@pecunia/core/contracts";
 import { Effect, Option, Schema } from "effect";
 import { Command } from "foldkit";
 import { load, pushUrl, replaceUrl } from "foldkit/navigation";

@@ -1,4 +1,4 @@
-import { watchActor } from "@rat-stack/capability/actor-watch";
+import { watchActor } from "@pecunia/capability/actor-watch";
 import {
   createEffectActor,
   createEffectLogic,
@@ -13,7 +13,7 @@ import type { IntakeResult } from "./interest-intake.js";
 import { JoinContactStore } from "./join-contact-store.js";
 
 export const JoinDeliveryDeadline = Context.Reference<Duration.Duration>(
-  "@rat-stack/core/JoinDeliveryDeadline",
+  "@pecunia/core/JoinDeliveryDeadline",
   { defaultValue: () => Duration.seconds(25) }
 );
 

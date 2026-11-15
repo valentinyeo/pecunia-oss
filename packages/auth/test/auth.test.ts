@@ -1,7 +1,7 @@
 import { expect, it } from "@effect/vitest";
-import { defineContract } from "@rat-stack/capability/define";
-import { toRpcGroup } from "@rat-stack/capability/rpc-group";
-import { PersonIdSchema } from "@rat-stack/database";
+import { defineContract } from "@pecunia/capability/define";
+import { toRpcGroup } from "@pecunia/capability/rpc-group";
+import { PersonIdSchema } from "@pecunia/database";
 import { RuntimeContext } from "alchemy";
 import { Context, Effect, Fiber, Layer, Queue, Schema } from "effect";
 import type * as Headers from "effect/http/Headers";

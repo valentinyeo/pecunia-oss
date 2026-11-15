@@ -1,6 +1,6 @@
 import { expect, it } from "@effect/vitest";
-import type { Progress } from "@rat-stack/core/learn";
-import { emptyProgress } from "@rat-stack/core/learn";
+import type { Progress } from "@pecunia/core/learn";
+import { emptyProgress } from "@pecunia/core/learn";
 import { Effect } from "effect";
 
 import { learnNext } from "../src/capabilities.js";

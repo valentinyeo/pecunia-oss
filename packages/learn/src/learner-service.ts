@@ -4,8 +4,8 @@ import type {
   LearnEvent,
   LearnSelection,
   Progress,
-} from "@rat-stack/core/learn";
-import { LearnError, newConcept } from "@rat-stack/core/learn";
+} from "@pecunia/core/learn";
+import { LearnError, newConcept } from "@pecunia/core/learn";
 import { Effect, Option, Ref } from "effect";
 
 import { evaluateConcept } from "./evaluate-concept.js";

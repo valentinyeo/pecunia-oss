@@ -30,7 +30,7 @@ const make = Effect.gen(function* readerLoreFixture() {
 class ReaderLoreFixture extends Context.Service<
   ReaderLoreFixture,
   Effect.Success<typeof make>
->()("@rat-stack/web/test/ReaderLoreFixture") {
+>()("@pecunia/web/test/ReaderLoreFixture") {
   static readonly layer = Layer.effect(ReaderLoreFixture, make).pipe(
     Layer.provide(NodeServices.layer)
   );

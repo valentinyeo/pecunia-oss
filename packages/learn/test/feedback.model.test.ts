@@ -1,6 +1,6 @@
 import { expect, it } from "@effect/vitest";
-import { FeedbackPoll, LearnUnauthenticated } from "@rat-stack/core/learn";
-import type { FeedbackDevice } from "@rat-stack/core/learn";
+import { FeedbackPoll, LearnUnauthenticated } from "@pecunia/core/learn";
+import type { FeedbackDevice } from "@pecunia/core/learn";
 import { createEffectActor, join } from "@xstate/effect";
 import { Clock, Effect, Schema } from "effect";
 import * as Arbitrary from "effect/Arbitrary";

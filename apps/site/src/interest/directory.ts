@@ -3,13 +3,13 @@ import {
   interestOutcome,
   removeRecords,
   summarize,
-} from "@rat-stack/core/interest";
+} from "@pecunia/core/interest";
 import type {
   CaptureRequest,
   InterestOutcome,
   InterestRecord,
   RemoveSelector,
-} from "@rat-stack/core/interest";
+} from "@pecunia/core/interest";
 import { Clock, Effect, Layer } from "effect";
 
 export interface InterestStub {

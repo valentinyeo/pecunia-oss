@@ -1,4 +1,4 @@
-import { Prompt } from "@rat-stack/core/contracts";
+import { Prompt } from "@pecunia/core/contracts";
 import { Effect, Result, Schema } from "effect";
 
 import { frontmatterData, scanLeadingFrontmatterFence } from "./svx-ast.ts";

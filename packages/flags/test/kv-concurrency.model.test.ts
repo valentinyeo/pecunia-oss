@@ -3,8 +3,8 @@ import {
   FlagAtomicityRequired,
   FlagLedger,
   FlagTarget,
-} from "@rat-stack/core/flag-control";
-import { defineFlag } from "@rat-stack/core/flags";
+} from "@pecunia/core/flag-control";
+import { defineFlag } from "@pecunia/core/flags";
 import {
   Cause,
   Context,

@@ -1,12 +1,12 @@
 import { expect, it } from "@effect/vitest";
-import { Auth } from "@rat-stack/auth";
-import { FeedbackIdentity } from "@rat-stack/auth/feedback";
+import { Auth } from "@pecunia/auth";
+import { FeedbackIdentity } from "@pecunia/auth/feedback";
 import {
   learnDeckContract,
   learnFeedbackPollContract,
   learnFeedbackStartContract,
   LearnUnauthenticated,
-} from "@rat-stack/core/learn";
+} from "@pecunia/core/learn";
 import { RuntimeContext } from "alchemy";
 import { Context, Effect, Layer, Option, Schema } from "effect";
 import { HttpRouter } from "effect/http";

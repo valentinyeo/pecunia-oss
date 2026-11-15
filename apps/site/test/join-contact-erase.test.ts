@@ -1,11 +1,11 @@
 import { expect, it } from "@effect/vitest";
-import { ContactRefSchema } from "@rat-stack/core/intake";
-import { InterestTokens } from "@rat-stack/core/interest";
+import { ContactRefSchema } from "@pecunia/core/intake";
+import { InterestTokens } from "@pecunia/core/interest";
 import {
   JoinContactStore,
   withPending,
   withState,
-} from "@rat-stack/core/join-interest";
+} from "@pecunia/core/join-interest";
 import { Effect, Layer, Option, Redacted, Ref, Schema } from "effect";
 
 import { joinContactStoreLayer } from "../src/interest/join-contact-store.js";

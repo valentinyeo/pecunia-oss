@@ -1,5 +1,5 @@
-import { implement } from "@rat-stack/capability/implement";
-import { readContract } from "@rat-stack/core/contracts";
+import { implement } from "@pecunia/capability/implement";
+import { readContract } from "@pecunia/core/contracts";
 
 import { ContentStore } from "../content-store.js";
 

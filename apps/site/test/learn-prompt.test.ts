@@ -1,5 +1,5 @@
 import { expect, it } from "@effect/vitest";
-import { localLearnCapabilities } from "@rat-stack/learn/local";
+import { localLearnCapabilities } from "@pecunia/learn/local";
 
 import { copyPrompts } from "../scripts/component-data.ts";
 import { contentCapabilities } from "../src/capabilities/index.ts";

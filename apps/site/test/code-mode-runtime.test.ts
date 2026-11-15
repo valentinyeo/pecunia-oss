@@ -1,7 +1,7 @@
 import * as Cloudflare from "@alchemy.run/cloudflare";
 import * as Test from "@alchemy.run/test/Vitest";
 import { expect } from "@effect/vitest";
-import { ExecuteError, ExecuteResult } from "@rat-stack/capability/code-mode";
+import { ExecuteError, ExecuteResult } from "@pecunia/capability/code-mode";
 import { Clock, Effect, FileSystem, Schema } from "effect";
 import { HttpClient, HttpClientRequest } from "effect/http";
 

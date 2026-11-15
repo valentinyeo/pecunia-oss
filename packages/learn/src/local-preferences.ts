@@ -1,13 +1,13 @@
 import type {
   LearnPreferences,
   LearnPreferencesChange,
-} from "@rat-stack/core/learn";
+} from "@pecunia/core/learn";
 import {
   LearnerPreferences,
   LearnerProgressError,
   LearnPreferencesSchema,
   defaultPreferences,
-} from "@rat-stack/core/learn";
+} from "@pecunia/core/learn";
 import { Config, Effect, FileSystem, Layer, Path, Schema } from "effect";
 
 export const PREFERENCES_FILE = "preferences.json";

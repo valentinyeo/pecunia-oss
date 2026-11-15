@@ -21,7 +21,7 @@ Publish an exercise only after review. Flip `prep.status` and `links.status` in 
 
 ## Isolated runtime
 
-The desk chose an isolated Workshop Worker after the shared Worker exceeded its startup ceiling. `packages/core/src/workshop-contracts.ts` owns its six read-only contracts, exported through `@rat-stack/core/workshop-contracts`. `WorkshopDirectory` supplies their data. The Workshop Worker has public static assets and its own `WorkshopLegacyMcp` session namespace. It has no secrets or access to the main site's data stores.
+The desk chose an isolated Workshop Worker after the shared Worker exceeded its startup ceiling. `packages/core/src/workshop-contracts.ts` owns its six read-only contracts, exported through `@pecunia/core/workshop-contracts`. `WorkshopDirectory` supplies their data. The Workshop Worker has public static assets and its own `WorkshopLegacyMcp` session namespace. It has no secrets or access to the main site's data stores.
 
 Cloudflare zone routes send `/tokenmaxx/mcp`, `/tokenmaxx/rpc`, `/tokenmaxx/api/*` and `/tokenmaxx/openapi.json` to Workshop. They take precedence over Mischief's custom domain. The main MCP and RPC catalogs do not expose workshop contracts. The startup gate rejects workshop modules anywhere in Mischief's static or dynamic graph.
 
@@ -54,7 +54,7 @@ The MCP dynamic entry is 171,356 bytes. The bundle graph identifies it as a dyna
 
 Expected infrastructure delta: create the `WorkshopLegacyMcp` namespace and binding hosted by Workshop, update Workshop's bundle and migration, and update Mischief's bundle for the shared seam refactor. No resource deletion or replacement is intended. A real plan and deployed cross-isolate probe remain the deploying desk's checks.
 
-Reproduction recipe: build workspace dependencies with `TURBO_CONCURRENCY=2 pnpm turbo run build`; run `pnpm --filter @rat-stack/site exec vitest run test/workshop-mcp-sessions.test.ts test/workshop-worker.test.ts test/legacy-mcp-session.test.ts test/legacy-mcp-routing.test.ts`; measure with `pnpm --filter @rat-stack/site startup:check`; finish with `TURBO_CONCURRENCY=2 pnpm turbo run check test build`.
+Reproduction recipe: build workspace dependencies with `TURBO_CONCURRENCY=2 pnpm turbo run build`; run `pnpm --filter @pecunia/site exec vitest run test/workshop-mcp-sessions.test.ts test/workshop-worker.test.ts test/legacy-mcp-session.test.ts test/legacy-mcp-routing.test.ts`; measure with `pnpm --filter @pecunia/site startup:check`; finish with `TURBO_CONCURRENCY=2 pnpm turbo run check test build`.
 
 ## Evidence and startup
 

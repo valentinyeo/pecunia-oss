@@ -1,10 +1,10 @@
 #!/usr/bin/env node
 
 import { NodeRuntime, NodeServices } from "@effect/platform-node";
-import { Approval } from "@rat-stack/capability";
-import { FileInspector } from "@rat-stack/core";
-import { FlagActor } from "@rat-stack/core/flag-control";
-import { eventFlags, Flags } from "@rat-stack/core/flags";
+import { Approval } from "@pecunia/capability";
+import { FileInspector } from "@pecunia/core";
+import { FlagActor } from "@pecunia/core/flag-control";
+import { eventFlags, Flags } from "@pecunia/core/flags";
 import { Console, Effect, Layer } from "effect";
 
 import { localCafeDirectoryLayer } from "./cafe.js";

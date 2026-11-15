@@ -1,4 +1,4 @@
-import * as Capability from "@rat-stack/capability";
+import * as Capability from "@pecunia/capability";
 import { Effect, Schema } from "effect";
 
 export class NoteMissing extends Schema.TaggedError<

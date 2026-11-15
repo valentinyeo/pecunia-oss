@@ -1,8 +1,5 @@
-import { SubscriberIntake } from "@rat-stack/core/interest";
-import type {
-  AgentIntakeRequest,
-  IntakeResult,
-} from "@rat-stack/core/interest";
+import { SubscriberIntake } from "@pecunia/core/interest";
+import type { AgentIntakeRequest, IntakeResult } from "@pecunia/core/interest";
 import { Effect, Layer, Option, Redacted, Schema } from "effect";
 import { HttpClient, HttpClientRequest } from "effect/http";
 

@@ -100,9 +100,9 @@ Core provides the same names with capture off:
 
 The [documented removal procedure](https://github.com/joelhooks/rat-stack/blob/54bf7786f1260f20d0ba8dd96d828debff9c7759/packages/events/README.md#remove-the-cartridge) has four steps:
 
-1. Change the re-export's module to `@rat-stack/core/events-off`.
+1. Change the re-export's module to `@pecunia/core/events-off`.
 2. Remove `packages/events`.
-3. Remove `@rat-stack/events` from `apps/site/package.json`.
+3. Remove `@pecunia/events` from `apps/site/package.json`.
 4. Run `pnpm install`, `pnpm git-snapshot`, then `pnpm turbo run check test build`.
 
 This procedure removes the package from the application. It leaves the retained bucket, stream, and salt in the cloud account until explicitly deleted.

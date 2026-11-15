@@ -1,9 +1,5 @@
-import { PromptLibrary } from "@rat-stack/core";
-import {
-  AssetReadError,
-  Prompt,
-  UnknownPrompt,
-} from "@rat-stack/core/contracts";
+import { PromptLibrary } from "@pecunia/core";
+import { AssetReadError, Prompt, UnknownPrompt } from "@pecunia/core/contracts";
 import { Effect, FileSystem, Layer, Path, Schema } from "effect";
 
 export const localPromptLibraryLayer = Layer.effect(

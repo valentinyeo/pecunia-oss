@@ -1,6 +1,6 @@
 import { NodeRuntime, NodeServices } from "@effect/platform-node";
-import { toRpcGroup } from "@rat-stack/capability/rpc-group";
-import { readContract, searchContract } from "@rat-stack/core/contracts";
+import { toRpcGroup } from "@pecunia/capability/rpc-group";
+import { readContract, searchContract } from "@pecunia/core/contracts";
 import { Console, Effect, Schema } from "effect";
 import { FetchHttpClient } from "effect/http";
 import * as Layer from "effect/Layer";

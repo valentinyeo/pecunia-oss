@@ -1,8 +1,8 @@
 import { expect, it } from "@effect/vitest";
-import { ExecuteError } from "@rat-stack/capability";
-import { toRpcGroup } from "@rat-stack/capability/rpc-group";
-import { gateOutcome } from "@rat-stack/check-harness";
-import { searchContract } from "@rat-stack/core/contracts";
+import { ExecuteError } from "@pecunia/capability";
+import { toRpcGroup } from "@pecunia/capability/rpc-group";
+import { gateOutcome } from "@pecunia/check-harness";
+import { searchContract } from "@pecunia/core/contracts";
 import { Effect, Layer, Predicate, Schema } from "effect";
 import * as HttpClient from "effect/http/HttpClient";
 import type * as HttpClientRequest from "effect/http/HttpClientRequest";

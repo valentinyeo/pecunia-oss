@@ -1,9 +1,9 @@
-import { AbuseScore, SCORER_UNAVAILABLE } from "@rat-stack/core/intake";
+import { AbuseScore, SCORER_UNAVAILABLE } from "@pecunia/core/intake";
 import type {
   AbuseInput,
   AbuseVerdict,
   IntakeAnswers,
-} from "@rat-stack/core/intake";
+} from "@pecunia/core/intake";
 import { Clock, Effect, Layer, Option, Redacted, Schema } from "effect";
 import { HttpClient, HttpClientRequest } from "effect/http";
 

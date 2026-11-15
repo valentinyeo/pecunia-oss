@@ -1,6 +1,6 @@
-import { CafeDirectory, listPeople } from "@rat-stack/core/cafe-directory";
-import { profileForNewsRow } from "@rat-stack/core/cafe-people";
-import { selectCafeNews, sortCafeProjects } from "@rat-stack/core/contracts";
+import { CafeDirectory, listPeople } from "@pecunia/core/cafe-directory";
+import { profileForNewsRow } from "@pecunia/core/cafe-people";
+import { selectCafeNews, sortCafeProjects } from "@pecunia/core/contracts";
 import { Effect, Option } from "effect";
 
 import { Model } from "../../web/src/client/cafe/model.ts";

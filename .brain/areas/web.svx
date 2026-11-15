@@ -72,7 +72,7 @@ The server forwards `/rpc` to the private RpcBackend Worker. Browser Commands ca
 
 ## How to check
 
-- Run `pnpm --filter @rat-stack/web build`. Read `apps/web/dist/server/foldkit.build.json`. It names `fetch.js` as the server entry and lists the prerendered paths.
-- Run `pnpm --filter @rat-stack/web test` for page parity and the production-bundle exclusion test.
-- Run `pnpm --filter @rat-stack/infra test`. The Website build test builds through [Alchemy](/skills/learn-alchemy), reads prerendered pages, and serves them, `/rpc`, and a 404 from the server bundle in workerd.
+- Run `pnpm --filter @pecunia/web build`. Read `apps/web/dist/server/foldkit.build.json`. It names `fetch.js` as the server entry and lists the prerendered paths.
+- Run `pnpm --filter @pecunia/web test` for page parity and the production-bundle exclusion test.
+- Run `pnpm --filter @pecunia/infra test`. The Website build test builds through [Alchemy](/skills/learn-alchemy), reads prerendered pages, and serves them, `/rpc`, and a 404 from the server bundle in workerd.
 - On a preview, request a prerendered page and an unknown path with `curl`. The page returns complete HTML with `X-Preview-Commit`. The unknown path returns 404.

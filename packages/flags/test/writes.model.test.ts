@@ -1,6 +1,6 @@
 import { NodeCrypto } from "@effect/platform-node";
 import { expect, it } from "@effect/vitest";
-import { Approval } from "@rat-stack/capability/approval";
+import { Approval } from "@pecunia/capability/approval";
 import {
   FlagActor,
   FlagJournal,
@@ -8,12 +8,12 @@ import {
   FlagExit,
   FlagThreshold,
   FlagTarget,
-} from "@rat-stack/core/flag-control";
+} from "@pecunia/core/flag-control";
 import {
   flipFeatureFlag,
   recordFlagEvidence,
-} from "@rat-stack/core/flag-write-capabilities";
-import { Flags, defineFlag } from "@rat-stack/core/flags";
+} from "@pecunia/core/flag-write-capabilities";
+import { Flags, defineFlag } from "@pecunia/core/flags";
 import { Effect, Exit, Layer, Schema } from "effect";
 import * as Arbitrary from "effect/Arbitrary";
 import { TestClock } from "effect/testing";

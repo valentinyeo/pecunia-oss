@@ -3,8 +3,8 @@ import {
   Exercise,
   publishWorkshop,
   Workshop,
-} from "@rat-stack/core/tokenmaxx-workshop";
-import { WorkshopDirectory } from "@rat-stack/core/workshop-directory";
+} from "@pecunia/core/tokenmaxx-workshop";
+import { WorkshopDirectory } from "@pecunia/core/workshop-directory";
 import { Arbitrary, Effect, Layer, Match, Schema, Scope } from "effect";
 import * as HttpRouter from "effect/http/HttpRouter";
 

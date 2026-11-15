@@ -1,5 +1,5 @@
-import { SubscriberIntake } from "@rat-stack/core/interest";
-import type { IntakeRequest, IntakeResult } from "@rat-stack/core/interest";
+import { SubscriberIntake } from "@pecunia/core/interest";
+import type { IntakeRequest, IntakeResult } from "@pecunia/core/interest";
 import { Effect, Layer, Ref } from "effect";
 
 export const fakeIntake = (script: readonly IntakeResult[]) =>

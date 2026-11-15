@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 
 import { describe, expect, it } from "@effect/vitest";
-import { localLearnCapabilities } from "@rat-stack/learn/local";
+import { localLearnCapabilities } from "@pecunia/learn/local";
 import { Schema } from "effect";
 
 import { VERSION } from "../src/version.js";

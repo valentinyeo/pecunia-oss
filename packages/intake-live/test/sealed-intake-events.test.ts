@@ -3,8 +3,8 @@ import {
   ContactRefSchema,
   IntakeEvents,
   QuestionIdSchema,
-} from "@rat-stack/core/intake";
-import type { IntakeStatement, QuestionId } from "@rat-stack/core/intake";
+} from "@pecunia/core/intake";
+import type { IntakeStatement, QuestionId } from "@pecunia/core/intake";
 import { Effect, Layer, Schema } from "effect";
 import * as Arbitrary from "effect/Arbitrary";
 

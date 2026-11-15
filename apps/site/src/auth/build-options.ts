@@ -3,13 +3,13 @@ export const feedbackAuthBuild = {
     packages: [
       "better-auth",
       "@better-auth/*",
-      "@rat-stack/auth",
-      "@rat-stack/database",
+      "@pecunia/auth",
+      "@pecunia/database",
       "vite",
     ],
   },
 };
 
 export const feedbackGatewayBuild = {
-  pure: { packages: ["@rat-stack/database"] },
+  pure: { packages: ["@pecunia/database"] },
 };

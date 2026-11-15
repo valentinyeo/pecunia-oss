@@ -3,7 +3,7 @@ import {
   IntakeEraseCountsSchema,
   IntakeApplicationsUnavailable,
   intakeErase,
-} from "@rat-stack/core/join-interest";
+} from "@pecunia/core/join-interest";
 import {
   Config,
   Console,

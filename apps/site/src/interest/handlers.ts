@@ -1,4 +1,4 @@
-import { implement } from "@rat-stack/capability/implement";
+import { implement } from "@pecunia/capability/implement";
 import {
   CONFIRM_ANSWER,
   InterestDirectory,
@@ -6,7 +6,7 @@ import {
   InterestTokens,
   confirmInterestContract,
   interestOutcome,
-} from "@rat-stack/core/interest";
+} from "@pecunia/core/interest";
 import { Clock, Effect } from "effect";
 
 export const refusalMessage = (reason: "expired" | "invalid") =>

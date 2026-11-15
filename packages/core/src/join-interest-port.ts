@@ -10,7 +10,7 @@ export const newStatusRef = Effect.sync(() =>
 
 export const JoinInterest = Context.Reference<{
   readonly submit: (input: JoinInput) => Effect.Effect<JoinOutput>;
-}>("@rat-stack/core/JoinInterest", {
+}>("@pecunia/core/JoinInterest", {
   defaultValue: () => ({
     submit: (_input: JoinInput): Effect.Effect<JoinOutput> =>
       newStatusRef.pipe(

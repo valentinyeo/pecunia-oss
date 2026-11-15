@@ -4,11 +4,11 @@ import {
   LearnerPreferences,
   LearnPreferencesChangeSchema,
   defaultPreferences,
-} from "@rat-stack/core/learn";
+} from "@pecunia/core/learn";
 import type {
   LearnPreferences,
   LearnPreferencesChange,
-} from "@rat-stack/core/learn";
+} from "@pecunia/core/learn";
 import { ConfigProvider, Effect, FileSystem, Layer, Path } from "effect";
 import * as Arbitrary from "effect/Arbitrary";
 

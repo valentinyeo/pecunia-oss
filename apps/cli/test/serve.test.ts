@@ -1,15 +1,15 @@
 import { NodeHttpServer, NodeServices } from "@effect/platform-node";
 import { describe, expect, it } from "@effect/vitest";
-import { CafeDirectory, FileInspector, PromptLibrary } from "@rat-stack/core";
-import { CafeData } from "@rat-stack/core/contracts";
-import { Flags, eventFlags } from "@rat-stack/core/flags";
+import { CafeDirectory, FileInspector, PromptLibrary } from "@pecunia/core";
+import { CafeData } from "@pecunia/core/contracts";
+import { Flags, eventFlags } from "@pecunia/core/flags";
 import {
   ActorLog,
   CallLog,
   OutcomeSchema,
   devtoolsLayer,
-} from "@rat-stack/devtools";
-import { Learner } from "@rat-stack/learn";
+} from "@pecunia/devtools";
+import { Learner } from "@pecunia/learn";
 import { Effect, FileSystem, Layer, Path, Schema } from "effect";
 import { HttpClient, HttpRouter, HttpServer } from "effect/http";
 import { HttpApiClient } from "effect/http-api";

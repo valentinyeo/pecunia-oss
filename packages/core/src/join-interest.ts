@@ -1,6 +1,6 @@
-import { CallWatch } from "@rat-stack/capability/call-watch";
-import type { Around } from "@rat-stack/capability/call-watch";
-import { implement } from "@rat-stack/capability/implement";
+import { CallWatch } from "@pecunia/capability/call-watch";
+import type { Around } from "@pecunia/capability/call-watch";
+import { implement } from "@pecunia/capability/implement";
 import { Effect, Option } from "effect";
 
 import {

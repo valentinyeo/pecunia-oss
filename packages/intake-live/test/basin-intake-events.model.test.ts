@@ -2,9 +2,9 @@ import { describe, expect, it } from "@effect/vitest";
 import {
   ContactRefSchema,
   IntakeEventsUnavailable,
-} from "@rat-stack/core/intake";
-import type { IntakeStatement, QuestionId } from "@rat-stack/core/intake";
-import type { RequestGeo } from "@rat-stack/core/request-geo";
+} from "@pecunia/core/intake";
+import type { IntakeStatement, QuestionId } from "@pecunia/core/intake";
+import type { RequestGeo } from "@pecunia/core/request-geo";
 import { Effect, Exit, Ref, Schema } from "effect";
 import * as Arbitrary from "effect/Arbitrary";
 

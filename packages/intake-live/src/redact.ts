@@ -1,5 +1,5 @@
-import { QuestionIdSchema } from "@rat-stack/core/intake";
-import type { IntakeAnswers } from "@rat-stack/core/intake";
+import { QuestionIdSchema } from "@pecunia/core/intake";
+import type { IntakeAnswers } from "@pecunia/core/intake";
 
 export const MAX_SCORED_ANSWER_LENGTH = 600;
 

@@ -20,7 +20,7 @@ Build `apps/mischief` as one Effect-native `Cloudflare.Worker` whose constructio
 
 Adopt the existing `ratstack.sh` zone explicitly. Put the apex on the Worker's `domain.name` and `www.ratstack.sh` in `domain.redirects`. Do not also declare apex or `www` DNS records: Alchemy's custom-domain support manages their DNS and certificates. Keep MCP at `https://ratstack.sh/mcp`; that path needs no DNS record.
 
-Add worker-safe package subpaths before importing `@rat-stack/capability` in `mischief`. The current root barrel retains part of the Node subprocess sandbox and roughly doubles the projection bundle even when only `toToolkit` is selected.
+Add worker-safe package subpaths before importing `@pecunia/capability` in `mischief`. The current root barrel retains part of the Node subprocess sandbox and roughly doubles the projection bundle even when only `toToolkit` is selected.
 
 ## Evidence boundary
 
@@ -45,7 +45,7 @@ import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import { McpProtocol, McpServer } from "effect/unstable/ai";
 import { HttpRouter, HttpServerResponse } from "effect/unstable/http";
-import { toToolkit } from "@rat-stack/capability/toolkit";
+import { toToolkit } from "@pecunia/capability/toolkit";
 
 import { capabilities } from "./capabilities.js";
 
@@ -270,7 +270,7 @@ alchemy
 @distilled.cloud/*
 ```
 
-`@rat-stack/*` is not in that list. A Worker can extend the list with `build.pure.packages`, but that does not fully solve this package shape.
+`@pecunia/*` is not in that list. A Worker can extend the list with `build.pure.packages`, but that does not fully solve this package shape.
 
 Installed beta.79 also enables Cloudflare `nodejs_compat` for JavaScript Workers by default when the compatibility date requires it. That is not permission to ship the subprocess sandbox: workerd cannot spawn the Node child process used by `layerSubprocess`.
 
@@ -290,7 +290,7 @@ Scratch entrypoints and outputs are under `/tmp/ratstack-bundle-research-2026092
 | `toToolkit` through `packages/capability/dist/index.js` | esbuild, browser | 816,165 bytes | `sandbox.js` retained 2,674 output bytes; `RUNNER_SOURCE` retained |
 | direct `packages/capability/dist/to-toolkit.js` | esbuild, browser | 429,460 bytes | none |
 | capability root barrel | Rolldown 1.2.5 + beta.79 default pure plugin | 823,548 bytes | embedded `node:readline` runner string retained |
-| capability root barrel + `pure.packages: ["@rat-stack/*"]` | same | 820,702 bytes | runner string still retained |
+| capability root barrel + `pure.packages: ["@pecunia/*"]` | same | 820,702 bytes | runner string still retained |
 | direct `to-toolkit.js` | same | 621,473 bytes | none |
 | `packages/core/dist/index.js` exporting `capabilities` | esbuild, browser | 1,234,755 bytes | XState + `@xstate/effect` bundled; same sandbox residue retained |
 
@@ -327,8 +327,8 @@ Add supported subpaths and use them from `mischief`:
 Then import:
 
 ```ts
-import { defineCapability } from "@rat-stack/capability/define";
-import { toToolkit } from "@rat-stack/capability/toolkit";
+import { defineCapability } from "@pecunia/capability/define";
+import { toToolkit } from "@pecunia/capability/toolkit";
 ```
 
 This is sharper than relying on `build.pure.packages`: it prevents Worker resolution from reaching `sandbox.ts` at all. Keep the root barrel for Node CLI consumers.
@@ -392,7 +392,7 @@ Sources:
 
 ## Implementation checklist
 
-1. Add `@rat-stack/capability/define` and `/toolkit` exports.
+1. Add `@pecunia/capability/define` and `/toolkit` exports.
 2. Define `mischief` capabilities without importing the capability root barrel.
 3. Build one route layer for root/site routes plus MCP.
 4. Convert it once with `HttpRouter.toHttpEffect` in the Worker construction phase.

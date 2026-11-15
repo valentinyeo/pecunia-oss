@@ -13,7 +13,7 @@ This copy is ours. All 20 files from upstream's `skills/security-audit/` remain 
 3. Review the diff before replacing the upstream files here. Preserve the local additions.
 4. Record the new full commit here and in `PROVENANCE.md`.
 5. Run `pnpm test:security-audit` and `pnpm turbo run check test build --concurrency=4`.
-6. Compare `pnpm --filter @rat-stack/site startup:check` before and after. Skill content belongs in static assets.
+6. Compare `pnpm --filter @pecunia/site startup:check` before and after. Skill content belongs in static assets.
 
 ## Integration
 

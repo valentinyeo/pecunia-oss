@@ -9,7 +9,7 @@ class ContentGenerationFailed extends Schema.TaggedError<
   { readonly brand: unique symbol }
 >()("ContentGenerationFailed", { exitCode: Schema.Int }) {
   override get message() {
-    return `Content generation exited with code ${this.exitCode}. Typecheck, lint, and tests read the generated content, so none of them can run. Fix: read the error above, then rerun \`pnpm --filter @rat-stack/site generate\` until it exits 0.`;
+    return `Content generation exited with code ${this.exitCode}. Typecheck, lint, and tests read the generated content, so none of them can run. Fix: read the error above, then rerun \`pnpm --filter @pecunia/site generate\` until it exits 0.`;
   }
 }
 

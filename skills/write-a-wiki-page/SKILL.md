@@ -240,7 +240,7 @@ Never name the email delivery partner or list vendor in public prose. Describe t
 ## 7. Finish
 
 1. Run `pnpm install --frozen-lockfile` before gates after any dependency change.
-2. Run `pnpm --filter @rat-stack/site generate`.
+2. Run `pnpm --filter @pecunia/site generate`.
 3. Read all prose and source-drift warnings.
 4. Run `pnpm turbo run check test build`.
 5. Read the generated HTML view.

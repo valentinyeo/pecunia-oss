@@ -20,7 +20,7 @@ export class StateStores extends Context.Service<
       address: StateStoreAddress
     ) => Effect.Effect<StateService, StateCopyRefused, Scope.Scope>;
   }
->()("@rat-stack/deploy/StateStores") {}
+>()("@pecunia/deploy/StateStores") {}
 
 export const storeAddress = (
   store: string,

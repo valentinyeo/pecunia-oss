@@ -2,17 +2,14 @@ import type {
   AbuseScore,
   IntakeEvents,
   IntakeTicket,
-} from "@rat-stack/core/intake";
-import type {
-  InterestTokens,
-  SubscriberIntake,
-} from "@rat-stack/core/interest";
-import { joinIntakeLayer } from "@rat-stack/core/join-interest";
+} from "@pecunia/core/intake";
+import type { InterestTokens, SubscriberIntake } from "@pecunia/core/interest";
+import { joinIntakeLayer } from "@pecunia/core/join-interest";
 import type {
   IntakeApplications,
   JoinContactStore,
-} from "@rat-stack/core/join-interest";
-import { webCryptoLayer } from "@rat-stack/core/web-crypto";
+} from "@pecunia/core/join-interest";
+import { webCryptoLayer } from "@pecunia/core/web-crypto";
 import type { Context, Effect } from "effect";
 import { Layer } from "effect";
 

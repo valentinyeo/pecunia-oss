@@ -1,4 +1,4 @@
-import type { ContactRef, IntakeEvents } from "@rat-stack/core/intake";
+import type { ContactRef, IntakeEvents } from "@pecunia/core/intake";
 import { Layer } from "effect";
 import type { Option, Redacted } from "effect";
 

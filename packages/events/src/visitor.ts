@@ -1,5 +1,5 @@
-import { AnonymousIdSchema } from "@rat-stack/core/event-sink";
-import type { AnonymousId, IdentityMode } from "@rat-stack/core/event-sink";
+import { AnonymousIdSchema } from "@pecunia/core/event-sink";
+import type { AnonymousId, IdentityMode } from "@pecunia/core/event-sink";
 import { Effect, Schema } from "effect";
 import * as Digest from "effect/crypto/Digest";
 import * as SecureRandom from "effect/crypto/SecureRandom";

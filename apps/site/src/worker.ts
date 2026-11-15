@@ -1,20 +1,16 @@
 import * as Cloudflare from "@alchemy.run/cloudflare";
-import {
-  Flags,
-  eventsEnabled,
-  eventsIdentityMode,
-} from "@rat-stack/core/flags";
-import { InterestMode, InterestTokens } from "@rat-stack/core/interest";
-import type { InterestDirectory } from "@rat-stack/core/interest";
+import { Flags, eventsEnabled, eventsIdentityMode } from "@pecunia/core/flags";
+import { InterestMode, InterestTokens } from "@pecunia/core/interest";
+import type { InterestDirectory } from "@pecunia/core/interest";
 import {
   IntakeApplications,
   IntakeErasure,
   IntakeRedeliver,
-} from "@rat-stack/core/join-interest";
-import type { RequestCaptureSettings } from "@rat-stack/core/request-capture";
-import { webCryptoLayer } from "@rat-stack/core/web-crypto";
-import { intakeLiveLayer, intakeInstance } from "@rat-stack/intake-live";
-import { subscriberDeliveryLayer } from "@rat-stack/subscriber-delivery";
+} from "@pecunia/core/join-interest";
+import type { RequestCaptureSettings } from "@pecunia/core/request-capture";
+import { webCryptoLayer } from "@pecunia/core/web-crypto";
+import { intakeLiveLayer, intakeInstance } from "@pecunia/intake-live";
+import { subscriberDeliveryLayer } from "@pecunia/subscriber-delivery";
 import { Stage } from "alchemy";
 import { Duration, Schema } from "effect";
 import * as Config from "effect/Config";

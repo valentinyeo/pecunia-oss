@@ -1,5 +1,5 @@
 import { expect, it } from "@effect/vitest";
-import { CallWatch } from "@rat-stack/capability/call-watch";
+import { CallWatch } from "@pecunia/capability/call-watch";
 import { Effect, Layer, Schema } from "effect";
 
 import {

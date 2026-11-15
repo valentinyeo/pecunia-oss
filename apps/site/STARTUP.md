@@ -3,7 +3,7 @@
 Run the portable size report from the repository root:
 
 ```sh
-pnpm --filter @rat-stack/site typecheck
+pnpm --filter @pecunia/site typecheck
 ```
 
 It generates content, typechecks, and builds production Workers with Alchemy's `WorkerBundle`. It does not import the Stack, plan infrastructure, upload a Worker, or require cloud credentials.
@@ -100,7 +100,7 @@ The 628,000-byte ceiling follows the same rule as [Request-time learning and nar
 
 LearnFeedbackAuth's complete JavaScript upload changes from 1,530,341 to 1,532,045 bytes. This change defers evaluation; it does not remove authentication code from the upload. Its entry changes from 123 to 237,343 bytes as Rolldown rearranges shared chunks. The static startup traversal, not the entry size, remains the gate.
 
-Cold profiles from `wrangler check startup` 4.94.0, three runs of each actual multipart auth upload on the same host. From the repository root, after `pnpm --filter @rat-stack/site startup:check`, repeat:
+Cold profiles from `wrangler check startup` 4.94.0, three runs of each actual multipart auth upload on the same host. From the repository root, after `pnpm --filter @pecunia/site startup:check`, repeat:
 
 ```sh
 WRANGLER_SEND_METRICS=false pnpm dlx wrangler@4.94.0 check startup \
@@ -124,7 +124,7 @@ The baseline is `b8df5c2`, before lazy D1 auth. The implementation is `edfc165`;
 ```sh
 pnpm install --frozen-lockfile
 pnpm turbo run build
-pnpm --filter @rat-stack/site startup:check
+pnpm --filter @pecunia/site startup:check
 ```
 
 Read `apps/site/dist/startup-auth/metrics.json` and `analysis.json`. Count uploaded bytes from only the entry's transitive static imports, once per chunk. The receipt is:
@@ -171,8 +171,8 @@ Use a disposable checkout of `2b7310c`. Keep mutations uncommitted, and undo eac
    Run:
 
    ```sh
-   pnpm --filter @rat-stack/auth build
-   pnpm --filter @rat-stack/site exec vitest run test/cold-auth-runtime.test.ts
+   pnpm --filter @pecunia/auth build
+   pnpm --filter @pecunia/site exec vitest run test/cold-auth-runtime.test.ts
    ```
 
    Expect the first request assertion to fail: HTTP 500 received instead of 200. The runtime-only condition allows deploy-time initialization and migrations to complete, so this tests the first Worker event rather than a planning failure. Undo the callback replacement.
@@ -180,13 +180,13 @@ Use a disposable checkout of `2b7310c`. Keep mutations uncommitted, and undo eac
 2. **Make the implementation eager.** Add `import * as eagerAuth from "./d1-auth-live.js";` to `packages/auth/src/d1-auth.ts`. Replace `Effect.promise(() => import("./d1-auth-live.js"))` with `Effect.sync(() => eagerAuth)`, leaving the following `Effect.map` unchanged. Run:
 
    ```sh
-   pnpm --filter @rat-stack/auth build
-   pnpm --filter @rat-stack/site startup:check
+   pnpm --filter @pecunia/auth build
+   pnpm --filter @pecunia/site startup:check
    ```
 
    Expect the report to show LearnFeedbackAuth's static startup at about 1,515,818 bytes, a jump of about 897 KB since the last run. Undo the added import and expression replacement.
 
-After removing the mutations, rebuild `@rat-stack/auth`, rerun `test/cold-auth-runtime.test.ts`, and rerun `startup:check` with the commands above. The cold request test must pass again, and the report must show the startup set back near 618,566 bytes.
+After removing the mutations, rebuild `@pecunia/auth`, rerun `test/cold-auth-runtime.test.ts`, and rerun `startup:check` with the commands above. The cold request test must pass again, and the report must show the startup set back near 618,566 bytes.
 
 No WorkerBridge replacement or minification experiment was needed. Beta.85's `getSharedBuild` installs its Node layers unconditionally, with no caller option to omit them. Its Rolldown builder already sets `minify: true`. Both remain unchanged.
 
@@ -195,7 +195,7 @@ No WorkerBridge replacement or minification experiment was needed. Beta.85's `ge
 With Wrangler on PATH:
 
 ```sh
-WRANGLER_SEND_METRICS=false pnpm --filter @rat-stack/site startup:profile
+WRANGLER_SEND_METRICS=false pnpm --filter @pecunia/site startup:profile
 ```
 
 Validated with Wrangler 4.94.0. This runs `wrangler check startup --worker` against a multipart bundle assembled from Alchemy's output, not an esbuild substitute. Wrangler imports the bundle in local workerd under the V8 CPU profiler. Open `apps/site/dist/startup/worker.cpuprofile` in Chrome DevTools. The directory also contains JavaScript chunks, source maps, and Rolldown's `analysis.json`.

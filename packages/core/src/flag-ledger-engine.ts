@@ -39,7 +39,7 @@ export class FlagStateStore extends Context.Service<
       position: typeof FlagPosition.Type
     ) => Effect.Effect<void, FlagStorageError>;
   }
->()("@rat-stack/core/FlagStateStore") {}
+>()("@pecunia/core/FlagStateStore") {}
 
 const authorityRank: Readonly<Record<FlagAuthorityRole, number>> = {
   agent: 0,

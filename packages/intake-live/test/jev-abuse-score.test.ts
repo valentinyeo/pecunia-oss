@@ -3,8 +3,8 @@ import {
   AbuseScore,
   PAGE_TICKET_SOURCE,
   SCORER_UNAVAILABLE,
-} from "@rat-stack/core/intake";
-import type { AbuseInput } from "@rat-stack/core/intake";
+} from "@pecunia/core/intake";
+import type { AbuseInput } from "@pecunia/core/intake";
 import { Effect, Layer, Option, Predicate, Redacted, Schema } from "effect";
 import { HttpClient, HttpClientResponse } from "effect/http";
 import { TestClock } from "effect/testing";

@@ -38,4 +38,4 @@ export class FlagLedger extends Context.Service<
       actor?: string
     ) => Effect.Effect<void, FlagLedgerFailure>;
   }
->()("@rat-stack/core/FlagLedger") {}
+>()("@pecunia/core/FlagLedger") {}

@@ -1,4 +1,4 @@
-import { toHttpApi } from "@rat-stack/capability/http-api";
+import { toHttpApi } from "@pecunia/capability/http-api";
 import {
   CONFIRM_ANSWER,
   SubscriberConfirm,
@@ -8,8 +8,8 @@ import {
   InterestRequest,
   InterestTokens,
   digestsMatch,
-} from "@rat-stack/core/interest";
-import type { SubscriberIntake } from "@rat-stack/core/interest";
+} from "@pecunia/core/interest";
+import type { SubscriberIntake } from "@pecunia/core/interest";
 import {
   IntakeApplications,
   IntakeErasure,
@@ -20,7 +20,7 @@ import {
   intakeEraseContract,
   intakeApplications,
   intakeApplicationsContract,
-} from "@rat-stack/core/join-interest";
+} from "@pecunia/core/join-interest";
 import * as AlchemyHttp from "alchemy/Http";
 import { Clock, Effect, Layer, Logger, Option, Schema, Stream } from "effect";
 import type { Context } from "effect";

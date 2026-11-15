@@ -1,8 +1,8 @@
 import { NodeServices } from "@effect/platform-node";
 import { expect, it } from "@effect/vitest";
-import { invokerFor, toCommand } from "@rat-stack/capability";
-import { toRpc } from "@rat-stack/capability/rpc";
-import { joinInterest } from "@rat-stack/core/join-interest";
+import { invokerFor, toCommand } from "@pecunia/capability";
+import { toRpc } from "@pecunia/capability/rpc";
+import { joinInterest } from "@pecunia/core/join-interest";
 import { Effect, Layer, Logger, Schema, Tracer } from "effect";
 import { CliOutput, Command } from "effect/cli";
 import { HttpRouter } from "effect/http";

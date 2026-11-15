@@ -111,7 +111,7 @@ A missing token also leaves tasks running without remote reuse.
 
 ## How to check
 
-Run `pnpm --filter @rat-stack/turbo-cache test`.
+Run `pnpm --filter @pecunia/turbo-cache test`.
 The adoption test starts the installed cartridge in local workerd and checks its exact three resource FQNs.
 It hands the generated credential to a subprocess that authenticates against the Worker.
 

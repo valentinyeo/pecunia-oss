@@ -153,7 +153,7 @@ export const tubeBuildError = (error: TubeDataInvalid) =>
     violation(
       `${tubeDataPath} has ${error.problems.length} ${error.problems.length === 1 ? "problem" : "problems"}.`,
       `The content build checks every entry before it emits ${tubeRoutePath}:\n${error.problems.map((problem) => `- ${problem}`).join("\n")}\n`,
-      "correct each problem listed, then run `pnpm --filter @rat-stack/site generate`.",
+      "correct each problem listed, then run `pnpm --filter @pecunia/site generate`.",
       error
     )
   );

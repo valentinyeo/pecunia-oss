@@ -1,4 +1,4 @@
-import type { LearnContext, LearnEvent, Progress } from "@rat-stack/core/learn";
+import type { LearnContext, LearnEvent, Progress } from "@pecunia/core/learn";
 import {
   LearnerProgress,
   LearnerProgressError,
@@ -6,7 +6,7 @@ import {
   ConceptProgressRowSchema,
   LearnTaskSchema,
   emptyProgress,
-} from "@rat-stack/core/learn";
+} from "@pecunia/core/learn";
 import {
   Config,
   Effect,

@@ -1,5 +1,5 @@
 import type { Block, Inline, MarkdownDocument } from "@foldkit/markdown";
-import { codeIdentity } from "@rat-stack/code-snippets";
+import { codeIdentity } from "@pecunia/code-snippets";
 import { Match, Option } from "effect";
 import type {
   BlockContent,
@@ -17,7 +17,7 @@ import type {
 } from "./component-registry.ts";
 import { contentRoot, stringifyContentMarkdown } from "./svx-ast.ts";
 
-export { codeIdentity } from "@rat-stack/code-snippets";
+export { codeIdentity } from "@pecunia/code-snippets";
 
 export interface ListLayout {
   readonly items: readonly (boolean | null | undefined)[];

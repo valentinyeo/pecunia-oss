@@ -142,7 +142,7 @@ The output is a table or a set of files in R2 that you query later.
 
 ### How rat-stack uses it
 
-Pipelines is the only one of the four that rat-stack declares. `@rat-stack/basin` builds the stream for both [request analytics](/systems/analytics) and join intake. The stream accepts no HTTP input, so only the Worker binding writes to it.
+Pipelines is the only one of the four that rat-stack declares. `@pecunia/basin` builds the stream for both [request analytics](/systems/analytics) and join intake. The stream accepts no HTTP input, so only the Worker binding writes to it.
 
 ```ts repo=rat-stack path=packages/basin/src/index.ts at=a3f5a14861ce89913e82bea0f7ba02c83e8d4725 lines=14-25 {20-22} title="A private stream beside its bucket"
 

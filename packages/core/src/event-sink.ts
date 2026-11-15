@@ -56,6 +56,6 @@ export interface EventSinkService {
 }
 
 export const EventSink = Context.Reference<EventSinkService>(
-  "@rat-stack/core/EventSink",
+  "@pecunia/core/EventSink",
   { defaultValue: () => ({ send: () => Effect.void }) }
 );

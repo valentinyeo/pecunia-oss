@@ -1,4 +1,4 @@
-import { LoreEdge, LoreGroup, LoreNode } from "@rat-stack/core/contracts";
+import { LoreEdge, LoreGroup, LoreNode } from "@pecunia/core/contracts";
 import { Schema } from "effect";
 
 const MetadataFields = {

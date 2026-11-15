@@ -56,7 +56,7 @@ export class IntakeSweep extends Context.Service<
       submissionIds: readonly string[]
     ) => Effect.Effect<IntakeSweepCounts>;
   }
->()("@rat-stack/core/IntakeSweep") {
+>()("@pecunia/core/IntakeSweep") {
   static readonly layer = Layer.effect(
     this,
     Effect.gen(function* makeIntakeSweep() {

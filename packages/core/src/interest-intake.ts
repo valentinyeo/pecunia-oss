@@ -39,4 +39,4 @@ export class SubscriberIntake extends Context.Service<
     readonly submit: (request: IntakeRequest) => Effect.Effect<IntakeResult>;
     readonly agent?: AgentIntake;
   }
->()("@rat-stack/core/SubscriberIntake") {}
+>()("@pecunia/core/SubscriberIntake") {}

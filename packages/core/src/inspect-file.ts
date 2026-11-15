@@ -1,4 +1,4 @@
-import { implement } from "@rat-stack/capability/implement";
+import { implement } from "@pecunia/capability/implement";
 
 import {
   listCafeNews,

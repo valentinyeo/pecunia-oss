@@ -5,7 +5,7 @@ import {
   localLearnerPreferencesLayer,
   localLearnerProgressLayer,
   remoteLearnerLayer,
-} from "@rat-stack/learn/local";
+} from "@pecunia/learn/local";
 import { Effect, Layer, Path } from "effect";
 
 export const localLearnLayer = Layer.unwrap(

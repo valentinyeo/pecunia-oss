@@ -4,7 +4,7 @@ import {
   Exercise,
   Workshop,
   publishWorkshop,
-} from "@rat-stack/core/tokenmaxx-workshop";
+} from "@pecunia/core/tokenmaxx-workshop";
 import { Effect, FileSystem, Layer, Path, Schema } from "effect";
 import { HttpRouter } from "effect/http";
 

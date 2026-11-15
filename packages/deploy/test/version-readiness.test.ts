@@ -1,5 +1,5 @@
 import { expect, it } from "@effect/vitest";
-import { gateOutcome } from "@rat-stack/check-harness";
+import { gateOutcome } from "@pecunia/check-harness";
 import { DateTime, Effect, Schema } from "effect";
 import * as HttpClient from "effect/http/HttpClient";
 import * as HttpClientResponse from "effect/http/HttpClientResponse";

@@ -1,5 +1,5 @@
-import { WorkshopPublicData } from "@rat-stack/core/tokenmaxx-workshop";
-import { WorkshopDirectory } from "@rat-stack/core/workshop-directory";
+import { WorkshopPublicData } from "@pecunia/core/tokenmaxx-workshop";
+import { WorkshopDirectory } from "@pecunia/core/workshop-directory";
 import { Effect, Layer, Option, Ref, Schema } from "effect";
 
 import { staticAssetGeneration } from "./bundled-content.generated.js";

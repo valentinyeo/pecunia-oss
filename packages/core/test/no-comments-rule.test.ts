@@ -110,6 +110,33 @@ describe("directive-reason rule", () => {
     expect(lines).toEqual([]);
     expect(status).toBe(0);
   });
+
+  it("passes a trufflehog:ignore directive with a reason", () => {
+    const { lines, status } = lintReasons(
+      [
+        'export const url = "https://user:password@operator.example.test"; // trufflehog:ignore -- upstream template fixture, not a key',
+        "// trufflehog:ignore -- upstream template fixture, not a key",
+        'export const hex = "c1c8a8c1471069fb0e188eeaff69b8e8db6564a8";',
+        "",
+      ].join("\n")
+    );
+
+    expect(lines).toEqual([]);
+    expect(status).toBe(0);
+  });
+
+  it("reports a trufflehog:ignore directive without a reason", () => {
+    const { lines, status } = lintReasons(
+      [
+        'export const url = "https://user:password@operator.example.test"; // trufflehog:ignore',
+        "// trufflehog:ignore --",
+        "",
+      ].join("\n")
+    );
+
+    expect(status).not.toBe(0);
+    expect(lines).toEqual([1, 2]);
+  });
 });
 
 describe("no-comments rule", () => {
@@ -204,5 +231,31 @@ describe("no-comments rule", () => {
 
     expect(fixed).toBe(source);
     expect(remaining).toBe(0);
+  });
+
+  it("keeps a trailing trufflehog:ignore directive on the line it silences", () => {
+    const source = [
+      'export const url = "https://user:password@operator.example.test"; // trufflehog:ignore -- upstream template fixture, not a key',
+      'export const hex = "c1c8a8c1471069fb0e188eeaff69b8e8db6564a8"; // trufflehog:ignore -- upstream template fixture, not a key',
+      "",
+    ].join("\n");
+
+    const { fixed, remaining } = lintFixed("sample.ts", source);
+
+    expect(fixed).toBe(source);
+    expect(remaining).toBe(0);
+  });
+
+  it("still removes a prose comment", () => {
+    const { fixed } = lintFixed(
+      "sample.ts",
+      [
+        "// not a directive, so it goes away",
+        "export const answer = 42;",
+        "",
+      ].join("\n")
+    );
+
+    expect(fixed).toBe(["export const answer = 42;", ""].join("\n"));
   });
 });

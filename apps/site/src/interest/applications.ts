@@ -1,13 +1,13 @@
-import type { ContactRef } from "@rat-stack/core/intake";
+import type { ContactRef } from "@pecunia/core/intake";
 import {
   IntakeApplications,
   IntakeApplicationsUnavailable,
   IntakeApplicationSchema,
   JoinContactStore,
-} from "@rat-stack/core/join-interest";
-import type { IntakeApplication } from "@rat-stack/core/join-interest";
-import { unsealApplication } from "@rat-stack/intake-live";
-import type { SealedRow } from "@rat-stack/intake-live";
+} from "@pecunia/core/join-interest";
+import type { IntakeApplication } from "@pecunia/core/join-interest";
+import { unsealApplication } from "@pecunia/intake-live";
+import type { SealedRow } from "@pecunia/intake-live";
 import { Effect, Layer, Logger, Schema } from "effect";
 
 export interface IntakeReadStub {

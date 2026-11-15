@@ -1,4 +1,4 @@
-import { profileForNewsRow } from "@rat-stack/core/cafe-people";
+import { profileForNewsRow } from "@pecunia/core/cafe-people";
 import {
   cafeDomain,
   cafeLetterInitial,
@@ -7,7 +7,7 @@ import {
   sortCafeProjects,
   verifiedLetters,
   xProfileUrl,
-} from "@rat-stack/core/contracts";
+} from "@pecunia/core/contracts";
 import type {
   CafeAuthor,
   CafeDataValue,
@@ -16,7 +16,7 @@ import type {
   CafePersonSummary,
   CafeProfileValue,
   CafeProjectValue,
-} from "@rat-stack/core/contracts";
+} from "@pecunia/core/contracts";
 import { Option } from "effect";
 import { absurd } from "effect/Function";
 

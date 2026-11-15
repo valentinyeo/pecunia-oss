@@ -1,11 +1,11 @@
-import type { IntakeEvents } from "@rat-stack/core/intake";
-import type { SubscriberIntake } from "@rat-stack/core/interest";
+import type { IntakeEvents } from "@pecunia/core/intake";
+import type { SubscriberIntake } from "@pecunia/core/interest";
 import {
   IntakeSweep,
   JoinContactStore,
   JoinDeliveryDeadline,
   SWEEP_CONCURRENCY,
-} from "@rat-stack/core/join-interest";
+} from "@pecunia/core/join-interest";
 import { Context, Duration, Effect, Layer, Option } from "effect";
 
 import type { AgentSignupOptions } from "./join-layer.js";

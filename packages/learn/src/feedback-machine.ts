@@ -1,6 +1,6 @@
-import { watchActor } from "@rat-stack/capability/actor-watch";
-import { FeedbackGrant, LearnUnauthenticated } from "@rat-stack/core/learn";
-import type { FeedbackPoll } from "@rat-stack/core/learn";
+import { watchActor } from "@pecunia/capability/actor-watch";
+import { FeedbackGrant, LearnUnauthenticated } from "@pecunia/core/learn";
+import type { FeedbackPoll } from "@pecunia/core/learn";
 import {
   createEffectActor,
   createEffectLogic,

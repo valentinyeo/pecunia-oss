@@ -1,8 +1,8 @@
 import {
   normalizeCodeLanguage,
   parseCodeRequest,
-} from "@rat-stack/code-snippets";
-import type { CodeSnippet } from "@rat-stack/code-snippets";
+} from "@pecunia/code-snippets";
+import type { CodeSnippet } from "@pecunia/code-snippets";
 import { Effect, FileSystem, Path, Schema } from "effect";
 
 import { collectCodeFences } from "./code-pipeline.ts";

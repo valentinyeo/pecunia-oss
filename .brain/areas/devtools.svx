@@ -68,7 +68,7 @@ These capabilities are available only in development.
 
 ## How to check
 
-- Run `pnpm --filter @rat-stack/devtools test` for recording and tool behavior.
-- Run `pnpm --filter @rat-stack/web test` for the local backend and production-bundle exclusion test.
+- Run `pnpm --filter @pecunia/devtools test` for recording and tool behavior.
+- Run `pnpm --filter @pecunia/web test` for the local backend and production-bundle exclusion test.
 - Run `pnpm lint` for `no-devtools-in-production` and `watch-effect-actors`.
 - Inspect `rat_list_actors`, `rat_list_transitions`, and `rat_get_actor` in a development application after running a lifecycle capability. Without a recording Layer, these tools cannot show whether a lifecycle ran.

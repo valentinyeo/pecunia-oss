@@ -97,7 +97,7 @@ Selection follows deck order when context is absent. A public context term selec
 The command-line interface (CLI) and MCP tools use a local progress adapter, an implementation that connects learning operations to local files.
 MCP means Model Context Protocol. Its stdio connection uses the process's standard input and output to carry tool calls.
 
-The learning cartridge provides the adapter through `@rat-stack/learn/local`.
+The learning cartridge provides the adapter through `@pecunia/learn/local`.
 A cartridge is a package for one job, with its implementation and required infrastructure.
 The CLI supplies filesystem access and the default directory.
 
@@ -169,7 +169,7 @@ The event schema defines the available observations:
 Build the CLI and start its local stdio MCP:
 
 ```sh
-pnpm turbo run build --filter=@rat-stack/cli
+pnpm turbo run build --filter=@pecunia/cli
 node apps/cli/dist/cli.js mcp --devtools
 ```
 
@@ -217,9 +217,9 @@ These are initial input bounds, not measured traffic limits.
 Run the implementation checks:
 
 ```sh
-pnpm --filter @rat-stack/learn test
-pnpm --filter @rat-stack/auth test
-pnpm --filter @rat-stack/site generate
+pnpm --filter @pecunia/learn test
+pnpm --filter @pecunia/auth test
+pnpm --filter @pecunia/site generate
 pnpm turbo run check test build --concurrency=1
 ```
 

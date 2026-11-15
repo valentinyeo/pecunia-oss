@@ -1,6 +1,6 @@
-import { watchActor } from "@rat-stack/capability/actor-watch";
-import { ApprovalDenied } from "@rat-stack/capability/approval";
-import type { Around } from "@rat-stack/capability/call-watch";
+import { watchActor } from "@pecunia/capability/actor-watch";
+import { ApprovalDenied } from "@pecunia/capability/approval";
+import type { Around } from "@pecunia/capability/call-watch";
 import {
   createEffectActor,
   createEffectLogic,

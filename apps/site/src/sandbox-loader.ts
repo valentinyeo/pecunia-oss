@@ -1,4 +1,4 @@
-import { resolveLimits, Sandbox } from "@rat-stack/capability/sandbox-port";
+import { resolveLimits, Sandbox } from "@pecunia/capability/sandbox-port";
 import { Duration, Effect, Layer } from "effect";
 
 import type {

@@ -1,6 +1,6 @@
 import * as Cloudflare from "@alchemy.run/cloudflare";
 import { expect, it } from "@effect/vitest";
-import { InterestDirectory } from "@rat-stack/core/interest";
+import { InterestDirectory } from "@pecunia/core/interest";
 import { ConfigProvider, Effect, Layer, Option, Schema } from "effect";
 import type { ConfigError } from "effect/Config";
 import type * as Scope from "effect/Scope";

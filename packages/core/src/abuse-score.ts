@@ -37,7 +37,7 @@ export const scorerUnavailableVerdict: AbuseVerdict = {
 export class AbuseScore extends Context.Service<
   AbuseScore,
   { readonly score: (input: AbuseInput) => Effect.Effect<AbuseVerdict> }
->()("@rat-stack/core/AbuseScore") {
+>()("@pecunia/core/AbuseScore") {
   static readonly testLayer = (
     verdict: AbuseVerdict | ((input: AbuseInput) => AbuseVerdict) = cleanVerdict
   ) =>

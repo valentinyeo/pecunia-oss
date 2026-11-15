@@ -1,6 +1,6 @@
 # Shared Basin infrastructure
 
-`@rat-stack/basin` declares the storage pipeline shared by events and intake. It has no event schemas, capture middleware, or intake behavior.
+`@pecunia/basin` declares the storage pipeline shared by events and intake. It has no event schemas, capture middleware, or intake behavior.
 
 - `basinStream(name)` declares a retained R2 bucket and a private Pipelines stream.
 - `icebergSink(options)` declares a retained Data Catalog, Iceberg sink, and `SELECT *` pipeline.
@@ -21,8 +21,8 @@ ${name}Pipeline
 
 ## Check
 
-Run `pnpm --filter @rat-stack/basin test`. The declaration property checks private ingest, retained resources, and isolated caller names, tables, and maintenance settings. It declares an in-memory Alchemy Stack without applying resources.
+Run `pnpm --filter @pecunia/basin test`. The declaration property checks private ingest, retained resources, and isolated caller names, tables, and maintenance settings. It declares an in-memory Alchemy Stack without applying resources.
 
-Other packages import these helpers from `@rat-stack/basin`, never from `@rat-stack/events/basin`. The cross-layer import rule enforces this boundary.
+Other packages import these helpers from `@pecunia/basin`, never from `@pecunia/events/basin`. The cross-layer import rule enforces this boundary.
 
 Events no longer blocks its own removal through Basin. `packages/events/README.md` shows how to remove the cartridge.

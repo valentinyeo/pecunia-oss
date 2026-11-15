@@ -1,13 +1,13 @@
 import { NodeCrypto } from "@effect/platform-node";
 import { expect, it } from "@effect/vitest";
-import { Approval } from "@rat-stack/capability/approval";
-import { getFlag, listFlags } from "@rat-stack/core/flag-capabilities";
-import { FlagTarget } from "@rat-stack/core/flag-control";
+import { Approval } from "@pecunia/capability/approval";
+import { getFlag, listFlags } from "@pecunia/core/flag-capabilities";
+import { FlagTarget } from "@pecunia/core/flag-control";
 import {
   flipFeatureFlag,
   recordFlagEvidence,
   readFlagLedger,
-} from "@rat-stack/core/flag-write-capabilities";
+} from "@pecunia/core/flag-write-capabilities";
 import {
   FlagScopeMismatch,
   Flags,
@@ -15,7 +15,7 @@ import {
   eventsEnabled,
   eventsIdentityMode,
   defineFlag,
-} from "@rat-stack/core/flags";
+} from "@pecunia/core/flags";
 import {
   Config,
   ConfigProvider,

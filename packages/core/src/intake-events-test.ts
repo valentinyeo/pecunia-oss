@@ -14,4 +14,4 @@ export class IntakeEventsTest extends Context.Service<
     readonly erased: Effect.Effect<readonly ContactRef[]>;
     readonly statements: Effect.Effect<readonly IntakeStatement[]>;
   }
->()("@rat-stack/core/IntakeEventsTest") {}
+>()("@pecunia/core/IntakeEventsTest") {}

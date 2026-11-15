@@ -1,6 +1,6 @@
 import { describe, expect, it } from "@effect/vitest";
-import { Approval } from "@rat-stack/capability/approval";
-import type { Verdict } from "@rat-stack/check-harness";
+import { Approval } from "@pecunia/capability/approval";
+import type { Verdict } from "@pecunia/check-harness";
 import { createEffectActor, join, send } from "@xstate/effect";
 import { ConfigProvider, Effect, Fiber, Layer, Schema } from "effect";
 import * as Arbitrary from "effect/Arbitrary";

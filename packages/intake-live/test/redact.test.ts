@@ -1,5 +1,5 @@
 import { describe, expect, it } from "@effect/vitest";
-import { IntakeAnswersSchema } from "@rat-stack/core/intake";
+import { IntakeAnswersSchema } from "@pecunia/core/intake";
 import { Effect } from "effect";
 import * as Arbitrary from "effect/Arbitrary";
 

@@ -1,8 +1,5 @@
-import { githubProfileUrl, xProfileUrl } from "@rat-stack/core/contracts";
-import type {
-  CafeNewsItemValue,
-  CafeNewsList,
-} from "@rat-stack/core/contracts";
+import { githubProfileUrl, xProfileUrl } from "@pecunia/core/contracts";
+import type { CafeNewsItemValue, CafeNewsList } from "@pecunia/core/contracts";
 
 const xmlEscapes = new Map([
   ['"', "&quot;"],

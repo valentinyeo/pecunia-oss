@@ -99,7 +99,7 @@ export class InterestDirectory extends Context.Service<
     readonly remove: (selector: RemoveSelector) => Effect.Effect<RemoveCounts>;
     readonly summary: Effect.Effect<InterestSummary>;
   }
->()("@rat-stack/core/InterestDirectory") {
+>()("@pecunia/core/InterestDirectory") {
   static readonly memory = Layer.effect(
     this,
     Effect.gen(function* makeMemoryInterestDirectory() {

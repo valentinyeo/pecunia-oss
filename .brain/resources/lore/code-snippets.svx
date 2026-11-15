@@ -92,7 +92,7 @@ sources:
 
 **Design brief; shipped at `a646f7ffd00273d85fbe1d905d9cdb194fdc0f60`.**
 
-`@rat-stack/code-snippets` gives an excerpt its exact source, checks its metadata, and builds both reader views from one model.
+`@pecunia/code-snippets` gives an excerpt its exact source, checks its metadata, and builds both reader views from one model.
 See [Write a wiki page](/skills/write-a-wiki-page) for authoring steps and exact repair messages.
 
 Lore explains design choices. [Systems](/systems) documents shipped behavior, as set out in the [project vision](https://github.com/joelhooks/rat-stack/blob/main/VISION.md).

@@ -1,8 +1,8 @@
 import * as Cloudflare from "@alchemy.run/cloudflare";
 import * as Test from "@alchemy.run/test/Vitest";
 import { expect } from "@effect/vitest";
-import { FlagStorageError, InvalidFlagValue } from "@rat-stack/core/flags";
-import { flagValueKey } from "@rat-stack/flags/kv";
+import { FlagStorageError, InvalidFlagValue } from "@pecunia/core/flags";
+import { flagValueKey } from "@pecunia/flags/kv";
 import { Effect, Match, Schema } from "effect";
 import * as Arbitrary from "effect/Arbitrary";
 

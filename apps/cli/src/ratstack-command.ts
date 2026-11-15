@@ -1,5 +1,5 @@
-import { toCommand } from "@rat-stack/capability";
-import { localLearnCapabilities } from "@rat-stack/learn/local";
+import { toCommand } from "@pecunia/capability";
+import { localLearnCapabilities } from "@pecunia/learn/local";
 import { Effect, Layer } from "effect";
 import { Command } from "effect/cli";
 

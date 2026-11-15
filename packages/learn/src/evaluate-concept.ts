@@ -1,5 +1,5 @@
-import { watchActor } from "@rat-stack/capability/actor-watch";
-import type { ConceptProgress } from "@rat-stack/core/learn";
+import { watchActor } from "@pecunia/capability/actor-watch";
+import type { ConceptProgress } from "@pecunia/core/learn";
 import { createEffectActor, waitFor } from "@xstate/effect";
 import { Effect } from "effect";
 

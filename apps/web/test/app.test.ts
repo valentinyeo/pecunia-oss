@@ -1,5 +1,5 @@
 import { describe, expect, it } from "@effect/vitest";
-import type { ReadOutput } from "@rat-stack/core/contracts";
+import type { ReadOutput } from "@pecunia/core/contracts";
 import { Option, Schema } from "effect";
 import * as Arbitrary from "effect/Arbitrary";
 import * as Scene from "foldkit/scene";

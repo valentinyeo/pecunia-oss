@@ -1,7 +1,7 @@
 import type * as Test from "@alchemy.run/test/Vitest";
 import { NodeCrypto, NodeServices } from "@effect/platform-node";
-import { FlagPosition, FlagReceipt } from "@rat-stack/core/flag-control";
-import type { FlagChange } from "@rat-stack/core/flag-control";
+import { FlagPosition, FlagReceipt } from "@pecunia/core/flag-control";
+import type { FlagChange } from "@pecunia/core/flag-control";
 import { Effect, Layer, Schedule, Schema } from "effect";
 import * as SecureRandom from "effect/crypto/SecureRandom";
 import { HttpClient, HttpClientRequest } from "effect/http";

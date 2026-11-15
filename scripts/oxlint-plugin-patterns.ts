@@ -1371,7 +1371,7 @@ const watchEffectActors = defineRule({
     },
     messages: {
       unwatched:
-        'This createEffectActor result is never passed to watchActor. Without it, rat_list_actors cannot see this machine. Fix: call `watchActor("<machine>", actor)` from `@rat-stack/capability/actor-watch` after `createEffectActor`; it is a no-op until devtools provides a watcher.',
+        'This createEffectActor result is never passed to watchActor. Without it, rat_list_actors cannot see this machine. Fix: call `watchActor("<machine>", actor)` from `@pecunia/capability/actor-watch` after `createEffectActor`; it is a no-op until devtools provides a watcher.',
     },
     type: "suggestion",
   },

@@ -7,13 +7,13 @@ import {
   SandboxDiagnostic,
   sandboxRunner,
   invokeFailure,
-} from "@rat-stack/capability/sandbox";
+} from "@pecunia/capability/sandbox";
 import type {
   Invoke,
   InvokeOutcome,
   SandboxRun,
   SandboxLimits,
-} from "@rat-stack/capability/sandbox";
+} from "@pecunia/capability/sandbox";
 import type { RpcTarget as RpcTargetType } from "cloudflare:workers";
 import {
   Duration,

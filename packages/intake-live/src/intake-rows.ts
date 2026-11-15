@@ -2,13 +2,13 @@ import {
   ContactRefSchema,
   IntakeObjectSchema,
   IntakeVerbSchema,
-} from "@rat-stack/core/intake";
+} from "@pecunia/core/intake";
 import type {
   ContactRef,
   IntakeContact,
   IntakeStatement,
-} from "@rat-stack/core/intake";
-import { RequestGeoSchema } from "@rat-stack/core/request-geo";
+} from "@pecunia/core/intake";
+import { RequestGeoSchema } from "@pecunia/core/request-geo";
 import { Schema } from "effect";
 
 export const INTAKE_TABLE = "intake_raw";

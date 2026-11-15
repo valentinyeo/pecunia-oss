@@ -37,7 +37,7 @@ A fix to a protocol that has no model does not wait for one. Land the fix with i
 
 ## How to model
 
-1. **Use the pinned checker.** `tla-ts` is exact-pinned in `packages/core/package.json` and is not vendored. The test runs its CLI as a child process, and you run the same binary by hand: `pnpm --filter @rat-stack/core exec tla-ts -config spec/<Name>.cfg spec/<Name>.tla`. Keep the spec to plain TLA+ that TLC also accepts.
+1. **Use the pinned checker.** `tla-ts` is exact-pinned in `packages/core/package.json` and is not vendored. The test runs its CLI as a child process, and you run the same binary by hand: `pnpm --filter @pecunia/core exec tla-ts -config spec/<Name>.cfg spec/<Name>.tla`. Keep the spec to plain TLA+ that TLC also accepts.
 2. **Make every await a step.** A crash can land between any two steps. Model the store's real atomicity. If one call writes a record and a second call writes its index, the model needs two steps for that.
 3. **Write the assumptions down.** List each platform or provider behaviour the model relies on in the spec's `README.md`. Each one needs a test, or a weaker config that shows what happens without it.
 4. **State each invariant in words.** Reviewers check the words against the formula. A protocol that owes work later (an alarm, a sweep) needs an invariant that the owed work stays findable, such as `OwedIsFindable`.

@@ -7,4 +7,4 @@ export class InterestRequest extends Context.Service<
     readonly origin: string;
     readonly userAgent: string;
   }
->()("@rat-stack/core/InterestRequest") {}
+>()("@pecunia/core/InterestRequest") {}

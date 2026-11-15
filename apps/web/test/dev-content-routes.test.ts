@@ -1,6 +1,6 @@
 import { expect, it } from "@effect/vitest";
-import { contentCapabilities } from "@rat-stack/site/capabilities";
-import { nodeContentLayer as contentLayer } from "@rat-stack/site/node-content";
+import { contentCapabilities } from "@pecunia/site/capabilities";
+import { nodeContentLayer as contentLayer } from "@pecunia/site/node-content";
 import { Effect, Layer, Schema } from "effect";
 import { HttpRouter } from "effect/http";
 

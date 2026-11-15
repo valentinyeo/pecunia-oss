@@ -1,1 +1,1 @@
-export { events, memoryEvents } from "@rat-stack/events/site";
+export { events, memoryEvents } from "@pecunia/events/site";

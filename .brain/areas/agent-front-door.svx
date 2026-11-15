@@ -118,8 +118,8 @@ The test uses workerd, production content routes, and the reader wrapper.
 5. Use the `tools/list` request in [llms.txt](/llms.txt).
 6. Search for a public document.
 7. Read the document.
-8. Run `pnpm --filter @rat-stack/site test` for protocol routing, rate limiting, and sandbox behavior.
+8. Run `pnpm --filter @pecunia/site test` for protocol routing, rate limiting, and sandbox behavior.
 9. Confirm the live cards and capability list before advertising a new agent path.
-10. Run `pnpm --filter @rat-stack/site exec vitest run test/cold-content-runtime.test.ts` to check cold-request isolation.
+10. Run `pnpm --filter @pecunia/site exec vitest run test/cold-content-runtime.test.ts` to check cold-request isolation.
 
 Check a new deploy live as well as running local tests.

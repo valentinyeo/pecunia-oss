@@ -137,7 +137,7 @@ export class Flags extends Context.Service<
     >;
     readonly registry: readonly Flag<unknown>[];
   }
->()("@rat-stack/core/Flags") {
+>()("@pecunia/core/Flags") {
   static defaults = (registry: readonly Flag<unknown>[]) =>
     Layer.merge(
       Layer.succeed(Flags, {

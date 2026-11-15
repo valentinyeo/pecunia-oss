@@ -137,6 +137,6 @@ Rate refusals return a busy message and save nothing. The agent waits one minute
 ## How to check
 
 - Read `apps/site/src/interest/routes.ts` for email confirmation, `retired-routes.ts` for 410 responses, and `packages/core/src/join-intake.ts` for agent applications. The only published signup capability is `joinInterest`.
-- Run `pnpm --filter @rat-stack/core test` for lifecycle behavior and `pnpm --filter @rat-stack/site test` for submission and confirmation integration tests. `pnpm --filter @rat-stack/subscriber-delivery test` checks the adapter contract.
+- Run `pnpm --filter @pecunia/core test` for lifecycle behavior and `pnpm --filter @pecunia/site test` for submission and confirmation integration tests. `pnpm --filter @pecunia/subscriber-delivery test` checks the adapter contract.
 - With an authorized test address, approve an agent application, receive the confirmation email, follow its link, and confirm. Source and local tests alone do not prove inbox delivery or the external list state.
 - Check [OpenAPI](/openapi.json) for `joinInterest` and read the agent view of [/tokenmaxx](/tokenmaxx) for the application steps. Do not bypass confirmation.

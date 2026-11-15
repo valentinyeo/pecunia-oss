@@ -1,5 +1,5 @@
 import { expect, it } from "@effect/vitest";
-import { IsoDate } from "@rat-stack/core/contracts";
+import { IsoDate } from "@pecunia/core/contracts";
 import { Option, Schema } from "effect";
 import * as Arbitrary from "effect/Arbitrary";
 

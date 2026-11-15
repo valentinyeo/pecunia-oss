@@ -1,10 +1,10 @@
 import * as Cloudflare from "@alchemy.run/cloudflare";
-import { basinStream, icebergSink } from "@rat-stack/basin";
+import { basinStream, icebergSink } from "@pecunia/basin";
 import {
   EventSink,
   EventSinkError,
   RawEventSchema,
-} from "@rat-stack/core/event-sink";
+} from "@pecunia/core/event-sink";
 import "alchemy/Phase";
 import { Random } from "alchemy/Random";
 import { retain } from "alchemy/RemovalPolicy";

@@ -1,6 +1,6 @@
 import { expect, it } from "@effect/vitest";
-import { CafeLetter, cafeLetters } from "@rat-stack/core/contracts";
-import type { CafeLetterValue } from "@rat-stack/core/contracts";
+import { CafeLetter, cafeLetters } from "@pecunia/core/contracts";
+import type { CafeLetterValue } from "@pecunia/core/contracts";
 import { Schema } from "effect";
 import * as Arbitrary from "effect/Arbitrary";
 import { given, message, model, story } from "foldkit/story";

@@ -1,5 +1,5 @@
 import { NodeRuntime, NodeServices } from "@effect/platform-node";
-import { fetchSources } from "@rat-stack/code-snippets/fetch";
+import { fetchSources } from "@pecunia/code-snippets/fetch";
 import { Effect, Path } from "effect";
 
 import { codeRepositories } from "./code-config.ts";

@@ -1,7 +1,7 @@
-import { EventSink, RawEventSchema } from "@rat-stack/core/event-sink";
-import type { RequestCaptureSettings } from "@rat-stack/core/request-capture";
-import { isGeoLabel } from "@rat-stack/core/request-geo";
-import { webCryptoLayer } from "@rat-stack/core/web-crypto";
+import { EventSink, RawEventSchema } from "@pecunia/core/event-sink";
+import type { RequestCaptureSettings } from "@pecunia/core/request-capture";
+import { isGeoLabel } from "@pecunia/core/request-geo";
+import { webCryptoLayer } from "@pecunia/core/web-crypto";
 import { Clock, DateTime, Effect, Schema } from "effect";
 import type { Context } from "effect";
 import * as SecureRandom from "effect/crypto/SecureRandom";

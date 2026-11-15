@@ -9,19 +9,19 @@ import {
   flagPartition,
   validateFlagScope,
   validateFlagChangeQuery,
-} from "@rat-stack/core/flag-control";
-import type { ListFlagChangesInput } from "@rat-stack/core/flag-control";
+} from "@pecunia/core/flag-control";
+import type { ListFlagChangesInput } from "@pecunia/core/flag-control";
 import {
   FlagStateStore,
   flagLedgerEngine,
-} from "@rat-stack/core/flag-ledger-engine";
+} from "@pecunia/core/flag-ledger-engine";
 import {
   FlagStorageError,
   Flags,
   decodeFlag,
   InvalidFlagValue,
-} from "@rat-stack/core/flags";
-import type { Flag } from "@rat-stack/core/flags";
+} from "@pecunia/core/flags";
+import type { Flag } from "@pecunia/core/flags";
 import { Clock, Effect, Layer, Schema } from "effect";
 
 import { InvalidFlagJournal } from "./invalid-flag-journal.js";

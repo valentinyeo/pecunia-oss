@@ -2,7 +2,7 @@ import { expect, it } from "@effect/vitest";
 import {
   IntakeApplications,
   intakeApplications,
-} from "@rat-stack/core/join-interest";
+} from "@pecunia/core/join-interest";
 import { ConfigProvider, Effect, Layer, Logger, Tracer } from "effect";
 import { HttpClient, HttpClientResponse } from "effect/http";
 
@@ -129,7 +129,7 @@ it.effect(
           Response.json({ email: "synthetic@example.test" }),
         ],
         ["http://operator.example.test", Response.json([])],
-        ["https://user:password@operator.example.test", Response.json([])],
+        ["https://user:password@operator.example.test", Response.json([])], // trufflehog:ignore -- upstream template fixture, not a key
       ] as const) {
         const layer = remoteIntakeApplicationsLayer(baseUrl).pipe(
           Layer.provide(

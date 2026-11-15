@@ -73,7 +73,7 @@ Typed preparation for agent-assisted intake uses the same service boundary: [`In
 
 Three leaks have been fixed:
 
-- HTTP adapters lived beside ports in core. Intake and confirmation adapters now live in [`@rat-stack/subscriber-delivery`](https://github.com/joelhooks/rat-stack/tree/main/packages/subscriber-delivery/src), composed by `src/delivery.ts`.
+- HTTP adapters lived beside ports in core. Intake and confirmation adapters now live in [`@pecunia/subscriber-delivery`](https://github.com/joelhooks/rat-stack/tree/main/packages/subscriber-delivery/src), composed by `src/delivery.ts`.
 - Two ports were named for the provider rather than the job. [`SubscriberIntake`](https://github.com/joelhooks/rat-stack/blob/main/packages/core/src/interest-intake.ts) and [`SubscriberConfirm`](https://github.com/joelhooks/rat-stack/blob/main/packages/core/src/interest-confirm-port.ts) name the jobs.
 - No lint rule kept core free of adapters. [`no-core-adapters`](https://github.com/joelhooks/rat-stack/blob/main/scripts/oxlint-plugin-boundaries.ts) rejects HTTP-client and adapter/vendor imports from core, with [failing-case tests](https://github.com/joelhooks/rat-stack/blob/main/packages/core/test/boundaries-rule.test.ts).
 

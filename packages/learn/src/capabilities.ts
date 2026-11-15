@@ -1,10 +1,10 @@
-import { implement } from "@rat-stack/capability/implement";
+import { implement } from "@pecunia/capability/implement";
 import {
   learnCardContract,
   learnDeckContract,
   learnNextContract,
   learnRecordContract,
-} from "@rat-stack/core/learn";
+} from "@pecunia/core/learn";
 import { Clock, Effect } from "effect";
 
 import { Learner } from "./learner.js";

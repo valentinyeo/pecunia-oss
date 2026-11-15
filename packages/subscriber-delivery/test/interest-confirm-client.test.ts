@@ -1,6 +1,6 @@
 import { expect, it } from "@effect/vitest";
-import { SubscriberConfirm } from "@rat-stack/core/interest";
-import type { ConfirmState } from "@rat-stack/core/interest";
+import { SubscriberConfirm } from "@pecunia/core/interest";
+import type { ConfirmState } from "@pecunia/core/interest";
 import { Effect, Layer, Option, Predicate, Redacted } from "effect";
 import { HttpClient, HttpClientResponse } from "effect/http";
 

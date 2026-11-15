@@ -4,7 +4,7 @@ import {
   CafePersonSummary,
   CafeProject,
   IsoDate,
-} from "@rat-stack/core/contracts";
+} from "@pecunia/core/contracts";
 import { Schema } from "effect";
 import { defineTaggedUnion } from "foldkit/schema";
 

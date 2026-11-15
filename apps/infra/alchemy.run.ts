@@ -1,6 +1,6 @@
 import * as Cloudflare from "@alchemy.run/cloudflare";
 import * as Drizzle from "@alchemy.run/drizzle/Providers";
-import { turboCache } from "@rat-stack/turbo-cache";
+import { turboCache } from "@pecunia/turbo-cache";
 import * as Alchemy from "alchemy";
 import { adopt } from "alchemy/AdoptPolicy";
 import { retain } from "alchemy/RemovalPolicy";

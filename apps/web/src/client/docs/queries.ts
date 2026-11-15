@@ -1,5 +1,5 @@
-import { toRpcGroup } from "@rat-stack/capability/rpc-group";
-import { readContract, searchContract } from "@rat-stack/core/contracts";
+import { toRpcGroup } from "@pecunia/capability/rpc-group";
+import { readContract, searchContract } from "@pecunia/core/contracts";
 import { Cache, Context, Effect, Layer } from "effect";
 import { FetchHttpClient } from "effect/http";
 import { RpcClient, RpcSerialization } from "effect/rpc";
@@ -33,6 +33,6 @@ const make = Effect.gen(function* makeDocumentQueries() {
 export class DocumentQueries extends Context.Service<
   DocumentQueries,
   Effect.Success<typeof make>
->()("@rat-stack/web/DocumentQueries", { make }) {
+>()("@pecunia/web/DocumentQueries", { make }) {
   static readonly layer = Layer.effect(this, this.make);
 }

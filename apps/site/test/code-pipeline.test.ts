@@ -4,9 +4,9 @@ import {
   SourceRepository,
   codeIdentity,
   prepareCode,
-} from "@rat-stack/code-snippets";
-import { plainLayer } from "@rat-stack/code-snippets/plain";
-import { FenceHighlighter, shikiLayer } from "@rat-stack/code-snippets/shiki";
+} from "@pecunia/code-snippets";
+import { plainLayer } from "@pecunia/code-snippets/plain";
+import { FenceHighlighter, shikiLayer } from "@pecunia/code-snippets/shiki";
 import { Effect, Layer, Schema } from "effect";
 import { Parser } from "htmlparser2";
 

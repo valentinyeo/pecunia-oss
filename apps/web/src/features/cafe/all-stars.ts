@@ -1,4 +1,4 @@
-import type { CafePersonSummary } from "@rat-stack/core/contracts";
+import type { CafePersonSummary } from "@pecunia/core/contracts";
 import * as stylex from "@stylexjs/stylex";
 import type { Html, HtmlBuilder } from "foldkit/html";
 

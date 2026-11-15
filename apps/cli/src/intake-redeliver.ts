@@ -3,8 +3,8 @@ import {
   IntakeRedeliverySchema,
   IntakeApplicationsUnavailable,
   intakeRedeliver,
-} from "@rat-stack/core/join-interest";
-import type { IntakeRedeliveryInput } from "@rat-stack/core/join-interest";
+} from "@pecunia/core/join-interest";
+import type { IntakeRedeliveryInput } from "@pecunia/core/join-interest";
 import {
   Config,
   Console,

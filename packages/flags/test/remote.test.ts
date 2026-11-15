@@ -1,5 +1,5 @@
 import { expect, it } from "@effect/vitest";
-import { FlagScopeMismatch, FlagStorageError } from "@rat-stack/core/flags";
+import { FlagScopeMismatch, FlagStorageError } from "@pecunia/core/flags";
 import { encodeRpcError } from "alchemy/Rpc";
 import { Effect, Schema } from "effect";
 

@@ -8,14 +8,14 @@ import {
   FlipFlagInput,
   ListFlagChangesInput,
   RecordFlagEvidenceInput,
-} from "@rat-stack/core/flag-control";
+} from "@pecunia/core/flag-control";
 import {
   FlagStorageError,
   InvalidFlagValue,
   UnknownFlag,
   defineFlag,
-} from "@rat-stack/core/flags";
-import type { Flag } from "@rat-stack/core/flags";
+} from "@pecunia/core/flags";
+import type { Flag } from "@pecunia/core/flags";
 import { Schema } from "effect";
 
 const tenantScope = Schema.Union([

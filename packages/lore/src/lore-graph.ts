@@ -1,4 +1,4 @@
-import { NoPath, UnknownPage } from "@rat-stack/core/contracts";
+import { NoPath, UnknownPage } from "@pecunia/core/contracts";
 import { Context, Effect, Layer } from "effect";
 
 import type {
@@ -282,7 +282,7 @@ const makeLoreGraph = (snapshot: LoreGraphSnapshot): LoreGraphService => {
 };
 
 export class LoreGraph extends Context.Service<LoreGraph, LoreGraphService>()(
-  "@rat-stack/lore/LoreGraph"
+  "@pecunia/lore/LoreGraph"
 ) {
   static layer(snapshot: LoreGraphSnapshot) {
     return Layer.succeed(this, this.of(makeLoreGraph(snapshot)));

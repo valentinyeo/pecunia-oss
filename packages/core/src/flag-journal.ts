@@ -31,7 +31,7 @@ export class FlagJournal extends Context.Service<
       input: typeof ListFlagChangesInput.Type
     ) => Effect.Effect<typeof FlagChangesPage.Type, FlagStorageError>;
   }
->()("@rat-stack/core/FlagJournal") {
+>()("@pecunia/core/FlagJournal") {
   static memory = Layer.effect(
     FlagJournal,
     Effect.gen(function* makeFlagJournal() {

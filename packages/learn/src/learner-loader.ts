@@ -1,4 +1,4 @@
-import { LearnError } from "@rat-stack/core/learn";
+import { LearnError } from "@pecunia/core/learn";
 import { Effect } from "effect";
 
 import type * as LearnerImplementation from "./learner-service.js";

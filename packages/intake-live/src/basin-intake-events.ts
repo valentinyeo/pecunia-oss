@@ -1,9 +1,9 @@
-import { IntakeEventsUnavailable } from "@rat-stack/core/intake";
+import { IntakeEventsUnavailable } from "@pecunia/core/intake";
 import type {
   ContactRef,
   IntakeContact,
   IntakeStatement,
-} from "@rat-stack/core/intake";
+} from "@pecunia/core/intake";
 import { Context, DateTime, Effect, Schema } from "effect";
 
 import { IntakeRowSchema, erasedRow, recordRows } from "./intake-rows.js";
@@ -27,7 +27,7 @@ export class IntakeBackfill extends Context.Service<
       contact?: IntakeContact
     ) => Effect.Effect<void, IntakeEventsUnavailable>;
   }
->()("@rat-stack/intake-live/IntakeBackfill") {}
+>()("@pecunia/intake-live/IntakeBackfill") {}
 
 const encodeRow = Schema.encodeEffect(IntakeRowSchema);
 

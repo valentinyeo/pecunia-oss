@@ -43,40 +43,40 @@ The largest test suites report these median Vitest durations directly in their l
 
 | Task | Median seconds |
 | --- | ---: |
-| `@rat-stack/site:test` | 199.18 |
-| `@rat-stack/web:test` | 133.51 |
-| `@rat-stack/core:test` | 108.22 |
-| `@rat-stack/infra:test` | 68.86 |
+| `@pecunia/site:test` | 199.18 |
+| `@pecunia/web:test` | 133.51 |
+| `@pecunia/core:test` | 108.22 |
+| `@pecunia/infra:test` | 68.86 |
 
 These four test processes account for about 8.5 minutes of serial work before their surrounding build and process-start costs. At the audited main tree, Turbo schedules the whole graph with one task at a time.
 
 ## Cache outcomes, task by task
 
-Every cell below names a task by combining its package and column: for example, `@rat-stack/core#test`. `M` means **zero hits and 20 misses**. `B` means **20 explicit cache bypasses**. A dash means there is no task. These outcomes are identical for all 11 PR runs and all nine main runs.
+Every cell below names a task by combining its package and column: for example, `@pecunia/core#test`. `M` means **zero hits and 20 misses**. `B` means **20 explicit cache bypasses**. A dash means there is no task. These outcomes are identical for all 11 PR runs and all nine main runs.
 
 | Package | build | typecheck | check | test | generate |
 | --- | --- | --- | --- | --- | --- |
-| `@rat-stack/auth` | M | M | M | M | — |
-| `@rat-stack/basin` | M | M | M | M | — |
-| `@rat-stack/capability` | M | M | M | M | — |
-| `@rat-stack/check-harness` | M | M | M | M | — |
-| `@rat-stack/cli` | M | M | M | M | — |
-| `@rat-stack/code-snippets` | M | M | M | M | — |
-| `@rat-stack/core` | M | M | M | M | — |
-| `@rat-stack/crash` | M | M | M | M | — |
-| `@rat-stack/database` | M | M | M | M | — |
-| `@rat-stack/deploy` | M | M | M | M | — |
-| `@rat-stack/devtools` | M | M | M | M | — |
-| `@rat-stack/events` | M | M | M | M | — |
-| `@rat-stack/flags` | B | M | M | M | — |
-| `@rat-stack/infra` | — | M | M | M | — |
-| `@rat-stack/intake-live` | M | M | M | M | — |
-| `@rat-stack/learn` | M | M | M | M | — |
-| `@rat-stack/lore` | M | M | M | M | — |
-| `@rat-stack/motion` | M | M | M | M | — |
-| `@rat-stack/site` | M | M | M | M | B |
-| `@rat-stack/subscriber-delivery` | M | M | M | M | — |
-| `@rat-stack/web` | M | M | M | M | — |
+| `@pecunia/auth` | M | M | M | M | — |
+| `@pecunia/basin` | M | M | M | M | — |
+| `@pecunia/capability` | M | M | M | M | — |
+| `@pecunia/check-harness` | M | M | M | M | — |
+| `@pecunia/cli` | M | M | M | M | — |
+| `@pecunia/code-snippets` | M | M | M | M | — |
+| `@pecunia/core` | M | M | M | M | — |
+| `@pecunia/crash` | M | M | M | M | — |
+| `@pecunia/database` | M | M | M | M | — |
+| `@pecunia/deploy` | M | M | M | M | — |
+| `@pecunia/devtools` | M | M | M | M | — |
+| `@pecunia/events` | M | M | M | M | — |
+| `@pecunia/flags` | B | M | M | M | — |
+| `@pecunia/infra` | — | M | M | M | — |
+| `@pecunia/intake-live` | M | M | M | M | — |
+| `@pecunia/learn` | M | M | M | M | — |
+| `@pecunia/lore` | M | M | M | M | — |
+| `@pecunia/motion` | M | M | M | M | — |
+| `@pecunia/site` | M | M | M | M | B |
+| `@pecunia/subscriber-delivery` | M | M | M | M | — |
+| `@pecunia/web` | M | M | M | M | — |
 
 Root `//#lint` and `//#typecheck-scripts` also have zero hits and 20 misses each. Root `//#lockfile:check` bypasses all 20 times. Total: **1,680 misses, 60 bypasses, zero hits across 1,740 tasks**. The bypasses are intentional and remain unchanged.
 

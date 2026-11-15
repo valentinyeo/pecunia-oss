@@ -1,5 +1,5 @@
 import type * as Cloudflare from "@alchemy.run/cloudflare";
-import type { FeedbackGrant } from "@rat-stack/core/learn";
+import type { FeedbackGrant } from "@pecunia/core/learn";
 import { RuntimeContext } from "alchemy";
 import { Effect } from "effect";
 import * as HttpApiClient from "effect/http-api/HttpApiClient";

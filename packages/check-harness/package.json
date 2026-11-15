@@ -1,5 +1,5 @@
 {
-  "name": "@rat-stack/check-harness",
+  "name": "@pecunia/check-harness",
   "version": "0.1.0",
   "private": true,
   "type": "module",

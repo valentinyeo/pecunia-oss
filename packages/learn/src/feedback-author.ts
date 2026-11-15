@@ -4,8 +4,8 @@ import type {
   FeedbackGrant,
   FeedbackRequest,
   LearnUnauthenticated,
-} from "@rat-stack/core/learn";
-import { LearnUnauthenticated as UnauthenticatedFailure } from "@rat-stack/core/learn";
+} from "@pecunia/core/learn";
+import { LearnUnauthenticated as UnauthenticatedFailure } from "@pecunia/core/learn";
 import { Context, Effect } from "effect";
 
 export class FeedbackAuthor extends Context.Reference<{
@@ -28,7 +28,7 @@ export class FeedbackAuthor extends Context.Reference<{
     cardId: string,
     feedback: string
   ) => Effect.Effect<{ readonly id: string }>;
-}>("@rat-stack/learn/FeedbackAuthor", {
+}>("@pecunia/learn/FeedbackAuthor", {
   defaultValue: () => ({
     inspectCredential: () => Effect.succeed({ state: "unauthenticated" }),
     inspectDevice: () =>

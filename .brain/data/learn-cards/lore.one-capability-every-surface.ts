@@ -1,4 +1,4 @@
-import { defineContract, implement } from "@rat-stack/capability";
+import { defineContract, implement } from "@pecunia/capability";
 import { Effect, Schema } from "effect";
 
 export class EmptyText extends Schema.TaggedError<

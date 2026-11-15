@@ -1,5 +1,5 @@
-import { IntakeTicket, PAGE_TICKET_SOURCE } from "@rat-stack/core/intake";
-import { PAGE_TICKET_PLACEHOLDER } from "@rat-stack/intake-live";
+import { IntakeTicket, PAGE_TICKET_SOURCE } from "@pecunia/core/intake";
+import { PAGE_TICKET_PLACEHOLDER } from "@pecunia/intake-live";
 import { Effect, Option } from "effect";
 
 export const SIGNUP_UNAVAILABLE =

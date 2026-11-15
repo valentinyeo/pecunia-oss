@@ -5,6 +5,6 @@ export type InterestModeName = "capture" | "doi" | "drovr";
 export class InterestMode extends Context.Service<
   InterestMode,
   InterestModeName
->()("@rat-stack/core/InterestMode") {
+>()("@pecunia/core/InterestMode") {
   static readonly layer = (mode: InterestModeName) => Layer.succeed(this, mode);
 }

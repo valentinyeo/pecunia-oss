@@ -1,5 +1,5 @@
-import { CafeDirectory } from "@rat-stack/core";
-import { AssetReadError, CafeData } from "@rat-stack/core/contracts";
+import { CafeDirectory } from "@pecunia/core";
+import { AssetReadError, CafeData } from "@pecunia/core/contracts";
 import { Effect, FileSystem, Layer, Path, Schema } from "effect";
 
 export const localCafeDirectoryLayer = Layer.effect(

@@ -8,8 +8,8 @@ import {
   decodeCafeData,
   decodeCafeEntries,
   describeCafeDataError,
-} from "@rat-stack/core";
-import { CafeNewsItem, CafeProject } from "@rat-stack/core/contracts";
+} from "@pecunia/core";
+import { CafeNewsItem, CafeProject } from "@pecunia/core/contracts";
 import {
   Array,
   Console,

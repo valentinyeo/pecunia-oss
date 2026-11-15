@@ -1,7 +1,7 @@
 import { NodeServices } from "@effect/platform-node";
 import { expect, it } from "@effect/vitest";
-import { LearnerProgress, emptyProgress } from "@rat-stack/core/learn";
-import type { Card, LearnEvent } from "@rat-stack/core/learn";
+import { LearnerProgress, emptyProgress } from "@pecunia/core/learn";
+import type { Card, LearnEvent } from "@pecunia/core/learn";
 import { ConfigProvider, Effect, FileSystem, Layer, Path } from "effect";
 
 import { Learner } from "../src/learner.js";

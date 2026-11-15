@@ -1,7 +1,7 @@
 import { NodeCrypto } from "@effect/platform-node";
 import { expect, it } from "@effect/vitest";
-import { InterestTokens } from "@rat-stack/core/interest";
-import { JoinRequest } from "@rat-stack/core/join-interest";
+import { InterestTokens } from "@pecunia/core/interest";
+import { JoinRequest } from "@pecunia/core/join-interest";
 import { Effect, Layer, Logger, Redacted, Schema } from "effect";
 import * as Arbitrary from "effect/Arbitrary";
 import { HttpRouter, HttpServerResponse } from "effect/http";

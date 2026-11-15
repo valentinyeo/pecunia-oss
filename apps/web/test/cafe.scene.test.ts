@@ -1,5 +1,5 @@
 import { it } from "@effect/vitest";
-import { CafePersonSummary, CafeStory } from "@rat-stack/core/contracts";
+import { CafePersonSummary, CafeStory } from "@pecunia/core/contracts";
 import { Schema } from "effect";
 import { click, expect, given, label, role, scene, text } from "foldkit/scene";
 

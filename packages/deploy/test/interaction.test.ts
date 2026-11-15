@@ -1,5 +1,5 @@
 import { expect, it } from "@effect/vitest";
-import { Approval, ApprovalDenied } from "@rat-stack/capability/approval";
+import { Approval, ApprovalDenied } from "@pecunia/capability/approval";
 import { Context, Effect, Result, Schema } from "effect";
 
 import {

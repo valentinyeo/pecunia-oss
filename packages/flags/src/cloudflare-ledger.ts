@@ -3,18 +3,18 @@ import {
   FlagJournal,
   FlagLedger as LedgerPort,
   FlagPosition,
-} from "@rat-stack/core/flag-control";
+} from "@pecunia/core/flag-control";
 import {
   FlagStateStore,
   flagLedgerEngine,
-} from "@rat-stack/core/flag-ledger-engine";
+} from "@pecunia/core/flag-ledger-engine";
 import {
   Flags,
   FlagStorageError,
   eventFlags,
   eventsEnabled,
-} from "@rat-stack/core/flags";
-import type { Flag } from "@rat-stack/core/flags";
+} from "@pecunia/core/flags";
+import type { Flag } from "@pecunia/core/flags";
 import type * as RuntimeContext from "alchemy/RuntimeContext";
 import { Clock, Effect, Layer, Schema, Semaphore } from "effect";
 

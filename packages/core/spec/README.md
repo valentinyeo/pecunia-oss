@@ -7,8 +7,8 @@ Results hold at these bounds only. They are checked results, not a proof.
 ## Run it
 
 ```sh
-pnpm --filter @rat-stack/core exec vitest run test/join-intake-spec.test.ts
-pnpm --filter @rat-stack/core exec tla-ts -config spec/JoinIntake.cfg spec/JoinIntake.tla
+pnpm --filter @pecunia/core exec vitest run test/join-intake-spec.test.ts
+pnpm --filter @pecunia/core exec tla-ts -config spec/JoinIntake.cfg spec/JoinIntake.tla
 ```
 
 Measured on 2026-11-07 with `tla-ts` 0.0.8:

@@ -1,5 +1,5 @@
 import { expect, it } from "@effect/vitest";
-import { CardSchema, LearnError } from "@rat-stack/core/learn";
+import { CardSchema, LearnError } from "@pecunia/core/learn";
 import { Deferred, Effect, Fiber, Layer, Ref, Result, Schema } from "effect";
 import * as Arbitrary from "effect/Arbitrary";
 

@@ -1,6 +1,6 @@
-import { eventFlags, eventsEnabled } from "@rat-stack/core/flags";
-import { cloudflareFlagsLayer } from "@rat-stack/flags/cloudflare";
-import { configFlagsLayer } from "@rat-stack/flags/config";
+import { eventFlags, eventsEnabled } from "@pecunia/core/flags";
+import { cloudflareFlagsLayer } from "@pecunia/flags/cloudflare";
+import { configFlagsLayer } from "@pecunia/flags/config";
 import { Layer } from "effect";
 
 export const flagsLayer = configFlagsLayer(eventFlags);

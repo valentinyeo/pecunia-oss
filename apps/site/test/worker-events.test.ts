@@ -1,7 +1,7 @@
 import * as Cloudflare from "@alchemy.run/cloudflare";
 import { expect, it } from "@effect/vitest";
-import type { IdentityMode } from "@rat-stack/core/event-sink";
-import { InterestDirectory } from "@rat-stack/core/interest";
+import type { IdentityMode } from "@pecunia/core/event-sink";
+import { InterestDirectory } from "@pecunia/core/interest";
 import { ConfigProvider, Effect, Layer, Option, Ref } from "effect";
 import type { ConfigError } from "effect/Config";
 import type * as Scope from "effect/Scope";

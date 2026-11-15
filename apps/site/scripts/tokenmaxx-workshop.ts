@@ -2,7 +2,7 @@ import {
   Workshop,
   Exercise,
   publishWorkshop,
-} from "@rat-stack/core/tokenmaxx-workshop";
+} from "@pecunia/core/tokenmaxx-workshop";
 import {
   WorkshopDirectory,
   listExercises,
@@ -10,7 +10,7 @@ import {
   workshopLinks,
   workshopPrep,
   workshopSchedule,
-} from "@rat-stack/core/workshop-directory";
+} from "@pecunia/core/workshop-directory";
 import { Effect, FileSystem, Path, Schema, SchemaIssue } from "effect";
 
 import { buildError, violation } from "./content-error.ts";
@@ -38,7 +38,7 @@ const decode = <A>(
                 `${issue.path?.map(String).join(".") ?? "(file)"}: ${issue.message}`
             )
             .join("; "),
-          `correct the named fields in \`${file}\`, then run \`pnpm --filter @rat-stack/site generate\`.`
+          `correct the named fields in \`${file}\`, then run \`pnpm --filter @pecunia/site generate\`.`
         )
       )
     )

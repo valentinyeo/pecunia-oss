@@ -1,7 +1,7 @@
-import { toHttpApi } from "@rat-stack/capability/http-api";
-import { toRpc } from "@rat-stack/capability/rpc";
-import { webCryptoLayer } from "@rat-stack/core/web-crypto";
-import { workshopCapabilities } from "@rat-stack/core/workshop-directory";
+import { toHttpApi } from "@pecunia/capability/http-api";
+import { toRpc } from "@pecunia/capability/rpc";
+import { webCryptoLayer } from "@pecunia/core/web-crypto";
+import { workshopCapabilities } from "@pecunia/core/workshop-directory";
 import * as AlchemyHttp from "alchemy/Http";
 import { Effect, Layer } from "effect";
 import * as HttpApiBuilder from "effect/http-api/HttpApiBuilder";

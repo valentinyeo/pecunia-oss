@@ -1,5 +1,5 @@
-import { EventSink } from "@rat-stack/core/event-sink";
-import type { RawEvent } from "@rat-stack/core/event-sink";
+import { EventSink } from "@pecunia/core/event-sink";
+import type { RawEvent } from "@pecunia/core/event-sink";
 import { Context, Effect, Layer, Ref } from "effect";
 
 import { captureWith } from "./capture.js";
@@ -8,7 +8,7 @@ import { VisitorSalt } from "./visitor-salt.js";
 export class EventSinkMemory extends Context.Service<
   EventSinkMemory,
   { readonly events: Effect.Effect<readonly RawEvent[]> }
->()("@rat-stack/events/EventSinkMemory") {}
+>()("@pecunia/events/EventSinkMemory") {}
 
 const memoryServices = (salt: string) =>
   Effect.gen(function* buildMemoryServices() {

@@ -1,13 +1,13 @@
-import { Auth } from "@rat-stack/auth";
+import { Auth } from "@pecunia/auth";
 import {
   ratTestPerson,
   runAsPerson,
   testPersonLayer,
-} from "@rat-stack/auth/devtools";
-import type { AnyCapability } from "@rat-stack/capability";
-import { toRpc } from "@rat-stack/capability/rpc";
-import { toToolkit } from "@rat-stack/capability/toolkit";
-import { devtools, devtoolsLayer } from "@rat-stack/devtools";
+} from "@pecunia/auth/devtools";
+import type { AnyCapability } from "@pecunia/capability";
+import { toRpc } from "@pecunia/capability/rpc";
+import { toToolkit } from "@pecunia/capability/toolkit";
+import { devtools, devtoolsLayer } from "@pecunia/devtools";
 import { RuntimeContext } from "alchemy";
 import { McpProtocol, McpServer } from "effect/ai";
 import * as Config from "effect/Config";

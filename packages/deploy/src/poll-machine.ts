@@ -1,4 +1,4 @@
-import { watchActor } from "@rat-stack/capability/actor-watch";
+import { watchActor } from "@pecunia/capability/actor-watch";
 import {
   createEffectActor,
   createEffectLogic,

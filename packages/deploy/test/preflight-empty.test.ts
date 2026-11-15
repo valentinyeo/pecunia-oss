@@ -1,5 +1,5 @@
 import { expect, it } from "@effect/vitest";
-import { Approval } from "@rat-stack/capability/approval";
+import { Approval } from "@pecunia/capability/approval";
 import { PlatformServices } from "alchemy/Util/PlatformServices";
 import { ConfigProvider, Effect, Layer } from "effect";
 import * as HttpClient from "effect/http/HttpClient";

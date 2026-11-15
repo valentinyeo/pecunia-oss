@@ -1,5 +1,5 @@
-import { toRpcGroup } from "@rat-stack/capability/rpc-group";
-import { devtoolsContracts } from "@rat-stack/devtools/contracts";
+import { toRpcGroup } from "@pecunia/capability/rpc-group";
+import { devtoolsContracts } from "@pecunia/devtools/contracts";
 import { Effect, Layer, Match, Option, Schema } from "effect";
 import { FetchHttpClient } from "effect/http";
 import { RpcClient, RpcSerialization } from "effect/rpc";

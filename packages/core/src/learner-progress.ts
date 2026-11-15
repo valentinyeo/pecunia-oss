@@ -22,4 +22,4 @@ export class LearnerProgress extends Context.Service<
     ) => Effect.Effect<Progress, LearnerProgressError>;
     readonly read: Effect.Effect<Progress, LearnerProgressError>;
   }
->()("@rat-stack/core/LearnerProgress") {}
+>()("@pecunia/core/LearnerProgress") {}

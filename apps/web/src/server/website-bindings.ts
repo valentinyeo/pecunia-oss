@@ -76,7 +76,7 @@ export class WebsiteBindings extends Context.Service<
       WebsiteBindingError
     >;
   }
->()("@rat-stack/web/WebsiteBindings", {
+>()("@pecunia/web/WebsiteBindings", {
   make: Effect.succeed({
     forward: Effect.fn("WebsiteBindings.forward")(function* forward(
       request: Request

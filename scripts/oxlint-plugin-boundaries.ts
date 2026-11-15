@@ -908,11 +908,11 @@ const noCrossLayerImports = defineRule({
       capabilityDomain:
         "packages/capability cannot import packages/core domain code. Core depends on capability, so this import makes a cycle. Fix: move the shared type into `packages/capability`, or pass the value in as a parameter.",
       eventsBasinOwner:
-        "This imports shared Basin infrastructure from the events cartridge. Deleting the cartridge would then break every other Basin user. Fix: import it from `@rat-stack/basin`.",
+        "This imports shared Basin infrastructure from the events cartridge. Deleting the cartridge would then break every other Basin user. Fix: import it from `@pecunia/basin`.",
       eventsSeam:
-        "This module reaches the events cartridge directly. Removing the cartridge must stay a one-line change. Fix: import from `apps/site/src/events.ts`, the only file that may import `@rat-stack/events/site`.",
+        "This module reaches the events cartridge directly. Removing the cartridge must stay a one-line change. Fix: import from `apps/site/src/events.ts`, the only file that may import `@pecunia/events/site`.",
       infraOwner:
-        "This module imports Stack wiring from apps/infra. The Stack owns its wiring, and outside imports braid deploy code into runtime code. Fix: import the capability or service contract the Stack provides, for example from `@rat-stack/core/contracts`.",
+        "This module imports Stack wiring from apps/infra. The Stack owns its wiring, and outside imports braid deploy code into runtime code. Fix: import the capability or service contract the Stack provides, for example from `@pecunia/core/contracts`.",
       packageApp:
         "Packages cannot import application code. Dependencies run from apps to packages, so this import makes a cycle. Fix: move the shared code into a package under `packages/`, or have the app pass it in.",
     },
@@ -1005,7 +1005,7 @@ const noBrowserServerImports = defineRule({
     },
     messages: {
       capabilityImport:
-        "Feature and client modules can import only browser-safe contract entry points. Capability handlers and domain implementation would ship server code to the browser. Fix: import from `@rat-stack/core/contracts` or `@rat-stack/capability/rpc-group`, and reach the handler through the `RpcClient`.",
+        "Feature and client modules can import only browser-safe contract entry points. Capability handlers and domain implementation would ship server code to the browser. Fix: import from `@pecunia/core/contracts` or `@pecunia/capability/rpc-group`, and reach the handler through the `RpcClient`.",
       serverImport:
         "Feature and client modules cannot import Node, Alchemy, Worker, infra, or server-only modules. The browser bundle would fail to build or leak server code. Fix: put the work behind a capability and call it from a named `Command.define` in `apps/web/src/client`.",
     },
@@ -1483,7 +1483,7 @@ const noDevtoolsInProduction = defineRule({
       devFolder:
         "Only modules inside {{folder}} may import it. The dev composition is an entry of its own, and production code must not reach it. Fix: move the importing module under `{{folder}}`, or import a production module instead.",
       devtools:
-        "Devtools and test people (@rat-stack/devtools, @rat-stack/auth/devtools) belong in apps/*/src/dev/**, apps/cli, or tests. The rat_call and rat_test_person capabilities bypass per-request auth and create accounts with a fixed password, so a production composition must never include them. Fix: move this import into `apps/<app>/src/dev/`, `apps/cli`, or a test file.",
+        "Devtools and test people (@pecunia/devtools, @pecunia/auth/devtools) belong in apps/*/src/dev/**, apps/cli, or tests. The rat_call and rat_test_person capabilities bypass per-request auth and create accounts with a fixed password, so a production composition must never include them. Fix: move this import into `apps/<app>/src/dev/`, `apps/cli`, or a test file.",
     },
     type: "problem",
   },
@@ -1537,7 +1537,7 @@ const noCodeSnippetsInRuntime = defineRule({
     },
     messages: {
       adapterOnly:
-        "Code-snippets core cannot import Shiki. Core stays adapter-free so the highlighter can be swapped or removed. Fix: depend on the `Highlighter` port and provide the adapter from `@rat-stack/code-snippets/shiki`.",
+        "Code-snippets core cannot import Shiki. Core stays adapter-free so the highlighter can be swapped or removed. Fix: depend on the `Highlighter` port and provide the adapter from `@pecunia/code-snippets/shiki`.",
       buildOnly:
         "Code snippets and Shiki are build-only and cannot reach runtime src modules. They would add megabytes to the Worker startup bundle. Fix: run the import from a build script under `apps/site/scripts` and read its generated output at runtime.",
     },

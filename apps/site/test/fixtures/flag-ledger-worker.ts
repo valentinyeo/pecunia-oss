@@ -1,12 +1,12 @@
 import * as Cloudflare from "@alchemy.run/cloudflare";
-import { FlagJournal, FlagLedger } from "@rat-stack/core/flag-control";
-import { Flags } from "@rat-stack/core/flags";
+import { FlagJournal, FlagLedger } from "@pecunia/core/flag-control";
+import { Flags } from "@pecunia/core/flags";
 import {
   cloudflareFlagControlLayer,
   cloudflareFlagsLayer,
   defineFlagLedger,
-} from "@rat-stack/flags/cloudflare";
-import { configFlagsLayer } from "@rat-stack/flags/config";
+} from "@pecunia/flags/cloudflare";
+import { configFlagsLayer } from "@pecunia/flags/config";
 import * as Namespace from "alchemy/Namespace";
 import { retain } from "alchemy/RemovalPolicy";
 import * as RuntimeContext from "alchemy/RuntimeContext";

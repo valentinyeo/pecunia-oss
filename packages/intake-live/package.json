@@ -1,5 +1,5 @@
 {
-  "name": "@rat-stack/intake-live",
+  "name": "@pecunia/intake-live",
   "version": "0.1.0",
   "private": true,
   "files": [
@@ -31,8 +31,8 @@
   },
   "dependencies": {
     "@alchemy.run/cloudflare": "2.0.0-beta.87",
-    "@rat-stack/basin": "workspace:*",
-    "@rat-stack/core": "workspace:*",
+    "@pecunia/basin": "workspace:*",
+    "@pecunia/core": "workspace:*",
     "alchemy": "2.0.0-beta.87",
     "effect": "4.1.4"
   },

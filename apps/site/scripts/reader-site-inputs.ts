@@ -1,4 +1,4 @@
-import { CafeData, Prompt } from "@rat-stack/core/contracts";
+import { CafeData, Prompt } from "@pecunia/core/contracts";
 import { Effect, FileSystem, Path, Schema } from "effect";
 import { DomUtils, parseDocument } from "htmlparser2";
 

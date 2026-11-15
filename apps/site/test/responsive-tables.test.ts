@@ -128,7 +128,7 @@ it.effect(
   () =>
     Effect.gen(function* compilesResponsiveTable() {
       const result = yield* compileTable(
-        "## Packages\n\n| **Package** | `Path` | Role |\n| --- | --- | --- |\n| `@rat-stack/capability` | packages/capability | |\n",
+        "## Packages\n\n| **Package** | `Path` | Role |\n| --- | --- | --- |\n| `@pecunia/capability` | packages/capability | |\n",
         [responsiveTables]
       );
 

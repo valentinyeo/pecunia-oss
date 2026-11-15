@@ -1,4 +1,4 @@
-import type { FenceJob } from "@rat-stack/code-snippets";
+import type { FenceJob } from "@pecunia/code-snippets";
 import { Effect, FileSystem, Path } from "effect";
 
 import { collectCodeFences } from "./code-pipeline.ts";

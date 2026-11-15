@@ -91,7 +91,7 @@ The nurse changes it to 422 and keeps the scissors.
 
 October 10, 2026. [Rename commit](https://github.com/joelhooks/rat-stack/commit/246600bd53978883a6a4c1f5a6ff45e3f1ff2f0c).
 
-The code moves from `apps/mischief` to `apps/site`, and the package becomes `@rat-stack/site`.
+The code moves from `apps/mischief` to `apps/site`, and the package becomes `@pecunia/site`.
 The commit calls this “Mechanical path updates only.”
 [Alchemy](/skills/learn-alchemy) resource IDs, Worker names, and TypeScript symbols keep their names, so Mischief survives the move.
 

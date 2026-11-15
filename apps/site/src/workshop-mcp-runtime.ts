@@ -1,5 +1,5 @@
-import { toToolkit } from "@rat-stack/capability/toolkit";
-import { workshopCapabilities } from "@rat-stack/core/workshop-directory";
+import { toToolkit } from "@pecunia/capability/toolkit";
+import { workshopCapabilities } from "@pecunia/core/workshop-directory";
 import { Layer } from "effect";
 import * as McpProtocol from "effect/ai/McpProtocol";
 import * as McpServer from "effect/ai/McpServer";

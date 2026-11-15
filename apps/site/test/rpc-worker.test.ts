@@ -1,5 +1,5 @@
 import { expect, it } from "@effect/vitest";
-import { ResourceNotFound } from "@rat-stack/core/contracts";
+import { ResourceNotFound } from "@pecunia/core/contracts";
 import * as Effect from "effect/Effect";
 import * as HttpClient from "effect/http/HttpClient";
 import * as HttpClientRequest from "effect/http/HttpClientRequest";

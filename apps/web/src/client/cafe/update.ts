@@ -1,5 +1,5 @@
-import { cafeLetters } from "@rat-stack/core/contracts";
-import type { CafeLetterValue } from "@rat-stack/core/contracts";
+import { cafeLetters } from "@pecunia/core/contracts";
+import type { CafeLetterValue } from "@pecunia/core/contracts";
 import type { Update } from "foldkit";
 import { modifyFields } from "foldkit/struct";
 

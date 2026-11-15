@@ -93,6 +93,6 @@ These checks enforce it today:
 - `pnpm typecheck:parity` compares checker errors and exit verdicts. `pnpm bump:checkers` runs it on every bump.
 - `pnpm typecheck:fast` runs plain tsrs for fast feedback without Effect diagnostics.
 - `echo '{"tool_name":"Bash","tool_input":{"command":"git commit --no-verify"}}' | node scripts/hooks/block-git-no-verify.mjs` prints a `deny` decision with the reason.
-- `pnpm --filter @rat-stack/core test` runs the fixture tests for the boundary, pattern, no-comment, and unknown-parameter rules, and the command policy test.
+- `pnpm --filter @pecunia/core test` runs the fixture tests for the boundary, pattern, no-comment, and unknown-parameter rules, and the command policy test.
 - The boundary fixtures in `packages/core/test/boundaries-rule.test.ts` reject adapter imports from core and accept composition outside it.
 - `curl -sS https://ratstack.sh/debt.md` shows the current override count.

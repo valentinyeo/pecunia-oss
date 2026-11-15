@@ -1,6 +1,6 @@
 import { expect, it } from "@effect/vitest";
-import { gateOutcome } from "@rat-stack/check-harness";
-import type { Verdict } from "@rat-stack/check-harness";
+import { gateOutcome } from "@pecunia/check-harness";
+import type { Verdict } from "@pecunia/check-harness";
 import { Clock, Effect, Fiber, Schema } from "effect";
 import { TestClock } from "effect/testing";
 

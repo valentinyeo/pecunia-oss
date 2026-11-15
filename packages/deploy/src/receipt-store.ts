@@ -48,7 +48,7 @@ export class ReceiptStore extends Context.Service<
       receipt: WatchReceipt
     ) => Effect.Effect<string, DeployStepError>;
   }
->()("@rat-stack/deploy/ReceiptStore") {
+>()("@pecunia/deploy/ReceiptStore") {
   static layer = (directory = "../../.rat/deploy") =>
     Layer.effect(
       ReceiptStore,

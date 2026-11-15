@@ -6,8 +6,8 @@ import {
   PlainLineSchema,
   SNIPPET_LINES,
   SnippetSchema,
-} from "@rat-stack/core/learn";
-import type { Card } from "@rat-stack/core/learn";
+} from "@pecunia/core/learn";
+import type { Card } from "@pecunia/core/learn";
 import { Exit, Schema } from "effect";
 
 export interface CardSource {
@@ -65,7 +65,7 @@ const teachingDiagnostics = (page: CardSource) => [
   }),
   ...(page.snippetDiagnostics ?? []).map((diagnostic) => ({
     id: page.id,
-    reason: `Snippet does not compile: ${diagnostic}. Learners copy snippets, so each one must typecheck. Fix: correct \`.brain/data/learn-cards/<id>.ts\` until \`pnpm --filter @rat-stack/site generate\` reports no diagnostic.`,
+    reason: `Snippet does not compile: ${diagnostic}. Learners copy snippets, so each one must typecheck. Fix: correct \`.brain/data/learn-cards/<id>.ts\` until \`pnpm --filter @pecunia/site generate\` reports no diagnostic.`,
   })),
 ];
 

@@ -4,7 +4,7 @@ This package is rat-stack's declaration of [alchemy-turbo-cache](https://github.
 
 ## Declaration and installation
 
-`src/index.ts` default-exports the cartridge so Alchemy loads the same declaration inside the Worker runtime. The Stack still includes it with `yield* turboCache` from `@rat-stack/turbo-cache`.
+`src/index.ts` default-exports the cartridge so Alchemy loads the same declaration inside the Worker runtime. The Stack still includes it with `yield* turboCache` from `@pecunia/turbo-cache`.
 
 The dependency is `github:joelhooks/alchemy-turbo-cache#c081c295b23855fa9245c21a0ec16dd1e2072763`, the commit behind tag `v0.0.0`. It is not on npm. pnpm builds its exports during Git dependency preparation. `allowBuilds.alchemy-turbo-cache` authorizes that reviewed prepare script. No tarball is vendored. A fresh install needs GitHub access as well as the existing registry access.
 
@@ -38,7 +38,7 @@ Only the trusted receiver's stdin gets the token. Receiver output is suppressed.
 
 ## Checks
 
-Run `pnpm --filter @rat-stack/turbo-cache test`. The seam test starts the installed cartridge in local workerd, checks the exact three resource FQNs, and hands the generated credential to a subprocess that authenticates against the Worker. Upstream owns protocol property tests, the real Turbo REMOTE-hit test and token safety tests.
+Run `pnpm --filter @pecunia/turbo-cache test`. The seam test starts the installed cartridge in local workerd, checks the exact three resource FQNs, and hands the generated credential to a subprocess that authenticates against the Worker. Upstream owns protocol property tests, the real Turbo REMOTE-hit test and token safety tests.
 
 `apps/site/scripts/startup-report.ts` still bundles this entry through Alchemy and reports its size. Run `pnpm turbo run check test build` before shipping. Local checks do not prove live lifecycle deletion, account access or GitHub secret delivery.
 

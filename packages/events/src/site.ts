@@ -1,4 +1,4 @@
-import type { EventsOptions } from "@rat-stack/core/request-capture";
+import type { EventsOptions } from "@pecunia/core/request-capture";
 import { Effect, Layer } from "effect";
 
 import { Basin, basinFoundation } from "./basin.js";

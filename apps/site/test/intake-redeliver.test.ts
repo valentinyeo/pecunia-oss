@@ -4,7 +4,7 @@ import {
   InterestMode,
   InterestTokens,
   SubscriberConfirm,
-} from "@rat-stack/core/interest";
+} from "@pecunia/core/interest";
 import { Effect, Layer, Redacted, Schema } from "effect";
 import * as Arbitrary from "effect/Arbitrary";
 import * as HttpRouter from "effect/http/HttpRouter";

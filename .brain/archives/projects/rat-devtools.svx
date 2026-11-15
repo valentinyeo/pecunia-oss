@@ -33,7 +33,7 @@ Foldkit has one loop: Message in, Model out. Rat-stack has three places where st
 
 | Foldkit | Rat-stack | Where it lives |
 | --- | --- | --- |
-| Message Schema | A contract's input, output, and failure Schemas | `defineContract`, `@rat-stack/core/contracts` |
+| Message Schema | A contract's input, output, and failure Schemas | `defineContract`, `@pecunia/core/contracts` |
 | Dispatch a Message | Call a capability by name, input decoded by its contract | `implement`; approval still gates |
 | Message history | Capability call log: name, input, outcome, failure tag, duration | New `CallLog` in `packages/devtools` |
 | Model | Server: none, the host is authoritative. Machines: XState snapshots. Client: the AtomRpc replica | `@xstate/effect` `inspect`, AtomRpc registry |
@@ -48,7 +48,7 @@ The call log is ephemeral and per process, for debugging. `RunLog` is durable an
 
 The devtools tools are themselves contracts and capabilities in `packages/devtools`. That is the rat-stack move: one contract, every surface. The same `rat_list_calls` contract becomes an MCP tool through `toToolkit`, a CLI command through `toCommand`, and an RPC for the 🐀 overlay through `toRpcGroup`. Nothing in devtools bypasses the projection layer, and the boundary rules apply to it like any other cartridge.
 
-Recording uses an ambient observer: `@rat-stack/capability/call-watch` exports `CallWatch`, a `Context.Reference` whose default passes the handler through. `implement` reads it once per call and runs the approval-gated handler through its `around` function. Devtools provides the recording implementation from `record(options)` through `devtoolsLayer()`, so every projection records without receiving a wrapped capability list. `aroundHandlers` remains a separate explicit wrapper for policy over one list.
+Recording uses an ambient observer: `@pecunia/capability/call-watch` exports `CallWatch`, a `Context.Reference` whose default passes the handler through. `implement` reads it once per call and runs the approval-gated handler through its `around` function. Devtools provides the recording implementation from `record(options)` through `devtoolsLayer()`, so every projection records without receiving a wrapped capability list. `aroundHandlers` remains a separate explicit wrapper for policy over one list.
 
 ## MCP tool list
 
@@ -168,7 +168,7 @@ All five start at zero findings. The only renames were code mode's `contract` to
 
 ## Slice 3 status: machines
 
-- `@rat-stack/capability/actor-watch`: `ActorWatch`, a `Context.Reference` whose default does nothing, and `watchActor(machine, actor)`. `WatchableActor` is structural (`sessionId`, `getSnapshot`, `inspect`), so the capability package needs no XState import. Core calls it once, in `runInspectMachine`.
+- `@pecunia/capability/actor-watch`: `ActorWatch`, a `Context.Reference` whose default does nothing, and `watchActor(machine, actor)`. `WatchableActor` is structural (`sessionId`, `getSnapshot`, `inspect`), so the capability package needs no XState import. Core calls it once, in `runInspectMachine`.
 - The devtools recorder provides a real watcher to every recorded call. It subscribes to `actor.inspect` synchronously, so fast transitions are not missed. It parses each XState inspection event with a Schema, learns child actor names from every snapshot's `children`, and drains its queue when the machine's scope closes, so final transitions are not lost. Pulling devtools out leaves the no-op in place.
 - `ActorLog` shares the ring buffer with `CallLog`. New tools: `rat_list_actors`, `rat_list_transitions`, `rat_get_actor`.
 - Proved end to end: a REST `inspectFile` call on `serve --devtools` records `inspectMachine` going `reading` to `inspected`, and its `readStats` child. Deleting the `watchActor` line fails that test.
@@ -187,7 +187,7 @@ Joel, 2026-09-23: queue all three; Rubicon's badass-devtools "are broken and suc
 Built on `3269e50` after `packages/auth` landed.
 
 - Devtools stays independent of auth. `devtools(capabilities, { runAs })` takes a generic `RunAs` (`label`, `schema`, `tag`). The recorder reads the identity service on every call and stores it as `as` on the call entry. `rat_call` accepts `as`, decodes it with `runAs.schema`, and provides it to the dispatched call. `rat_replay_call` replays as the recorded identity. An `as` that does not decode is refused, not guessed.
-- `@rat-stack/auth/devtools` supplies the auth half:
+- `@pecunia/auth/devtools` supplies the auth half:
   - `runAsPerson` (`CurrentPerson` plus `PersonIdSchema`);
   - `rat_test_person`, which signs a test person in (creating them if needed) and returns the person id and session cookie. The email is always `<name>@rat.test` with a fixed development password, so it cannot reach a real account;
   - `testPersonLayer(name)`, which gives a development composition a default `CurrentPerson`.
@@ -200,7 +200,7 @@ Built on `3269e50` after `packages/auth` landed.
 
 The owner's condition on 2026-09-23: test people and devtools must never be in a deployed composition. `rat_test_person` creates accounts with a fixed password, and `rat_call` runs as a default identity, bypassing per-request auth.
 
-`rat-stack-boundaries/no-devtools-in-production` enforces this. `@rat-stack/devtools` and `@rat-stack/auth/devtools` may be imported only from:
+`rat-stack-boundaries/no-devtools-in-production` enforces this. `@pecunia/devtools` and `@pecunia/auth/devtools` may be imported only from:
 
 - `packages/devtools`
 - `packages/auth`
@@ -222,7 +222,7 @@ Built on `a68fb4b` after `apps/web` landed.
   - Machines;
   - Session, which signs in a test person and uses them for dispatch.
 
-  It is a client and a feature under `src/dev/`, with its own `RegistryProvider`, so its atoms never mix with the app's. The boundary rules treat `apps/*/src/dev/{client,features}` as browser code, and `@rat-stack/devtools/contracts` is browser-safe.
+  It is a client and a feature under `src/dev/`, with its own `RegistryProvider`, so its atoms never mix with the app's. The boundary rules treat `apps/*/src/dev/{client,features}` as browser code, and `@pecunia/devtools/contracts` is browser-safe.
 - **Atoms.** The overlay mounts a reporter atom on the app's registry. Every 1.5 seconds, and only when something changed, it sends `rat_report_atoms` with each keyed atom (AtomRpc queries) or labeled atom (`Atom.withLabel`): the key, the state, and the value as JSON. Anonymous runtime atoms are skipped, so labeling an atom opts it in. Agents read the result with `rat_list_atoms` and `rat_get_atom`.
 - **Verified in a real browser:**
   - a search shows up in the Calls tab, recorded as the dev person;

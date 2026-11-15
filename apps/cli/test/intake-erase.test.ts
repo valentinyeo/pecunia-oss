@@ -1,6 +1,6 @@
 import { expect, it } from "@effect/vitest";
-import { CallWatch } from "@rat-stack/capability/call-watch";
-import { IntakeErasure, intakeErase } from "@rat-stack/core/join-interest";
+import { CallWatch } from "@pecunia/capability/call-watch";
+import { IntakeErasure, intakeErase } from "@pecunia/core/join-interest";
 import { ConfigProvider, Effect, Layer, Logger, Match, Tracer } from "effect";
 import { HttpClient, HttpClientResponse } from "effect/http";
 
@@ -127,7 +127,7 @@ it.effect(
           Response.json({ alreadyGone: 0, erased: 1, failed: 0, pending: 0 }),
         ],
         [
-          "https://user:password@operator.example.test",
+          "https://user:password@operator.example.test", // trufflehog:ignore -- upstream template fixture, not a key
           Response.json({ alreadyGone: 0, erased: 1, failed: 0, pending: 0 }),
         ],
       ] as const) {

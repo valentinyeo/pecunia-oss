@@ -71,4 +71,4 @@ See `apps/site/src/auth/foundation.ts` and `apps/site/src/auth/private-worker.ts
 
 ## How to check
 
-`pnpm --filter @rat-stack/database test` runs the `RunLog` tests twice, against D1 on local SQLite and against Postgres on PGlite. They cover both outcome variants, filtering by person, limits, ordering by time then id, and rejected limits. A second test loads the migrations from outside the package.
+`pnpm --filter @pecunia/database test` runs the `RunLog` tests twice, against D1 on local SQLite and against Postgres on PGlite. They cover both outcome variants, filtering by person, limits, ordering by time then id, and rejected limits. A second test loads the migrations from outside the package.

@@ -148,6 +148,7 @@ export default defineConfig({
     "jsdoc/require-returns-description": "off",
     "no-comments/directive-reason": "error",
     "no-comments/no-comments": "error",
+    "no-inline-comments": ["error", { ignorePattern: "trufflehog:ignore" }],
     "oxc/no-accumulating-spread": "error",
     "promise/prefer-await-to-then": "error",
     "rat-stack-boundaries/no-browser-globals-on-server": "error",

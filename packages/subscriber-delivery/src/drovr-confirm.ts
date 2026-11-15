@@ -1,5 +1,5 @@
-import { SubscriberConfirm } from "@rat-stack/core/interest";
-import type { ConfirmState } from "@rat-stack/core/interest";
+import { SubscriberConfirm } from "@pecunia/core/interest";
+import type { ConfirmState } from "@pecunia/core/interest";
 import { Effect, Layer, Option, Redacted, Schema } from "effect";
 import { HttpClient, HttpClientRequest } from "effect/http";
 

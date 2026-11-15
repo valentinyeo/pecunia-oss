@@ -1,5 +1,5 @@
-import type { Sandbox } from "@rat-stack/capability/sandbox";
-import { Flags } from "@rat-stack/core/flags";
+import type { Sandbox } from "@pecunia/capability/sandbox";
+import { Flags } from "@pecunia/core/flags";
 import { Context, Effect, Layer } from "effect";
 import * as HttpEffect from "effect/http/HttpEffect";
 import * as HttpRouter from "effect/http/HttpRouter";

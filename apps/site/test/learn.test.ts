@@ -3,7 +3,7 @@ import {
   learnDeckContract,
   learnNextContract,
   learnRecordContract,
-} from "@rat-stack/core/learn";
+} from "@pecunia/core/learn";
 import { Effect, Layer, Schema } from "effect";
 import { HttpRouter } from "effect/http";
 

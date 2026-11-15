@@ -70,7 +70,7 @@ Do not make `mischief` import the capability root barrel or the current `sandbox
 
 - `sandbox-service.ts`: `Sandbox`, `SandboxError`, `Invoke`, `InvokeOutcome`, `SandboxRun`; Worker-safe.
 - `sandbox-subprocess.ts`: `layerSubprocess` and Node process code.
-- package export `@rat-stack/capability/sandbox`: service contract only.
+- package export `@pecunia/capability/sandbox`: service contract only.
 - `apps/mischief/src/sandbox-worker-loader.ts`: the Worker-specific layer below.
 
 This keeps the dependency direction `apps/mischief -> packages/capability` and prevents the Worker bundle from resolving the Node runner. (`.brain/archives/projects/ratstack-sh/research-alchemy-effect-worker-asset.svx`, `packages/capability/src/sandbox.ts`, `packages/capability/package.json`)
@@ -83,7 +83,7 @@ The checked scratch copy is `/tmp/worker-sandbox-research/worker-loader-sandbox.
 node_modules/.bin/tsc -p /tmp/worker-sandbox-research/tsconfig.json
 ```
 
-Place the implementation in `apps/mischief/src/sandbox-worker-loader.ts` after adding the Worker-safe `@rat-stack/capability/sandbox` subpath. The only import change from the checked scratch file is the service import.
+Place the implementation in `apps/mischief/src/sandbox-worker-loader.ts` after adding the Worker-safe `@pecunia/capability/sandbox` subpath. The only import change from the checked scratch file is the service import.
 
 ```ts
 /// <reference types="@cloudflare/workers-types" />
@@ -97,7 +97,7 @@ import {
   type Invoke,
   type InvokeOutcome,
   type SandboxRun,
-} from "@rat-stack/capability/sandbox";
+} from "@pecunia/capability/sandbox";
 
 export interface WorkerLoaderSandboxOptions {
   readonly timeout?: Duration.Input | undefined;

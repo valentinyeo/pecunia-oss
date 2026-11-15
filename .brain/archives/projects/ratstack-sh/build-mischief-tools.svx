@@ -21,7 +21,7 @@ Historical record. Paths, versions, measurements and instructions below describe
 
 Grow `apps/mischief` from the prototype into the decided shape, in this order and each slice gate-green before the next:
 
-1. Sandbox seam: split `packages/capability/src/sandbox.ts` into the Worker-safe contract (`sandbox-service.ts`: `Sandbox`, `Invoke`, `InvokeOutcome`, `SandboxRun`, with `SandboxError` staying in its file) and the Node runner (`sandbox-subprocess.ts`: `layerSubprocess`); add the `@rat-stack/capability/sandbox` subpath; keep the root barrel exporting both; `apps/cli` unchanged in behavior. Then a `@rat-stack/capability/code-mode` subpath for `toCodeMode` and `catalog` if they are Worker-safe (they must not import the subprocess runner).
+1. Sandbox seam: split `packages/capability/src/sandbox.ts` into the Worker-safe contract (`sandbox-service.ts`: `Sandbox`, `Invoke`, `InvokeOutcome`, `SandboxRun`, with `SandboxError` staying in its file) and the Node runner (`sandbox-subprocess.ts`: `layerSubprocess`); add the `@pecunia/capability/sandbox` subpath; keep the root barrel exporting both; `apps/cli` unchanged in behavior. Then a `@pecunia/capability/code-mode` subpath for `toCodeMode` and `catalog` if they are Worker-safe (they must not import the subprocess runner).
 2. Capabilities in `apps/mischief/src/capabilities/`: `search` (query to ranked matches over the law files and skills, reusing `searchCatalog`'s token-overlap ranking or a small copy of it), `read` (resource id to text), and code mode's `execute` over those two, with the Worker Loader `Sandbox` layer from the research asset (`apps/mischief/src/sandbox-worker-loader.ts`) and the `CODE_SANDBOX` binding declared on the Mischief Worker. Projected with `toToolkit` on `/mcp` and `toHttpApi` at `/api` with `/openapi.json`.
 3. Content: the generate script bundles the seven law files (`AGENTS.md`, `VISION.md`, `README.md`, `vendor/README.md`, pins generated from every workspace `package.json`, both `.brain/resources/*.svx`) and every `skills/*/SKILL.md`. Routes: root as the catalogue (install line, groups, Law, MCP), `/skills` and `/skills/<name>` as Markdown, `/llms.txt` and `/llms-full.txt`, `/.well-known/agent-skills/index.json` (v0.2.0 with sha256 digests per the checks asset), `/.well-known/api-catalog`, `/.well-known/mcp.json` server card, `/sitemap.xml`, `Link` headers, `Content-Signal` in robots. Every law file an MCP resource, every skill an MCP prompt.
 4. Tests for each route and each tool over `HttpRouter.toWebHandler`; an `execute` test that runs a program calling `search` then `read`. Note `alchemy dev` compatibility-date limits from the research asset.
@@ -114,8 +114,8 @@ $ curl -X POST http://localhost:1337/mcp # tools/call execute(search -> read)
 
 ### Implementation notes
 
-- `@rat-stack/capability/sandbox` exports only the Worker-safe service contract; the root barrel keeps the Node subprocess implementation for unchanged CLI behavior.
-- `@rat-stack/capability/code-mode`, `/toolkit`, `/define`, and `/http-api` keep the Worker bundle off the Node subprocess barrel.
+- `@pecunia/capability/sandbox` exports only the Worker-safe service contract; the root barrel keeps the Node subprocess implementation for unchanged CLI behavior.
+- `@pecunia/capability/code-mode`, `/toolkit`, `/define`, and `/http-api` keep the Worker bundle off the Node subprocess barrel.
 - `toHttpApi` now accepts an optional path prefix so handler registration and generated OpenAPI agree on `/api/*`.
 - Worker Loader receives generated ES modules, not `eval` or `new Function`; each call gets a fresh isolate, `globalOutbound: null`, CPU/subrequest limits, cooperative and host timeouts, narrow RPC, JSON round-tripping, and eager disposal.
 - The `cloudflare:workers` runtime import stays lazy. A static import makes Alchemy's Node Stack loader reject the special `cloudflare:` URL before bundling.

@@ -1,6 +1,6 @@
 import { registerHooks } from "node:module";
 
-import { Sandbox } from "@rat-stack/capability/sandbox";
+import { Sandbox } from "@pecunia/capability/sandbox";
 import { Effect, Layer } from "effect";
 import { HttpRouter } from "effect/http";
 

@@ -1,4 +1,4 @@
-import { defineContract } from "@rat-stack/capability/contract";
+import { defineContract } from "@pecunia/capability/contract";
 import { Schema } from "effect";
 
 import { InterestLinkRefused } from "./interest-link-refused.js";

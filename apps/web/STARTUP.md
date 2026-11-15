@@ -3,7 +3,7 @@
 The Alchemy/workerd integration test measures the actual `serverBundle.files`, not Vite's intermediate entry:
 
 ```sh
-VITEST_MAX_WORKERS=4 pnpm --filter @rat-stack/infra exec vitest run test/website-build.test.ts
+VITEST_MAX_WORKERS=4 pnpm --filter @pecunia/infra exec vitest run test/website-build.test.ts
 ```
 
 The test logs entry, non-content, content and total JavaScript bytes, and the total's share of Cloudflare's 64 MiB uncompressed Worker limit. Size never fails it; past half of that limit it warns. Until 2026-11-14 a desk-set shrink-only ceiling on entry and non-content bytes failed the build. It was removed with the Worker ceilings; `apps/site/STARTUP.md` says why.

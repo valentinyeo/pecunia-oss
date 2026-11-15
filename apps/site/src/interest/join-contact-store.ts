@@ -1,13 +1,13 @@
-import { InterestTokens } from "@rat-stack/core/interest";
+import { InterestTokens } from "@pecunia/core/interest";
 import {
   JoinContactSchema,
   JoinContactStore,
   withState,
-} from "@rat-stack/core/join-interest";
+} from "@pecunia/core/join-interest";
 import type {
   JoinContact,
   JoinContactState,
-} from "@rat-stack/core/join-interest";
+} from "@pecunia/core/join-interest";
 import { Effect, Layer, Schema } from "effect";
 
 export interface JoinContactStub {

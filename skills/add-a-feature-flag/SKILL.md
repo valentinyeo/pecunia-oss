@@ -46,7 +46,7 @@ Declare:
 - A `kill` policy: default rung, previous rung, or an explicit refusal reason.
 - A `failurePolicy`. The default is `use-catalog-default`; use `refuse` when a fallback would be unsafe.
 
-Use `FlagExit`, `FlagThreshold`, `FlagKill`, and `FlagTarget` constructors from `@rat-stack/core/flag-control`.
+Use `FlagExit`, `FlagThreshold`, `FlagKill`, and `FlagTarget` constructors from `@pecunia/core/flag-control`.
 
 The declaration rejects duplicate rung names or values. It also rejects a misplaced final exit or a first value different from the default.
 
@@ -73,7 +73,7 @@ Provide the [capability](/systems/capabilities) `Approval` [service](/lore/servi
 
 `flip_feature_flag` calls `implement`'s approval gate for climbs. For `off`, its audited [handler](/systems/capabilities) supplies an always-granted approval implementation. Test this path with a service that denies every other call.
 
-Use `cloudflareFlagControlLayer()` from `@rat-stack/flags/cloudflare` for the default ledger. For a child catalog, pass the definition returned by `defineFlagLedger(registry, deployOnly)`. Each flag and scope routes to its own Durable Object. The normal `cloudflareFlagsLayer` reads KV and never calls a Durable Object.
+Use `cloudflareFlagControlLayer()` from `@pecunia/flags/cloudflare` for the default ledger. For a child catalog, pass the definition returned by `defineFlagLedger(registry, deployOnly)`. Each flag and scope routes to its own Durable Object. The normal `cloudflareFlagsLayer` reads KV and never calls a Durable Object.
 
 A projection is a copy derived from a committed value.
 

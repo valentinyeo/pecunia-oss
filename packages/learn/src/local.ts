@@ -1,4 +1,4 @@
-import { implement } from "@rat-stack/capability/implement";
+import { implement } from "@pecunia/capability/implement";
 import {
   LearnerPreferences,
   LearnerProgress,
@@ -8,7 +8,7 @@ import {
   learnPreferencesContract,
   learnRecordContract,
   learnSetPreferencesContract,
-} from "@rat-stack/core/learn";
+} from "@pecunia/core/learn";
 import { Clock, Config, Effect, Layer, Schema } from "effect";
 import { FetchHttpClient, HttpClient, HttpClientRequest } from "effect/http";
 

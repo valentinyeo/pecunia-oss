@@ -1,5 +1,5 @@
-import { CodeBuildFailed } from "@rat-stack/code-snippets";
-import type { CodeFence, CodeSnippet, Token } from "@rat-stack/code-snippets";
+import { CodeBuildFailed } from "@pecunia/code-snippets";
+import type { CodeFence, CodeSnippet, Token } from "@pecunia/code-snippets";
 import type { RootContent } from "mdast";
 
 import type { ComponentDefinition } from "./component-registry.ts";

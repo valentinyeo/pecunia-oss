@@ -2,8 +2,8 @@ import * as Cloudflare from "@alchemy.run/cloudflare";
 import { makeWorkerRuntimeContext } from "@alchemy.run/cloudflare/Workers/WorkerRuntimeContext";
 import type { WorkerRuntimeContext } from "@alchemy.run/cloudflare/Workers/WorkerRuntimeContext";
 import { expect, it } from "@effect/vitest";
-import { CrashRecordSchema } from "@rat-stack/crash";
-import { crashArchiveLayer } from "@rat-stack/crash/r2";
+import { CrashRecordSchema } from "@pecunia/crash";
+import { crashArchiveLayer } from "@pecunia/crash/r2";
 import { Context, Effect, Ref, Schema } from "effect";
 
 import { registerCrashTail } from "../src/crash-tail-listener.js";

@@ -1,5 +1,5 @@
-import { SubscriberIntake } from "@rat-stack/core/interest";
-import type { IntakeRequest, IntakeResult } from "@rat-stack/core/interest";
+import { SubscriberIntake } from "@pecunia/core/interest";
+import type { IntakeRequest, IntakeResult } from "@pecunia/core/interest";
 import {
   Context,
   Duration,
@@ -19,7 +19,7 @@ export interface IntakeSettings {
 const INTAKE_TIMEOUT_ABOVE_DROVR_VERIFY_AND_SEND = Duration.seconds(20);
 
 export const DrovrIntakeTimeout = Context.Reference<Duration.Duration>(
-  "@rat-stack/subscriber-delivery/DrovrIntakeTimeout",
+  "@pecunia/subscriber-delivery/DrovrIntakeTimeout",
   { defaultValue: () => INTAKE_TIMEOUT_ABOVE_DROVR_VERIFY_AND_SEND }
 );
 

@@ -1,5 +1,5 @@
 {
-  "name": "@rat-stack/deploy",
+  "name": "@pecunia/deploy",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -21,9 +21,9 @@
   "dependencies": {
     "@distilled.cloud/cloudflare": "1.0.0-rc.20",
     "@effect/platform-node": "4.1.4",
-    "@rat-stack/capability": "workspace:*",
-    "@rat-stack/check-harness": "workspace:*",
-    "@rat-stack/core": "workspace:*",
+    "@pecunia/capability": "workspace:*",
+    "@pecunia/check-harness": "workspace:*",
+    "@pecunia/core": "workspace:*",
     "@xstate/effect": "1.0.0-beta.0",
     "alchemy": "2.0.0-beta.87",
     "effect": "4.1.4",

@@ -2,18 +2,18 @@
 import { createServer } from "node:http";
 
 import { NodeHttpServer } from "@effect/platform-node";
-import type { AnyCapability } from "@rat-stack/capability";
+import type { AnyCapability } from "@pecunia/capability";
 import {
   layerSubprocess,
   toCodeMode,
   toHttpApi,
   toToolkit,
-} from "@rat-stack/capability";
-import { capabilities as coreCapabilities } from "@rat-stack/core";
-import { flagWriteCapabilities } from "@rat-stack/core/flag-write-capabilities";
-import { devtools, devtoolsLayer } from "@rat-stack/devtools";
-import { learnCapabilities } from "@rat-stack/learn";
-import { localLearnCapabilities } from "@rat-stack/learn/local";
+} from "@pecunia/capability";
+import { capabilities as coreCapabilities } from "@pecunia/core";
+import { flagWriteCapabilities } from "@pecunia/core/flag-write-capabilities";
+import { devtools, devtoolsLayer } from "@pecunia/devtools";
+import { learnCapabilities } from "@pecunia/learn";
+import { localLearnCapabilities } from "@pecunia/learn/local";
 import { Effect, Layer, Logger } from "effect";
 import { McpServer } from "effect/ai";
 import { HttpRouter } from "effect/http";

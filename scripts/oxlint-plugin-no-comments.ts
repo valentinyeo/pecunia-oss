@@ -12,7 +12,7 @@ interface Entry {
 }
 
 const directivePattern =
-  /^(?:oxlint-(?:disable|enable)(?:-next-line|-line)?\b|@effect-diagnostics\b|@ts-(?:expect-error|ignore|nocheck)\b|\/ <reference )/u;
+  /^(?:oxlint-(?:disable|enable)(?:-next-line|-line)?\b|@effect-diagnostics\b|@ts-(?:expect-error|ignore|nocheck)\b|trufflehog:ignore\b|\/ <reference )/u;
 
 const safetyPattern = /^SAFETY:\s*\S/u;
 
@@ -276,8 +276,8 @@ const noComments = defineRule({
   },
 });
 
-const disableDirectivePattern =
-  /^(?:oxlint|eslint)-disable(?:-next-line|-line)?\b/u;
+const reasonDirectivePattern =
+  /^(?:(?:oxlint|eslint)-disable(?:-next-line|-line)?|trufflehog:ignore)\b/u;
 
 const reasonPattern = /\s--\s+\S/u;
 
@@ -290,7 +290,7 @@ const directiveReason = defineRule({
 
           if (
             comment.type !== "Shebang" &&
-            disableDirectivePattern.test(text) &&
+            reasonDirectivePattern.test(text) &&
             !reasonPattern.test(text)
           ) {
             context.report({ loc: comment.loc, messageId: "reason" });
@@ -302,11 +302,11 @@ const directiveReason = defineRule({
   meta: {
     docs: {
       description:
-        "Require a reason after -- on every oxlint-disable and eslint-disable directive.",
+        "Require a reason after -- on every oxlint-disable, eslint-disable, and trufflehog:ignore directive.",
     },
     messages: {
       reason:
-        "This lint override has no reason after --. An unexplained override hides the invariant that makes it safe. Fix: write `// oxlint-disable-next-line <rule> -- <reason>` and name the invariant or boundary.",
+        "This directive has no reason after --. An unexplained override hides the invariant that makes it safe. Fix: write `// oxlint-disable-next-line <rule> -- <reason>` and name the invariant or boundary, or `// trufflehog:ignore -- <why this line is not a secret>`.",
     },
     type: "problem",
   },

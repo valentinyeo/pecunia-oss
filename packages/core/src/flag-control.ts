@@ -43,12 +43,9 @@ export type {
 
 export { FlagJournal, validateFlagChangeQuery } from "./flag-journal.js";
 
-export const FlagActor = Context.Reference<string>(
-  "@rat-stack/core/FlagActor",
-  {
-    defaultValue: () => "anonymous",
-  }
-);
+export const FlagActor = Context.Reference<string>("@pecunia/core/FlagActor", {
+  defaultValue: () => "anonymous",
+});
 
 const noLedger = (name: string) =>
   Effect.fail(

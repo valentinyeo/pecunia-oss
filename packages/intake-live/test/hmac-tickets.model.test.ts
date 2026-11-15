@@ -4,7 +4,7 @@ import {
   PAGE_TICKET_SOURCE,
   TICKET_TTL_MILLIS,
   TicketSourceSchema,
-} from "@rat-stack/core/intake";
+} from "@pecunia/core/intake";
 import { Effect, Layer, Redacted, Result, Schema } from "effect";
 import * as Arbitrary from "effect/Arbitrary";
 import { Base64Url } from "effect/encoding";

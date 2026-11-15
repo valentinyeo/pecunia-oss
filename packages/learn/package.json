@@ -1,5 +1,5 @@
 {
-  "name": "@rat-stack/learn",
+  "name": "@pecunia/learn",
   "version": "0.1.0",
   "private": true,
   "files": [
@@ -60,8 +60,8 @@
     "pretest": "pnpm run --silent build"
   },
   "dependencies": {
-    "@rat-stack/capability": "workspace:*",
-    "@rat-stack/core": "workspace:*",
+    "@pecunia/capability": "workspace:*",
+    "@pecunia/core": "workspace:*",
     "@xstate/effect": "1.0.0-beta.0",
     "effect": "4.1.4",
     "xstate": "6.0.0-beta.1"

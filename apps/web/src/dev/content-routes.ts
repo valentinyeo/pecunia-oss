@@ -1,5 +1,5 @@
-import type { AnyCapability } from "@rat-stack/capability";
-import { toRpc } from "@rat-stack/capability/rpc";
+import type { AnyCapability } from "@pecunia/capability";
+import { toRpc } from "@pecunia/capability/rpc";
 import * as Layer from "effect/Layer";
 import { RpcSerialization, RpcServer } from "effect/rpc";
 

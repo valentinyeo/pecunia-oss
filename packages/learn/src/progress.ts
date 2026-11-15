@@ -3,8 +3,8 @@ import type {
   LearnDepth,
   LearnEvent,
   Progress,
-} from "@rat-stack/core/learn";
-import { newConcept } from "@rat-stack/core/learn";
+} from "@pecunia/core/learn";
+import { newConcept } from "@pecunia/core/learn";
 
 export const LONG_GAP_MS = 7 * 24 * 60 * 60 * 1000;
 

@@ -132,8 +132,8 @@ The lifecycle journal is scoped memory, with no durable state between processes.
 
 ## How to check
 
-1. Run `pnpm --filter @rat-stack/flags test` for rollout properties, generated write histories, audit failures, and lifecycle histories.
-2. Run `pnpm --filter @rat-stack/core exec vitest run test/patterns-rule.test.ts` for the removal-date [fence](/lore/the-fence).
+1. Run `pnpm --filter @pecunia/flags test` for rollout properties, generated write histories, audit failures, and lifecycle histories.
+2. Run `pnpm --filter @pecunia/core exec vitest run test/patterns-rule.test.ts` for the removal-date [fence](/lore/the-fence).
 3. Run `pnpm turbo run check test build --concurrency=1` for the full gate.
 4. Inspect the deployment plan. Readers declare one KV namespace. The operator [layer](/lore/layers-make-dependencies-explicit) adds the ledger DO and its KV write [binding](/lore/bindings).
 5. Follow [Add a feature flag](/skills/add-a-feature-flag) for scoped evidence, authority, and crash-redrive checks.

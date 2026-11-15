@@ -51,7 +51,7 @@ Clone, then build the CLI:
 git clone --depth 1 https://github.com/joelhooks/rat-stack.git rat-stack-learn
 cd rat-stack-learn
 pnpm install
-pnpm turbo run build --filter=@rat-stack/cli
+pnpm turbo run build --filter=@pecunia/cli
 ```
 
 Configure the agent's stdio MCP client to run this command from that checkout:

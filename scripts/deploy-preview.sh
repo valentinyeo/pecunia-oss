@@ -37,11 +37,11 @@ esac
 export PREVIEW_COMMIT="$(git rev-parse HEAD)"
 export PREVIEW_ORIGIN="https://pr-$pr.ratstack.sh"
 printf 'Preview: pr-%s; commit: %s\n' "$pr" "$PREVIEW_COMMIT"
-pnpm --filter @rat-stack/infra exec -- alchemy "$operation" \
+pnpm --filter @pecunia/infra exec -- alchemy "$operation" \
   --config alchemy.preview.ts --stage "pr-$pr" --profile ratstack \
   --env-file ../../packages/deploy/empty.env "${flags[@]}"
 
 if [[ "$operation" == deploy && "$mode" == --yes ]]; then
-  pnpm --filter @rat-stack/site exec -- node scripts/preview-smoke.ts \
+  pnpm --filter @pecunia/site exec -- node scripts/preview-smoke.ts \
     "https://pr-$pr.ratstack.sh" "$PREVIEW_COMMIT"
 fi

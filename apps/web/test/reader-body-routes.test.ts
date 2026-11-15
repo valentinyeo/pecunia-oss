@@ -31,7 +31,7 @@ const make = Effect.gen(function* readerParityFixture() {
 class ReaderParityFixture extends Context.Service<
   ReaderParityFixture,
   Effect.Success<typeof make>
->()("@rat-stack/web/test/ReaderParityFixture") {
+>()("@pecunia/web/test/ReaderParityFixture") {
   static readonly layer = Layer.effect(ReaderParityFixture, make).pipe(
     Layer.provide(NodeServices.layer)
   );

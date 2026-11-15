@@ -1,5 +1,5 @@
 import { it } from "@effect/vitest";
-import { easingNames } from "@rat-stack/motion";
+import { easingNames } from "@pecunia/motion";
 import { click, expect, given, role, scene } from "foldkit/scene";
 
 import { initialModel } from "../src/client/motion/model.js";

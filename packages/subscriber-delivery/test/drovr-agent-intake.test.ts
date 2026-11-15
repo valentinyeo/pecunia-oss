@@ -1,6 +1,6 @@
 import { expect, it } from "@effect/vitest";
-import { SubscriberIntake } from "@rat-stack/core/interest";
-import type { AgentIntakeRequest } from "@rat-stack/core/interest";
+import { SubscriberIntake } from "@pecunia/core/interest";
+import type { AgentIntakeRequest } from "@pecunia/core/interest";
 import {
   Effect,
   Fiber,

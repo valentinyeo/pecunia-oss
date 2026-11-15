@@ -2,12 +2,12 @@ import {
   cafeDomain,
   githubProfileUrl,
   xProfileUrl,
-} from "@rat-stack/core/contracts";
+} from "@pecunia/core/contracts";
 import type {
   CafeAuthor,
   CafeNewsItemValue,
   CafeReply,
-} from "@rat-stack/core/contracts";
+} from "@pecunia/core/contracts";
 import * as stylex from "@stylexjs/stylex";
 import { Array, Option } from "effect";
 import type { Html, HtmlBuilder } from "foldkit/html";

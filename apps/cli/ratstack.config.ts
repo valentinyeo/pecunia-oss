@@ -53,7 +53,7 @@ const thirdPartyLicenses = Effect.fn("thirdPartyLicenses")(
         .readFileString(path.join(root, "package.json"))
         .pipe(Effect.flatMap(Schema.decodeUnknownEffect(PackageManifest)));
 
-      if (!manifest.name.startsWith("@rat-stack/")) {
+      if (!manifest.name.startsWith("@pecunia/")) {
         const file = (yield* fs.readDirectory(root)).find((name) =>
           licenseFile.test(name)
         );

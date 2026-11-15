@@ -1,4 +1,4 @@
-import { IntakeTicket, PAGE_TICKET_SOURCE } from "@rat-stack/core/intake";
+import { IntakeTicket, PAGE_TICKET_SOURCE } from "@pecunia/core/intake";
 import { Effect } from "effect";
 
 export const PAGE_TICKET_PLACEHOLDER = "__INTAKE_PAGE_TICKET__";

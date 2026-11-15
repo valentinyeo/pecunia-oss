@@ -137,11 +137,11 @@ A downstream storage adapter owns its statement and row limits.
 ## How to check
 
 - `curl -sS https://ratstack.sh/openapi.json | jq -r '.paths | keys[]'` lists the current HTTP operations. Compare them with MCP `tools/list` using the request in the [agent guide](/llms.txt). Do not assume a fixed capability count.
-- `pnpm --filter @rat-stack/capability test` covers input rejection before the handler and typed failures as tool errors. It checks approval denial as a 403 and a typed tool error, denial by default, and code-mode calls through capability schemas.
+- `pnpm --filter @pecunia/capability test` covers input rejection before the handler and typed failures as tool errors. It checks approval denial as a 403 and a typed tool error, denial by default, and code-mode calls through capability schemas.
 - `pnpm lint` fails on any callable interface built outside `packages/capability`.
-- `pnpm --filter @rat-stack/capability exec vitest run test/catalog.test.ts test/sandbox-limits.test.ts test/sandbox-conformance.test.ts test/code-mode-context.test.ts` checks discovery, search pages, limits, and captured services.
-- `pnpm --filter @rat-stack/site exec vitest run test/code-mode-runtime.test.ts` checks the same diagnostics, limits, and concurrency in local workerd.
-- `pnpm --filter @rat-stack/devtools test` checks handler duration and failure recording during code-mode execution.
+- `pnpm --filter @pecunia/capability exec vitest run test/catalog.test.ts test/sandbox-limits.test.ts test/sandbox-conformance.test.ts test/code-mode-context.test.ts` checks discovery, search pages, limits, and captured services.
+- `pnpm --filter @pecunia/site exec vitest run test/code-mode-runtime.test.ts` checks the same diagnostics, limits, and concurrency in local workerd.
+- `pnpm --filter @pecunia/devtools test` checks handler duration and failure recording during code-mode execution.
 
 ## Removing an interface
 

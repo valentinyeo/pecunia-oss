@@ -1,5 +1,5 @@
 import { NodeRuntime, NodeServices } from "@effect/platform-node";
-import { Approval } from "@rat-stack/capability";
+import { Approval } from "@pecunia/capability";
 import { Effect, Layer } from "effect";
 
 import { localLearnLayer } from "./learn-layer.js";

@@ -1,4 +1,4 @@
-import type { Card } from "@rat-stack/core/learn";
+import type { Card } from "@pecunia/core/learn";
 import { Schema } from "effect";
 import * as Arbitrary from "effect/Arbitrary";
 

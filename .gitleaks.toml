@@ -1,0 +1,8 @@
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Generated map of file paths to content hashes"
+paths = [
+  '''^\.brain/data/git-snapshot\.json$''',
+]

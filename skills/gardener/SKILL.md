@@ -59,7 +59,7 @@ Put the rubric, full ranking, tier changes, and unresolved versions at the top o
 
 ## 4. Remove prohibited patterns
 
-Run `pnpm --filter @rat-stack/site generate`, read `.brain/data/unlinked-mentions.generated.json`, and turn useful unlinked mentions into explicit source links after checking their context; leave incidental matches alone.
+Run `pnpm --filter @pecunia/site generate`, read `.brain/data/unlinked-mentions.generated.json`, and turn useful unlinked mentions into explicit source links after checking their context; leave incidental matches alone.
 
 Look for technical debt and patterns that should not spread:
 

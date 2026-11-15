@@ -93,7 +93,7 @@ Every Message the program accepts is declared in one union:
 
 ```
 
-`DocumentQueries` builds its [RPC](/skills/learn-rat-stack) [client](/skills/uncomplect) from the shared contracts. The `rat-stack-boundaries/no-browser-server-imports` lint rule lets browser modules import `@rat-stack/core/contracts` and `@rat-stack/capability/rpc-group`, never a [handler](/systems/capabilities). [AGENTS.md](https://github.com/joelhooks/rat-stack/blob/a3f5a14861ce89913e82bea0f7ba02c83e8d4725/AGENTS.md)
+`DocumentQueries` builds its [RPC](/skills/learn-rat-stack) [client](/skills/uncomplect) from the shared contracts. The `rat-stack-boundaries/no-browser-server-imports` lint rule lets browser modules import `@pecunia/core/contracts` and `@pecunia/capability/rpc-group`, never a [handler](/systems/capabilities). [AGENTS.md](https://github.com/joelhooks/rat-stack/blob/a3f5a14861ce89913e82bea0f7ba02c83e8d4725/AGENTS.md)
 
 ```ts repo=rat-stack path=apps/web/src/client/docs/queries.ts at=a3f5a14861ce89913e82bea0f7ba02c83e8d4725 lines=7-11 title="The client group comes from the contracts"
 

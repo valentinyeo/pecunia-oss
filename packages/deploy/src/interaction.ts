@@ -1,5 +1,5 @@
-import { Approval } from "@rat-stack/capability/approval";
-import type { ApprovalService } from "@rat-stack/capability/approval";
+import { Approval } from "@pecunia/capability/approval";
+import type { ApprovalService } from "@pecunia/capability/approval";
 import {
   Interaction,
   layerNonInteractive,

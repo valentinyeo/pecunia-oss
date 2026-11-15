@@ -56,7 +56,7 @@ To remove one, delete its entry.
 Run the tube tests:
 
 ```sh
-pnpm --filter @rat-stack/web exec vitest run test/tube.data.test.ts test/tube.story.test.ts test/tube.scene.test.ts test/tube.seam.test.ts test/reader-csp.test.ts
+pnpm --filter @pecunia/web exec vitest run test/tube.data.test.ts test/tube.story.test.ts test/tube.scene.test.ts test/tube.seam.test.ts test/reader-csp.test.ts
 ```
 
 They check that ranking orders tiers from S to F and keeps the file's order inside a tier.

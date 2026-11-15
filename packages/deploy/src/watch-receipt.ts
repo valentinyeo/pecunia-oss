@@ -1,4 +1,4 @@
-import { VerdictSchema } from "@rat-stack/check-harness";
+import { VerdictSchema } from "@pecunia/check-harness";
 import { Runtime, Schema } from "effect";
 
 import { refusalFix, refusalMessage, RefusalReasonSchema } from "./refusals.js";

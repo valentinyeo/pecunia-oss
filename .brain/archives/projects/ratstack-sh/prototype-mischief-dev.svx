@@ -24,7 +24,7 @@ Build the smallest `apps/mischief` that runs under `alchemy dev` in workerd: `GE
 
 Built the local-only Effect Worker in `apps/mischief` and wired it into `apps/infra/alchemy.run.ts` behind `Alchemy.ALCHEMY_DEV`. The Worker serves Markdown by default at `/`, an HTML `<pre>` shell for `Accept: text/html`, `/llms.txt`, `/robots.txt`, and a stateless MCP endpoint at `/mcp` restricted to protocol `2026-07-28`. MCP exposes the repository `AGENTS.md` as `ratstack://repo/AGENTS.md` and the bundled `learn-rat-stack` prompt.
 
-Added worker-safe `@rat-stack/capability/define` and `@rat-stack/capability/toolkit` exports without changing the Node-oriented root barrel. The prototype does not yet consume them because it does not expose a capability tool.
+Added worker-safe `@pecunia/capability/define` and `@pecunia/capability/toolkit` exports without changing the Node-oriented root barrel. The prototype does not yet consume them because it does not expose a capability tool.
 
 A direct `?raw` Markdown import worked in Vite tests and the Worker bundler but failed while Alchemy imported the stack module in Node (`ERR_UNKNOWN_FILE_EXTENSION` for `SKILL.md`). The final shape uses `apps/mischief/scripts/generate-content.ts` to produce a Worker-safe TypeScript string module before typecheck, build, test, and `infra:dev`. No request-time filesystem access remains.
 

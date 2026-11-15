@@ -1,8 +1,8 @@
-import { IntakeAnswersSchema } from "@rat-stack/core/intake";
+import { IntakeAnswersSchema } from "@pecunia/core/intake";
 import {
   IntakeApplicationsUnavailable,
   JoinIdentity,
-} from "@rat-stack/core/join-interest";
+} from "@pecunia/core/join-interest";
 import { Effect, Schema } from "effect";
 
 import type { SealedRow } from "./intake-vault.js";

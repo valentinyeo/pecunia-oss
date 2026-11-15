@@ -1,6 +1,6 @@
 ---
 title: "Motion"
-description: "@rat-stack/motion gives Foldkit apps Penner and CSS easings, tweens, fixed-step springs and interpolation, held in the Model and checked by properties."
+description: "@pecunia/motion gives Foldkit apps Penner and CSS easings, tweens, fixed-step springs and interpolation, held in the Model and checked by properties."
 plain: "Easing curves, tweens and springs are plain functions over Model state, so every frame is a Message and every result is testable."
 diagram: |-
   animation frame
@@ -37,7 +37,7 @@ sources:
 
 ## What it does
 
-`@rat-stack/motion` moves values over time in a Foldkit app. Its core is four TypeScript modules in `packages/motion/src/*.pure.ts`. They import only each other, so another project can copy them at a pinned commit.
+`@pecunia/motion` moves values over time in a Foldkit app. Its core is four TypeScript modules in `packages/motion/src/*.pure.ts`. They import only each other, so another project can copy them at a pinned commit.
 
 - **Easing**: Robert Penner's ten curve families come in three variants each: in, out and in-out.
 - **CSS easing**: `linear`, `cubic-bezier()`, `steps()` and keywords such as `ease-in-out` follow the CSS spec.
@@ -51,7 +51,7 @@ The spring takes fixed steps of 1/120 s. It carries the leftover time to the nex
 
 ```
 
-The Foldkit [adapter](/lore/hexagonal-architecture), `@rat-stack/motion/foldkit`, keeps a clock and the named tweens and springs in the Model. A frame is a `TickedFrame` Message. `Motion.advance` steps every spring and moves the clock. The view samples each tween at the clock time.
+The Foldkit [adapter](/lore/hexagonal-architecture), `@pecunia/motion/foldkit`, keeps a clock and the named tweens and springs in the Model. A frame is a `TickedFrame` Message. `Motion.advance` steps every spring and moves the clock. The view samples each tween at the clock time.
 
 ```ts repo=rat-stack path=packages/motion/src/foldkit.ts at=5fa5df1543b8122a678722d5465ae65fc8a4bf2d lines=186-202 title="Frames run only while something moves, and the reduced-motion preference arrives as a Message"
 
@@ -80,7 +80,7 @@ Each rule is an `it.prop` property over generated inputs. Each property also run
 
 ## How to check
 
-- `pnpm --filter @rat-stack/motion test` runs the properties and the planted bugs.
+- `pnpm --filter @pecunia/motion test` runs the properties and the planted bugs.
 - `packages/motion/test/vendoring.test.ts` fails if a core module imports anything except another core module, or names a browser global.
-- `pnpm --filter @rat-stack/site typecheck` prints the Mischief startup size and its change since the last run.
+- `pnpm --filter @pecunia/site typecheck` prints the Mischief startup size and its change since the last run.
 - Open [/systems/motion](/systems/motion) with reduced motion turned on. The dots and curves show their end state.

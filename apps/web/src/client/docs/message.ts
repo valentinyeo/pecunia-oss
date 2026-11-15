@@ -1,4 +1,4 @@
-import { ReadOutput, SearchOutput } from "@rat-stack/core/contracts";
+import { ReadOutput, SearchOutput } from "@pecunia/core/contracts";
 import { Schema } from "effect";
 import { defineMessageUnion } from "foldkit/message";
 import { UrlRequest } from "foldkit/navigation";

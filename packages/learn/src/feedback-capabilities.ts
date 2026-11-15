@@ -1,9 +1,9 @@
-import { implement } from "@rat-stack/capability/implement";
+import { implement } from "@pecunia/capability/implement";
 import {
   learnFeedbackContract,
   learnFeedbackPollContract,
   learnFeedbackStartContract,
-} from "@rat-stack/core/learn";
+} from "@pecunia/core/learn";
 import { Effect } from "effect";
 
 import { FeedbackAuthor } from "./feedback-author.js";

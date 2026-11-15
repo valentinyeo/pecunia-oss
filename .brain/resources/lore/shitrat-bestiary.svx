@@ -106,7 +106,7 @@ The python was released on November 14, 2026. Nobody could find who had brought 
 ## Mischief
 
 **Habitat:** [the site's Worker](https://github.com/joelhooks/rat-stack/blob/81e9a318e6ce3e767c62be6c2505605bfbb1f021/apps/site/src/worker.ts), in `apps/site/src/worker.ts`.
-The [rename commit](https://github.com/joelhooks/rat-stack/commit/246600bd53978883a6a4c1f5a6ff45e3f1ff2f0c) moves `apps/mischief` to `apps/site` and renames the package to `@rat-stack/site`.
+The [rename commit](https://github.com/joelhooks/rat-stack/commit/246600bd53978883a6a4c1f5a6ff45e3f1ff2f0c) moves `apps/mischief` to `apps/site` and renames the package to `@pecunia/site`.
 Worker names, resource IDs, and TypeScript symbols retain their names.
 Mischief therefore survives the directory rename.
 

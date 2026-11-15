@@ -3,7 +3,7 @@ import {
   IntakeApplicationsUnavailable,
   IntakeApplicationsSchema,
   intakeApplications,
-} from "@rat-stack/core/join-interest";
+} from "@pecunia/core/join-interest";
 import {
   Config,
   Console,

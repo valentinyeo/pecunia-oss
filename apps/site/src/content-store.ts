@@ -1,8 +1,8 @@
-import { CafeData, ResourceNotFound } from "@rat-stack/core/contracts";
-import { CardSchema } from "@rat-stack/core/learn";
-import type { Card } from "@rat-stack/core/learn";
-import { LoreGraph } from "@rat-stack/lore";
-import type { LoreGraphService } from "@rat-stack/lore";
+import { CafeData, ResourceNotFound } from "@pecunia/core/contracts";
+import { CardSchema } from "@pecunia/core/learn";
+import type { Card } from "@pecunia/core/learn";
+import { LoreGraph } from "@pecunia/lore";
+import type { LoreGraphService } from "@pecunia/lore";
 import { Context, Effect, Layer, Option, Ref, Schema } from "effect";
 
 import { staticAssetGeneration } from "./bundled-content.generated.js";

@@ -1,5 +1,5 @@
 import * as Cloudflare from "@alchemy.run/cloudflare";
-import { Flags } from "@rat-stack/core/flags";
+import { Flags } from "@pecunia/core/flags";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 

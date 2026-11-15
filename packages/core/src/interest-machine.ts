@@ -1,4 +1,4 @@
-import { watchActor } from "@rat-stack/capability/actor-watch";
+import { watchActor } from "@pecunia/capability/actor-watch";
 import {
   createEffectActor,
   createEffectLogic,
@@ -68,7 +68,7 @@ export class InterestStore extends Context.Service<
     readonly load: Effect.Effect<InterestRecord | undefined>;
     readonly save: (record: InterestRecord) => Effect.Effect<void>;
   }
->()("@rat-stack/core/InterestStore") {
+>()("@pecunia/core/InterestStore") {
   static readonly memory = Layer.effect(
     this,
     Effect.gen(function* makeMemoryInterestStore() {

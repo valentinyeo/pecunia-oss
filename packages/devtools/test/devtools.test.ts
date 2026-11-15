@@ -9,15 +9,15 @@ import {
   toExecuteCapability,
   toRpc,
   toToolkit,
-} from "@rat-stack/capability";
-import type { AnyContract } from "@rat-stack/capability";
-import { watchActor } from "@rat-stack/capability/actor-watch";
+} from "@pecunia/capability";
+import type { AnyContract } from "@pecunia/capability";
+import { watchActor } from "@pecunia/capability/actor-watch";
 import type {
   ActorEvent,
   WatchableActor,
-} from "@rat-stack/capability/actor-watch";
-import { CallWatch } from "@rat-stack/capability/call-watch";
-import type { CallWatchService } from "@rat-stack/capability/call-watch";
+} from "@pecunia/capability/actor-watch";
+import { CallWatch } from "@pecunia/capability/call-watch";
+import type { CallWatchService } from "@pecunia/capability/call-watch";
 import { Clock, Effect, Layer, Schema, Stream } from "effect";
 import { Tool } from "effect/ai";
 import { RpcTest } from "effect/rpc";

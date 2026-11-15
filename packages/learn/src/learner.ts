@@ -5,7 +5,7 @@ import type {
   LearnEvent,
   LearnSelection,
   Progress,
-} from "@rat-stack/core/learn";
+} from "@pecunia/core/learn";
 import { Context, Effect, Layer, Option, Ref } from "effect";
 
 import { loadLearnerImplementation } from "./learner-loader.js";
@@ -24,7 +24,7 @@ export class Learner extends Context.Service<
       event: LearnEvent
     ) => Effect.Effect<Progress, LearnError>;
   }
->()("@rat-stack/learn/Learner") {
+>()("@pecunia/learn/Learner") {
   static readonly layer = (deck: Effect.Effect<readonly Card[], LearnError>) =>
     Layer.effect(
       Learner,

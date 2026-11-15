@@ -1,6 +1,6 @@
-import { CallWatch } from "@rat-stack/capability/call-watch";
-import { defineContract } from "@rat-stack/capability/contract";
-import { implement } from "@rat-stack/capability/implement";
+import { CallWatch } from "@pecunia/capability/call-watch";
+import { defineContract } from "@pecunia/capability/contract";
+import { implement } from "@pecunia/capability/implement";
 import { Context, Effect, Logger, Schema } from "effect";
 
 import { IntakeApplicationsUnavailable } from "./intake-applications-unavailable.js";
@@ -52,7 +52,7 @@ export class IntakeApplications extends Context.Service<
       IntakeApplicationsUnavailable
     >;
   }
->()("@rat-stack/core/IntakeApplications") {}
+>()("@pecunia/core/IntakeApplications") {}
 
 export const intakeApplicationsContract = defineContract("intakeApplications", {
   annotations: { readOnly: true },

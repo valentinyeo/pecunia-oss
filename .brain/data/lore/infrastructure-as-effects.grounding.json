@@ -242,7 +242,7 @@
     },
     {
       "id": "c49",
-      "quote": "The database's one caller is auth, which today runs only in the web app's dev server. pnpm --filter @rat-stack/database test runs the RunLog tests twice, against D1 on local SQLite and against Postgres on PGlite.",
+      "quote": "The database's one caller is auth, which today runs only in the web app's dev server. pnpm --filter @pecunia/database test runs the RunLog tests twice, against D1 on local SQLite and against Postgres on PGlite.",
       "page": "https://github.com/joelhooks/rat-stack/blob/c5e4fc13d7740952fcb1646b29a5cdd1b43001a8/.brain/areas/database.svx#L55-L73"
     }
   ],

@@ -1,4 +1,4 @@
-import { WorkshopDirectory } from "@rat-stack/core/workshop-directory";
+import { WorkshopDirectory } from "@pecunia/core/workshop-directory";
 import { Context, Effect, Layer } from "effect";
 import * as HttpEffect from "effect/http/HttpEffect";
 import * as HttpRouter from "effect/http/HttpRouter";

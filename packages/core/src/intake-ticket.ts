@@ -37,7 +37,7 @@ export class IntakeTicket extends Context.Service<
       submissionId: string
     ) => Effect.Effect<TicketClaims, InvalidTicket>;
   }
->()("@rat-stack/core/IntakeTicket") {
+>()("@pecunia/core/IntakeTicket") {
   static readonly testLayer = Layer.effect(
     this,
     Effect.gen(function* makeTestTickets() {

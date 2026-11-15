@@ -1,14 +1,14 @@
 import { NodeServices } from "@effect/platform-node";
 import { describe, expect, it } from "@effect/vitest";
-import { Workshop, publishWorkshop } from "@rat-stack/core/tokenmaxx-workshop";
-import { UnknownExercise } from "@rat-stack/core/workshop-contracts";
+import { Workshop, publishWorkshop } from "@pecunia/core/tokenmaxx-workshop";
+import { UnknownExercise } from "@pecunia/core/workshop-contracts";
 import {
   WorkshopDirectory,
   listExercises,
   readExercise,
   workshopLinks,
   workshopPrep,
-} from "@rat-stack/core/workshop-directory";
+} from "@pecunia/core/workshop-directory";
 import { Effect, FileSystem, Path, Schema } from "effect";
 
 import { emitAssets } from "../scripts/emit-assets.ts";

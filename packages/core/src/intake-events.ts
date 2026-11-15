@@ -76,7 +76,7 @@ export class IntakeEvents extends Context.Service<
       contact?: IntakeContact
     ) => Effect.Effect<void, IntakeEventsUnavailable>;
   }
->()("@rat-stack/core/IntakeEvents") {
+>()("@pecunia/core/IntakeEvents") {
   static readonly testLayer = Layer.unwrap(
     Effect.gen(function* makeTestIntakeEvents() {
       const stored = yield* Ref.make<readonly IntakeStatement[]>([]);

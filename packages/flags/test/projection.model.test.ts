@@ -3,12 +3,12 @@ import {
   FlagLedger,
   FlagPosition,
   FlagTarget,
-} from "@rat-stack/core/flag-control";
+} from "@pecunia/core/flag-control";
 import {
   FlagStateStore,
   flagLedgerEngine,
-} from "@rat-stack/core/flag-ledger-engine";
-import { Flags, FlagStorageError } from "@rat-stack/core/flags";
+} from "@pecunia/core/flag-ledger-engine";
+import { Flags, FlagStorageError } from "@pecunia/core/flags";
 import { Clock, Effect, Exit, Layer, Option, Ref, Schema } from "effect";
 import * as Arbitrary from "effect/Arbitrary";
 

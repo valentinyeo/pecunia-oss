@@ -24,7 +24,7 @@ Effect describes work with typed failures and required dependencies. Schema defi
 
 ## 1. Define the contract
 
-Put cross-process contracts in `packages/core/src/contracts.ts` and import `defineContract` from `@rat-stack/capability/contract`.
+Put cross-process contracts in `packages/core/src/contracts.ts` and import `defineContract` from `@pecunia/capability/contract`.
 
 1. Define the input, output, and [expected failure](/lore/error-model) schemas.
 2. Give the contract a stable name and short description.
@@ -33,7 +33,7 @@ Put cross-process contracts in `packages/core/src/contracts.ts` and import `defi
 5. Set `needsApproval: true` when the action needs approval. `implement` adds the `Approval` requirement and `ApprovalDenied` failure; the handler itself declares only the contract's failures.
 
 ```ts
-import { defineContract } from "@rat-stack/capability/contract";
+import { defineContract } from "@pecunia/capability/contract";
 import { Schema } from "effect";
 
 class ThingError extends Schema.TaggedError<
@@ -56,7 +56,7 @@ Schemas must encode and decode without services. Keep server dependencies out of
 
 ## 2. Implement it
 
-Import `implement` from `@rat-stack/capability/implement`. Put the handler next to its service or server-side data. Keep it small; put real work in a service or lifecycle machine.
+Import `implement` from `@pecunia/capability/implement`. Put the handler next to its service or server-side data. Keep it small; put real work in a service or lifecycle machine.
 
 ```ts repo=rat-stack path=packages/core/src/inspect-file.ts at=81a12c4b86cd65bf86e4bdba98eda122d0133844 lines=14-16
 
@@ -89,7 +89,7 @@ The CLI, HTTP, MCP, RPC, and code-mode projections take implemented capabilities
 
 `toCommand` builds one CLI command from the registered tuple. Open `apps/cli/src/command.ts` only when the command needs a positional argument, custom renderer, or alias. Use `name`, `positional`, and `render` for those cases. `toCommand` adds `--json`; do not parse fields again or call the service directly.
 
-RPC means remote procedure call: a client calls a named server operation. Browser clients import contracts from `@rat-stack/core/contracts` and `toRpcGroup` from `@rat-stack/capability/rpc-group`; they do not import a handler or the server-side `toRpc` projection.
+RPC means remote procedure call: a client calls a named server operation. Browser clients import contracts from `@pecunia/core/contracts` and `toRpcGroup` from `@pecunia/capability/rpc-group`; they do not import a handler or the server-side `toRpc` projection.
 
 ## 5. Test it
 

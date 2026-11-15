@@ -82,7 +82,7 @@ Each entry contains `resource`, `code` and a redacted `message`. A missing code 
 
 The driver preserves completed resources and stops before health checks after failed apply. It excludes request headers, request bodies and unrelated response fields. Recognized credentials and private identifiers are redacted. These rules cannot identify every secret written as ordinary prose. Review messages before sharing them.
 
-Run `pnpm --filter @rat-stack/deploy exec vitest run test/provider-failure.model.test.ts test/provider-evidence.test.ts` to check the failing-provider seam. This local proof does not reproduce a production upload error or change provider retries.
+Run `pnpm --filter @pecunia/deploy exec vitest run test/provider-failure.model.test.ts test/provider-evidence.test.ts` to check the failing-provider seam. This local proof does not reproduce a production upload error or change provider retries.
 
 ## Read escaped Worker crashes
 
@@ -99,7 +99,7 @@ The production plan should create `MischiefCrashTail` and its retained `Mischief
 
 Records keep sanitized diagnostic phrases rather than arbitrary exception text. Unknown messages and custom error names are redacted. Headers, cookies, IPs, query strings, request bodies, and console logs are excluded. Delivery is best effort; an empty listing does not establish health. Missing time, version, or route stays `null`. Replayed deliveries can create duplicate objects.
 
-Before shipping, run the full gate and `pnpm --filter @rat-stack/crash exec vitest run test/crash.test.ts`. A local passing property does not establish Cloudflare delivery. After shipping, require an actual stored failed trace before claiming the archive works. Do not add a public crash trigger to obtain that proof.
+Before shipping, run the full gate and `pnpm --filter @pecunia/crash exec vitest run test/crash.test.ts`. A local passing property does not establish Cloudflare delivery. After shipping, require an actual stored failed trace before claiming the archive works. Do not add a public crash trigger to obtain that proof.
 
 To disable crash capture, remove Mischief's tail-consumer attachment through an approved Alchemy update. Verify the deployed attachment is empty. Do not assume a code-version rollback restores script settings. Keep the retained bucket and its objects for investigation. Deleting or orphaning archive resources requires the normal plan review and owner approval.
 

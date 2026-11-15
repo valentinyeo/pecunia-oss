@@ -1,4 +1,4 @@
-import { IntakeEvents } from "@rat-stack/core/intake";
+import { IntakeEvents } from "@pecunia/core/intake";
 import { Context, Effect, Layer } from "effect";
 
 export const mirrorIntakeEvents = (

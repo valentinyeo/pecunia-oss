@@ -10,7 +10,7 @@ export class SubscriberConfirm extends Context.Service<
     ) => Effect.Effect<Exclude<ConfirmState, "pending">>;
     readonly state: (token: string) => Effect.Effect<ConfirmState>;
   }
->()("@rat-stack/core/SubscriberConfirm") {
+>()("@pecunia/core/SubscriberConfirm") {
   static readonly unconfigured = Layer.succeed(this, {
     confirm: () => Effect.succeed("invalid" as const),
     state: () => Effect.succeed("invalid" as const),

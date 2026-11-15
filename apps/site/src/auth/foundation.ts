@@ -1,4 +1,4 @@
-import { D1Vendor } from "@rat-stack/database/d1";
+import { D1Vendor } from "@pecunia/database/d1";
 import { Random } from "alchemy";
 import * as Namespace from "alchemy/Namespace";
 import { retain } from "alchemy/RemovalPolicy";

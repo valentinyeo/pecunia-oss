@@ -1,4 +1,4 @@
-import type { AbuseInput } from "@rat-stack/core/intake";
+import type { AbuseInput } from "@pecunia/core/intake";
 
 export const MAX_ANSWER_LENGTH = 4000;
 
