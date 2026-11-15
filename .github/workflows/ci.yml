@@ -41,6 +41,8 @@ jobs:
         run: node scripts/check-commit-identity.ts
       - name: Check for personal data
         run: node scripts/check-no-personal-data.ts
+      - name: Test the guard scripts
+        run: pnpm test:guards
       - name: Check and test
         # 6882060, 4 cores/16 GB: median N1=479s, N2=265s, N4=271s; N2 worst test=39.13% of budget.
         run: pnpm turbo run check test build --concurrency=2
