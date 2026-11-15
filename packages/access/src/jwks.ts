@@ -1,13 +1,4 @@
-import {
-  Clock,
-  Context,
-  Effect,
-  Layer,
-  Option,
-  Ref,
-  Schema,
-  Semaphore,
-} from "effect";
+import { Clock, Context, Effect, Layer, Ref, Schema, Semaphore } from "effect";
 import * as HttpClient from "effect/http/HttpClient";
 import * as HttpClientRequest from "effect/http/HttpClientRequest";
 import * as HttpClientResponse from "effect/http/HttpClientResponse";
@@ -40,6 +31,8 @@ interface CachedKeys {
   readonly keys: readonly JsonWebKey[];
 }
 
+type KeyCache = ReadonlyMap<string, CachedKeys>;
+
 const isReusable = (
   cached: CachedKeys,
   now: number,
@@ -67,7 +60,7 @@ export class JwksCache extends Context.Service<
 >()("@pecunia/access/JwksCache", {
   make: Effect.gen(function* makeJwksCache() {
     const client = yield* HttpClient.HttpClient;
-    const cached = yield* Ref.make(Option.none<CachedKeys>());
+    const cached = yield* Ref.make<KeyCache>(new Map());
     const gate = yield* Semaphore.make(1);
 
     const fetchKeys = Effect.fn("JwksCache.fetchKeys")(function* fetchKeys(
@@ -95,7 +88,7 @@ export class JwksCache extends Context.Service<
       return yield* gate.withPermit(
         Effect.gen(function* readThroughCache() {
           const now = yield* Clock.currentTimeMillis;
-          const current = Option.getOrUndefined(yield* Ref.get(cached));
+          const current = (yield* Ref.get(cached)).get(url);
 
           if (current !== undefined && isReusable(current, now, forceRefresh)) {
             return current.keys;
@@ -103,7 +96,9 @@ export class JwksCache extends Context.Service<
 
           const keys = yield* fetchKeys(url);
 
-          yield* Ref.set(cached, Option.some({ fetchedAt: now, keys }));
+          yield* Ref.update(cached, (entries) =>
+            new Map(entries).set(url, { fetchedAt: now, keys })
+          );
 
           return keys;
         })

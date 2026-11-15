@@ -16,11 +16,16 @@ import type {
 } from "./model.js";
 
 interface MemoryDirectory {
+  readonly bootstrapped: boolean;
   readonly members: readonly Member[];
   readonly nextId: number;
 }
 
-const emptyDirectory: MemoryDirectory = { members: [], nextId: 1 };
+const emptyDirectory: MemoryDirectory = {
+  bootstrapped: false,
+  members: [],
+  nextId: 1,
+};
 
 const newMember = (
   id: number,
@@ -37,6 +42,14 @@ const newMember = (
 
     return { createdAt, email, id: memberId, profileId, role };
   });
+
+const ownersOf = (members: readonly Member[], profileId: ProfileId) =>
+  members.filter(
+    (member) => member.profileId === profileId && member.role === "owner"
+  );
+
+const soleOwner = (members: readonly Member[], target: Member) =>
+  target.role === "owner" && ownersOf(members, target.profileId).length === 1;
 
 export const memoryMembershipLayer = Layer.effect(
   MembershipDirectory,
@@ -74,6 +87,16 @@ export const memoryMembershipLayer = Layer.effect(
           );
 
           if (existing !== undefined) {
+            if (
+              input.role !== "owner" &&
+              soleOwner(current.members, existing)
+            ) {
+              return yield* new LastOwner({
+                memberId: existing.id,
+                profileId: existing.profileId,
+              });
+            }
+
             const updated: Member = { ...existing, role: input.role };
 
             yield* Ref.set(state, {
@@ -94,6 +117,7 @@ export const memoryMembershipLayer = Layer.effect(
           );
 
           yield* Ref.set(state, {
+            bootstrapped: current.bootstrapped,
             members: [...current.members, member],
             nextId: current.nextId + 1,
           });
@@ -109,7 +133,7 @@ export const memoryMembershipLayer = Layer.effect(
           Effect.gen(function* insertOwner() {
             const current = yield* Ref.get(state);
 
-            if (current.members.length > 0) {
+            if (current.bootstrapped || current.members.length > 0) {
               return yield* new BootstrapClosed({
                 message:
                   "The first owner already exists, so bootstrap is closed",
@@ -125,6 +149,7 @@ export const memoryMembershipLayer = Layer.effect(
             );
 
             yield* Ref.set(state, {
+              bootstrapped: true,
               members: [member],
               nextId: current.nextId + 1,
             });
@@ -150,12 +175,7 @@ export const memoryMembershipLayer = Layer.effect(
             return yield* new MemberNotFound({ memberId });
           }
 
-          const owners = current.members.filter(
-            (member) =>
-              member.profileId === target.profileId && member.role === "owner"
-          );
-
-          if (target.role === "owner" && owners.length === 1) {
+          if (soleOwner(current.members, target)) {
             return yield* new LastOwner({
               memberId,
               profileId: target.profileId,

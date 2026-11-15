@@ -22,7 +22,7 @@ export class MembershipDirectory extends Context.Service<
     ) => Effect.Effect<readonly Member[], DirectoryUnavailable>;
     readonly grant: (
       grant: MembershipGrant
-    ) => Effect.Effect<Member, DirectoryUnavailable>;
+    ) => Effect.Effect<Member, DirectoryUnavailable | LastOwner>;
     readonly insertFirstOwner: (
       invite: MemberInvite
     ) => Effect.Effect<Member, BootstrapClosed | DirectoryUnavailable>;

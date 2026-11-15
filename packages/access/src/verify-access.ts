@@ -21,6 +21,8 @@ const MILLIS_PER_SECOND = 1000;
 
 const CLOCK_SKEW_MILLIS = 60 * 1000;
 
+const MAXIMUM_TOKEN_LENGTH = 8192;
+
 const unauthenticated = (reason: UnauthenticatedReason, message: string) =>
   new Unauthenticated({ message, reason });
 
@@ -134,7 +136,7 @@ const signingKeyFor = (
 
     return yield* unauthenticated(
       "key",
-      `No Access signing key matches ${kid}`
+      "No Access signing key matches the token header"
     );
   });
 
@@ -157,7 +159,7 @@ const signatureIsValid = (
     if (rotated === undefined) {
       return yield* unauthenticated(
         "key",
-        `No Access signing key matches ${key.kid}`
+        "No Access signing key matches the token header"
       );
     }
 
@@ -176,6 +178,11 @@ const signatureIsValid = (
       "The Access token signature does not verify"
     );
   });
+
+const notBeforeOf = (raw: RawAccessClaims) =>
+  raw.nbf === undefined
+    ? {}
+    : { notBefore: DateTime.makeUnsafe(raw.nbf * MILLIS_PER_SECOND) };
 
 const registeredClaims = (
   raw: RawAccessClaims,
@@ -203,7 +210,10 @@ const registeredClaims = (
       return yield* unauthenticated("expired", "The Access token has expired");
     }
 
-    if (now + CLOCK_SKEW_MILLIS < raw.nbf * MILLIS_PER_SECOND) {
+    if (
+      raw.nbf !== undefined &&
+      now + CLOCK_SKEW_MILLIS < raw.nbf * MILLIS_PER_SECOND
+    ) {
       return yield* unauthenticated(
         "notYetValid",
         "The Access token is not valid yet"
@@ -226,7 +236,7 @@ const registeredClaims = (
       expiresAt: DateTime.makeUnsafe(raw.exp * MILLIS_PER_SECOND),
       issuedAt: DateTime.makeUnsafe(raw.iat * MILLIS_PER_SECOND),
       issuer: raw.iss,
-      notBefore: DateTime.makeUnsafe(raw.nbf * MILLIS_PER_SECOND),
+      ...notBeforeOf(raw),
     };
   });
 
@@ -235,44 +245,60 @@ interface VerifiedClaims {
   readonly expiresAt: DateTime.Utc;
   readonly issuedAt: DateTime.Utc;
   readonly issuer: string;
-  readonly notBefore: DateTime.Utc;
+  readonly notBefore?: DateTime.Utc;
 }
 
-const identityOf = (raw: RawAccessClaims, verified: VerifiedClaims) =>
-  Effect.gen(function* claimIdentity() {
-    if (raw.common_name !== undefined && raw.common_name !== "") {
-      const clientId = yield* decodeClaim(
-        Schema.NonEmptyString,
-        raw.common_name
+const nonEmpty = (value: string | undefined) =>
+  value === undefined || value === "" ? undefined : value;
+
+const personIdentity = (
+  email: string,
+  personId: string | undefined,
+  verified: VerifiedClaims
+) =>
+  Effect.gen(function* claimPersonIdentity() {
+    if (personId === undefined || personId === "") {
+      return yield* unauthenticated(
+        "claims",
+        "The Access token names an email but no person id"
       );
-
-      return AccessClaimsSchema.cases.ServiceToken.make({
-        ...verified,
-        clientId,
-      });
     }
 
-    if (
-      raw.email !== undefined &&
-      raw.email !== "" &&
-      raw.sub !== undefined &&
-      raw.sub !== ""
-    ) {
-      const email = yield* decodeClaim(EmailSchema, raw.email);
-      const personId = yield* decodeClaim(PersonIdSchema, raw.sub);
-
-      return AccessClaimsSchema.cases.Person.make({
-        ...verified,
-        email,
-        personId,
-      });
-    }
-
-    return yield* unauthenticated(
-      "claims",
-      "The Access token names neither a person email nor a service token"
-    );
+    return AccessClaimsSchema.cases.Person.make({
+      ...verified,
+      email: yield* decodeClaim(EmailSchema, email),
+      personId: yield* decodeClaim(PersonIdSchema, personId),
+    });
   });
+
+const serviceIdentity = (commonName: string, verified: VerifiedClaims) =>
+  Effect.gen(function* claimServiceIdentity() {
+    const clientId = yield* decodeClaim(Schema.NonEmptyString, commonName);
+
+    return AccessClaimsSchema.cases.ServiceToken.make({
+      ...verified,
+      clientId,
+    });
+  });
+
+const identityOf = (raw: RawAccessClaims, verified: VerifiedClaims) => {
+  const email = nonEmpty(raw.email);
+
+  if (email !== undefined) {
+    return personIdentity(email, raw.sub, verified);
+  }
+
+  const commonName = nonEmpty(raw.common_name);
+
+  if (commonName !== undefined) {
+    return serviceIdentity(commonName, verified);
+  }
+
+  return unauthenticated(
+    "claims",
+    "The Access token names neither a person email nor a service token"
+  );
+};
 
 const parseSegments = (token: string) => {
   const segments = token.split(".");
@@ -290,6 +316,13 @@ export const verifyAccess = Effect.fn("verifyAccess")(function* verifyAccess(
   token: string,
   settings: AccessSettings
 ) {
+  if (token.length > MAXIMUM_TOKEN_LENGTH) {
+    return yield* unauthenticated(
+      "malformed",
+      "The Access token is longer than any Access token can be"
+    );
+  }
+
   const segments = parseSegments(token);
 
   if (segments === undefined) {
@@ -308,7 +341,7 @@ export const verifyAccess = Effect.fn("verifyAccess")(function* verifyAccess(
   if (header.alg !== "RS256") {
     return yield* unauthenticated(
       "algorithm",
-      `The Access token uses ${header.alg}; only RS256 is accepted`
+      "The Access token is not signed with RS256"
     );
   }
 

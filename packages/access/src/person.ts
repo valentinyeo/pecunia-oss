@@ -14,9 +14,15 @@ export const resolvePerson = Effect.fn("resolvePerson")(function* resolvePerson(
   const directory = yield* MembershipDirectory;
   const members = yield* directory.findByEmail(claims.email);
 
+  const memberships = [
+    ...new Map(
+      members.map(({ profileId, role }) => [profileId, { profileId, role }])
+    ).values(),
+  ];
+
   return {
     email: claims.email,
-    memberships: members.map(({ profileId, role }) => ({ profileId, role })),
+    memberships,
     personId: claims.personId,
   };
 });

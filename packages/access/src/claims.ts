@@ -7,7 +7,7 @@ const verifiedClaims = {
   expiresAt: Schema.DateTimeUtc,
   issuedAt: Schema.DateTimeUtc,
   issuer: Schema.NonEmptyString,
-  notBefore: Schema.DateTimeUtc,
+  notBefore: Schema.optional(Schema.DateTimeUtc),
 } as const;
 
 export const AccessClaimsSchema = Schema.TaggedUnion({
@@ -46,7 +46,7 @@ export const RawAccessClaimsSchema = Schema.Struct({
   exp: Schema.Int,
   iat: Schema.Int,
   iss: Schema.String,
-  nbf: Schema.Int,
+  nbf: Schema.optional(Schema.Int),
   sub: Schema.optional(Schema.String),
 });
 

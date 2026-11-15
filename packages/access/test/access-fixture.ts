@@ -17,17 +17,28 @@ import type { JsonWebKey } from "../src/index.js";
 
 export const TEAM_DOMAIN = "example-team.cloudflareaccess.com";
 
+export const OTHER_TEAM_DOMAIN = "other-team.cloudflareaccess.com";
+
 export const AUDIENCE = "demo-access-application";
 
 export const ISSUER = `https://${TEAM_DOMAIN}`;
+
+export const OTHER_ISSUER = `https://${OTHER_TEAM_DOMAIN}`;
 
 export const KID = "demo-signing-key";
 
 export const DEMO_PROFILE = "profile-demo";
 
+export const OTHER_PROFILE = "profile-other";
+
 export const accessSettings = {
   audience: AUDIENCE,
   teamDomain: TEAM_DOMAIN,
+} as const;
+
+export const otherAccessSettings = {
+  audience: AUDIENCE,
+  teamDomain: OTHER_TEAM_DOMAIN,
 } as const;
 
 export const profileId = (value: string) =>
@@ -49,24 +60,40 @@ export const personWith = (
 export const memberEmail = (value: string) =>
   Schema.decodeSync(EmailSchema)(value);
 
+export type SigningAlgorithm = "PS256" | "RS256" | "RS384";
+
 export interface SigningKey {
+  readonly algorithm: SigningAlgorithm;
   readonly jwk: JsonWebKey;
   readonly privateKey: webcrypto.CryptoKey;
 }
 
-export const makeSigningKey = (kid: string) =>
+const keyParameters = (
+  algorithm: SigningAlgorithm
+): webcrypto.RsaHashedKeyGenParams => ({
+  hash: algorithm === "RS384" ? "SHA-384" : "SHA-256",
+  modulusLength: 2048,
+  name: algorithm === "PS256" ? "RSA-PSS" : "RSASSA-PKCS1-v1_5",
+  publicExponent: new Uint8Array([1, 0, 1]),
+});
+
+const signParameters = (
+  algorithm: SigningAlgorithm
+): webcrypto.AlgorithmIdentifier | webcrypto.RsaPssParams =>
+  algorithm === "PS256"
+    ? { name: "RSA-PSS", saltLength: 32 }
+    : { name: "RSASSA-PKCS1-v1_5" };
+
+export const makeSigningKey = (
+  kid: string,
+  algorithm: SigningAlgorithm = "RS256"
+) =>
   Effect.gen(function* generateSigningKey() {
     const pair = yield* Effect.promise(() =>
-      crypto.subtle.generateKey(
-        {
-          hash: "SHA-256",
-          modulusLength: 2048,
-          name: "RSASSA-PKCS1-v1_5",
-          publicExponent: new Uint8Array([1, 0, 1]),
-        },
-        true,
-        ["sign", "verify"]
-      )
+      crypto.subtle.generateKey(keyParameters(algorithm), true, [
+        "sign",
+        "verify",
+      ])
     );
 
     const exported = yield* Effect.promise(() =>
@@ -74,7 +101,7 @@ export const makeSigningKey = (kid: string) =>
     );
 
     const jwk = yield* Schema.decodeEffect(JsonWebKeySchema)({
-      alg: "RS256",
+      alg: algorithm,
       e: exported.e ?? "",
       kid,
       kty: "RSA",
@@ -82,7 +109,7 @@ export const makeSigningKey = (kid: string) =>
       use: "sig",
     }).pipe(Effect.orDie);
 
-    return { jwk, privateKey: pair.privateKey };
+    return { algorithm, jwk, privateKey: pair.privateKey };
   });
 
 const encodeSegment = (json: string): string =>
@@ -109,35 +136,53 @@ export interface TokenOptions {
   readonly expiresInSeconds?: number;
   readonly issuer?: string;
   readonly notBeforeSeconds?: number;
+  readonly padding?: number;
 }
 
-export const personClaims = (now: number, options: TokenOptions = {}) => {
+const registeredClaims = (now: number, options: TokenOptions) => {
   const issued = Math.floor(now / 1000);
 
-  return JSON.stringify({
+  const claims = {
     aud: [options.audience ?? AUDIENCE],
-    email: "owner@example.com",
     exp: issued + (options.expiresInSeconds ?? 300),
     iat: issued,
     iss: options.issuer ?? ISSUER,
-    nbf: issued + (options.notBeforeSeconds ?? 0),
+  };
+
+  const timed =
+    options.notBeforeSeconds === undefined
+      ? claims
+      : { ...claims, nbf: issued + options.notBeforeSeconds };
+
+  return options.padding === undefined
+    ? timed
+    : { ...timed, pad: "x".repeat(options.padding) };
+};
+
+export const personClaims = (now: number, options: TokenOptions = {}) =>
+  JSON.stringify({
+    ...registeredClaims(now, options),
+    email: "owner@example.com",
     sub: "person-1",
   });
-};
 
-export const serviceTokenClaims = (now: number, options: TokenOptions = {}) => {
-  const issued = Math.floor(now / 1000);
-
-  return JSON.stringify({
-    aud: [options.audience ?? AUDIENCE],
+export const serviceTokenClaims = (now: number, options: TokenOptions = {}) =>
+  JSON.stringify({
+    ...registeredClaims(now, options),
     common_name: "demo-sync-worker",
-    exp: issued + (options.expiresInSeconds ?? 300),
-    iat: issued,
-    iss: options.issuer ?? ISSUER,
-    nbf: issued + (options.notBeforeSeconds ?? 0),
     sub: "",
   });
-};
+
+export const mixedClaims = (now: number, options: TokenOptions = {}) =>
+  JSON.stringify({
+    ...registeredClaims(now, options),
+    common_name: "demo-sync-worker",
+    email: "owner@example.com",
+    sub: "person-1",
+  });
+
+export const unidentifiedClaims = (now: number, options: TokenOptions = {}) =>
+  JSON.stringify(registeredClaims(now, options));
 
 export const tokenWith = (
   headerJson: string,
@@ -156,7 +201,7 @@ export const signToken = (
 
     const signature = yield* Effect.promise(() =>
       crypto.subtle.sign(
-        "RSASSA-PKCS1-v1_5",
+        signParameters(key.algorithm),
         key.privateKey,
         new TextEncoder().encode(signingInput)
       )
@@ -165,8 +210,8 @@ export const signToken = (
     return `${signingInput}.${encodeBytes(new Uint8Array(signature))}`;
   });
 
-export const accessLayer = (
-  keys: Ref.Ref<readonly JsonWebKey[]>,
+export const accessLayerFor = (
+  keysFor: (url: string) => Effect.Effect<readonly JsonWebKey[]>,
   fetches: Ref.Ref<number>
 ) =>
   Layer.mergeAll(JwksCache.layer, memoryMembershipLayer).pipe(
@@ -177,7 +222,7 @@ export const accessLayer = (
           Effect.gen(function* serveKeySet() {
             yield* Ref.update(fetches, (count) => count + 1);
 
-            const keySet = yield* Ref.get(keys);
+            const keySet = yield* keysFor(request.url);
 
             return HttpClientResponse.fromWeb(
               request,
@@ -188,3 +233,8 @@ export const accessLayer = (
       )
     )
   );
+
+export const accessLayer = (
+  keys: Ref.Ref<readonly JsonWebKey[]>,
+  fetches: Ref.Ref<number>
+) => accessLayerFor(() => Ref.get(keys), fetches);

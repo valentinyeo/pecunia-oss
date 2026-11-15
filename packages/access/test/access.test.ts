@@ -1,5 +1,5 @@
 import { describe, expect, it } from "@effect/vitest";
-import { Clock, Effect, Predicate, Ref, Schema } from "effect";
+import { Clock, Effect, Layer, Predicate, Ref, Schema } from "effect";
 import * as Arbitrary from "effect/Arbitrary";
 import { TestClock } from "effect/testing";
 
@@ -13,14 +13,18 @@ import {
   CurrentPerson,
   Forbidden,
   LastOwner,
+  MemberIdSchema,
   MembershipDirectory,
+  memoryMembershipLayer,
   resolvePerson,
+  RoleSchema,
   Unauthenticated,
   verifyAccess,
 } from "../src/index.js";
 import type { JsonWebKey, JwksCache } from "../src/index.js";
 import {
   accessLayer,
+  accessLayerFor,
   accessSettings,
   AUDIENCE,
   DEMO_PROFILE,
@@ -28,12 +32,19 @@ import {
   KID,
   makeSigningKey,
   memberEmail,
+  mixedClaims,
+  otherAccessSettings,
+  OTHER_ISSUER,
+  OTHER_PROFILE,
+  OTHER_TEAM_DOMAIN,
   personClaims,
   personWith,
   profileId,
   serviceTokenClaims,
   signToken,
+  TEAM_DOMAIN,
   tokenWith,
+  unidentifiedClaims,
 } from "./access-fixture.js";
 import type { SigningKey } from "./access-fixture.js";
 
@@ -87,7 +98,66 @@ const expectUnauthenticated = (token: string) =>
     const failure = yield* Effect.flip(verifyAccess(token, accessSettings));
 
     expect(failure).toBeInstanceOf(Unauthenticated);
+
+    return failure;
   });
+
+const withDirectory = <A, E>(
+  use: (
+    directory: MembershipDirectory["Service"]
+  ) => Effect.Effect<A, E, MembershipDirectory>
+) =>
+  Effect.gen(function* runWithDirectory() {
+    const directory = yield* MembershipDirectory;
+
+    return yield* use(directory);
+  }).pipe(Effect.provide(memoryMembershipLayer));
+
+const MEMBER_EMAILS = [
+  "first@example.com",
+  "second@example.com",
+  "third@example.com",
+] as const;
+
+const ownersOf = (directory: MembershipDirectory["Service"], profile: string) =>
+  Effect.gen(function* countOwners() {
+    const lists = yield* Effect.all(
+      MEMBER_EMAILS.map((email) => directory.findByEmail(memberEmail(email)))
+    );
+
+    return lists
+      .flat()
+      .filter(
+        (member) => member.profileId === profile && member.role === "owner"
+      ).length;
+  });
+
+const MembershipStep = Schema.TaggedUnion({
+  Grant: {
+    email: Schema.Literals(MEMBER_EMAILS),
+    profileId: Schema.Literals([DEMO_PROFILE, OTHER_PROFILE]),
+    role: RoleSchema,
+  },
+  Revoke: {
+    memberId: Schema.Literals(["member-1", "member-2", "member-3"]),
+  },
+});
+
+const membershipSteps = Arbitrary.array(Arbitrary.schema(MembershipStep), {
+  maxLength: 8,
+});
+
+const applyStep = (
+  directory: MembershipDirectory["Service"],
+  step: typeof MembershipStep.Type
+) =>
+  Predicate.isTagged(step, "Grant")
+    ? directory.grant({
+        email: memberEmail(step.email),
+        profileId: profileId(step.profileId),
+        role: step.role,
+      })
+    : directory.revoke(Schema.decodeSync(MemberIdSchema)(step.memberId));
 
 const contractName = (value: string) =>
   Schema.decodeSync(ContractNameSchema)(value);
@@ -158,7 +228,111 @@ describe("verifyAccess", () => {
           personClaims(now, { notBeforeSeconds: 120 })
         );
 
-        yield* expectUnauthenticated(token);
+        const failure = yield* expectUnauthenticated(token);
+
+        expect(failure.reason).toBe("notYetValid");
+      })
+    )
+  );
+
+  it.effect("a person token with no nbf passes", () =>
+    withAccess((context) =>
+      Effect.gen(function* noNotBefore() {
+        const now = yield* Clock.currentTimeMillis;
+
+        const token = yield* signToken(
+          context.signer,
+          headerFor(KID),
+          personClaims(now)
+        );
+
+        const claims = yield* verifiedPerson(token);
+
+        expect(claims.notBefore).toBeUndefined();
+      })
+    )
+  );
+
+  it.effect("a service token carries no nbf and still passes", () =>
+    withAccess((context) =>
+      Effect.gen(function* serviceTokenWithoutNotBefore() {
+        const now = yield* Clock.currentTimeMillis;
+
+        const token = yield* signToken(
+          context.signer,
+          headerFor(KID),
+          serviceTokenClaims(now)
+        );
+
+        const claims = yield* verifyAccess(token, accessSettings);
+
+        if (!Predicate.isTagged(claims, "ServiceToken")) {
+          return yield* Effect.die(new Error("Expected a service token"));
+        }
+
+        expect(claims.clientId).toBe("demo-sync-worker");
+        expect(claims.notBefore).toBeUndefined();
+
+        return claims;
+      })
+    )
+  );
+
+  it.effect("a token naming neither an email nor a service token fails", () =>
+    withAccess((context) =>
+      Effect.gen(function* unidentified() {
+        const now = yield* Clock.currentTimeMillis;
+
+        const token = yield* signToken(
+          context.signer,
+          headerFor(KID),
+          unidentifiedClaims(now)
+        );
+
+        const failure = yield* expectUnauthenticated(token);
+
+        expect(failure.reason).toBe("claims");
+      })
+    )
+  );
+
+  it.effect(
+    "a token carrying both an email and a common name is a person",
+    () =>
+      withAccess((context) =>
+        Effect.gen(function* emailAndCommonName() {
+          const now = yield* Clock.currentTimeMillis;
+
+          const token = yield* signToken(
+            context.signer,
+            headerFor(KID),
+            mixedClaims(now)
+          );
+
+          const claims = yield* verifiedPerson(token);
+
+          expect(claims.email).toBe("owner@example.com");
+          expect(claims.personId).toBe("person-1");
+        })
+      )
+  );
+
+  it.effect("a token longer than 8192 characters fails before decoding", () =>
+    withAccess((context) =>
+      Effect.gen(function* oversizedToken() {
+        const now = yield* Clock.currentTimeMillis;
+
+        const token = yield* signToken(
+          context.signer,
+          headerFor(KID),
+          personClaims(now, { notBeforeSeconds: 0, padding: 9000 })
+        );
+
+        expect(token.length).toBeGreaterThan(8192);
+
+        const failure = yield* expectUnauthenticated(token);
+
+        expect(failure.reason).toBe("malformed");
       })
     )
   );
@@ -235,9 +409,94 @@ describe("verifyAccess", () => {
           personClaims(now)
         );
 
-        yield* expectUnauthenticated(token);
+        const failure = yield* expectUnauthenticated(token);
+
+        expect(failure.reason).toBe("key");
+        expect(failure.message).not.toContain("retired-signing-key");
       })
     )
+  );
+
+  it.effect("a token naming RS384 or PS256 fails on the algorithm", () =>
+    withAccess((context) =>
+      Effect.gen(function* algorithmPin() {
+        const now = yield* Clock.currentTimeMillis;
+
+        const rs384 = yield* makeSigningKey(KID, "RS384");
+
+        yield* Ref.set(context.keys, [rs384.jwk]);
+
+        const rs384Token = yield* signToken(
+          rs384,
+          headerFor(KID, "RS384"),
+          personClaims(now)
+        );
+
+        const rs384Failure = yield* expectUnauthenticated(rs384Token);
+
+        expect(rs384Failure.reason).toBe("algorithm");
+
+        const ps256 = yield* makeSigningKey(KID, "PS256");
+
+        yield* Ref.set(context.keys, [ps256.jwk]);
+
+        const ps256Token = yield* signToken(
+          ps256,
+          headerFor(KID, "PS256"),
+          personClaims(now)
+        );
+
+        const ps256Failure = yield* expectUnauthenticated(ps256Token);
+
+        expect(ps256Failure.reason).toBe("algorithm");
+      })
+    )
+  );
+
+  it.effect("two Access teams never share cached signing keys", () =>
+    Effect.gen(function* teamKeyIsolation() {
+      const now = yield* Clock.currentTimeMillis;
+      const homeTeam = yield* makeSigningKey(KID);
+      const otherTeam = yield* makeSigningKey(KID);
+      const fetches = yield* Ref.make(0);
+
+      const keySets = new Map<string, readonly JsonWebKey[]>([
+        [`https://${TEAM_DOMAIN}/cdn-cgi/access/certs`, [homeTeam.jwk]],
+        [`https://${OTHER_TEAM_DOMAIN}/cdn-cgi/access/certs`, [otherTeam.jwk]],
+      ]);
+
+      const layer = accessLayerFor((url) => {
+        const keys = keySets.get(url);
+
+        return keys === undefined
+          ? Effect.die(new Error("Unexpected Access key set URL"))
+          : Effect.succeed(keys);
+      }, fetches);
+
+      yield* Effect.gen(function* verifyBothTeams() {
+        const homeToken = yield* signToken(
+          homeTeam,
+          headerFor(KID),
+          personClaims(now)
+        );
+
+        const home = yield* verifyAccess(homeToken, accessSettings);
+
+        expect(home.issuer).toBe(`https://${TEAM_DOMAIN}`);
+
+        const otherToken = yield* signToken(
+          otherTeam,
+          headerFor(KID),
+          personClaims(now, { issuer: OTHER_ISSUER })
+        );
+
+        const other = yield* verifyAccess(otherToken, otherAccessSettings);
+
+        expect(other.issuer).toBe(OTHER_ISSUER);
+      }).pipe(Effect.provide(layer));
+
+      expect(yield* Ref.get(fetches)).toBe(2);
+    })
   );
 
   it.effect("the team key set is cached for an hour", () =>
@@ -348,6 +607,126 @@ describe("membership", () => {
         expect(yield* directory.countMembers()).toBe(1);
       })
     )
+  );
+
+  it.effect("the only owner cannot be demoted to viewer", () =>
+    withDirectory((directory) =>
+      Effect.gen(function* demoteLastOwner() {
+        const owner = yield* bootstrap({
+          email: memberEmail("first@example.com"),
+          profileId: profileId(DEMO_PROFILE),
+        });
+
+        const failure = yield* Effect.flip(
+          directory.grant({
+            email: owner.email,
+            profileId: owner.profileId,
+            role: "viewer",
+          })
+        );
+
+        expect(failure).toBeInstanceOf(LastOwner);
+        expect(yield* ownersOf(directory, DEMO_PROFILE)).toBe(1);
+
+        const closed = yield* Effect.flip(
+          bootstrap({
+            email: memberEmail("second@example.com"),
+            profileId: profileId(DEMO_PROFILE),
+          })
+        );
+
+        expect(closed).toBeInstanceOf(BootstrapClosed);
+      })
+    )
+  );
+
+  it.effect("granting the same email twice replaces the role", () =>
+    withDirectory((directory) =>
+      Effect.gen(function* grantTwice() {
+        yield* bootstrap({
+          email: memberEmail("first@example.com"),
+          profileId: profileId(DEMO_PROFILE),
+        });
+
+        const invite = {
+          email: memberEmail("second@example.com"),
+          profileId: profileId(DEMO_PROFILE),
+        } as const;
+
+        yield* directory.grant({ ...invite, role: "viewer" });
+        yield* directory.grant({ ...invite, role: "owner" });
+
+        const members = yield* directory.findByEmail(invite.email);
+
+        expect(members).toHaveLength(1);
+        expect(members.map((member) => member.role)).toStrictEqual(["owner"]);
+        expect(yield* directory.countMembers()).toBe(2);
+      })
+    )
+  );
+
+  it.effect.prop(
+    "a bootstrapped profile keeps an owner and stays closed through any grant and revoke sequence",
+    { steps: membershipSteps },
+    ({ steps }) =>
+      withDirectory((directory) =>
+        Effect.gen(function* ownerInvariant() {
+          yield* bootstrap({
+            email: memberEmail("first@example.com"),
+            profileId: profileId(DEMO_PROFILE),
+          });
+
+          for (const step of steps) {
+            yield* applyStep(directory, step).pipe(Effect.ignore);
+
+            expect(
+              yield* ownersOf(directory, DEMO_PROFILE)
+            ).toBeGreaterThanOrEqual(1);
+          }
+
+          const closed = yield* Effect.flip(
+            bootstrap({
+              email: memberEmail("stranger@example.com"),
+              profileId: profileId(DEMO_PROFILE),
+            })
+          );
+
+          expect(closed).toBeInstanceOf(BootstrapClosed);
+        })
+      )
+  );
+
+  it.effect(
+    "a repeated directory row never gives a person two memberships",
+    () =>
+      withAccess((context) =>
+        Effect.gen(function* repeatedRows() {
+          const claims = yield* verifiedPersonToken(context.signer);
+
+          yield* bootstrap({
+            email: claims.email,
+            profileId: profileId(DEMO_PROFILE),
+          });
+
+          const directory = yield* MembershipDirectory;
+
+          const repeating = Layer.succeed(MembershipDirectory, {
+            ...directory,
+            findByEmail: (email) =>
+              directory
+                .findByEmail(email)
+                .pipe(Effect.map((members) => [...members, ...members])),
+          });
+
+          const person = yield* resolvePerson(claims).pipe(
+            Effect.provide(repeating)
+          );
+
+          expect(person.memberships).toStrictEqual([
+            { profileId: DEMO_PROFILE, role: "owner" },
+          ]);
+        })
+      )
   );
 });
 
