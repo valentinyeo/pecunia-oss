@@ -5,7 +5,6 @@ import {
   DateOnlySchema,
   MoneySchema,
   ProfileIdSchema,
-  RateSchema,
   TransactionIdSchema,
 } from "../../src/model/primitives.js";
 
@@ -26,11 +25,6 @@ describe("domain primitives", () => {
     expect(() =>
       Schema.decodeUnknownSync(MoneySchema)({ minor: 100 })
     ).toThrow();
-  });
-
-  it("rejects a zero or negative exchange rate", () => {
-    expect(() => Schema.decodeSync(RateSchema)(0)).toThrow();
-    expect(() => Schema.decodeSync(RateSchema)(-1)).toThrow();
   });
 
   it("accepts a UUIDv7 id and rejects another UUID version", () => {

@@ -17,7 +17,6 @@ export {
   ProviderAccountIdSchema,
   ProviderIdSchema,
   QuantitySchema,
-  RateSchema,
   ReportIdSchema,
   RuleIdSchema,
   SubscriptionIdSchema,
@@ -47,7 +46,6 @@ export type {
   ProviderAccountId,
   ProviderId,
   Quantity,
-  Rate,
   ReportId,
   RuleId,
   SubscriptionId,
@@ -58,11 +56,17 @@ export type {
   TransactionId,
 } from "./primitives.js";
 
+export { RateSchema } from "./rate.js";
+
+export type { Rate } from "./rate.js";
+
 export {
+  ConversionOverflow,
   CurrencyMismatch,
   RateUnavailable,
   addMoney,
   convert,
+  convertMinor,
   subtractMoney,
 } from "./money.js";
 

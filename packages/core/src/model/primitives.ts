@@ -24,12 +24,6 @@ export const BaseAmountSchema = Schema.Struct({
 
 export type BaseAmount = typeof BaseAmountSchema.Type;
 
-export const RateSchema = Schema.Finite.check(Schema.isGreaterThan(0)).pipe(
-  Schema.brand("Rate")
-);
-
-export type Rate = typeof RateSchema.Type;
-
 export const QuantitySchema = Schema.Int.check(
   Schema.isGreaterThanOrEqualTo(0)
 ).pipe(Schema.brand("Quantity"));

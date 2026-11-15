@@ -3,9 +3,9 @@ import { Schema } from "effect";
 import {
   CurrencyCodeSchema,
   DateOnlySchema,
-  RateSchema,
   TimestampSchema,
 } from "./primitives.js";
+import { RateSchema } from "./rate.js";
 
 export const ExchangeRateSchema = Schema.Struct({
   asOf: DateOnlySchema,

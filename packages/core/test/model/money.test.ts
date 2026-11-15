@@ -2,27 +2,30 @@ import { describe, expect, it } from "@effect/vitest";
 import { Effect, Option, Schema } from "effect";
 import * as Arbitrary from "effect/Arbitrary";
 
+import { ConversionOverflow } from "../../src/model/conversion-overflow.js";
 import {
   CurrencyMismatch,
   RateUnavailable,
   addMoney,
   convert,
+  convertMinor,
   subtractMoney,
 } from "../../src/model/money.js";
 import type { RateLookup } from "../../src/model/money.js";
-import {
-  BaseAmountSchema,
-  CurrencyCodeSchema,
-  MoneySchema,
-  RateSchema,
-} from "../../src/model/primitives.js";
+import type { CurrencyCode } from "../../src/model/primitives.js";
+import { CurrencyCodeSchema, MoneySchema } from "../../src/model/primitives.js";
+import { RateSchema } from "../../src/model/rate.js";
 
 const minorRange = Schema.Int.check(
   Schema.isBetween({ maximum: 1_000_000_000, minimum: -1_000_000_000 })
 );
 
-const rateRange = Schema.Finite.check(
-  Schema.isBetween({ maximum: 1000, minimum: 0.01 })
+const rateDigits = Schema.Int.check(
+  Schema.isBetween({ maximum: 1_000_000, minimum: 1 })
+);
+
+const rateScale = Schema.Int.check(
+  Schema.isBetween({ maximum: 12, minimum: 0 })
 );
 
 const currencies = Arbitrary.schema(CurrencyCodeSchema);
@@ -31,23 +34,58 @@ const otherThanEuro = Arbitrary.filter((currency) => currency !== "EUR")(
   currencies
 );
 
-const moneyOf = (currency: string, minor: number) =>
-  Schema.decodeSync(MoneySchema)({ currency, minor });
+const currencyOf = (code: string): CurrencyCode =>
+  Schema.decodeSync(CurrencyCodeSchema)(code);
+
+const moneyOf = (code: string, minor: number) =>
+  Schema.decodeSync(MoneySchema)({ currency: code, minor });
 
 const euro = (minor: number) => moneyOf("EUR", minor);
 
-const sterling = Schema.decodeSync(CurrencyCodeSchema)("GBP");
-
-const baseAmountOf = (minor: number) =>
-  Schema.decodeSync(BaseAmountSchema)({ currency: "GBP", minor });
-
-const convertToSterling = (minor: number, rate: number) =>
-  convert(euro(minor), sterling, rateLookup(rate));
+const rateOf = (text: string) => Schema.decodeSync(RateSchema)(text);
 
 const rateLookup =
-  (rate: number): RateLookup =>
+  (text: string): RateLookup =>
   () =>
-    Option.some(Schema.decodeSync(RateSchema)(rate));
+    Option.some(rateOf(text));
+
+const convertedMinor = (
+  minor: number,
+  from: string,
+  to: string,
+  rate: string
+) =>
+  Effect.map(
+    convert(moneyOf(from, minor), currencyOf(to), rateLookup(rate)),
+    (base) => base.minor
+  );
+
+const decimalText = (digits: number, scale: number): string => {
+  const padded = String(digits).padStart(scale + 1, "0");
+  const cut = padded.length - scale;
+  const whole = padded.slice(0, cut);
+  const fraction = padded.slice(cut);
+
+  return fraction.length === 0 ? whole : `${whole}.${fraction}`;
+};
+
+const exactParts = (text: string) => {
+  const [whole = "", fraction = ""] = text.split(".");
+
+  return {
+    denominator: 10n ** BigInt(fraction.length),
+    numerator: BigInt(`${whole}${fraction}`),
+  };
+};
+
+const roundHalfAwayFromZero = (numerator: bigint, denominator: bigint) => {
+  const quotient = numerator / denominator;
+  const remainder = numerator % denominator;
+  const doubled = (remainder < 0n ? -remainder : remainder) * 2n;
+  const step = numerator < 0n ? -1n : 1n;
+
+  return doubled >= denominator ? quotient + step : quotient;
+};
 
 describe("money arithmetic", () => {
   it.effect.prop(
@@ -134,26 +172,63 @@ describe("conversion", () => {
 
   it.effect("rounds converted halves away from zero", () =>
     Effect.gen(function* halvesRoundAway() {
-      expect(yield* convertToSterling(1, 0.5)).toStrictEqual(baseAmountOf(1));
-      expect(yield* convertToSterling(3, 0.5)).toStrictEqual(baseAmountOf(2));
-      expect(yield* convertToSterling(-1, 0.5)).toStrictEqual(baseAmountOf(-1));
-      expect(yield* convertToSterling(1, 0.4)).toStrictEqual(baseAmountOf(0));
+      expect(yield* convertedMinor(100, "USD", "GBP", "1.005")).toBe(101);
+      expect(yield* convertedMinor(-100, "USD", "GBP", "1.005")).toBe(-101);
+      expect(yield* convertedMinor(1, "USD", "GBP", "0.5")).toBe(1);
+      expect(yield* convertedMinor(-1, "USD", "GBP", "0.5")).toBe(-1);
+      expect(yield* convertedMinor(3, "USD", "GBP", "0.3333")).toBe(1);
+      expect(yield* convertedMinor(3, "USD", "GBP", "0.5")).toBe(2);
+      expect(yield* convertedMinor(-3, "USD", "GBP", "0.5")).toBe(-2);
+      expect(yield* convertedMinor(1, "USD", "GBP", "0.4")).toBe(0);
     })
   );
 
-  it.effect.prop(
-    "rounding stays within half a minor unit of the exact product",
+  it.effect("fails with ConversionOverflow instead of losing precision", () =>
+    Effect.gen(function* overflowFails() {
+      const large = moneyOf("USD", Number.MAX_SAFE_INTEGER);
+
+      const failure = yield* Effect.flip(
+        convert(large, currencyOf("GBP"), rateLookup("2"))
+      );
+
+      expect(failure).toStrictEqual(
+        new ConversionOverflow({
+          baseCurrency: currencyOf("GBP"),
+          currency: currencyOf("USD"),
+          minor: large.minor,
+          rate: rateOf("2"),
+        })
+      );
+    })
+  );
+
+  it.prop(
+    "converted minor units match an exact decimal product rounded half away from zero",
     {
       amount: Arbitrary.schema(minorRange),
-      rate: Arbitrary.schema(rateRange),
+      digits: Arbitrary.schema(rateDigits),
+      scale: Arbitrary.schema(rateScale),
     },
-    ({ amount, rate }) =>
-      Effect.gen(function* roundingIsBounded() {
-        const base = yield* convert(euro(amount), sterling, rateLookup(rate));
+    ({ amount, digits, scale }) => {
+      const text = decimalText(digits, scale);
+      const { denominator, numerator } = exactParts(text);
 
-        expect(Math.abs(base.minor - amount * rate)).toBeLessThanOrEqual(
-          0.5 + Number.EPSILON
-        );
-      })
+      const expected = roundHalfAwayFromZero(
+        BigInt(amount) * numerator,
+        denominator
+      );
+
+      expect(
+        Option.getOrThrow(
+          convertMinor(
+            amount,
+            currencyOf("USD"),
+            currencyOf("GBP"),
+            rateOf(text)
+          )
+        )
+      ).toBe(Number(expected));
+    },
+    { arbitrary: { runs: 200 } }
   );
 });

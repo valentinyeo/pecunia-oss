@@ -44,7 +44,6 @@ import {
   PayeeIdSchema,
   ProfileIdSchema,
   ProviderAccountIdSchema,
-  RateSchema,
   ReportIdSchema,
   RuleIdSchema,
   SubscriptionIdSchema,
@@ -54,7 +53,9 @@ import {
   TimestampSchema,
   TransactionIdSchema,
 } from "../../src/model/primitives.js";
-import type { DateOnly, Rate } from "../../src/model/primitives.js";
+import type { DateOnly } from "../../src/model/primitives.js";
+import { RateSchema } from "../../src/model/rate.js";
+import type { Rate } from "../../src/model/rate.js";
 
 const at = Schema.decodeSync(TimestampSchema)(
   DateTime.makeUnsafe("2024-01-31T10:00:00Z")
@@ -133,7 +134,7 @@ const euro = (minor: number) => ({ currency: "EUR", minor });
 const dateOnly = (value: string): DateOnly =>
   Schema.decodeSync(DateOnlySchema)(value);
 
-const rateOf = (value: number): Rate => Schema.decodeSync(RateSchema)(value);
+const rateOf = (value: string): Rate => Schema.decodeSync(RateSchema)(value);
 
 const wire = <S extends Schema.ConstraintEncoder<unknown>>(
   schema: S,
@@ -158,7 +159,7 @@ const transactionWire = (): typeof TransactionSchema.Encoded => ({
     ConversionSchema,
     ConversionSchema.cases.Converted.make({
       asOf: dateOnly("2024-01-30"),
-      rate: rateOf(0.85),
+      rate: rateOf("0.85"),
     })
   ),
   createdAt: at,
@@ -346,9 +347,9 @@ describe("valid rows decode for every aggregate", () => {
         base: "EUR",
         fetchedAt: at,
         quote: "USD",
-        rate: 1.1,
+        rate: "1.1",
       }).rate
-    ).toBe(1.1);
+    ).toBe(1_100_000_000_000n);
 
     expect(
       Schema.decodeSync(InvoiceDocumentSchema)({

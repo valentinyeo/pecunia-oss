@@ -8,12 +8,12 @@ import {
   PayeeIdSchema,
   ProfileIdSchema,
   ProviderAccountIdSchema,
-  RateSchema,
   RuleIdSchema,
   TimestampSchema,
   TransactionIdSchema,
 } from "./primitives.js";
 import type { BaseAmount, Money } from "./primitives.js";
+import { RateSchema } from "./rate.js";
 
 export const DirectionSchema = Schema.Literals(["in", "neutral", "out"]);
 

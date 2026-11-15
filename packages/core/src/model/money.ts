@@ -1,9 +1,23 @@
 import { Effect, Option, Schema } from "effect";
 
+import { ConversionOverflow } from "./conversion-overflow.js";
 import { CurrencyMismatch } from "./currency-mismatch.js";
-import type { BaseAmount, CurrencyCode, Money, Rate } from "./primitives.js";
-import { BaseAmountSchema, MoneySchema } from "./primitives.js";
+import type {
+  BaseAmount,
+  CurrencyCode,
+  MinorUnits,
+  Money,
+} from "./primitives.js";
+import {
+  BaseAmountSchema,
+  MinorUnitsSchema,
+  MoneySchema,
+} from "./primitives.js";
 import { RateUnavailable } from "./rate-unavailable.js";
+import { RATE_SCALE_FACTOR } from "./rate.js";
+import type { Rate } from "./rate.js";
+
+export { ConversionOverflow } from "./conversion-overflow.js";
 
 export { CurrencyMismatch } from "./currency-mismatch.js";
 
@@ -22,11 +36,36 @@ const moneyOf = (currency: CurrencyCode, minor: number): Money =>
 const baseAmountOf = (currency: CurrencyCode, minor: number): BaseAmount =>
   Schema.decodeSync(BaseAmountSchema)({ currency, minor });
 
-const roundHalfAwayFromZero = (minor: number, rate: Rate): number => {
-  const scaled = minor * rate;
+const minorUnitsOf = (minor: bigint): Option.Option<MinorUnits> =>
+  minor >= BigInt(Number.MIN_SAFE_INTEGER) &&
+  minor <= BigInt(Number.MAX_SAFE_INTEGER)
+    ? Option.some(Schema.decodeSync(MinorUnitsSchema)(Number(minor)))
+    : Option.none();
 
-  return Math.sign(scaled) * Math.round(Math.abs(scaled));
+const divideRoundHalfAwayFromZero = (
+  numerator: bigint,
+  denominator: bigint
+): bigint => {
+  const quotient = numerator / denominator;
+  const remainder = numerator % denominator;
+  const doubled = (remainder < 0n ? -remainder : remainder) * 2n;
+
+  return doubled >= denominator
+    ? quotient + (numerator < 0n ? -1n : 1n)
+    : quotient;
 };
+
+export const convertMinor = (
+  minor: number,
+  from: CurrencyCode,
+  to: CurrencyCode,
+  rate: Rate
+): Option.Option<MinorUnits> =>
+  from === to
+    ? minorUnitsOf(BigInt(minor))
+    : minorUnitsOf(
+        divideRoundHalfAwayFromZero(BigInt(minor) * rate, RATE_SCALE_FACTOR)
+      );
 
 const mismatch = (
   left: CurrencyCode,
@@ -54,7 +93,7 @@ export const convert = (
   money: Money,
   baseCurrency: CurrencyCode,
   lookup: RateLookup
-): Effect.Effect<BaseAmount, RateUnavailable> =>
+): Effect.Effect<BaseAmount, ConversionOverflow | RateUnavailable> =>
   money.currency === baseCurrency
     ? Effect.succeed(baseAmountOf(money.currency, money.minor))
     : Option.match(lookup({ from: money.currency, to: baseCurrency }), {
@@ -63,7 +102,20 @@ export const convert = (
             new RateUnavailable({ from: money.currency, to: baseCurrency })
           ),
         onSome: (rate) =>
-          Effect.succeed(
-            baseAmountOf(baseCurrency, roundHalfAwayFromZero(money.minor, rate))
+          Option.match(
+            convertMinor(money.minor, money.currency, baseCurrency, rate),
+            {
+              onNone: () =>
+                Effect.fail(
+                  new ConversionOverflow({
+                    baseCurrency,
+                    currency: money.currency,
+                    minor: money.minor,
+                    rate,
+                  })
+                ),
+              onSome: (minor) =>
+                Effect.succeed(baseAmountOf(baseCurrency, minor)),
+            }
           ),
       });
