@@ -142,7 +142,7 @@ const nestedStrayField = (
 
     const nested = strayField(
       type,
-      Schema.decodeUnknownSync(StrayCandidateSchema)(child)
+      Schema.decodeSync(StrayCandidateSchema)(child)
     );
 
     if (nested !== undefined) {
@@ -170,7 +170,7 @@ const rejectsStrayKeys = <T extends Schema.Top>(schema: T) =>
       const stray = Predicate.isObject(value)
         ? strayField(
             Schema.toEncoded(schema).ast,
-            Schema.decodeUnknownSync(StrayCandidateSchema)(value)
+            Schema.decodeSync(StrayCandidateSchema)(value)
           )
         : undefined;
 
@@ -208,10 +208,7 @@ const closedMember = (
       ),
       encode: SchemaGetter.transformEffect((value, options) => {
         const stray = Predicate.isObject(value)
-          ? strayField(
-              encoded,
-              Schema.decodeUnknownSync(StrayCandidateSchema)(value)
-            )
+          ? strayField(encoded, Schema.decodeSync(StrayCandidateSchema)(value))
           : undefined;
 
         return stray === undefined

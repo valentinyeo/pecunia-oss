@@ -21,6 +21,7 @@ type FieldValue =
   | number
   | boolean
   | null
+  | undefined
   | DateTime.Utc
   | MoneySample
   | CountSample;
@@ -182,7 +183,10 @@ const currencyOf = (text: string) =>
 const moneyOf = (currency: string, minor: number) =>
   Schema.decodeSync(model.MoneySchema)({ currency, minor });
 
-const idOf = (schema: Codec, text: string) => Schema.decodeSync(schema)(text);
+type StringIdSchema = Codec & { readonly Type: string };
+
+const idOf = <S extends StringIdSchema>(schema: S, text: string): S["Type"] =>
+  Schema.decodeSync(schema)(text);
 
 const stampOf = (text: string) =>
   Schema.decodeSync(model.TimestampSchema)(DateTime.makeUnsafe(text));
