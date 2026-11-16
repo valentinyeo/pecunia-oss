@@ -14,14 +14,12 @@ import {
 
 export interface CarriesArgument {
   readonly domain: string;
-  readonly handle: Handle;
   readonly kind: "carries";
   readonly sample: () => unknown;
 }
 
 export interface CallbackArgument {
   readonly domain: string;
-  readonly handle: Handle;
   readonly kind: "callback";
   readonly sample: () => unknown;
 }
@@ -43,11 +41,30 @@ export interface Operation<Args extends readonly unknown[], A> {
   readonly entry: OperationEntry;
 }
 
+const specHandles = new WeakMap<ArgumentSpec, Handle>();
+
+const withHandle = <S extends ArgumentSpec>(spec: S, handle: Handle): S => {
+  specHandles.set(spec, handle);
+
+  return spec;
+};
+
+const handleOf = (spec: ArgumentSpec): Handle => {
+  const handle = specHandles.get(spec);
+
+  if (handle === undefined) {
+    throw new Error(`${spec.domain} carries no gate of its own.`);
+  }
+
+  return handle;
+};
+
 export const carries = (
   domain: string,
   handle: Handle,
   sample: () => unknown
-): CarriesArgument => ({ domain, handle, kind: "carries", sample });
+): CarriesArgument =>
+  withHandle({ domain, kind: "carries", sample } as const, handle);
 
 export const moneySample = (): Money =>
   parse(MoneySchema, { currency: "EUR", minor: 1000 });
@@ -69,7 +86,8 @@ export const callbackResult = (
   domain: string,
   handle: Handle,
   sample: () => unknown
-): CallbackArgument => ({ domain, handle, kind: "callback", sample });
+): CallbackArgument =>
+  withHandle({ domain, kind: "callback", sample } as const, handle);
 
 type Guarded =
   | { readonly failure: Schema.SchemaError }
@@ -89,7 +107,7 @@ const guardedCallback = (
   return (input: unknown): unknown => {
     const result: unknown = call(input);
 
-    const failure = assertNoForeignKeys(result, spec.handle);
+    const failure = assertNoForeignKeys(result, handleOf(spec));
 
     if (failure !== undefined) {
       throw failure;
@@ -114,7 +132,7 @@ const guarded = (
       continue;
     }
 
-    const failure = assertNoForeignKeys(argument, spec.handle);
+    const failure = assertNoForeignKeys(argument, handleOf(spec));
 
     if (failure !== undefined) {
       return { failure };
