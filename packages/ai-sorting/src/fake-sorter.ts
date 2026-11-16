@@ -4,6 +4,7 @@ import { CategoryChoiceSchema, ProviderNameSchema } from "./model.js";
 import type { CategoryChoice, ProviderName, SortableLine } from "./model.js";
 import { SortingProvider } from "./provider.js";
 import type { SortingProviderPort } from "./provider.js";
+import { parseProviderAnswer } from "./suggestion.js";
 import type { ProviderAnswer } from "./suggestion.js";
 
 export const FakeSorterModeSchema = Schema.Literals([
@@ -116,7 +117,9 @@ export const makeFakeSorter = (
         return Effect.never;
       }
 
-      return Effect.succeed(answerFor(line, categories, mode));
+      return Effect.succeed(
+        parseProviderAnswer(answerFor(line, categories, mode), categories)
+      );
     },
   };
 };

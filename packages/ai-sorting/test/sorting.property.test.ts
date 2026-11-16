@@ -4,11 +4,14 @@ import { Effect, Predicate, Schema } from "effect";
 import {
   CategorizationSchema,
   CategoryChoiceSchema,
+  CategoryIdSchema,
   ConfidenceSchema,
+  parseProviderAnswer,
   ProviderNameSchema,
   SortableLineSchema,
   SortingProvider,
   sortLines,
+  SuggestionSchema,
 } from "../src/index.js";
 import type {
   Categorization,
@@ -18,6 +21,7 @@ import type {
   ProviderAnswer,
   SortableLine,
   SortingProviderPort,
+  Suggestion,
 } from "../src/index.js";
 
 const CASE_COUNT = 600;
@@ -125,12 +129,14 @@ const ANSWER_PLANS = [
   "throw",
   "none",
   "malformed",
+  "lying",
 ] as const;
 
 type AnswerPlan = (typeof ANSWER_PLANS)[number];
 
 interface PlannedAnswer {
   readonly answer: ProviderAnswer;
+  readonly suggestion?: Suggestion;
   readonly throws: boolean;
 }
 
@@ -185,6 +191,17 @@ const makeAnswer = (
     return { answer: { confidence: 0.9, kind: "suggested" }, throws: false };
   }
 
+  if (plan === "lying") {
+    return {
+      answer: { kind: "none" },
+      suggestion: SuggestionSchema.cases.Suggested.make({
+        categoryId: Schema.decodeSync(CategoryIdSchema)("category-not-offered"),
+        confidence: randomConfidence(random),
+      }),
+      throws: false,
+    };
+  }
+
   return {
     answer: {
       categoryId,
@@ -199,14 +216,18 @@ const makeProvider = (
   answers: ReadonlyMap<LineId, PlannedAnswer>
 ): SortingProviderPort => ({
   name: PROVIDER,
-  suggest: (line) => {
+  suggest: (line, categories) => {
     const planned = answers.get(line.id);
 
     if (planned === undefined || planned.throws) {
       return Effect.die(new Error("The planned provider failure"));
     }
 
-    return Effect.succeed(planned.answer);
+    if (planned.suggestion !== undefined) {
+      return Effect.succeed(planned.suggestion);
+    }
+
+    return Effect.succeed(parseProviderAnswer(planned.answer, categories));
   },
 });
 

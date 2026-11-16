@@ -10,7 +10,7 @@ import {
   sortLines,
   SuggestionSchema,
 } from "../src/index.js";
-import type { Suggestion } from "../src/index.js";
+import type { CategoryChoice, SortableLine, Suggestion } from "../src/index.js";
 import {
   category,
   confidence,
@@ -127,6 +127,23 @@ describe("sortLines", () => {
     })
   );
 
+  it.effect("never stores a suggestion a provider invented", () =>
+    Effect.gen(function* lyingProvider() {
+      const provider = {
+        name: providerName("lying-sorter"),
+        suggest: () =>
+          Effect.succeed(suggestionValue("category-not-offered", 0.99)),
+      };
+
+      const result = yield* sortLines(oneLineRequest("Example Cafe")).pipe(
+        Effect.provideService(SortingProvider, provider)
+      );
+
+      expect(result.failures).toStrictEqual([]);
+      expect(onlyLine(result.lines)?.categorization).toStrictEqual(unsorted());
+    })
+  );
+
   it.effect("never stores a NaN confidence", () =>
     Effect.gen(function* badConfidence() {
       const result = yield* sortLines(oneLineRequest("Example Cafe")).pipe(
@@ -186,14 +203,22 @@ describe("sortLines", () => {
       Effect.gen(function* throwingProvider() {
         const provider = {
           name: providerName("carrying-sorter"),
-          suggest: (line: { readonly id: string }) =>
+          suggest: (
+            line: SortableLine,
+            categories: readonly CategoryChoice[]
+          ) =>
             line.id === "line-throws"
               ? Effect.die(new Error("The planned provider failure"))
-              : Effect.succeed({
-                  categoryId: "category-cafe",
-                  confidence: 0.9,
-                  kind: "suggested",
-                }),
+              : Effect.succeed(
+                  parseProviderAnswer(
+                    {
+                      categoryId: "category-cafe",
+                      confidence: 0.9,
+                      kind: "suggested",
+                    },
+                    categories
+                  )
+                ),
         };
 
         const result = yield* sortLines({

@@ -3,6 +3,7 @@ import { Duration, Effect, Exit, Option, Predicate, Schema } from "effect";
 import {
   CategorizationSchema,
   CategoryChoiceSchema,
+  ConfidenceSchema,
   defaultSortSettings,
   LineIdSchema,
   ProviderNameSchema,
@@ -17,7 +18,6 @@ import type {
 } from "./model.js";
 import { SortingProvider } from "./provider.js";
 import type { SortingProviderPort } from "./provider.js";
-import { parseProviderAnswer } from "./suggestion.js";
 
 export const SortFailureReasonSchema = Schema.Literals(["failed", "timed-out"]);
 
@@ -83,13 +83,25 @@ const sortLine = (
       return { failure: failureFor(line, provider.name, "timed-out"), line };
     }
 
-    const suggestion = parseProviderAnswer(exit.value.value, categories);
+    const suggestion = exit.value.value;
 
     if (!Predicate.isTagged(suggestion, "Suggested")) {
       return { line };
     }
 
-    if (suggestion.confidence < settings.threshold) {
+    const confidence = Schema.decodeOption(ConfidenceSchema)(
+      suggestion.confidence
+    );
+
+    const listed = categories.some(
+      (category) => category.id === suggestion.categoryId
+    );
+
+    if (
+      Option.isNone(confidence) ||
+      !listed ||
+      confidence.value < settings.threshold
+    ) {
       return { line };
     }
 
@@ -98,7 +110,7 @@ const sortLine = (
         ...line,
         categorization: CategorizationSchema.cases.Suggested.make({
           categoryId: suggestion.categoryId,
-          confidence: suggestion.confidence,
+          confidence: confidence.value,
           provider: provider.name,
         }),
       },
