@@ -1,7 +1,7 @@
 // oxlint-disable eslint/max-classes-per-file -- the six tagged errors share one strict factory pair so each has exactly one door
 import { Schema } from "effect";
 
-import type { Exact } from "./codec.js";
+import type { Exact, ModelCodec } from "./codec.js";
 import { codec, verified } from "./codec.js";
 import { CurrencyCodeSchema, MinorUnitsSchema } from "./primitives.js";
 import { RateSchema, rateText } from "./rate.js";
@@ -205,7 +205,16 @@ export const rateUnavailable = (
   input: RateUnavailableFields
 ): RateUnavailable => RateUnavailableError.of(input);
 
-export const errorCodecs = {
+export interface ErrorCodecs {
+  readonly conversionInputInvalid: ModelCodec<ConversionInputInvalid, unknown>;
+  readonly conversionOverflow: ModelCodec<ConversionOverflow, unknown>;
+  readonly currencyMismatch: ModelCodec<CurrencyMismatch, unknown>;
+  readonly moneyOverflow: ModelCodec<MoneyOverflow, unknown>;
+  readonly rateOnSameCurrency: ModelCodec<RateOnSameCurrency, unknown>;
+  readonly rateUnavailable: ModelCodec<RateUnavailable, unknown>;
+}
+
+export const errorCodecs: ErrorCodecs = {
   conversionInputInvalid: codec(
     "ConversionInputInvalid",
     ConversionInputInvalidError
@@ -215,4 +224,4 @@ export const errorCodecs = {
   moneyOverflow: codec("MoneyOverflow", MoneyOverflowError),
   rateOnSameCurrency: codec("RateOnSameCurrency", RateOnSameCurrencyError),
   rateUnavailable: codec("RateUnavailable", RateUnavailableError),
-} as const;
+};
