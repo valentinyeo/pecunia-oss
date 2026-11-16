@@ -78,7 +78,7 @@ steps_observe_json() {
   while IFS=$'\x1f' read -r id operation value; do
     [ -n "$id" ] || continue
     steps_observe "$id" "$value" "$operation"
-  done < <(jq -r '(.observations // [])[] | [.id, (.operation // ""), .value] | join("\u001f")' "$path" 2>/dev/null || true)
+  done < <(jq -r '(.observations // [])[] | [.id, (.operation // ""), (.value | if type == "string" then . else tojson end)] | join("\u001f")' "$path" 2>/dev/null || true)
   return 0
 }
 

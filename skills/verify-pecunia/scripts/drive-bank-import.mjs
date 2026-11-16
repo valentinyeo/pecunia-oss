@@ -14,7 +14,7 @@ import {
 } from "../../../packages/bank-import/dist/index.js";
 import { memoryImportLedgerLayer } from "../../../packages/bank-import/dist/ledger-memory.js";
 import { countingLayer, mutationRecorder } from "./lib/mutating-adapter.mjs";
-import { canonicalRecords } from "./lib/records.mjs";
+import { observe } from "./lib/observation.mjs";
 
 const SCRIPT_DIR = fileURLToPath(new URL(".", import.meta.url));
 const REPO_ROOT = join(SCRIPT_DIR, "..", "..", "..");
@@ -87,77 +87,93 @@ const request = (fileContent, accountId, fileName) => ({
 
 const observations = await Effect.runPromise(
   Effect.gen(function* driveBankImport() {
+    const emitted = [];
     const listed = yield* listImportTargets.handler({ profileId });
+    const first = listed[0];
+    emitted.push(
+      observe({
+        id: "import-targets-listed",
+        value: `label=${first.label} kind=${first.kind} base=${first.baseCurrency} provider=${first.providerLabel}`,
+      })
+    );
     const imported = yield* importBankFile.handler(
       request(content, target.id, "demo-bank.csv")
+    );
+    emitted.push(
+      observe({
+        id: "import-writes-every-line",
+        value: `imported=${imported.imported} alreadyImported=${imported.alreadyImported} rejected=${imported.rejected.length}`,
+      })
     );
     const storedFirst = yield* ImportLedger.use((ledger) =>
       ledger.storedLines(profileId, target.id)
     );
+    emitted.push(
+      observe({
+        id: "import-stores-every-line",
+        operation: "storedLines",
+        value: storedFirst,
+      })
+    );
     const replayed = yield* importBankFile.handler(
       request(content, target.id, "demo-bank.csv")
+    );
+    emitted.push(
+      observe({
+        id: "import-replay-adds-nothing",
+        value: `imported=${replayed.imported} alreadyImported=${replayed.alreadyImported}`,
+      })
     );
     const storedReplay = yield* ImportLedger.use((ledger) =>
       ledger.storedLines(profileId, target.id)
     );
+    emitted.push(
+      observe({
+        id: "import-replay-stores-nothing",
+        operation: "storedLines",
+        value: storedReplay,
+      })
+    );
     const broken = yield* importBankFile.handler(
       request(BROKEN_FILE, target.id, "demo-bank-broken.csv")
+    );
+    emitted.push(
+      observe({
+        id: "import-names-a-rejected-line",
+        value: `imported=${broken.imported} rejected=${broken.rejected.length} reason=${broken.rejected[0].reason}`,
+      })
     );
     const storedBroken = yield* ImportLedger.use((ledger) =>
       ledger.storedLines(profileId, target.id)
     );
+    emitted.push(
+      observe({
+        id: "import-rejected-line-stores-once",
+        operation: "storedLines",
+        value: storedBroken,
+      })
+    );
     const unknown = yield* importBankFile
       .handler(request(content, UNKNOWN_ACCOUNT, "demo-bank.csv"))
       .pipe(Effect.result);
+    emitted.push(
+      observe({
+        id: "import-refuses-unknown-account",
+        value: unknown._tag === "Failure" ? unknown.failure._tag : "Imported",
+      })
+    );
     const storedUnknown = yield* ImportLedger.use((ledger) =>
       ledger.storedLines(profileId, target.id)
     );
-    const first = listed[0];
+    emitted.push(
+      observe({
+        id: "import-unknown-account-stores-nothing",
+        operation: "storedLines",
+        value: storedUnknown,
+      })
+    );
 
-    return {
-      observations: [
-        {
-          id: "import-targets-listed",
-          value: `label=${first.label} kind=${first.kind} base=${first.baseCurrency} provider=${first.providerLabel}`,
-        },
-        {
-          id: "import-writes-every-line",
-          value: `imported=${imported.imported} alreadyImported=${imported.alreadyImported} rejected=${imported.rejected.length}`,
-        },
-        {
-          id: "import-stores-every-line",
-          operation: "storedLines",
-          value: canonicalRecords(storedFirst),
-        },
-        {
-          id: "import-replay-adds-nothing",
-          value: `imported=${replayed.imported} alreadyImported=${replayed.alreadyImported}`,
-        },
-        {
-          id: "import-replay-stores-nothing",
-          operation: "storedLines",
-          value: canonicalRecords(storedReplay),
-        },
-        {
-          id: "import-names-a-rejected-line",
-          value: `imported=${broken.imported} rejected=${broken.rejected.length} reason=${broken.rejected[0].reason}`,
-        },
-        {
-          id: "import-rejected-line-stores-once",
-          operation: "storedLines",
-          value: canonicalRecords(storedBroken),
-        },
-        {
-          id: "import-refuses-unknown-account",
-          value: unknown._tag === "Failure" ? unknown.failure._tag : "Imported",
-        },
-        {
-          id: "import-unknown-account-stores-nothing",
-          operation: "storedLines",
-          value: canonicalRecords(storedUnknown),
-        },
-      ],
-    };
+    return { observations: emitted };
   }).pipe(Effect.provide(layer))
 );
 
