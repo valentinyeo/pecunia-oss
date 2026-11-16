@@ -10,7 +10,7 @@ import {
 import { BaseAmount } from "./base-amount.js";
 // oxlint-disable anti-slop/no-unknown-parameters -- restore is a boundary that parses stored rows
 // oxlint-disable eslint/prefer-object-spread, typescript/no-misused-spread -- the encoded row keeps every own key of the class instance so the strict encoder can reject strays
-import { verified } from "./codec.js";
+import { domainClass, verified } from "./codec.js";
 import type {
   ConversionInputInvalid,
   ConversionOverflow,
@@ -215,6 +215,8 @@ const convertedAmountEncode = SchemaGetter.transformEffect<
         )
       )
 );
+
+domainClass(ConvertedAmount);
 
 export const ConvertedAmountSchema = StoredConvertedAmountSchema.pipe(
   Schema.decodeTo(

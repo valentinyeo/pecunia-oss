@@ -115,7 +115,12 @@ type Violation =
       readonly key: Key;
       readonly kind?: string;
     }
-  | { readonly path: string; readonly rule: "kind"; readonly kind: string };
+  | { readonly path: string; readonly rule: "kind"; readonly kind: string }
+  | {
+      readonly path: string;
+      readonly label: string;
+      readonly rule: "prototype";
+    };
 
 const ownKeysOf = (value: object): readonly Key[] => Reflect.ownKeys(value);
 
@@ -573,7 +578,7 @@ const isOptionPayload = (ast: SchemaAST.AST | undefined): boolean =>
 
 const runtimeKind = (
   value: object,
-  ast: SchemaAST.AST | undefined
+  ast?: SchemaAST.AST
 ): ShapeKind | undefined => {
   if (DateTime.isDateTime(value)) {
     return "datetime";
@@ -797,14 +802,67 @@ const unionStray = (context: ShapeContext): Key | undefined => {
     : own.find((key) => !best?.allowed.has(key));
 };
 
+interface DomainConstructor {
+  readonly prototype: object;
+}
+
+const domainClasses: DomainConstructor[] = [];
+
+export const domainClass = (ctor: DomainConstructor): void => {
+  domainClasses.push(ctor);
+};
+
+const isDomainInstance = (value: object): boolean => {
+  const prototype: unknown = Object.getPrototypeOf(value);
+
+  return domainClasses.some((ctor) => ctor.prototype === prototype);
+};
+
+const prototypeLabel = (value: object): string => {
+  const prototype: unknown = Object.getPrototypeOf(value);
+
+  if (prototype === null) {
+    return "a null-prototype object";
+  }
+
+  const constructor: unknown = Reflect.get(prototype as object, "constructor");
+  const name = typeof constructor === "function" ? constructor.name : "";
+
+  return typeof name === "string" && name.length > 0
+    ? `an instance of ${name}`
+    : "a non-plain object";
+};
+
+const shapeRefusal = (value: object): string | undefined => {
+  if (Object.getPrototypeOf(value) === Object.prototype) {
+    return undefined;
+  }
+
+  if (runtimeKind(value) !== undefined) {
+    return undefined;
+  }
+
+  return isDomainInstance(value) ? undefined : prototypeLabel(value);
+};
+
 const walkNode = (
   node: ShapeNode,
   seen: WeakSet<object>
 ): Violation | undefined => {
   const { value } = node;
 
+  if (typeof value === "function") {
+    return { label: "a function", path: node.path, rule: "prototype" };
+  }
+
   if (typeof value !== "object" || value === null || seen.has(value)) {
     return undefined;
+  }
+
+  const refusal = shapeRefusal(value);
+
+  if (refusal !== undefined) {
+    return { label: refusal, path: node.path, rule: "prototype" };
   }
 
   seen.add(value);
@@ -860,6 +918,23 @@ const walkNode = (
   return undefined;
 };
 
+const violationMessage = (violation: Violation): string => {
+  if (violation.rule === "key") {
+    const detail =
+      violation.kind === undefined
+        ? "an unknown key is never stripped"
+        : `the "${violation.kind}" node kind has no row in the shape table`;
+
+    return `Expected no "${String(violation.key)}" property at "${violation.path}": ${detail}`;
+  }
+
+  if (violation.rule === "prototype") {
+    return `Expected a plain object at "${violation.path}": ${violation.label} is never a domain value`;
+  }
+
+  return `Expected a known shape at "${violation.path}": the "${violation.kind}" node kind has no row in the shape table`;
+};
+
 const shapeFailure = (
   value: unknown,
   schema: Codec
@@ -873,10 +948,7 @@ const shapeFailure = (
     return undefined;
   }
 
-  const message =
-    violation.rule === "key"
-      ? `Expected no "${String(violation.key)}" property at "${violation.path}": ${violation.kind === undefined ? "an unknown key is never stripped" : `the "${violation.kind}" node kind has no row in the shape table`}`
-      : `Expected a known shape at "${violation.path}": the "${violation.kind}" node kind has no row in the shape table`;
+  const message = violationMessage(violation);
 
   return new Schema.SchemaError(
     new SchemaIssue.InvalidValue({ message }, value)
@@ -887,6 +959,12 @@ export const assertNoForeignKeys = (
   value: unknown,
   handle: Handle
 ): Schema.SchemaError | undefined => shapeFailure(value, schemaOf(handle));
+
+export const isModelCodec = (value: unknown): boolean =>
+  typeof value === "object" &&
+  value !== null &&
+  isHandle(value as Handle) &&
+  schemaTable.has(value);
 
 const strictResult = <A>(
   failure: Schema.SchemaError | undefined,

@@ -1,5 +1,6 @@
 import { Effect, Option, Result, Schema } from "effect";
 
+import { domainClass } from "./codec.js";
 import { convertMinor } from "./convert-minor.js";
 import type {
   ConversionInputInvalid,
@@ -128,3 +129,5 @@ export const atRateOperation: typeof BaseAmount.atRateOperation =
 
 export const convertOperation: typeof BaseAmount.convertOperation =
   BaseAmount.convertOperation;
+
+domainClass(BaseAmount);
