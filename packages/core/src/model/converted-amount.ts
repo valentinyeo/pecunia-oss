@@ -76,7 +76,10 @@ export class ConvertedAmount {
     asOf: DateOnly
   ): Result.Result<
     ConvertedAmount,
-    ConversionInputInvalid | ConversionOverflow | RateOnSameCurrency
+    | ConversionInputInvalid
+    | ConversionOverflow
+    | RateOnSameCurrency
+    | Schema.SchemaError
   > {
     if (source.currency === baseCurrency) {
       return Result.fail(rateOnSameCurrency({ currency: source.currency }));

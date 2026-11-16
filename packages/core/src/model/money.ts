@@ -3,7 +3,7 @@ import { Effect, Option, Predicate, Schema } from "effect";
 import { BaseAmount } from "./base-amount.js";
 import type { RateLookup } from "./base-amount.js";
 import type { Exact } from "./codec.js";
-import { parse } from "./codec.js";
+import { assertNoForeignKeys, parse } from "./codec.js";
 import { minorUnitsOf } from "./convert-minor.js";
 import { ConvertedAmount, ConvertedAmountSchema } from "./converted-amount.js";
 import type {
@@ -60,7 +60,18 @@ const combine = (
   left: Money,
   right: Money,
   operation: "add" | "subtract"
-): Effect.Effect<Money, CurrencyMismatch | MoneyOverflow> => {
+): Effect.Effect<
+  Money,
+  CurrencyMismatch | MoneyOverflow | Schema.SchemaError
+> => {
+  const failure =
+    assertNoForeignKeys(left, MoneySchema) ??
+    assertNoForeignKeys(right, MoneySchema);
+
+  if (failure !== undefined) {
+    return Effect.fail(failure);
+  }
+
   if (left.currency !== right.currency) {
     return mismatch(left.currency, right.currency);
   }
@@ -87,14 +98,18 @@ const combine = (
 export const addMoney = (
   left: Money,
   right: Money
-): Effect.Effect<Money, CurrencyMismatch | MoneyOverflow> =>
-  combine(left, right, "add");
+): Effect.Effect<
+  Money,
+  CurrencyMismatch | MoneyOverflow | Schema.SchemaError
+> => combine(left, right, "add");
 
 export const subtractMoney = (
   left: Money,
   right: Money
-): Effect.Effect<Money, CurrencyMismatch | MoneyOverflow> =>
-  combine(left, right, "subtract");
+): Effect.Effect<
+  Money,
+  CurrencyMismatch | MoneyOverflow | Schema.SchemaError
+> => combine(left, right, "subtract");
 
 export const SameCurrencyAmountSchema = Schema.TaggedStruct("SameCurrency", {
   amount: MoneySchema,
@@ -131,7 +146,10 @@ export const convertedAmounts = (
   asOf: DateOnly
 ): Effect.Effect<
   ConvertedAmount,
-  ConversionInputInvalid | ConversionOverflow | RateOnSameCurrency
+  | ConversionInputInvalid
+  | ConversionOverflow
+  | RateOnSameCurrency
+  | Schema.SchemaError
 > =>
   Effect.fromResult(
     ConvertedAmount.converting(source, baseCurrency, rate, asOf)
@@ -143,5 +161,8 @@ export const convert = (
   lookup: RateLookup
 ): Effect.Effect<
   BaseAmount,
-  ConversionInputInvalid | ConversionOverflow | RateUnavailable
+  | ConversionInputInvalid
+  | ConversionOverflow
+  | RateUnavailable
+  | Schema.SchemaError
 > => BaseAmount.convert(money, baseCurrency, lookup);

@@ -6,8 +6,9 @@
 // oxlint-disable anti-slop/no-chained-type-assertions, anti-slop/no-unknown-returns -- every public function is an overload whose implementation speaks unknown, so the API surface stays named
 // oxlint-disable anti-slop/no-object-parameters -- every node the walker inspects is untrusted boundary input, so its owner type is unknown
 // oxlint-disable typescript/no-non-null-assertion -- the branch above already proves the schema argument is present
-// oxlint-disable anti-slop/no-shape-in-symbol-names -- the one shape gate is named assertExactShape by the review that asked for it
+// oxlint-disable anti-slop/no-shape-in-symbol-names -- the one shape gate is named assertNoForeignKeys by the review that asked for it
 // oxlint-disable anti-slop/no-index-signature, anti-slop/no-any, anti-slop/no-unsafe-dictionary-type -- the walker reads AST nodes and decoded values that no single declared type describes
+// oxlint-disable eslint/func-style -- the shape walk and its branch resolver call each other, so one of them is a hoisted declaration
 
 import type { SchemaAST } from "effect";
 import {
@@ -98,6 +99,7 @@ interface ShapeContext {
 
 interface ShapeRule {
   readonly allowed: (context: ShapeContext) => ReadonlySet<Key> | undefined;
+  readonly admits?: (context: ShapeContext, key: Key) => boolean;
   readonly children: (context: ShapeContext) => readonly ShapeNode[];
 }
 
@@ -260,9 +262,149 @@ const literalNamesOf = (ast: SchemaAST.AST): ReadonlySet<Key> | undefined => {
 
 const emptyKeys: ReadonlySet<Key> = new Set<Key>();
 
-const dateTimeKeys: ReadonlySet<Key> = new Set<Key>(
-  Reflect.ownKeys(DateTime.makeUnsafe("2024-01-31T10:00:00Z"))
+type PrimitiveType =
+  | "bigint"
+  | "boolean"
+  | "function"
+  | "null"
+  | "number"
+  | "string"
+  | "symbol"
+  | "undefined";
+
+type Template =
+  | { readonly type: PrimitiveType }
+  | {
+      readonly type: "object";
+      readonly fields: ReadonlyMap<Key, Template>;
+    };
+
+const templateOf = (value: unknown): Template => {
+  if (value === null) {
+    return { type: "null" };
+  }
+
+  if (typeof value === "object") {
+    const fields = new Map<Key, Template>();
+
+    for (const key of ownKeysOf(value)) {
+      fields.set(key, templateOf(Reflect.get(value, key)));
+    }
+
+    return { type: "object", fields };
+  }
+
+  return { type: typeof value as PrimitiveType };
+};
+
+const templateMatches = (template: Template, value: unknown): boolean => {
+  if (template.type === "null") {
+    return value === null;
+  }
+
+  if (template.type !== "object") {
+    return typeof value === template.type;
+  }
+
+  if (typeof value !== "object" || value === null) {
+    return false;
+  }
+
+  const own = ownKeysOf(value);
+
+  return (
+    own.length === template.fields.size &&
+    own.every((key) => {
+      const field = template.fields.get(key);
+
+      return (
+        field !== undefined && templateMatches(field, Reflect.get(value, key))
+      );
+    })
+  );
+};
+
+interface DateTimeAxes {
+  readonly keys: ReadonlySet<Key>;
+  readonly templates: ReadonlyMap<Key, readonly Template[]>;
+}
+
+const attempt = (run: () => unknown): unknown => {
+  try {
+    return run();
+  } catch (error) {
+    return error;
+  }
+};
+
+const dateTimeApis: readonly ((self: object) => unknown)[] = Object.values(
+  DateTime as Readonly<Record<string, unknown>>
+).filter(
+  (value): value is (self: object) => unknown => typeof value === "function"
 );
+
+const dateTimeProbe = (seeds: readonly (() => object)[]): DateTimeAxes => {
+  const keys = new Set<Key>();
+  const templates = new Map<Key, Template[]>();
+
+  const observe = (instance: object): void => {
+    for (const key of ownKeysOf(instance)) {
+      const seen = templates.get(key) ?? [];
+      const value: unknown = Reflect.get(instance, key);
+
+      keys.add(key);
+
+      if (!seen.some((template) => templateMatches(template, value))) {
+        seen.push(templateOf(value));
+      }
+
+      templates.set(key, seen);
+    }
+  };
+
+  for (const seed of seeds) {
+    observe(seed());
+  }
+
+  for (const api of dateTimeApis) {
+    for (const seed of seeds) {
+      const instance = seed();
+      const result = attempt(() => api(instance));
+
+      if (typeof result === "function") {
+        attempt(() => (result as (self: object) => unknown)(instance));
+      }
+
+      observe(instance);
+    }
+  }
+
+  return { keys, templates };
+};
+
+const utcAxes = dateTimeProbe([
+  () => DateTime.makeUnsafe("2024-01-31T10:00:00Z"),
+]);
+
+const zonedAxes = dateTimeProbe([
+  () => DateTime.makeZonedUnsafe("2024-01-31T10:00:00Z", { timeZone: 0 }),
+  () => DateTime.makeZonedUnsafe("2024-01-31T10:00:00Z", { timeZone: "UTC" }),
+]);
+
+const dateTimeAxes = (node: object): DateTimeAxes =>
+  DateTime.isZoned(node as DateTime.DateTime) ? zonedAxes : utcAxes;
+
+const dateTimeAllowed = (context: ShapeContext): ReadonlySet<Key> =>
+  dateTimeAxes(context.node).keys;
+
+const dateTimeAdmits = (context: ShapeContext, key: Key): boolean => {
+  const admitted = dateTimeAxes(context.node).templates.get(key);
+  const value: unknown = Reflect.get(context.node, key);
+
+  return (
+    admitted?.some((template) => templateMatches(template, value)) ?? false
+  );
+};
 
 class ShapeProbeError extends Schema.TaggedError<
   ShapeProbeError,
@@ -407,7 +549,11 @@ const errorAllowed = (context: ShapeContext): ReadonlySet<Key> | undefined => {
 
 const shapeTable: Readonly<Record<ShapeKind, ShapeRule>> = {
   array: { allowed: arrayAllowed, children: arrayChildren },
-  datetime: { allowed: () => dateTimeKeys, children: noChildren },
+  datetime: {
+    admits: dateTimeAdmits,
+    allowed: dateTimeAllowed,
+    children: noChildren,
+  },
   error: { allowed: errorAllowed, children: structChildren },
   map: { allowed: () => emptyKeys, children: noChildren },
   "option-none": { allowed: () => noneKeys, children: noChildren },
@@ -481,58 +627,76 @@ const literalScore = (ast: SchemaAST.AST, value: object): number => {
       }).length;
 };
 
-const shapeOf = (
+const branchFits = (branch: Branch, own: readonly Key[]): boolean =>
+  own.every((key) => branch.allowed.has(key));
+
+const betterBranch = (
+  candidate: Branch,
+  winner: Branch,
+  own: readonly Key[]
+): boolean => {
+  if (candidate.literals !== winner.literals) {
+    return candidate.literals > winner.literals;
+  }
+
+  const candidateFits = branchFits(candidate, own);
+  const winnerFits = branchFits(winner, own);
+
+  if (candidateFits !== winnerFits) {
+    return candidateFits;
+  }
+
+  return candidate.allowed.size < winner.allowed.size;
+};
+
+interface Branch {
+  readonly allowed: ReadonlySet<Key>;
+  readonly literals: number;
+  readonly shape: Shape;
+}
+
+function shapeOf(
   value: unknown,
   ast: SchemaAST.AST | undefined,
   path: string
-): Shape | undefined => {
-  const bestMember = (context: ShapeContext): Shape | undefined => {
-    const union = unionOf(context.ast);
+): Shape | undefined {
+  const branchOf = (member: SchemaAST.AST): Branch | undefined => {
+    const shape = shapeOf(value, member, path);
 
-    if (union === undefined) {
+    if (shape === undefined) {
       return undefined;
     }
 
-    const own = ownKeysOf(context.node);
+    const allowed = shapeTable[shape.kind].allowed({
+      ast: shape.ast,
+      node: value as object,
+      path,
+    });
 
-    let best:
-      | {
-          readonly literals: number;
-          readonly shape: Shape;
-          readonly slack: number;
-        }
-      | undefined;
+    return allowed === undefined
+      ? undefined
+      : { allowed, literals: literalScore(member, value as object), shape };
+  };
 
-    for (const member of union.types) {
-      const shape = shapeOf(context.node, member, context.path);
+  const resolveBranch = (
+    members: readonly SchemaAST.AST[]
+  ): Branch | undefined => {
+    const own = ownKeysOf(value as object);
 
-      if (shape === undefined) {
-        continue;
-      }
+    let best: Branch | undefined;
 
-      const allowed = shapeTable[shape.kind].allowed({
-        ast: shape.ast,
-        node: context.node,
-        path: context.path,
-      });
-
-      if (allowed === undefined || !own.every((key) => allowed.has(key))) {
-        continue;
-      }
-
-      const literals = literalScore(member, context.node);
-      const slack = allowed.size - own.length;
+    for (const member of members) {
+      const branch = branchOf(member);
 
       if (
-        best === undefined ||
-        literals > best.literals ||
-        (literals === best.literals && slack < best.slack)
+        branch !== undefined &&
+        (best === undefined || betterBranch(branch, best, own))
       ) {
-        best = { literals, shape, slack };
+        best = branch;
       }
     }
 
-    return best?.shape;
+    return best;
   };
 
   const node = value as object;
@@ -549,7 +713,7 @@ const shapeOf = (
   const union = unionOf(ast);
 
   if (union !== undefined) {
-    return bestMember({ ast: union, node, path });
+    return resolveBranch(union.types)?.shape;
   }
 
   const objects = objectsOf(ast);
@@ -576,23 +740,26 @@ const shapeOf = (
   return parameter === undefined
     ? shapeOf(value, encodedAstOf(declaration), path)
     : shapeOf(value, parameter, path);
-};
+}
 
 const kindName = (ast: SchemaAST.AST | undefined): string =>
   ast === undefined ? "Unknown" : suspendOf(ast)._tag;
 
 const unionStray = (context: ShapeContext): Key | undefined => {
   const union = unionOf(context.ast);
-  const own = ownKeysOf(context.node);
 
   if (union === undefined) {
     return undefined;
   }
 
+  const own = ownKeysOf(context.node);
+
+  const hitsIn = (allowed: ReadonlySet<Key>): number =>
+    own.filter((key) => allowed.has(key)).length;
+
   let best:
     | {
         readonly allowed: ReadonlySet<Key>;
-        readonly hits: number;
         readonly literals: number;
       }
     | undefined;
@@ -615,14 +782,13 @@ const unionStray = (context: ShapeContext): Key | undefined => {
     }
 
     const literals = literalScore(member, context.node);
-    const hits = own.filter((key) => allowed.has(key)).length;
 
     if (
       best === undefined ||
       literals > best.literals ||
-      (literals === best.literals && hits > best.hits)
+      (literals === best.literals && hitsIn(allowed) > hitsIn(best.allowed))
     ) {
-      best = { allowed, hits, literals };
+      best = { allowed, literals };
     }
   }
 
@@ -673,7 +839,11 @@ const walkNode = (
       : { key: first, kind: shape.kind, path: node.path, rule: "key" };
   }
 
-  const stray = ownKeysOf(value).find((key) => !allowed.has(key));
+  const stray = ownKeysOf(value).find((key) => {
+    const { admits } = shapeTable[shape.kind];
+
+    return !allowed.has(key) || (admits !== undefined && !admits(context, key));
+  });
 
   if (stray !== undefined) {
     return { key: stray, path: node.path, rule: "key" };
@@ -713,7 +883,7 @@ const shapeFailure = (
   );
 };
 
-export const assertExactShape = (
+export const assertNoForeignKeys = (
   value: unknown,
   handle: Handle
 ): Schema.SchemaError | undefined => shapeFailure(value, schemaOf(handle));
@@ -725,7 +895,7 @@ const strictResult = <A>(
   failure === undefined ? run() : Result.fail(failure);
 
 const ensureExactShape = (value: unknown, handle: Handle): void => {
-  const failure = assertExactShape(value, handle);
+  const failure = assertNoForeignKeys(value, handle);
 
   if (failure !== undefined) {
     throw failure;
@@ -751,11 +921,11 @@ export function codec<S extends Codec>(
 
   const handle: ModelCodec<S["Type"], S["Encoded"]> = {
     decode: (input) =>
-      strictResult(assertExactShape(input, handle), () =>
+      strictResult(assertNoForeignKeys(input, handle), () =>
         Schema.decodeUnknownResult(schema, strictOptions)(input)
       ),
     encode: (value) =>
-      strictResult(assertExactShape(value, handle), () =>
+      strictResult(assertNoForeignKeys(value, handle), () =>
         Schema.encodeUnknownResult(schema, strictOptions)(value)
       ),
     name,

@@ -1,5 +1,7 @@
 import { Effect, Option, Result } from "effect";
+import type { Schema } from "effect";
 
+import { assertNoForeignKeys } from "./codec.js";
 import { convertMinor } from "./convert-minor.js";
 import type {
   ConversionInputInvalid,
@@ -8,6 +10,7 @@ import type {
 } from "./errors.js";
 import { rateUnavailable } from "./errors.js";
 import type { CurrencyCode, MinorUnits, Money } from "./primitives.js";
+import { MoneySchema } from "./primitives.js";
 import type { Rate } from "./rate.js";
 
 export interface ConversionQuery {
@@ -40,8 +43,17 @@ export class BaseAmount {
     lookup: RateLookup
   ): Effect.Effect<
     BaseAmount,
-    ConversionInputInvalid | ConversionOverflow | RateUnavailable
+    | ConversionInputInvalid
+    | ConversionOverflow
+    | RateUnavailable
+    | Schema.SchemaError
   > {
+    const failure = assertNoForeignKeys(money, MoneySchema);
+
+    if (failure !== undefined) {
+      return Effect.fail(failure);
+    }
+
     if (money.currency === baseCurrency) {
       return Effect.succeed(new BaseAmount(money.currency, money.minor));
     }
@@ -60,7 +72,16 @@ export class BaseAmount {
     money: Money,
     baseCurrency: CurrencyCode,
     rate: Rate
-  ): Result.Result<BaseAmount, ConversionInputInvalid | ConversionOverflow> {
+  ): Result.Result<
+    BaseAmount,
+    ConversionInputInvalid | ConversionOverflow | Schema.SchemaError
+  > {
+    const failure = assertNoForeignKeys(money, MoneySchema);
+
+    if (failure !== undefined) {
+      return Result.fail(failure);
+    }
+
     return money.currency === baseCurrency
       ? Result.succeed(new BaseAmount(money.currency, money.minor))
       : Result.map(
