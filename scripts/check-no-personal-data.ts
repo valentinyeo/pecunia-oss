@@ -73,99 +73,119 @@ const NO_REPLY_SENDERS = new Set([
 
 const NO_REPLY_DOMAIN = "users.noreply.github.com";
 
-const IBAN_COUNTRY_CODES = [
-  "AD",
-  "AE",
-  "AL",
-  "AT",
-  "AZ",
-  "BA",
-  "BE",
-  "BG",
-  "BH",
-  "BI",
-  "BR",
-  "BY",
-  "CH",
-  "CR",
-  "CY",
-  "CZ",
-  "DE",
-  "DJ",
-  "DK",
-  "DO",
-  "EE",
-  "EG",
-  "ES",
-  "FI",
-  "FK",
-  "FO",
-  "FR",
-  "GB",
-  "GE",
-  "GI",
-  "GL",
-  "GR",
-  "GT",
-  "HR",
-  "HU",
-  "IE",
-  "IL",
-  "IQ",
-  "IS",
-  "IT",
-  "JO",
-  "KW",
-  "KZ",
-  "LB",
-  "LC",
-  "LI",
-  "LT",
-  "LU",
-  "LV",
-  "LY",
-  "MC",
-  "MD",
-  "ME",
-  "MK",
-  "MN",
-  "MR",
-  "MT",
-  "MU",
-  "NI",
-  "NL",
-  "NO",
-  "OM",
-  "PK",
-  "PL",
-  "PS",
-  "PT",
-  "QA",
-  "RO",
-  "RS",
-  "RU",
-  "SA",
-  "SC",
-  "SD",
-  "SE",
-  "SI",
-  "SK",
-  "SM",
-  "SO",
-  "ST",
-  "SV",
-  "TL",
-  "TN",
-  "TR",
-  "UA",
-  "VA",
-  "VG",
-  "XK",
-  "YE",
-] as const;
+const SEPARATOR = String.raw`\s\u2010-\u2015-`;
+
+const SEPARATOR_ANY = `[${SEPARATOR}]*`;
+
+const IBAN_LENGTHS = {
+  AD: 24,
+  AE: 23,
+  AL: 28,
+  AT: 20,
+  AZ: 28,
+  BA: 20,
+  BE: 16,
+  BG: 22,
+  BH: 22,
+  BI: 27,
+  BR: 29,
+  BY: 28,
+  CH: 21,
+  CR: 22,
+  CY: 28,
+  CZ: 24,
+  DE: 22,
+  DJ: 27,
+  DK: 18,
+  DO: 28,
+  EE: 20,
+  EG: 29,
+  ES: 24,
+  FI: 18,
+  FK: 18,
+  FO: 18,
+  FR: 27,
+  GB: 22,
+  GE: 22,
+  GI: 23,
+  GL: 18,
+  GR: 27,
+  GT: 28,
+  HR: 21,
+  HU: 28,
+  IE: 22,
+  IL: 23,
+  IQ: 23,
+  IS: 26,
+  IT: 27,
+  JO: 30,
+  KW: 30,
+  KZ: 20,
+  LB: 28,
+  LC: 32,
+  LI: 21,
+  LT: 20,
+  LU: 20,
+  LV: 21,
+  LY: 25,
+  MC: 27,
+  MD: 24,
+  ME: 22,
+  MK: 19,
+  MN: 20,
+  MR: 27,
+  MT: 31,
+  MU: 30,
+  NI: 28,
+  NL: 18,
+  NO: 15,
+  OM: 23,
+  PK: 24,
+  PL: 28,
+  PS: 29,
+  PT: 25,
+  QA: 29,
+  RO: 24,
+  RS: 22,
+  RU: 33,
+  SA: 24,
+  SC: 31,
+  SD: 18,
+  SE: 24,
+  SI: 19,
+  SK: 24,
+  SM: 27,
+  SO: 23,
+  ST: 25,
+  SV: 28,
+  TL: 23,
+  TN: 24,
+  TR: 26,
+  UA: 29,
+  VA: 22,
+  VG: 24,
+  XK: 20,
+  YE: 30,
+};
+
+const ibanGroupSizes = (length: number) => {
+  const sizes = Array.from({ length: Math.floor(length / 4) }, () => 4);
+
+  const tail = length % 4;
+
+  return tail > 0 ? [...sizes, tail] : sizes;
+};
+
+const ibanBranch = ([country, length]: readonly [string, number]) => {
+  const [, ...groups] = ibanGroupSizes(length).map(
+    (size) => `[A-Z0-9]{${size}}`
+  );
+
+  return `${country}${SEPARATOR_ANY}\\d{2}${SEPARATOR_ANY}${groups.join(SEPARATOR_ANY)}`;
+};
 
 const IBAN = new RegExp(
-  `\\b(?:${IBAN_COUNTRY_CODES.join("|")})\\d{2}(?:[A-Z0-9]{11,30}|(?: [A-Z0-9]{4}){2,7}(?: [A-Z0-9]{1,3})?)\\b`,
+  `(?<![\\p{L}\\p{N}])(?:${Object.entries(IBAN_LENGTHS).map(ibanBranch).join("|")})(?![A-Z0-9])`,
   "giu"
 );
 
@@ -191,14 +211,10 @@ const SPACING = /[\t\u00A0\u2007\u202F]+| {2,}/gu;
 
 const NON_BREAKING_HYPHENS = /[\u2010-\u2015]+/gu;
 
-const hyphenated = /[\s\u002D\u2010-\u2015]+/gu;
-
 const spaced = (text: string) =>
   text.replaceAll(SPACING, " ").replaceAll(NON_BREAKING_HYPHENS, "-");
 
 const unescaped = (text: string) => text.replaceAll(/\\[nrtbfv0]/gu, " ");
-
-const unHyphenated = (text: string) => text.replaceAll(hyphenated, " ");
 
 const EXAMPLE_HOSTNAMES = new Set([
   "example.cloudflareaccess.com",
@@ -384,7 +400,7 @@ export const findPersonalData = (
   const lineFindings = lines.flatMap(
     (line, index): readonly PersonalDataFinding[] => {
       const found: readonly RuleId[] = [
-        ...matchesIn(IBAN, unHyphenated(line))
+        ...matchesIn(IBAN, line)
           .filter((value) => !allowsValue(allow, filePath, value))
           .map(() => "iban" as const),
         ...matchesIn(EMAIL, unescaped(line))
