@@ -176,6 +176,24 @@ const strangerPerson = Schema.decodeSync(PersonSchema)({
   personId: "person-stranger",
 });
 
+const bothProfilePerson = Schema.decodeSync(PersonSchema)({
+  email: "both-profiles@example.com",
+  memberships: [
+    { profileId: demoProfileId, role: "owner" },
+    { profileId: otherProfileId, role: "owner" },
+  ],
+  personId: "person-both-profiles",
+});
+
+const bothProfileLayer = Layer.mergeAll(
+  BankLineService.layer.pipe(
+    Layer.provide(
+      memoryBankLineStoreLayer({ categories: demoCategories, lines: dataset })
+    )
+  ),
+  Layer.succeed(CurrentPerson, bothProfilePerson)
+);
+
 const generatedAmountRange = (random: Random): AmountRange => {
   const first = random.int(-500, 500);
   const second = random.int(-500, 500);
@@ -613,6 +631,43 @@ const flipDirection = (
     ? Option.some(random.pick(DIRECTIONS))
     : Option.none(),
 });
+
+it.effect(
+  "refuses a cursor made in one profile when it is used in another",
+  () =>
+    Effect.gen(function* checkCrossProfileCursor() {
+      const otherLines = dataset.filter(
+        (line) => line.profileId === otherProfileId
+      );
+
+      expect(otherLines.length).toBeGreaterThan(1);
+
+      const first = yield* listBankLines
+        .handler(request(noFilter, "", 1))
+        .pipe(Effect.provide(bothProfileLayer), Effect.orDie);
+
+      const cursor = first.next;
+
+      expect(Option.isSome(cursor)).toBe(true);
+
+      if (Option.isSome(cursor)) {
+        const second = yield* listBankLines
+          .handler({
+            ...request(noFilter, "", 1, cursor),
+            profileId: otherProfileId,
+          })
+          .pipe(Effect.provide(bothProfileLayer), Effect.result);
+
+        expect(Predicate.isTagged(second, "Failure")).toBe(true);
+
+        if (Predicate.isTagged(second, "Failure")) {
+          expect(
+            Predicate.isTagged(second.failure, "CursorFilterMismatch")
+          ).toBe(true);
+        }
+      }
+    })
+);
 
 it.effect("refuses a cursor made under another filter or another search", () =>
   Effect.gen(function* checkStaleCursors() {

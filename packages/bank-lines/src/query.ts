@@ -162,8 +162,13 @@ const reviewKey = (review: BankLineFilter["review"]) =>
     Match.exhaustive
   );
 
-const filterText = (filter: BankLineFilter, search: string) =>
+const filterText = (
+  profileId: ListBankLinesRequest["profileId"],
+  filter: BankLineFilter,
+  search: string
+) =>
   [
+    `profile=${profileId}`,
     `account=${Option.getOrElse(filter.account, () => "*")}`,
     `amount=${amountKey(filter.amount)}`,
     `category=${categoryKey(filter.category)}`,
@@ -186,16 +191,22 @@ const foldText = (text: string) => {
 };
 
 export const filterFingerprint = (
+  profileId: ListBankLinesRequest["profileId"],
   filter: BankLineFilter,
   search: string
-): CursorFingerprint => foldText(filterText(filter, search)).toString(36);
+): CursorFingerprint =>
+  foldText(filterText(profileId, filter, search)).toString(36);
 
 export const selectBankLines = (
   lines: readonly BankLine[],
   request: ListBankLinesRequest
 ): Effect.Effect<BankLinePage, CursorFilterMismatch> =>
   Effect.gen(function* selectBankLinesForRequest() {
-    const fingerprint = filterFingerprint(request.filter, request.search);
+    const fingerprint = filterFingerprint(
+      request.profileId,
+      request.filter,
+      request.search
+    );
 
     const { cursor } = request;
 
@@ -204,9 +215,9 @@ export const selectBankLines = (
         cursorFingerprint: cursor.value.fingerprint,
         filterFingerprint: fingerprint,
         message:
-          "This cursor was made under a different filter or search, so it does not name a position in this list.",
+          "This cursor was made under a different profile, filter or search, so it does not name a position in this list.",
         repair:
-          "Drop the cursor when you change the filter or the search, and start the new list from its first page.",
+          "Drop the cursor when you change the profile, the filter or the search, and start the new list from its first page.",
       });
     }
 

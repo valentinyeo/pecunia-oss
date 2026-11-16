@@ -17,7 +17,7 @@ import { UnknownCategory } from "./unknown-category.js";
 export const listBankLinesContract = defineContract("listBankLines", {
   annotations: { idempotent: true, readOnly: true },
   description:
-    "List a profile's bank lines newest first, with a keyset cursor. Filters cover account, direction, amount in one currency, category, review state and the occurred range. Search matches merchant, description, reference and note text, ignoring case. A cursor carries a fingerprint of the filter and search that made it, so it is refused by name under a different one. Amounts are integer minor units.",
+    "List a profile's bank lines newest first, with a keyset cursor. Filters cover account, direction, amount in one currency, category, review state and the occurred range. Search matches merchant, description, reference and note text, ignoring case. A cursor carries a fingerprint of the profile, filter and search that made it, so it is refused by name under a different one. Amounts are integer minor units.",
   failure: Schema.Union([BankLineStoreError, CursorFilterMismatch, Forbidden]),
   input: ListBankLinesRequestSchema,
   output: BankLinePageSchema,
