@@ -20,7 +20,8 @@
     "typecheck:fast": "tsrs --noEmit -p tsconfig.json",
     "test": "vitest run",
     "build": "vite build",
-    "check": "pnpm run typecheck"
+    "check": "pnpm run typecheck",
+    "lint": "oxlint --format agent ."
   },
   "dependencies": {
     "@alchemy.run/cloudflare": "2.0.0-beta.87",

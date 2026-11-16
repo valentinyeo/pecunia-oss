@@ -35,6 +35,7 @@ export default defineConfig({
   extends: [core],
   ignorePatterns: [
     ...(core.ignorePatterns ?? []),
+    "examples/**",
     ".agent_sources/**",
     ".agent-sources/**",
     "**/dist/**",
