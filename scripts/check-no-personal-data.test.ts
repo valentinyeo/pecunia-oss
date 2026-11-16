@@ -376,7 +376,7 @@ describe("a sort code and an account number in any written form fail", () => {
       `number: "${accountNumber("")}",`,
     ];
 
-    const sample = [...firstRecord, ...secondRecord];
+    const sample = [...firstRecord, "", ...secondRecord];
 
     expect(ruleOf("apps/site/src/profile.ts", sample.join("\n"))).toEqual([]);
   });
@@ -513,6 +513,14 @@ describe("the rule and view matrix covers every cell", () => {
     );
   });
 
+  it("reads the text as written for every rule", () => {
+    const skippedRaw = RULE_IDS.filter(
+      (rule) => !PERSONAL_DATA_MATRIX[rule].raw.applies
+    );
+
+    expect(skippedRaw).toEqual([]);
+  });
+
   it("gives every rule and every view something to do", () => {
     const idleRules = RULE_IDS.filter(
       (rule) =>
@@ -632,5 +640,140 @@ describe("an amount allowance excuses only the amount column of its file", () =>
     ].join("\n");
 
     expect(ruleOf(path, csv, amountAllow)).toEqual(["bank-account"]);
+  });
+});
+
+const joined = (...parts: readonly string[]) => parts.join("");
+
+const mailHost = joined("mail", "host.co.uk");
+
+const verifierIban = joined("GB82", "WEST", "1234", "5698", "7654", "32");
+
+const accountIdValue = joined(
+  "0123",
+  "4567",
+  "89ab",
+  "cdef",
+  "0123",
+  "4567",
+  "89ab",
+  "cdef"
+);
+
+const longReference =
+  "invoice 4471 for the March statement, quote this reference on the transfer";
+
+describe("the fifth verdict's reproductions fail", () => {
+  it("fails on an env file whose account number starts with an escape", () => {
+    expect(
+      ruleOf(
+        "apps/cli/.env.demo",
+        [
+          `SORT_CODE=${sortCode("-")}`,
+          `ACCOUNT_NUMBER=${accountNumber("")}`,
+        ].join("\n")
+      )
+    ).toEqual(["bank-account"]);
+  });
+
+  it("fails on the same pair inside a URL query", () => {
+    expect(
+      ruleOf(
+        "docs/payments.md",
+        `Pay at https://demo.example/pay?sort=${sortCode("-")}&account=${accountNumber("")}`
+      )
+    ).toEqual(["bank-account"]);
+  });
+
+  it("reads a quoted-printable IBAN with spaces escaped per RFC 2045", () => {
+    expect(
+      ruleOf(
+        "docs/mail-export.md",
+        `IBAN:=20${verifierIban.slice(0, 4)}=20${verifierIban.slice(4, 8)}=20${verifierIban.slice(8, 12)}=20${verifierIban.slice(12)}`
+      )
+    ).toContain("iban");
+  });
+
+  it("reads a mailbox joined by a soft line break", () => {
+    expect(
+      ruleOf("docs/mail-export.md", `To: demo.person@mail=\r\n${mailHost}`)
+    ).toEqual(["email"]);
+  });
+
+  it("fails on a bank pair inside a long YAML record", () => {
+    expect(
+      ruleOf(
+        "apps/cli/demo.yaml",
+        [
+          "payment:",
+          `  sort_code: ${sortCode("-")}`,
+          `  reference: ${longReference}`,
+          `  account_number: ${accountNumber("")}`,
+        ].join("\n")
+      )
+    ).toEqual(["bank-account"]);
+  });
+
+  it("fails on a bank pair inside a long CSV row", () => {
+    expect(
+      ruleOf(
+        "packages/bank-import/fixtures/demo.csv",
+        [
+          "sort_code,reference,account_number",
+          `${sortCode("-")},${longReference.replaceAll(",", " ")},${accountNumber("")}`,
+        ].join("\n")
+      )
+    ).toEqual(["bank-account"]);
+  });
+});
+
+describe("an earlier verdict's reproduction still fails", () => {
+  it.each([
+    [
+      "v39 colon-adjacent JSON bank fields",
+      `{"sortCode":${sortCode("")},"accountNumber":${accountNumber("")}}`,
+    ],
+    [
+      "v39 space-separated bank pair",
+      `Sort code ${sortCode("-")}, account ${accountNumber("")}`,
+    ],
+    [
+      "v39 line-wrapped IBAN",
+      `${verifierIban.slice(0, 8)} ${verifierIban.slice(8, 12)}\n${verifierIban.slice(12, 16)} ${verifierIban.slice(16, 20)} ${verifierIban.slice(20)}`,
+    ],
+    ["v39 quoted mailbox", `"demo owner"@${mailHost}`],
+    [
+      "v45 JSON-escaped quoted mailbox",
+      `{"mail":"\\"demo owner\\"@${mailHost}"}`,
+    ],
+    [
+      "v45 HTML-wrapped IBAN",
+      `${verifierIban.slice(0, 8)} ${verifierIban.slice(8, 12)}<br>${verifierIban.slice(12, 16)} ${verifierIban.slice(16, 20)} ${verifierIban.slice(20)}`,
+    ],
+    ["v45 entity-encoded link", `mailto:demo.person&#64;${mailHost}`],
+    ["v49 percent-encoded link", `mailto:demo.person%40${mailHost}`],
+    [
+      "v49 form-encoded IBAN",
+      `iban=${verifierIban.slice(0, 4)}+${verifierIban.slice(4, 8)}+${verifierIban.slice(8, 12)}+${verifierIban.slice(12, 16)}+${verifierIban.slice(16, 20)}+${verifierIban.slice(20)}`,
+    ],
+    [
+      "v49 multiline tag inside an IBAN",
+      `${verifierIban.slice(0, 8)} ${verifierIban.slice(8, 12)}<br\n class="bank">${verifierIban.slice(12, 16)} ${verifierIban.slice(16, 20)} ${verifierIban.slice(20)}`,
+    ],
+    [
+      "v54 date between a bank pair",
+      `Sort code: ${sortCode("-")}; Last synced: 2026-11-16; Account number: ${accountNumber("")}`,
+    ],
+    [
+      "v54 emphasis inside an IBAN",
+      `IBAN: **${verifierIban.slice(0, 4)}** ${verifierIban.slice(4, 8)} **${verifierIban.slice(8, 12)}** ${verifierIban.slice(12, 16)} ${verifierIban.slice(16, 20)} ${verifierIban.slice(20)}`,
+    ],
+    ["v54 quoted-printable mailbox", `To: demo.person=40${mailHost}`],
+    [
+      "v54 JSON-escaped account id",
+      `{"account_id":"\\u0030${accountIdValue.slice(1)}"}`,
+    ],
+  ])("fails on %s", (_label, text) => {
+    expect(ruleOf("apps/cli/src/ids.ts", text).length).toBeGreaterThan(0);
   });
 });

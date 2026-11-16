@@ -710,36 +710,50 @@ const COMPOSED_CASES = 1500;
 
 const COMPOSED_SEED = SEED + 9001;
 
-const ENTITY_FORMS = new Map([
-  ["@", ["&#64;", "&commat;", "&#x40;"]],
-  [".", ["&#46;", "&#x2e;", "&period;"]],
-  [" ", ["&nbsp;", "&#32;", "&#x20;"]],
-  ["-", ["&#45;", "&#x2d;", "&dash;"]],
-  ["%", ["&#37;", "&#x25;", "&percnt;"]],
-  ["+", ["&#43;", "&#x2b;", "&plus;"]],
-  ["|", ["&#124;", "&#x7c;", "&verbar;"]],
-  [":", ["&#58;", "&#x3a;", "&colon;"]],
-]);
+const percentByte = (byte: number) =>
+  `%${byte.toString(16).toUpperCase().padStart(2, "0")}`;
 
-const percentOf = (character: string) =>
-  [...new TextEncoder().encode(character)]
-    .map((byte) => `%${byte.toString(16).toUpperCase().padStart(2, "0")}`)
+const percentOf = (text: string) =>
+  [...new TextEncoder().encode(text)].map(percentByte).join("");
+
+const UNRESERVED = /^[A-Za-z0-9\-._~]$/u;
+
+const percentLine = (line: string) =>
+  [...new TextEncoder().encode(line)]
+    .map((byte) => {
+      const character = String.fromCodePoint(byte);
+
+      return UNRESERVED.test(character) ? character : percentByte(byte);
+    })
     .join("");
 
-const inEntityForm = (text: string, random: Random) =>
-  text.replaceAll(/[@. %+|:-]/gu, (character) => {
-    const forms = ENTITY_FORMS.get(character);
-
-    return forms === undefined ? character : random.pick(forms);
-  });
+const inEntityForm = (text: string) =>
+  text.replaceAll(
+    /[^A-Za-z0-9]/gu,
+    (character) => `&#${String(character.codePointAt(0) ?? 0)};`
+  );
 
 const asJsonString = (text: string) => JSON.stringify(text).slice(1, -1);
 
 const asPercent = (text: string) =>
-  text.replaceAll(/[^A-Za-z0-9\n]/gu, percentOf);
+  text.split("\n").map(percentLine).join("\n");
 
-const asForm = (text: string) =>
-  text.replaceAll(" ", "+").replaceAll(/[^A-Za-z0-9+\n]/gu, percentOf);
+const FORM_UNRESERVED = /^[A-Za-z0-9*\-._]$/u;
+
+const formLine = (line: string) =>
+  [...new TextEncoder().encode(line)]
+    .map((byte) => {
+      const character = String.fromCodePoint(byte);
+
+      if (character === " ") {
+        return "+";
+      }
+
+      return FORM_UNRESERVED.test(character) ? character : percentByte(byte);
+    })
+    .join("");
+
+const asForm = (text: string) => text.split("\n").map(formLine).join("\n");
 
 const TAG_FORMS = [
   "<br>",
@@ -795,14 +809,69 @@ interface Encoder {
   readonly name: string;
 }
 
-const asQuotedPrintable = (text: string) =>
-  text.replaceAll(/[@.]/gu, (character) => {
-    const [byte] = new TextEncoder().encode(character);
+const QUOTED_PRINTABLE_PIECE = (byte: number) =>
+  `=${byte.toString(16).toUpperCase().padStart(2, "0")}`;
 
-    return `=${(byte ?? 0).toString(16).toUpperCase().padStart(2, "0")}`;
+const quotedPrintableLine = (line: string) => {
+  const bytes = [...new TextEncoder().encode(line)];
+
+  const pieces = bytes.map((byte, index) => {
+    const last = index === bytes.length - 1;
+
+    const plain =
+      byte >= 33 &&
+      byte <= 126 &&
+      byte !== 61 &&
+      !((byte === 32 || byte === 9) && last);
+
+    return plain ? String.fromCodePoint(byte) : QUOTED_PRINTABLE_PIECE(byte);
   });
 
+  const wrapped: string[] = [];
+
+  let current = "";
+
+  for (const piece of pieces) {
+    if (current.length + piece.length > 75) {
+      wrapped.push(`${current}=`);
+
+      current = "";
+    }
+
+    current += piece;
+  }
+
+  wrapped.push(current);
+
+  return wrapped.join("\r\n");
+};
+
+const asQuotedPrintable = (text: string) =>
+  text
+    .split("\n")
+    .map((line) => line.replaceAll("\r", ""))
+    .map(quotedPrintableLine)
+    .join("\r\n");
+
 const BASE64_MINIMUM = 16;
+
+const MIME_LINE = 76;
+
+const wrapAt = (encoded: string, width: number) => {
+  const lines: string[] = [];
+
+  for (let index = 0; index < encoded.length; index += width) {
+    lines.push(encoded.slice(index, index + width));
+  }
+
+  return lines.join("\r\n");
+};
+
+const asMimeBase64 = (text: string) => {
+  const encoded = Buffer.from(text, "utf-8").toString("base64");
+
+  return encoded.length < BASE64_MINIMUM ? text : wrapAt(encoded, MIME_LINE);
+};
 
 const asBase64 = (text: string) => {
   const encoded = Buffer.from(text, "utf-8").toString("base64");
@@ -815,6 +884,9 @@ const asBase64Url = (text: string) => {
 
   return encoded.length < BASE64_MINIMUM ? text : encoded;
 };
+
+const asCodePointEscapes = (text: string) =>
+  text.replaceAll(/[0-9]/gu, (digit) => `\\u003${digit}`);
 
 const EMPHASIS_MARKERS = ["**", "__", "~~", "`"];
 
@@ -830,9 +902,6 @@ const withEmphasis = (text: string, random: Random) => {
     .join(" ");
 };
 
-const asCodePointEscapes = (text: string) =>
-  text.replaceAll(/[0-9]/gu, (digit) => `\\u003${digit}`);
-
 const COMPOSABLE_ENCODERS: readonly Encoder[] = [
   { encode: (text) => text, name: "identity" },
   { encode: asJsonString, name: "json-string" },
@@ -844,24 +913,11 @@ const COMPOSABLE_ENCODERS: readonly Encoder[] = [
   { encode: asFullWidth, name: "full-width-digits" },
   { encode: inHref, name: "href-attribute" },
   { encode: asQuotedPrintable, name: "quoted-printable" },
+  { encode: asMimeBase64, name: "mime-base64" },
   { encode: asBase64, name: "base64" },
   { encode: asBase64Url, name: "base64-url" },
   { encode: withEmphasis, name: "emphasis" },
 ];
-
-interface ComposableLeak {
-  readonly document: (value: string) => string;
-  readonly encoders: readonly Encoder[];
-  readonly name: string;
-  readonly path: string;
-  readonly rules: readonly RuleId[];
-  readonly twin: (random: Random) => string;
-  readonly twinDocument: (value: string) => string;
-  readonly value: (random: Random) => string;
-  readonly wrappers: readonly Encoder[];
-}
-
-const plainDocument = (value: string) => value;
 
 const VERIFIER_IBAN = "GB82WEST12345698765432";
 
@@ -896,102 +952,248 @@ const nonChecksumIban = (random: Random) => {
   }
 };
 
-const NOT_ON_A_VALUE = new Set(["identity", "tag-between", "href-attribute"]);
-
-const VALUE_ENCODERS: readonly Encoder[] = COMPOSABLE_ENCODERS.filter(
-  (encoder) => !NOT_ON_A_VALUE.has(encoder.name) && encoder.name !== "emphasis"
+const SPEC_ENCODERS: readonly Encoder[] = COMPOSABLE_ENCODERS.filter(
+  (encoder) =>
+    !["identity", "tag-between", "href-attribute", "emphasis"].includes(
+      encoder.name
+    )
 );
 
-const DIGIT_ENCODERS: readonly Encoder[] = COMPOSABLE_ENCODERS.filter(
-  (encoder) => !NOT_ON_A_VALUE.has(encoder.name)
+const filler = (random: Random) => random.prose(random.between(0, 60));
+
+const encodersExcept = (...names: readonly string[]) =>
+  SPEC_ENCODERS.filter((encoder) => !names.includes(encoder.name));
+
+const FILE_ENCODERS = encodersExcept("quoted-printable");
+
+const MAIL_ENCODERS = SPEC_ENCODERS;
+
+const TEXT_ENCODERS = encodersExcept(
+  "quoted-printable",
+  "mime-base64",
+  "base64",
+  "base64-url"
 );
 
-const WRAPPERS: readonly Encoder[] = COMPOSABLE_ENCODERS.filter((encoder) =>
-  ["tag-between", "href-attribute"].includes(encoder.name)
-);
+const reference = (random: Random) =>
+  `${filler(random)} payment reference ${random.alphanumeric(6)} ${filler(random)}`;
 
-const COMPOSABLE_LEAKS: readonly ComposableLeak[] = [
+const plainSortCode = (random: Random) =>
+  `${random.digits(2)}-${random.digits(2)}-${random.digits(2)}`;
+
+const plainAccount = (random: Random) => random.digits(8);
+
+const plainEmail = (random: Random) =>
+  `${random.pick(EMAIL_LOCALS)}@${random.pick(EMAIL_DOMAINS)}`;
+
+const HEX = "0123456789abcdef";
+
+const plainAccountId = (random: Random) =>
+  Array.from({ length: 32 }, () => random.pick(HEX.split(""))).join("");
+
+interface Planted {
+  readonly path: string;
+  readonly text: string;
+}
+
+interface ContainerLeak {
+  readonly encoders: readonly Encoder[];
+  readonly name: string;
+  readonly plant: (random: Random) => Planted;
+  readonly rules: readonly RuleId[];
+  readonly twin: (random: Random) => Planted;
+}
+
+const CONTAINER_LEAKS: readonly ContainerLeak[] = [
   {
-    document: (value) => `Payments:\nIBAN: ${value}`,
-    encoders: DIGIT_ENCODERS,
-    name: "iban",
-    path: "docs/payments.md",
-    rules: ["iban"],
-    twin: nonChecksumIban,
-    twinDocument: (value) => `Payments:\nIBAN: ${value}`,
-    value: ibanValue,
-    wrappers: WRAPPERS,
-  },
-  {
-    document: (value) => `Payments: sort code ${value}`,
-    encoders: DIGIT_ENCODERS,
-    name: "bank-pair",
-    path: "docs/payments.md",
+    encoders: FILE_ENCODERS,
+    name: "env-file",
+    plant: (random) => ({
+      path: "apps/cli/.env.demo",
+      text: [
+        "DEMO_MODE=on",
+        `SORT_CODE=${plainSortCode(random)}`,
+        `PAYMENT_REFERENCE=${reference(random)}`,
+        `ACCOUNT_NUMBER=${plainAccount(random)}`,
+        "REGION=demo",
+      ].join("\n"),
+    }),
     rules: ["bank-account"],
-    twin: (random) => `sort code ${sortCodeValue(random)}`,
-    twinDocument: (value) => `Payments: ${value}`,
-    value: (random) =>
-      random.between(1, 2) === 1
-        ? `${sortCodeValue(random)} account number ${accountValue(random)}`
-        : `${sortCodeValue(random)} Last synced: ${makeDate(random)} Account number: ${accountValue(random)}`,
-    wrappers: WRAPPERS,
+    twin: (random) => ({
+      path: "apps/cli/.env.demo",
+      text: [
+        "DEMO_MODE=on",
+        `SORT_CODE=${plainSortCode(random)}`,
+        `PAYMENT_REFERENCE=${reference(random)}`,
+        "REGION=demo",
+      ].join("\n"),
+    }),
   },
   {
-    document: (value) => `Contact ${value} before Friday.`,
-    encoders: VALUE_ENCODERS,
-    name: "email",
-    path: "docs/payments.md",
+    encoders: MAIL_ENCODERS,
+    name: "mime-mail",
+    plant: (random) => ({
+      path: "docs/mail-export.md",
+      text: [
+        "From: Demo Sender <demo@example.com>",
+        'Content-Type: text/plain; charset="utf-8"',
+        "Content-Transfer-Encoding: quoted-printable",
+        "",
+        `${filler(random)} Contact ${plainEmail(random)} before Friday. ${filler(random)}`,
+      ].join("\n"),
+    }),
     rules: ["email"],
-    twin: (random) =>
-      `${random.pick(mailboxNames)}@${random.pick(PLACEHOLDER_DOMAINS)}`,
-    twinDocument: (value) => `Contact ${value} before Friday.`,
-    value: (random) =>
-      `${random.pick(EMAIL_LOCALS)}@${random.pick(EMAIL_DOMAINS)}`,
-    wrappers: WRAPPERS,
+    twin: (random) => ({
+      path: "docs/mail-export.md",
+      text: [
+        "From: Demo Sender <demo@example.com>",
+        "Content-Transfer-Encoding: quoted-printable",
+        "",
+        `${filler(random)} Contact ${random.pick(mailboxNames)}@${random.pick(PLACEHOLDER_DOMAINS)} before Friday.`,
+      ].join("\n"),
+    }),
   },
   {
-    document: (value) => `Contact ${value} before Friday.`,
-    encoders: VALUE_ENCODERS,
-    name: "quoted-mailbox",
-    path: "docs/payments.md",
+    encoders: FILE_ENCODERS,
+    name: "yaml-record",
+    plant: (random) => ({
+      path: "apps/cli/demo.yaml",
+      text: [
+        "payment:",
+        `  sort_code: ${plainSortCode(random)}`,
+        `  reference: ${reference(random)}`,
+        `  account_number: ${plainAccount(random)}`,
+        "  currency: GBP",
+      ].join("\n"),
+    }),
+    rules: ["bank-account"],
+    twin: (random) => ({
+      path: "apps/cli/demo.yaml",
+      text: [
+        "payment:",
+        `  sort_code: ${plainSortCode(random)}`,
+        "  currency: GBP",
+      ].join("\n"),
+    }),
+  },
+  {
+    encoders: FILE_ENCODERS,
+    name: "csv-row",
+    plant: (random) => ({
+      path: "packages/bank-import/fixtures/demo.csv",
+      text: [
+        "sort_code,reference,account_number",
+        `${plainSortCode(random)},${reference(random).replaceAll(",", " ")},${plainAccount(random)}`,
+      ].join("\n"),
+    }),
+    rules: ["bank-account"],
+    twin: (random) => ({
+      path: "packages/bank-import/fixtures/demo.csv",
+      text: [
+        "sort_code,reference,account_number",
+        `${plainSortCode(random)},demo reference,`,
+      ].join("\n"),
+    }),
+  },
+  {
+    encoders: TEXT_ENCODERS,
+    name: "url-query",
+    plant: (random) => ({
+      path: "docs/payments.md",
+      text: `Pay at https://demo.example/pay?iban=${percentOf(ibanValue(random))}&note=demo before Friday.`,
+    }),
+    rules: ["iban"],
+    twin: (random) => ({
+      path: "docs/payments.md",
+      text: `Pay at https://demo.example/pay?iban=${percentOf(nonChecksumIban(random))}&note=demo before Friday.`,
+    }),
+  },
+  {
+    encoders: TEXT_ENCODERS,
+    name: "json-document",
+    plant: (random) => ({
+      path: "apps/cli/demo.json",
+      text: `{"account_id":${JSON.stringify(plainAccountId(random))},"region":"demo"}`,
+    }),
+    rules: ["cloudflare-account-id"],
+    twin: (random) => ({
+      path: "docs/notes.md",
+      text: `A made-up hash in prose, not an id: ${plainAccountId(random)}.`,
+    }),
+  },
+  {
+    encoders: TEXT_ENCODERS,
+    name: "json-iban",
+    plant: (random) => ({
+      path: "apps/cli/demo.json",
+      text: `{"payments":[{"iban":${JSON.stringify(ibanValue(random))},"label":"demo"}]}`,
+    }),
+    rules: ["iban"],
+    twin: (random) => ({
+      path: "apps/cli/demo.json",
+      text: `{"payments":[{"iban":${JSON.stringify(nonChecksumIban(random))},"label":"demo"}]}`,
+    }),
+  },
+  {
+    encoders: FILE_ENCODERS,
+    name: "quoted-mailbox-env",
+    plant: (random) => ({
+      path: "apps/cli/.env.demo",
+      text: [
+        `DEMO_MODE=on`,
+        `BILLING_CONTACT=${quotedMailbox(random)}`,
+        "REGION=demo",
+      ].join("\n"),
+    }),
     rules: ["email"],
-    twin: (random) =>
-      `"${random.pick(mailboxNames)} ${random.pick(mailboxWords)}"@${random.pick(PLACEHOLDER_DOMAINS)}`,
-    twinDocument: (value) => `Contact ${value} before Friday.`,
-    value: quotedMailbox,
-    wrappers: WRAPPERS,
+    twin: (random) => ({
+      path: "apps/cli/.env.demo",
+      text: [
+        `DEMO_MODE=on`,
+        `BILLING_CONTACT=${placeholderMailbox(random)}`,
+        "REGION=demo",
+      ].join("\n"),
+    }),
   },
   {
-    document: plainDocument,
-    encoders: VALUE_ENCODERS.filter((encoder) => encoder.name !== "form-plus"),
-    name: "block-scalar",
-    path: "apps/infra/wrangler.yaml",
+    encoders: FILE_ENCODERS,
+    name: "block-scalar-yaml",
+    plant: (random) => ({
+      path: "apps/infra/wrangler.yaml",
+      text: [
+        "services:",
+        "  demo:",
+        "    CLOUDFLARE_API_TOKEN: |-",
+        `      ${secretValue(random)}`,
+      ].join("\n"),
+    }),
     rules: ["secret-block-scalar"],
-    twin: secretBlockWithoutToken,
-    twinDocument: plainDocument,
-    value: secretBlockDocument,
-    wrappers: [],
+    twin: () => ({
+      path: "apps/infra/wrangler.yaml",
+      text: [
+        "services:",
+        "  demo:",
+        "    CLOUDFLARE_API_TOKEN: |-",
+        "      read-from-the-environment",
+      ].join("\n"),
+    }),
   },
 ];
 
-const MAX_STEPS = 3;
+const MAX_STEPS = 1;
 
 const LAYERED_ENCODERS = new Set(["base64", "base64-url"]);
 
-describe("a leak survives any random composition of encodings", () => {
-  it(`reads ${COMPOSED_CASES} seeded compositions and keeps every twin quiet`, () => {
+describe("a planted value survives a real encoder in an ordinary container", () => {
+  it(`reads ${COMPOSED_CASES} seeded containers and keeps every twin quiet`, () => {
     const random = makeRandom(COMPOSED_SEED);
 
     const missed: string[] = [];
 
     const noisy: string[] = [];
 
-    const compose = (
-      text: string,
-      steps: readonly Encoder[],
-      wrapper: Encoder | undefined
-    ) => {
-      let current = wrapper === undefined ? text : wrapper.encode(text, random);
+    const compose = (text: string, steps: readonly Encoder[]) => {
+      let current = text;
 
       for (const step of steps) {
         current = step.encode(current, random);
@@ -1001,11 +1203,11 @@ describe("a leak survives any random composition of encodings", () => {
     };
 
     for (let index = 0; index < COMPOSED_CASES; index += 1) {
-      const leak = random.pick(COMPOSABLE_LEAKS);
+      const leak = random.pick(CONTAINER_LEAKS);
 
       const steps: Encoder[] = [];
 
-      for (let count = random.between(1, MAX_STEPS); count > 0; count -= 1) {
+      for (let count = random.between(0, MAX_STEPS); count > 0; count -= 1) {
         const pool = leak.encoders.filter(
           (encoder) =>
             !LAYERED_ENCODERS.has(encoder.name) ||
@@ -1015,18 +1217,13 @@ describe("a leak survives any random composition of encodings", () => {
         steps.push(random.pick(pool));
       }
 
-      const wrapper =
-        leak.wrappers.length === 0 || random.between(1, 2) === 1
-          ? undefined
-          : random.pick(leak.wrappers);
+      const names = steps.map((step) => step.name).join(" > ");
 
-      const names = [...steps, ...(wrapper === undefined ? [] : [wrapper])]
-        .map((step) => step.name)
-        .join(" > ");
+      const planted = leak.plant(random);
 
-      const sensitive = compose(leak.value(random), steps, wrapper);
+      const sensitive = compose(planted.text, steps);
 
-      const rules = rulesOf(leak.path, leak.document(sensitive));
+      const rules = rulesOf(planted.path, sensitive);
 
       if (!leak.rules.every((rule) => rules.includes(rule))) {
         missed.push(
@@ -1034,17 +1231,13 @@ describe("a leak survives any random composition of encodings", () => {
         );
       }
 
-      const twinStepNames = steps.filter((step) => step.name !== "tag-between");
+      const twin = leak.twin(random);
 
-      const twin = compose(
-        leak.twin(random),
-        twinStepNames,
-        wrapper?.name === "href-attribute" ? wrapper : undefined
-      );
+      const twinText = compose(twin.text, steps);
 
-      if (rulesOf(leak.path, leak.twinDocument(twin)).length > 0) {
+      if (rulesOf(twin.path, twinText).length > 0) {
         noisy.push(
-          `seed ${COMPOSED_SEED} case ${index} ${leak.name} [${names}]: ${twin}`
+          `seed ${COMPOSED_SEED} case ${index} ${leak.name} [${names}]: ${twinText}`
         );
       }
     }

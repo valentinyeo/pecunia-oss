@@ -5,7 +5,13 @@ import path from "node:path";
 
 import { Option, Schema } from "effect";
 
-import { decodeTaggedText, decodeText, squeezeText } from "./decoded-text.ts";
+import {
+  continueDecoding,
+  decodeUnquotedText,
+  quotePrintable,
+  removeTagMarkup,
+  squeezeText,
+} from "./decoded-text.ts";
 import type { DecodedText } from "./decoded-text.ts";
 
 const root = path.resolve(import.meta.dirname, "..");
@@ -226,9 +232,7 @@ const PAIR_WINDOW = 120;
 
 const PAIR_CONTEXT = 24;
 
-const BANK_WORD = /sort|account|accno|bank|iban|routing/u;
-
-const DIGIT_RUN = /[0-9]+/gu;
+const BANK_WORD = /sort|account|accno|bank|iban|routing/iu;
 
 const DATE_ANY =
   /[0-9]{4}[./-][0-9]{1,2}[./-][0-9]{1,2}|[0-9]{1,2}[./-][0-9]{1,2}[./-][0-9]{4}/gu;
@@ -299,7 +303,8 @@ const readsAsBlockScalarToken = (value: string) =>
 const blockScalarFindings = (
   filePath: string,
   lines: readonly string[],
-  allow: AllowList
+  allow: AllowList,
+  lineAt: (index: number) => number
 ): readonly PersonalDataFinding[] => {
   const findings: PersonalDataFinding[] = [];
 
@@ -332,7 +337,7 @@ const blockScalarFindings = (
       ) {
         findings.push({
           file: filePath,
-          line: cursor + 1,
+          line: lineAt(cursor) + 1,
           rule: "secret-block-scalar",
         });
       }
@@ -368,8 +373,16 @@ const ADVICE: Record<RuleId, string> = {
     "a token written on the indented line below its key. A block scalar keeps the value, and anyone can read this repository. Fix: read it from the environment with varlock, or use a made-up example value.",
 };
 
-const domainOf = (address: string) =>
-  address.slice(address.lastIndexOf("@") + 1).toLowerCase();
+const ADDRESS_NOISE = /[\u200B-\u200D\u2060\uFEFF]/gu;
+
+const readableAddress = (address: string) =>
+  address.replaceAll(ADDRESS_NOISE, "").normalize("NFKC").toLowerCase();
+
+const domainOf = (address: string) => {
+  const readable = readableAddress(address);
+
+  return readable.slice(readable.lastIndexOf("@") + 1);
+};
 
 const hasReservedDomain = (address: string) => {
   const domain = domainOf(address);
@@ -395,7 +408,7 @@ const allowsValue = (allow: AllowList, filePath: string, value: string) =>
   );
 
 const allowsEmail = (allow: AllowList, filePath: string, address: string) => {
-  const email = address.toLowerCase();
+  const email = readableAddress(address);
 
   return (
     hasReservedDomain(email) ||
@@ -486,7 +499,7 @@ const viewSource = (
   text: string,
   view: DecodedText,
   parent?: string,
-  starts: readonly number[] = lineStartsOf(text.split("\n"))
+  starts: readonly number[] = lineStartsOf(linesOfText(text))
 ): TextSource => {
   const { offsets, origins } = view;
 
@@ -600,14 +613,21 @@ const SQUEEZED_IBAN_START = /(?=[a-z]{2}[0-9]{2})/gu;
 
 const LETTERS_ALL = /\p{L}/gu;
 
-const readsAsIbanLike = (value: string) =>
-  value.slice(4).replaceAll(LETTERS_ALL, "").length >= value.length - 10;
+const readsAsIbanLike = (value: string) => {
+  const body = value.slice(4);
+
+  return (
+    body.replaceAll(LETTERS_ALL, "").length >
+    body.replaceAll(/[^\p{L}]/gu, "").length
+  );
+};
 
 export const VIEW_IDS = [
   "raw",
   "readable",
   "squeezed",
   "squeezed-tagged",
+  "unquoted",
   "unwrapped",
 ] as const;
 
@@ -620,15 +640,24 @@ export interface GuardView {
 
 interface BuiltViews {
   readonly settled: boolean;
-  readonly views: Record<ViewId, GuardView>;
+  readonly view: (id: ViewId) => GuardView;
 }
 
 const buildViews = (text: string): BuiltViews => {
-  const unwrapped = decodeText(text);
+  const unquoted = decodeUnquotedText(text);
 
-  const readable = decodeTaggedText(text);
+  const quoted = quotePrintable(unquoted.text);
 
-  const starts = lineStartsOf(text.split("\n"));
+  const readable =
+    quoted.text === unquoted.text.text ? unquoted : continueDecoding(quoted);
+
+  const unwrapped = continueDecoding(removeTagMarkup(readable.text));
+
+  const starts = lineStartsOf(linesOfText(text));
+
+  const sources = new Map<ViewId, TextSource>();
+
+  const raw: TextSource = viewSource(text, { text }, undefined, starts);
 
   const viewsReadable = viewSource(text, readable.text, undefined, starts);
 
@@ -639,39 +668,73 @@ const buildViews = (text: string): BuiltViews => {
     starts
   );
 
+  sources.set("raw", raw);
+
+  sources.set("readable", viewsReadable);
+
+  sources.set(
+    "unquoted",
+    unquoted.text.text === readable.text.text
+      ? viewsReadable
+      : viewSource(text, unquoted.text, undefined, starts)
+  );
+
+  sources.set("squeezed", squeezed);
+
+  sources.set(
+    "squeezed-tagged",
+    readable.text.text === unwrapped.text.text
+      ? squeezed
+      : viewSource(text, squeezeText(readable.text), readable.text.text, starts)
+  );
+
+  sources.set(
+    "unwrapped",
+    readable.text.text === unwrapped.text.text
+      ? viewsReadable
+      : viewSource(text, unwrapped.text, undefined, starts)
+  );
+
   return {
-    settled: readable.settled && unwrapped.settled,
-    views: {
-      raw: { id: "raw", source: viewSource(text, { text }, undefined, starts) },
-      readable: {
-        id: "readable",
-        source: viewsReadable,
-      },
-      squeezed: { id: "squeezed", source: squeezed },
-      "squeezed-tagged": {
-        id: "squeezed-tagged",
-        source:
-          readable.text.text === unwrapped.text.text
-            ? squeezed
-            : viewSource(
-                text,
-                squeezeText(readable.text),
-                readable.text.text,
-                starts
-              ),
-      },
-      unwrapped: {
-        id: "unwrapped",
-        source:
-          readable.text.text === unwrapped.text.text
-            ? viewsReadable
-            : viewSource(text, unwrapped.text, undefined, starts),
-      },
-    },
+    settled: readable.settled && unquoted.settled && unwrapped.settled,
+    view: (id) => ({ id, source: sources.get(id) ?? raw }),
   };
 };
 
+const CARRIAGE_RETURN = /\r$/u;
+
+const linesOfText = (text: string) =>
+  text.split("\n").map((line) => line.replace(CARRIAGE_RETURN, ""));
+
 const LINE_CACHE = new WeakMap<GuardView, readonly string[]>();
+
+const LINE_START_CACHE = new WeakMap<GuardView, readonly number[]>();
+
+const lineStartsOfView = (view: GuardView): readonly number[] => {
+  if (view.source.text === view.source.raw) {
+    return view.source.lineStarts;
+  }
+
+  const cached = LINE_START_CACHE.get(view);
+
+  if (cached !== undefined) {
+    return cached;
+  }
+
+  const starts: number[] = [0];
+
+  let position = 0;
+
+  for (const line of linesOfText(view.source.text)) {
+    position += line.length + 1;
+
+    starts.push(position);
+  }
+
+  LINE_START_CACHE.set(view, starts);
+
+  return starts;
+};
 
 const linesOf = (view: GuardView) => {
   if (view.source.text === view.source.raw) {
@@ -684,7 +747,7 @@ const linesOf = (view: GuardView) => {
     return cached;
   }
 
-  const lines = view.source.text.split("\n");
+  const lines = linesOfText(view.source.text);
 
   LINE_CACHE.set(view, lines);
 
@@ -698,13 +761,65 @@ interface IbanSpans {
 
 const IBAN_CACHE = new WeakMap<GuardView, IbanSpans>();
 
+const UPPER_OFFSET = 32;
+
+const UPPER_LETTER_LOW = 65;
+
+const UPPER_LETTER_HIGH = 90;
+
+const LOWER_LETTER_LOW = 97;
+
+const asUpperCaseCode = (code: number) =>
+  code >= LOWER_LETTER_LOW && code <= LOWER_LETTER_LOW + 25
+    ? code - UPPER_OFFSET
+    : code;
+
+const readsAsUpperLetter = (code: number) =>
+  code >= UPPER_LETTER_LOW && code <= UPPER_LETTER_HIGH;
+
+const COUNTRY_GAP_LIMIT = 3;
+
+const readsAsCountryCode = (text: string, index: number) => {
+  const first = asUpperCaseCode(text.codePointAt(index) ?? 0);
+
+  if (!readsAsUpperLetter(first)) {
+    return false;
+  }
+
+  for (
+    let cursor = index + 1;
+    cursor <= index + 1 + COUNTRY_GAP_LIMIT;
+    cursor += 1
+  ) {
+    const character = text[cursor] ?? "";
+
+    const code = asUpperCaseCode(text.codePointAt(cursor) ?? 0);
+
+    if (readsAsUpperLetter(code)) {
+      return IBAN_LENGTHS.has(
+        `${String.fromCodePoint(first)}${String.fromCodePoint(code)}`
+      );
+    }
+
+    if (!IBAN_GAP.test(character)) {
+      return false;
+    }
+  }
+
+  return false;
+};
+
 const ibanStartsIn = (view: GuardView): readonly number[] => {
   const pattern = view.id.startsWith("squeezed")
     ? SQUEEZED_IBAN_START
     : IBAN_START;
 
   return [...view.source.text.matchAll(pattern)].flatMap((match) =>
-    match.index === undefined ? [] : [match.index]
+    match.index === undefined ||
+    (!view.id.startsWith("squeezed") &&
+      !readsAsCountryCode(view.source.text, match.index))
+      ? []
+      : [match.index]
   );
 };
 
@@ -745,6 +860,7 @@ const ibanSpansOf = (view: GuardView): IbanSpans => {
     found: spans.filter(
       (span) =>
         passesIbanChecksum(span.value) &&
+        readsAsIbanLike(span.value) &&
         (!squeezed || keepsEmphasisMarkup(view.source, span))
     ),
     suppressors: spans.filter(
@@ -773,25 +889,47 @@ interface BankAtoms {
   readonly sortCodes: readonly DigitRun[];
 }
 
-const BANK_GAP = /^[\s.\-\u2010-\u2015*_~`]*$/u;
+interface DigitGroup {
+  readonly digits: readonly number[];
+  readonly end: number;
+  readonly start: number;
+}
+
+const BANK_GAP = /^[\s.+\-\u2010-\u2015*_~`\u200B-\u200D\u2060\uFEFF]*$/u;
 
 const SORT_BOUNDARIES: readonly number[] = [2, 4];
 
 const ACCOUNT_BOUNDARIES: readonly number[] = [4];
 
+const LINE_BREAK = /[\n\r]/u;
+
+const DIGITS_WITH_GAPS =
+  /[0-9]+(?:[\s.+\-\u2010-\u2015*_~`\u200B-\u200D\u2060\uFEFF]*[0-9]+)*/gu;
+
+const gapBetween = (source: TextSource, left: number, right: number) =>
+  right === left + 1 ? source.gapAt(left) : source.text.slice(left + 1, right);
+
+const runsAsOneNumber = (source: TextSource, left: number, right: number) => {
+  const gap = gapBetween(source, left, right);
+
+  return BANK_GAP.test(gap) && !(right > left + 1 && LINE_BREAK.test(gap));
+};
+
 const readsAsBankNumber = (
   source: TextSource,
-  run: DigitRun,
+  digits: readonly number[],
   boundaries: readonly number[]
 ) => {
-  for (let position = run.start; position + 1 < run.end; position += 1) {
-    const gap = source.gapAt(position);
+  for (let index = 0; index + 1 < digits.length; index += 1) {
+    const gap = gapBetween(source, digits[index] ?? 0, digits[index + 1] ?? 0);
 
     if (!BANK_GAP.test(gap)) {
       return false;
     }
 
-    if (gap.length > 0 && !boundaries.includes(position - run.start + 1)) {
+    const visible = gap.replaceAll(FORMATTING_NOISE, "");
+
+    if (visible.length > 0 && !boundaries.includes(index + 1)) {
       return false;
     }
   }
@@ -799,95 +937,169 @@ const readsAsBankNumber = (
   return true;
 };
 
-const bankGroupsIn = (
+const groupOf = (digits: readonly number[]): DigitGroup => ({
+  digits,
+  end: (digits.at(-1) ?? 0) + 1,
+  start: digits[0] ?? 0,
+});
+
+const groupsIn = (
   source: TextSource,
-  run: DigitRun
-): readonly DigitRun[] => {
-  const groups: DigitRun[] = [];
+  span: DigitRun
+): readonly DigitGroup[] => {
+  const groups: DigitGroup[] = [];
 
-  const { gapAt } = source;
+  let digits: number[] = [];
 
-  let { start } = run;
+  let previous = -1;
 
-  for (let position = run.start; position + 1 < run.end; position += 1) {
-    if (BANK_GAP.test(gapAt(position))) {
+  for (let position = span.start; position < span.end; position += 1) {
+    if (!DIGIT.test(source.text[position] ?? "")) {
       continue;
     }
 
-    groups.push({ end: position + 1, start });
+    if (previous !== -1 && !runsAsOneNumber(source, previous, position)) {
+      groups.push(groupOf(digits));
 
-    start = position + 1;
+      digits = [];
+    }
+
+    digits.push(position);
+
+    previous = position;
   }
 
-  groups.push({ end: run.end, start });
+  if (digits.length > 0) {
+    groups.push(groupOf(digits));
+  }
 
   return groups;
 };
 
+const readsAsEscapedPayload = (source: TextSource, group: DigitGroup) =>
+  (source.text[group.start - 1] ?? "") === "%";
+
+const BASE64_CHARACTER = /[A-Za-z0-9+/]/u;
+
+const UPPER_CASE = /[A-Z]/u;
+
+const BASE64_TOKEN_MINIMUM = 16;
+
+const readsAsBase64Token = (source: TextSource, group: DigitGroup) => {
+  let from = group.start;
+
+  let left = 0;
+
+  while (
+    from > 0 &&
+    left < BASE64_TOKEN_MINIMUM &&
+    BASE64_CHARACTER.test(source.text[from - 1] ?? "")
+  ) {
+    from -= 1;
+
+    left += 1;
+  }
+
+  let to = group.end;
+
+  let right = 0;
+
+  while (
+    to < source.text.length &&
+    right < BASE64_TOKEN_MINIMUM &&
+    BASE64_CHARACTER.test(source.text[to] ?? "")
+  ) {
+    to += 1;
+
+    right += 1;
+  }
+
+  return (
+    left + (group.end - group.start) + right >= BASE64_TOKEN_MINIMUM &&
+    UPPER_CASE.test(source.text.slice(from, to))
+  );
+};
+
+const BANK_ATOM_CACHE = new WeakMap<TextSource, BankAtoms>();
+
 const bankAtomsOf = (source: TextSource): BankAtoms => {
+  const cached = BANK_ATOM_CACHE.get(source);
+
+  if (cached !== undefined) {
+    return cached;
+  }
+
+  const built = bankAtomsIn(source);
+
+  BANK_ATOM_CACHE.set(source, built);
+
+  return built;
+};
+
+const bankAtomsIn = (source: TextSource): BankAtoms => {
   const accounts: DigitRun[] = [];
 
   const sortCodes: DigitRun[] = [];
 
-  const collects = (group: DigitRun) => {
-    const length = group.end - group.start;
+  const collects = (group: DigitGroup) => {
+    const { digits } = group;
+
+    const { length } = digits;
+
+    if (
+      readsAsEscapedPayload(source, group) ||
+      readsAsBase64Token(source, group)
+    ) {
+      return;
+    }
 
     if (
       length === SORT_CODE_DIGITS &&
-      readsAsBankNumber(source, group, SORT_BOUNDARIES)
+      readsAsBankNumber(source, digits, SORT_BOUNDARIES)
     ) {
-      sortCodes.push(group);
+      sortCodes.push({ end: group.end, start: group.start });
     }
 
     if (
       length === ACCOUNT_DIGITS &&
-      readsAsBankNumber(source, group, ACCOUNT_BOUNDARIES)
+      readsAsBankNumber(source, digits, ACCOUNT_BOUNDARIES)
     ) {
-      accounts.push(group);
+      accounts.push({ end: group.end, start: group.start });
     }
 
     if (length !== PAIR_DIGITS) {
       return;
     }
 
-    const sortFirst = {
-      end: group.start + SORT_CODE_DIGITS,
-      start: group.start,
-    };
+    const sortFirst = digits.slice(0, SORT_CODE_DIGITS);
 
-    const accountLast = {
-      end: group.end,
-      start: group.start + SORT_CODE_DIGITS,
-    };
+    const accountLast = digits.slice(SORT_CODE_DIGITS);
 
-    const accountFirst = {
-      end: group.start + ACCOUNT_DIGITS,
-      start: group.start,
-    };
+    const accountFirst = digits.slice(0, ACCOUNT_DIGITS);
 
-    const sortLast = { end: group.end, start: group.start + ACCOUNT_DIGITS };
+    const sortLast = digits.slice(ACCOUNT_DIGITS);
 
     if (readsAsBankNumber(source, sortFirst, SORT_BOUNDARIES)) {
-      sortCodes.push(sortFirst);
+      sortCodes.push(groupOf(sortFirst));
     }
 
     if (readsAsBankNumber(source, accountLast, ACCOUNT_BOUNDARIES)) {
-      accounts.push(accountLast);
+      accounts.push(groupOf(accountLast));
     }
 
     if (readsAsBankNumber(source, accountFirst, ACCOUNT_BOUNDARIES)) {
-      accounts.push(accountFirst);
+      accounts.push(groupOf(accountFirst));
     }
 
     if (readsAsBankNumber(source, sortLast, SORT_BOUNDARIES)) {
-      sortCodes.push(sortLast);
+      sortCodes.push(groupOf(sortLast));
     }
   };
 
-  for (const match of source.text.matchAll(DIGIT_RUN)) {
+  for (const match of source.text.matchAll(DIGITS_WITH_GAPS)) {
     const start = match.index ?? 0;
 
-    for (const group of bankGroupsIn(source, {
+    for (const group of groupsIn(source, {
       end: start + match[0].length,
       start,
     })) {
@@ -909,6 +1121,142 @@ const overlaps = (run: DigitRun, spans: readonly DigitRun[]) =>
 const distanceBetween = (left: DigitRun, right: DigitRun) =>
   left.start >= right.end ? left.start - right.end : right.start - left.end;
 
+const RECORD_LIMIT = 2000;
+
+interface LineSpan {
+  readonly end: number;
+  readonly start: number;
+}
+
+const blockOf = (source: TextSource, position: number): LineSpan => {
+  const lines = rawLinesOf(source);
+
+  const index = source.lineAt(position);
+
+  const limit = source.lineStarts[index] ?? 0;
+
+  let start = index;
+
+  while (start > 0 && (lines[start - 1] ?? "").trim().length > 0) {
+    if (limit - (source.lineStarts[start - 1] ?? 0) > RECORD_LIMIT) {
+      break;
+    }
+
+    start -= 1;
+  }
+
+  const ceiling = limit + RECORD_LIMIT;
+
+  let end = index;
+
+  while (
+    end + 1 < lines.length &&
+    (lines[end + 1] ?? "").trim().length > 0 &&
+    (source.lineStarts[end + 1] ?? ceiling) <= ceiling
+  ) {
+    end += 1;
+  }
+
+  return { end, start };
+};
+
+const entryOf = (lines: readonly string[], index: number): LineSpan => {
+  const indent = indentOf(lines[index] ?? "");
+
+  let start = index;
+
+  for (let cursor = index - 1; cursor >= 0; cursor -= 1) {
+    const line = lines[cursor] ?? "";
+
+    if (line.trim().length === 0) {
+      break;
+    }
+
+    if (indentOf(line) < indent) {
+      start = cursor;
+
+      break;
+    }
+  }
+
+  const floor = indentOf(lines[start] ?? "");
+
+  let end = index;
+
+  for (let cursor = start + 1; cursor < lines.length; cursor += 1) {
+    const line = lines[cursor] ?? "";
+
+    if (line.trim().length === 0 || indentOf(line) <= floor) {
+      break;
+    }
+
+    end = cursor;
+  }
+
+  return { end, start };
+};
+
+const sameRecord = (source: TextSource, left: DigitRun, right: DigitRun) => {
+  if (distanceBetween(left, right) > RECORD_LIMIT) {
+    return false;
+  }
+
+  const leftLine = source.lineAt(left.start);
+
+  const rightLine = source.lineAt(right.start);
+
+  if (leftLine === rightLine) {
+    return true;
+  }
+
+  const lines = rawLinesOf(source);
+
+  const leftEntry = entryOf(lines, leftLine);
+
+  const rightEntry = entryOf(lines, rightLine);
+
+  if (
+    leftEntry.start === rightEntry.start &&
+    leftEntry.end === rightEntry.end
+  ) {
+    return true;
+  }
+
+  const block = blockOf(source, left.start);
+
+  return block.start <= rightLine && rightLine <= block.end;
+};
+
+const readsAsCsvRecord = (source: TextSource, position: number) => {
+  const { text } = source;
+
+  let from = position;
+
+  while (from > 0 && text[from - 1] !== "\n") {
+    from -= 1;
+  }
+
+  let to = position;
+
+  while (to < text.length && text[to] !== "\n") {
+    to += 1;
+  }
+
+  const row = text.slice(from, to).replace(CARRIAGE_RETURN, "");
+
+  const headerEnd = text.indexOf("\n");
+
+  const header = text.slice(0, headerEnd === -1 ? text.length : headerEnd);
+
+  return (
+    csvSpans(row).length > 2 &&
+    BANK_WORD.test(header) &&
+    row.length <= RECORD_LIMIT
+  );
+};
+
+const FORMATTING_NOISE = /[\u200B-\u200D\u2060\uFEFF]/gu;
+
 const nearestContext = (text: string, runs: readonly DigitRun[]) => {
   const first = Math.max(
     0,
@@ -920,7 +1268,7 @@ const nearestContext = (text: string, runs: readonly DigitRun[]) => {
     Math.max(...runs.map((run) => run.end)) + PAIR_CONTEXT
   );
 
-  return text.slice(first, last);
+  return text.slice(first, last).replaceAll(FORMATTING_NOISE, "");
 };
 
 const csvSpans = (line: string): readonly DigitRun[] => {
@@ -967,7 +1315,7 @@ const rawLinesOf = (source: TextSource) => {
     return cached;
   }
 
-  const lines = source.raw.split("\n");
+  const lines = linesOfText(source.raw);
 
   RAW_LINES.set(source, lines);
 
@@ -1084,13 +1432,13 @@ const ibanRule = ({ allow, filePath, view }: RuleContext) =>
   );
 
 const partOfDateOrClock = (source: TextSource, run: DigitRun) => {
-  const from = source.rawStartOf(run.start);
+  const from = run.start;
 
-  const to = source.rawEndOf(run.end);
+  const to = run.end;
 
-  const window = source.raw.slice(
+  const window = source.text.slice(
     Math.max(0, from - DATE_WINDOW),
-    Math.min(source.raw.length, to + DATE_WINDOW)
+    Math.min(source.text.length, to + DATE_WINDOW)
   );
 
   const windowStart = Math.max(0, from - DATE_WINDOW);
@@ -1135,10 +1483,13 @@ const bankRule = ({ allow, filePath, view }: RuleContext) => {
     }
 
     const paired = accounts.some((account) => {
-      if (
-        overlaps(rawRun(source, account), ibans) ||
-        distanceBetween(sortCode, account) > PAIR_WINDOW
-      ) {
+      if (overlaps(rawRun(source, account), ibans)) {
+        return false;
+      }
+
+      const near = distanceBetween(sortCode, account) <= PAIR_WINDOW;
+
+      if (!near && !sameRecord(source, sortCode, account)) {
         return false;
       }
 
@@ -1156,13 +1507,42 @@ const bankRule = ({ allow, filePath, view }: RuleContext) => {
         return false;
       }
 
-      return BANK_WORD.test(nearestContext(source.text, [sortCode, account]));
+      return (
+        BANK_WORD.test(nearestContext(source.text, [sortCode, account])) ||
+        (!near && readsAsCsvRecord(source, sortCode.start))
+      );
     });
 
     return paired
       ? [found(filePath, "bank-account", source.lineAt(sortCode.start) + 1)]
       : [];
   });
+};
+
+const FORMAT_CHARACTER = /[\u200B-\u200D\u2060\uFEFF]/u;
+
+const ADDRESS_TAIL = /[\p{L}\p{M}\p{N}.-]/u;
+
+const joinedAddress = (text: string, start: number, length: number) => {
+  let cursor = start + length;
+
+  for (;;) {
+    let next = cursor;
+
+    while (next < text.length && FORMAT_CHARACTER.test(text[next] ?? "")) {
+      next += 1;
+    }
+
+    if (next === cursor) {
+      return text.slice(start, cursor);
+    }
+
+    while (next < text.length && ADDRESS_TAIL.test(text[next] ?? "")) {
+      next += 1;
+    }
+
+    cursor = next;
+  }
 };
 
 const emailRule = ({ allow, filePath, view }: RuleContext) => {
@@ -1175,37 +1555,59 @@ const emailRule = ({ allow, filePath, view }: RuleContext) => {
   return [...text.matchAll(EMAIL)].flatMap((match) => {
     const [address] = match;
 
-    if (address === undefined || allowsEmail(allow, filePath, address)) {
+    const start = match.index ?? 0;
+
+    if (address === undefined) {
       return [];
     }
 
-    return [found(filePath, "email", view.source.lineAt(match.index ?? 0) + 1)];
-  });
-};
-
-const hostnameRule = ({ allow, filePath, view }: RuleContext) =>
-  [...view.source.text.matchAll(CLOUDFLARE_HOSTNAME)].flatMap((match) => {
-    const [hostname] = match;
-
     if (
-      hostname === undefined ||
-      isExampleHostname(hostname) ||
-      allowsValue(allow, filePath, hostname)
+      allowsEmail(allow, filePath, address) ||
+      allowsEmail(allow, filePath, joinedAddress(text, start, address.length))
     ) {
       return [];
     }
 
-    return [
-      found(
-        filePath,
-        "cloudflare-hostname",
-        view.source.lineAt(match.index ?? 0) + 1
-      ),
-    ];
+    return [found(filePath, "email", view.source.lineAt(start) + 1)];
   });
+};
+
+const CLOUDFLARE_HOSTNAME_SUFFIX =
+  /pages\.dev|workers\.dev|cloudflareaccess\.com/iu;
+
+const hostnameRule = ({ allow, filePath, view }: RuleContext) =>
+  CLOUDFLARE_HOSTNAME_SUFFIX.test(view.source.text)
+    ? [...view.source.text.matchAll(CLOUDFLARE_HOSTNAME)].flatMap((match) => {
+        const [hostname] = match;
+
+        if (
+          hostname === undefined ||
+          isExampleHostname(hostname) ||
+          allowsValue(allow, filePath, hostname)
+        ) {
+          return [];
+        }
+
+        return [
+          found(
+            filePath,
+            "cloudflare-hostname",
+            view.source.lineAt(match.index ?? 0) + 1
+          ),
+        ];
+      })
+    : [];
+
+const CLOUDFLARE_ACCOUNT_ID_TEXT = /[0-9a-f]{32}/iu;
 
 const accountIdRule = ({ allow, filePath, view }: RuleContext) => {
+  if (!CLOUDFLARE_ACCOUNT_ID_TEXT.test(view.source.text)) {
+    return [];
+  }
+
   const lines = linesOf(view);
+
+  const starts = lineStartsOfView(view);
 
   return lines.flatMap((line, index) => {
     if (!isConfigFile(filePath) && !namesAccount(lines, index, line)) {
@@ -1219,13 +1621,28 @@ const accountIdRule = ({ allow, filePath, view }: RuleContext) => {
         return [];
       }
 
-      return [found(filePath, "cloudflare-account-id", index + 1)];
+      return [
+        found(
+          filePath,
+          "cloudflare-account-id",
+          view.source.lineAt((starts[index] ?? 0) + (match.index ?? 0)) + 1
+        ),
+      ];
     });
   });
 };
 
-const blockScalarRule = ({ allow, filePath, view }: RuleContext) =>
-  blockScalarFindings(filePath, linesOf(view), allow);
+const blockScalarRule = ({ allow, filePath, view }: RuleContext) => {
+  if (!SECRET_WORD.test(view.source.text)) {
+    return [];
+  }
+
+  const starts = lineStartsOfView(view);
+
+  return blockScalarFindings(filePath, linesOf(view), allow, (index) =>
+    view.source.lineAt(starts[index] ?? 0)
+  );
+};
 
 const RULES: Record<
   RuleId,
@@ -1259,11 +1676,8 @@ const cell = (reason: string): MatrixCell => ({ applies: true, reason });
 
 const skipped = (reason: string): MatrixCell => ({ applies: false, reason });
 
-const PLAIN_TEXT_KEPT =
-  "the view holds this text with every encoding undone, so anything written plainly is still readable";
-
-const SQUEEZED_ORDER =
-  "the squeezed view keeps every digit and letter in order and removes only formatting, so a value read here is read there";
+const RAW_ALWAYS =
+  "a decode step adds a view and never replaces this one, and decoding can shorten a value, so the text as written is read by every rule";
 
 const NAME_LOST =
   "squeezing joins words, so no label can sit beside the value it names";
@@ -1281,13 +1695,20 @@ export const PERSONAL_DATA_MATRIX: Record<
   Record<ViewId, MatrixCell>
 > = {
   "bank-account": {
-    raw: skipped(SQUEEZED_ORDER),
-    readable: skipped(SQUEEZED_ORDER),
+    raw: cell(RAW_ALWAYS),
+    readable: cell(
+      "an encoded sort code or account number only reads as one once undone"
+    ),
     squeezed: cell(
       "formatting includes dates, labels and emphasis between the pair, and squeezing keeps both numbers while dropping that filler"
     ),
     "squeezed-tagged": cell(SQUEEZED_TAGGED_ONLY),
-    unwrapped: skipped(SQUEEZED_ORDER),
+    unquoted: cell(
+      "the same text read without the quoted-printable step, so a decoded layer is not eaten by a wrong guess about an equals sign"
+    ),
+    unwrapped: cell(
+      "markup between a sort code and its account number is formatting, and the pair survives its removal"
+    ),
   },
   "cloudflare-account-id": {
     raw: cell(
@@ -1298,6 +1719,9 @@ export const PERSONAL_DATA_MATRIX: Record<
     ),
     squeezed: skipped(NAME_LOST),
     "squeezed-tagged": skipped(NAME_LOST),
+    unquoted: cell(
+      "the same text read without the quoted-printable step, so an id written in a decoded layer is still read"
+    ),
     unwrapped: cell(
       "markup between a label and its id hides the pair from the readable view"
     ),
@@ -1309,6 +1733,9 @@ export const PERSONAL_DATA_MATRIX: Record<
     ),
     squeezed: skipped("squeezing drops the dots a hostname needs"),
     "squeezed-tagged": skipped("squeezing drops the dots a hostname needs"),
+    unquoted: cell(
+      "the same text read without the quoted-printable step, so a hostname in a decoded layer is still read"
+    ),
     unwrapped: cell("markup inside a hostname hides it from the readable view"),
   },
   "decode-did-not-settle": {
@@ -1318,19 +1745,23 @@ export const PERSONAL_DATA_MATRIX: Record<
     readable: skipped(HIDDEN_ONLY),
     squeezed: skipped(HIDDEN_ONLY),
     "squeezed-tagged": skipped(HIDDEN_ONLY),
+    unquoted: skipped(HIDDEN_ONLY),
     unwrapped: skipped(HIDDEN_ONLY),
   },
   email: {
-    raw: skipped(PLAIN_TEXT_KEPT),
+    raw: cell(RAW_ALWAYS),
     readable: cell(
       "an address written through an encoding only reads once undone"
     ),
     squeezed: skipped("squeezing drops the at sign an address needs"),
     "squeezed-tagged": skipped("squeezing drops the at sign an address needs"),
+    unquoted: cell(
+      "the same text read without the quoted-printable step, so a decoded layer is not eaten by a wrong guess about an equals sign"
+    ),
     unwrapped: cell("markup around an address hides it from the readable view"),
   },
   iban: {
-    raw: skipped(PLAIN_TEXT_KEPT),
+    raw: cell(RAW_ALWAYS),
     readable: cell(
       "an IBAN split by an encoding or by markup reads as one IBAN here"
     ),
@@ -1338,6 +1769,9 @@ export const PERSONAL_DATA_MATRIX: Record<
       "emphasis markers inside an IBAN are formatting, and squeezing drops them"
     ),
     "squeezed-tagged": skipped(MARKUP_GONE),
+    unquoted: cell(
+      "the same text read without the quoted-printable step, so a decoded layer is not eaten by a wrong guess about an equals sign"
+    ),
     unwrapped: cell("markup inside an IBAN hides it from the readable view"),
   },
   "secret-block-scalar": {
@@ -1346,6 +1780,9 @@ export const PERSONAL_DATA_MATRIX: Record<
     squeezed: skipped("squeezing drops the indentation a block scalar needs"),
     "squeezed-tagged": skipped(
       "squeezing drops the indentation a block scalar needs"
+    ),
+    unquoted: cell(
+      "the same text read without the quoted-printable step, so an encoded value under a key is still read"
     ),
     unwrapped: cell("markup between a key and its value hides the pair"),
   },
@@ -1373,7 +1810,7 @@ export const findPersonalData = (
     return [];
   }
 
-  const { settled, views } = buildViews(text);
+  const { settled, view } = buildViews(text);
 
   const findings: PersonalDataFinding[] = [];
 
@@ -1385,14 +1822,16 @@ export const findPersonalData = (
         continue;
       }
 
-      if (scanned.has(views[viewId].source)) {
+      const guarded = view(viewId);
+
+      if (scanned.has(guarded.source)) {
         continue;
       }
 
-      scanned.add(views[viewId].source);
+      scanned.add(guarded.source);
 
       findings.push(
-        ...RULES[rule]({ allow, filePath, settled, text, view: views[viewId] })
+        ...RULES[rule]({ allow, filePath, settled, text, view: guarded })
       );
     }
   }
