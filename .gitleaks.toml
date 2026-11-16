@@ -60,20 +60,21 @@ keywords = ["token", "secret", "key", "password"]
 
 # The crash tests plant a made-up JWT to prove that crash traces redact credentials. It is a
 # fixture, not a token: the header decodes to {"alg":"HS256"} and the signature is a placeholder.
-# The allowlist matches that exact token and nothing longer, so extending the signature or adding a
-# second JWT on the same line is still reported.
+# The rule ends the token at any character a JWT can contain, so punctuation after it still reports,
+# and the allowlist compares that exact secret, so no second token and no longer token is excused.
 [[rules]]
 id = "jwt"
 description = "Uncovered a JSON Web Token, which may lead to unauthorized access to web applications and sensitive user data."
-regex = '''\b(ey[a-zA-Z0-9]{17,}\.ey[a-zA-Z0-9\/\\_-]{17,}\.(?:[a-zA-Z0-9\/\\_-]{10,}={0,2})?)(?:[\x60'"\s;]|\\[nr]|$)'''
+regex = '''\b(ey[a-zA-Z0-9]{17,}\.ey[a-zA-Z0-9\/\\_-]{17,}\.(?:[a-zA-Z0-9\/\\_-]{10,}={0,2})?)(?:[^a-zA-Z0-9\/\\_]|$)'''
+secretGroup = 1
 entropy = 3
 keywords = ["ey"]
 [[rules.allowlists]]
 description = "The planted fixture JWT in the crash redaction tests"
 condition = "AND"
-regexTarget = "match"
+regexTarget = "secret"
 regexes = [
-  '''^eyJhbGciOiJIUzI1NiJ9\.eyJzdWIiOiIxMjM0NTY3ODkwIn0\.signatureValue(?:[\x60'"\s;]|\\[nr])?$''',
+  '''^eyJhbGciOiJIUzI1NiJ9\.eyJzdWIiOiIxMjM0NTY3ODkwIn0\.signatureValue$''',
 ]
 
 [allowlist]

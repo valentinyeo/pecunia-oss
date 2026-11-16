@@ -149,6 +149,22 @@ describe.runIf(available)("the gitleaks rules", () => {
     expect(ruleIds("note.md", `pinned at owner/repo#${pinnedSha}`)).toEqual([]);
   });
 
+  it("reports a second JWT in parentheses", () => {
+    expect(ruleIds("note.md", `fixture ${fixtureJwt} (${otherJwt})`)).toContain(
+      "jwt"
+    );
+  });
+
+  it("reports a second JWT ending a comma separated list", () => {
+    expect(ruleIds("note.md", `tokens: ${fixtureJwt}, ${otherJwt},`)).toContain(
+      "jwt"
+    );
+  });
+
+  it("passes the fixture JWT inside parentheses", () => {
+    expect(ruleIds("note.md", `fixture (${fixtureJwt})`)).toEqual([]);
+  });
+
   it("reports a bare forty character value outside a commit place", () => {
     expect(ruleIds("note.md", `sourcegraph digest ${commitSha}`)).toContain(
       "sourcegraph-access-token"
