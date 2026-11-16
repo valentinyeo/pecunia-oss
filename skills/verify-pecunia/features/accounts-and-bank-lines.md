@@ -55,11 +55,13 @@ Checks this drive runs, on top of the five cross-cutting checks:
 - `sync-rejections-match-count`: the failed run's `rejected` counter equals its quarantine rows.
 - `import-targets-listed`: `Demo Bank` is the import target for `Example Ltd`, kind `bank`, base currency EUR, provider `Wise`.
 - `import-writes-every-line`: the demo CSV imports five lines with nothing rejected.
-- `import-stores-every-line`: reading the ledger back through `ImportLedger.storedLines` finds every field of the same five rows the demo CSV names: date, amount, currency, description, reference, fingerprint.
+- `import-stores-every-line`: reading the ledger back through `ImportLedger.storedLines` right after the first import finds every field of the same five rows the demo CSV names: date, amount, currency, description, reference, fingerprint.
 - `import-replay-adds-nothing`: importing the same file again imports zero rows and reports five already imported.
 - `import-replay-stores-nothing`: after the replay the ledger still reads back the same five full rows.
 - `import-names-a-rejected-line`: a file with one good line and one bad date imports one row, rejects one, and names `bad-date`.
+- `import-rejected-line-stores-once`: reading the ledger back after the broken import finds the five rows plus the one good line, and nothing from the bad-date row.
 - `import-refuses-unknown-account`: an account the profile does not hold fails with `ImportAccountNotFound`.
+- `import-unknown-account-stores-nothing`: reading the ledger back after the refused import finds the same six rows, so the failure wrote nothing.
 
 The three bank-line capabilities have their own steps, so a run that skips one is a failed proof by name:
 
@@ -69,11 +71,14 @@ The three bank-line capabilities have their own steps, so a run that skips one i
 - `bank-line-list-pages-without-repeats`: two pages of 5 lines share no line.
 - `bank-line-edit-sets-category-and-note`: an edit writes the category and the note.
 - `bank-line-edit-stores-category-and-note`: `listBankLines` reads back every field of all 12 lines, and the edited line carries the new category and note.
+- `bank-line-edit-unknown-line-stores-nothing`: reading the lines back after the refused edit of a missing line finds the same 12 rows.
+- `bank-line-edit-foreign-category-stores-nothing`: reading the lines back after the refused foreign category finds the same 12 rows.
 - `bank-line-edit-keeps-the-line-in-its-profile`: the edit returns the same line in the same profile.
 - `bank-line-edit-refuses-an-unknown-line`: an edit of a missing line fails with `UnknownBankLine`.
 - `bank-line-edit-refuses-a-foreign-category`: an edit to a category outside the profile fails with `UnknownCategory`.
 - `bank-line-review-marks-the-line`: a review returns the line with a recorded review time.
 - `bank-line-review-shows-in-the-list`: `listBankLines` reads back every field of all 12 lines, and the reviewed line carries the review mark at the drive's fixed clock.
+- `bank-line-review-viewer-stores-nothing`: reading the lines back after the refused viewer review finds the same 12 rows.
 - `bank-line-review-refuses-a-viewer`: a read-only member cannot review a line and gets `Forbidden`.
 
 Read a failure with `jq '.checks[] | select(.passed | not)' skills/verify-pecunia/evidence/<date>-<label>/proof.json`.

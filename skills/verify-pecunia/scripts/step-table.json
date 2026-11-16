@@ -73,75 +73,33 @@
       "generic",
       "categories-and-rules"
     ],
-    "dashboard-sums": [
-      "seed",
-      "feature-map",
-      "generic",
-      "dashboard-sums"
-    ],
-    "subscriptions": [
-      "seed",
-      "feature-map",
-      "generic",
-      "subscriptions"
-    ],
-    "investments": [
-      "seed",
-      "feature-map",
-      "generic",
-      "investments"
-    ],
-    "fx-conversion": [
-      "seed",
-      "feature-map",
-      "generic",
-      "fx-conversion"
-    ],
-    "tax": [
-      "seed",
-      "feature-map",
-      "generic",
-      "tax"
-    ],
-    "invoices": [
-      "seed",
-      "feature-map",
-      "generic",
-      "invoices"
-    ]
+    "dashboard-sums": ["seed", "feature-map", "generic", "dashboard-sums"],
+    "subscriptions": ["seed", "feature-map", "generic", "subscriptions"],
+    "investments": ["seed", "feature-map", "generic", "investments"],
+    "fx-conversion": ["seed", "feature-map", "generic", "fx-conversion"],
+    "tax": ["seed", "feature-map", "generic", "tax"],
+    "invoices": ["seed", "feature-map", "generic", "invoices"]
   },
   "steps": [
     {
       "id": "seed",
-      "commands": [
-        "seed"
-      ],
-      "outputs": [
-        "seed-log",
-        "demo-book"
-      ],
+      "commands": ["seed"],
+      "outputs": ["seed-log", "demo-book"],
       "artifacts": [],
       "capabilities": [],
       "expectations": []
     },
     {
       "id": "build",
-      "commands": [
-        "build-import",
-        "build-lines"
-      ],
-      "outputs": [
-        "build-log"
-      ],
+      "commands": ["build-import", "build-lines"],
+      "outputs": ["build-log"],
       "artifacts": [],
       "capabilities": [],
       "expectations": []
     },
     {
       "id": "feature-map",
-      "commands": [
-        "map"
-      ],
+      "commands": ["map"],
       "outputs": [],
       "artifacts": [],
       "capabilities": [],
@@ -179,17 +137,10 @@
     },
     {
       "id": "accounts-and-bank-lines",
-      "commands": [
-        "bank-import"
-      ],
+      "commands": ["bank-import"],
       "outputs": [],
-      "artifacts": [
-        "bank-import-drive.json"
-      ],
-      "capabilities": [
-        "listImportTargets",
-        "importBankFile"
-      ],
+      "artifacts": ["bank-import-drive.json"],
+      "capabilities": ["listImportTargets", "importBankFile"],
       "writes": true,
       "expectations": [
         {
@@ -251,26 +202,30 @@
           "equalsDemoNumber": "importRejectedLine"
         },
         {
+          "id": "import-rejected-line-stores-once",
+          "readback": true,
+          "readOperation": "storedLines",
+          "equalsRecords": "importBrokenLines"
+        },
+        {
           "id": "import-refuses-unknown-account",
           "equalsDemoNumber": "importUnknownAccount"
+        },
+        {
+          "id": "import-unknown-account-stores-nothing",
+          "readback": true,
+          "readOperation": "storedLines",
+          "equalsRecords": "importBrokenLines"
         }
       ],
-      "writeOperations": [
-        "importBankFile"
-      ]
+      "writeOperations": ["importBankFile"]
     },
     {
       "id": "bank-line-list",
-      "commands": [
-        "bank-line-list"
-      ],
+      "commands": ["bank-line-list"],
       "outputs": [],
-      "artifacts": [
-        "bank-line-list-drive.json"
-      ],
-      "capabilities": [
-        "listBankLines"
-      ],
+      "artifacts": ["bank-line-list-drive.json"],
+      "capabilities": ["listBankLines"],
       "expectations": [
         {
           "id": "bank-line-list-returns-the-demo-book",
@@ -293,16 +248,10 @@
     },
     {
       "id": "bank-line-edit",
-      "commands": [
-        "bank-line-edit"
-      ],
+      "commands": ["bank-line-edit"],
       "outputs": [],
-      "artifacts": [
-        "bank-line-edit-drive.json"
-      ],
-      "capabilities": [
-        "editBankLine"
-      ],
+      "artifacts": ["bank-line-edit-drive.json"],
+      "capabilities": ["editBankLine"],
       "writes": true,
       "expectations": [
         {
@@ -312,6 +261,18 @@
         },
         {
           "id": "bank-line-edit-stores-category-and-note",
+          "readback": true,
+          "readOperation": "listBankLines",
+          "equalsRecords": "editStoredLines"
+        },
+        {
+          "id": "bank-line-edit-unknown-line-stores-nothing",
+          "readback": true,
+          "readOperation": "listBankLines",
+          "equalsRecords": "editStoredLines"
+        },
+        {
+          "id": "bank-line-edit-foreign-category-stores-nothing",
           "readback": true,
           "readOperation": "listBankLines",
           "equalsRecords": "editStoredLines"
@@ -329,22 +290,14 @@
           "equals": "UnknownCategory"
         }
       ],
-      "writeOperations": [
-        "editBankLine"
-      ]
+      "writeOperations": ["editBankLine"]
     },
     {
       "id": "bank-line-review",
-      "commands": [
-        "bank-line-review"
-      ],
+      "commands": ["bank-line-review"],
       "outputs": [],
-      "artifacts": [
-        "bank-line-review-drive.json"
-      ],
-      "capabilities": [
-        "reviewBankLine"
-      ],
+      "artifacts": ["bank-line-review-drive.json"],
+      "capabilities": ["reviewBankLine"],
       "writes": true,
       "expectations": [
         {
@@ -359,13 +312,17 @@
           "equalsRecords": "reviewStoredLines"
         },
         {
+          "id": "bank-line-review-viewer-stores-nothing",
+          "readback": true,
+          "readOperation": "listBankLines",
+          "equalsRecords": "reviewStoredLines"
+        },
+        {
           "id": "bank-line-review-refuses-a-viewer",
           "equals": "Forbidden"
         }
       ],
-      "writeOperations": [
-        "reviewBankLine"
-      ]
+      "writeOperations": ["reviewBankLine"]
     },
     {
       "id": "categories-and-rules",
@@ -596,6 +553,56 @@
         "description": "Demo Cloud Hosting, monthly",
         "fingerprint": "csv-9f0ab9b845f92b8d8eefc1ba380e7e3035b4eb9602157290b8e7b8ba8d1ee81a",
         "reference": "DEMO-2026-0002"
+      },
+      {
+        "amountMinor": 3500,
+        "currency": "EUR",
+        "date": "2026-02-17",
+        "description": "Refund from Demo Design Tool",
+        "fingerprint": "csv-2bed9b6e42fe51830e3cc3dcd3a1d0c0a8bef7106e49a2140b816f16391a85d0",
+        "reference": "DEMO-2026-0005"
+      },
+      {
+        "amountMinor": 4250,
+        "currency": "EUR",
+        "date": "2026-01-12",
+        "description": "Demo Coffee",
+        "fingerprint": "csv-2776d142c8af23c8a90b64b1fc00e39d80cced9f7836753966424607c85d8f8f",
+        "reference": ""
+      },
+      {
+        "amountMinor": 480000,
+        "currency": "EUR",
+        "date": "2026-01-06",
+        "description": "Invoice payment from Example Ltd",
+        "fingerprint": "csv-65fce43f1786bfb10b732417e2e523a41c5ca43403b5a2d07e1be8752d513c77",
+        "reference": "DEMO-2026-0001"
+      }
+    ],
+    "importBrokenLines": [
+      {
+        "amountMinor": -12000,
+        "currency": "EUR",
+        "date": "2026-02-03",
+        "description": "Demo Rail ticket",
+        "fingerprint": "csv-c98c919682c411243879183144f83dd048fcc0157861274dd116cff9e7588320",
+        "reference": "DEMO-2026-0004"
+      },
+      {
+        "amountMinor": -29900,
+        "currency": "EUR",
+        "date": "2026-01-09",
+        "description": "Demo Cloud Hosting, monthly",
+        "fingerprint": "csv-9f0ab9b845f92b8d8eefc1ba380e7e3035b4eb9602157290b8e7b8ba8d1ee81a",
+        "reference": "DEMO-2026-0002"
+      },
+      {
+        "amountMinor": -4500,
+        "currency": "EUR",
+        "date": "2026-03-02",
+        "description": "Demo Notebook",
+        "fingerprint": "csv-74235e706f8cdf7e157517cd3c4cec5de6cbeac113429e4f47f2fdd7e605b71d",
+        "reference": "DEMO-2026-0006"
       },
       {
         "amountMinor": 3500,

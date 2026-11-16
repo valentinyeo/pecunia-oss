@@ -10,6 +10,7 @@ import {
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
+import { DatabaseSync } from "node:sqlite";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 
@@ -183,7 +184,7 @@ const corruptRecords = (text, field) => {
 };
 
 const mutate = (records, random) => {
-  const kind = Math.floor(random() * 24);
+  const kind = Math.floor(random() * 25);
   const withObservations = observedRecords(records);
   const record = pick(random, withObservations);
   const observation = pick(random, record.observations);
@@ -581,6 +582,26 @@ const mutate = (records, random) => {
     };
   }
 
+  if (kind === 24) {
+    const repeated = records.filter(
+      (entry) => readbacksOf(stepsById.get(entry.step)).length > 1
+    );
+    const target = pick(random, repeated);
+    const first = readbacksOf(stepsById.get(target.step))[0];
+    const next = mutated(records);
+
+    next.find((entry) => entry.step === target.step).observations = next
+      .find((entry) => entry.step === target.step)
+      .observations.filter((entry) => entry.id !== first.id);
+
+    return {
+      cause: first.id,
+      records: next,
+      table,
+      pages: pageExpectations,
+    };
+  }
+
   assert.fail(`the mutation kind ${kind} has no case`);
 };
 
@@ -850,6 +871,125 @@ test("a discarding adapter fails through the stored-state readback", () => {
     assert.match(text, /bank-line-edit-stores-category-and-note/u);
   } finally {
     rmSync(path, { force: true });
+  }
+});
+
+test("a delayed-write adapter fails through the first-import readback", () => {
+  const source = readFileSync(
+    join(SCRIPT_DIR, "drive-bank-import.mjs"),
+    "utf8"
+  );
+  const layer = [
+    "const recorder = mutationRecorder();",
+    "const layer = Layer.mergeAll(",
+    "  countingLayer({",
+    "    layer: memoryImportLedgerLayer(targets),",
+  ].join("\n");
+  const delayed = [
+    "const recorder = mutationRecorder();",
+    "const delayedLayer = Layer.effect(",
+    "  ImportLedger,",
+    "  Effect.gen(function* makeDelayedLedger() {",
+    "    const inner = yield* ImportLedger;",
+    "    let held;",
+    "    let records = 0;",
+    "",
+    "    return {",
+    "      ...inner,",
+    "      record: (ledgerProfile, ledgerAccount, lines) =>",
+    "        Effect.suspend(() => {",
+    "          records += 1;",
+    "",
+    "          if (records === 1) {",
+    "            held = { accountId: ledgerAccount, lines, profileId: ledgerProfile };",
+    "",
+    "            return Effect.succeed({",
+    "              alreadyImported: 0,",
+    "              imported: lines.length,",
+    "            });",
+    "          }",
+    "",
+    "          const first = held;",
+    "",
+    "          held = undefined;",
+    "",
+    "          return Effect.flatMap(",
+    "            first === undefined",
+    "              ? Effect.void",
+    "              : inner.record(first.profileId, first.accountId, first.lines),",
+    "            () => inner.record(ledgerProfile, ledgerAccount, lines)",
+    "          );",
+    "        }),",
+    "    };",
+    "  })",
+    ").pipe(Layer.provide(memoryImportLedgerLayer(targets)));",
+    "const layer = Layer.mergeAll(",
+    "  countingLayer({",
+    "    layer: delayedLayer,",
+  ].join("\n");
+  const path = join(
+    SCRIPT_DIR,
+    `.check-mutant-${process.pid}-delayed-import.mjs`
+  );
+  const bookPath = join(
+    tmpdir(),
+    `pecunia-check-delayed-${process.pid}.sqlite`
+  );
+  const book = new DatabaseSync(bookPath);
+
+  assert.ok(source.includes(layer), "the import ledger layer is missing");
+
+  book.exec(
+    [
+      "CREATE TABLE profiles (id TEXT PRIMARY KEY, base_currency TEXT NOT NULL)",
+      "CREATE TABLE providers (id TEXT PRIMARY KEY, label TEXT NOT NULL)",
+      "CREATE TABLE provider_accounts (id TEXT PRIMARY KEY, profile_id TEXT NOT NULL, label TEXT NOT NULL, kind TEXT NOT NULL, provider_id TEXT NOT NULL, archived_at TEXT)",
+      "INSERT INTO profiles VALUES ('profile-demo', 'EUR')",
+      "INSERT INTO providers VALUES ('provider-wise', 'Wise')",
+      "INSERT INTO provider_accounts VALUES ('account-demo', 'profile-demo', 'Demo Bank', 'bank', 'provider-wise', NULL)",
+    ].join(";")
+  );
+  book.close();
+
+  try {
+    writeFileSync(path, source.replace(layer, delayed));
+
+    const drive = spawnSync("node", [path, "--database", bookPath], {
+      cwd: REPO_ROOT,
+      encoding: "utf8",
+    });
+
+    assert.equal(drive.status, 0, drive.stderr);
+
+    const { observations } = JSON.parse(drive.stdout);
+    const driveIds = new Set(observations.map((entry) => entry.id));
+    const records = passingRecords().map((record) =>
+      record.step === "accounts-and-bank-lines"
+        ? {
+            ...record,
+            observations: [
+              ...record.observations.filter((entry) => !driveIds.has(entry.id)),
+              ...observations,
+            ],
+          }
+        : record
+    );
+    const result = judgeRecords(records);
+    const text = result.failures.join("\n");
+    const first = result.expectations.find(
+      (expectation) => expectation.id === "import-stores-every-line"
+    );
+    const reply = result.expectations.find(
+      (expectation) => expectation.id === "import-writes-every-line"
+    );
+
+    assert.equal(reply?.passed, true, text);
+    assert.equal(result.passed, false, text);
+    assert.equal(first?.passed, false, text);
+    assert.match(text, /import-stores-every-line/u);
+  } finally {
+    rmSync(path, { force: true });
+    rmSync(bookPath, { force: true });
   }
 });
 

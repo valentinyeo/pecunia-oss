@@ -91,11 +91,11 @@ const observations = await Effect.runPromise(
     const imported = yield* importBankFile.handler(
       request(content, target.id, "demo-bank.csv")
     );
+    const storedFirst = yield* ImportLedger.use((ledger) =>
+      ledger.storedLines(profileId, target.id)
+    );
     const replayed = yield* importBankFile.handler(
       request(content, target.id, "demo-bank.csv")
-    );
-    const storedOnce = yield* ImportLedger.use((ledger) =>
-      ledger.storedLines(profileId, target.id)
     );
     const storedReplay = yield* ImportLedger.use((ledger) =>
       ledger.storedLines(profileId, target.id)
@@ -103,9 +103,15 @@ const observations = await Effect.runPromise(
     const broken = yield* importBankFile.handler(
       request(BROKEN_FILE, target.id, "demo-bank-broken.csv")
     );
+    const storedBroken = yield* ImportLedger.use((ledger) =>
+      ledger.storedLines(profileId, target.id)
+    );
     const unknown = yield* importBankFile
       .handler(request(content, UNKNOWN_ACCOUNT, "demo-bank.csv"))
       .pipe(Effect.result);
+    const storedUnknown = yield* ImportLedger.use((ledger) =>
+      ledger.storedLines(profileId, target.id)
+    );
     const first = listed[0];
 
     return {
@@ -121,7 +127,7 @@ const observations = await Effect.runPromise(
         {
           id: "import-stores-every-line",
           operation: "storedLines",
-          value: canonicalRecords(storedOnce),
+          value: canonicalRecords(storedFirst),
         },
         {
           id: "import-replay-adds-nothing",
@@ -137,8 +143,18 @@ const observations = await Effect.runPromise(
           value: `imported=${broken.imported} rejected=${broken.rejected.length} reason=${broken.rejected[0].reason}`,
         },
         {
+          id: "import-rejected-line-stores-once",
+          operation: "storedLines",
+          value: canonicalRecords(storedBroken),
+        },
+        {
           id: "import-refuses-unknown-account",
           value: unknown._tag === "Failure" ? unknown.failure._tag : "Imported",
+        },
+        {
+          id: "import-unknown-account-stores-nothing",
+          operation: "storedLines",
+          value: canonicalRecords(storedUnknown),
         },
       ],
     };

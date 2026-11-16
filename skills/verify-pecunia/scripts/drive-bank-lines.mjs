@@ -107,9 +107,6 @@ const request = ({
   search,
 });
 
-const runResult = (effect, layer) =>
-  Effect.runPromise(effect.pipe(Effect.result, Effect.provide(layer)));
-
 const failureTag = (result) =>
   result._tag === "Failure" ? result.failure._tag : "NoFailure";
 
@@ -123,7 +120,6 @@ const editRequest = ({ category, lineId, note }) => ({
 const reviewRequest = ({ lineId }) => ({ lineId, profileId: demoProfileId });
 
 const ownerLayer = layerFor(demoPerson);
-const viewerLayer = layerFor(viewerPerson);
 
 const listObservations = () =>
   Effect.runPromise(
@@ -188,6 +184,7 @@ const editObservations = () =>
           note: NoteChangeSchema.cases.Set.make({ text: writtenNote }),
         })
       );
+      const storedAfterEdit = yield* listBankLines.handler(request({}));
       const unknownLine = yield* editBankLine
         .handler(
           editRequest({
@@ -197,7 +194,7 @@ const editObservations = () =>
           })
         )
         .pipe(Effect.result);
-      const page = yield* listBankLines.handler(request({}));
+      const storedAfterUnknownLine = yield* listBankLines.handler(request({}));
       const unknownCategory = yield* editBankLine
         .handler(
           editRequest({
@@ -209,6 +206,9 @@ const editObservations = () =>
           })
         )
         .pipe(Effect.result);
+      const storedAfterForeignCategory = yield* listBankLines.handler(
+        request({})
+      );
 
       return {
         observations: [
@@ -219,7 +219,17 @@ const editObservations = () =>
           {
             id: "bank-line-edit-stores-category-and-note",
             operation: "listBankLines",
-            value: canonicalRecords(page.lines),
+            value: canonicalRecords(storedAfterEdit.lines),
+          },
+          {
+            id: "bank-line-edit-unknown-line-stores-nothing",
+            operation: "listBankLines",
+            value: canonicalRecords(storedAfterUnknownLine.lines),
+          },
+          {
+            id: "bank-line-edit-foreign-category-stores-nothing",
+            operation: "listBankLines",
+            value: canonicalRecords(storedAfterForeignCategory.lines),
           },
           {
             id: "bank-line-edit-keeps-the-line-in-its-profile",
@@ -251,24 +261,29 @@ const reviewObservations = async () => {
         const marked = yield* reviewBankLine.handler(
           reviewRequest({ lineId: target.id })
         );
-        const page = yield* listBankLines.handler(request({}));
+        const storedAfterReview = yield* listBankLines.handler(request({}));
+        const viewer = yield* reviewBankLine
+          .handler(reviewRequest({ lineId: target.id }))
+          .pipe(
+            Effect.provideService(CurrentPerson, viewerPerson),
+            Effect.result
+          );
+        const storedAfterViewer = yield* listBankLines.handler(request({}));
 
         return {
           at:
             marked.review._tag === "Reviewed" &&
             typeof marked.review.at === "number",
           lineId: marked.id,
-          lines: canonicalRecords(page.lines),
+          storedAfterReview: canonicalRecords(storedAfterReview.lines),
+          storedAfterViewer: canonicalRecords(storedAfterViewer.lines),
           tag: marked.review._tag,
+          viewer: failureTag(viewer),
         };
       }),
       Clock.Clock,
       fixedClock
     ).pipe(Effect.provide(ownerLayer))
-  );
-  const viewer = await runResult(
-    reviewBankLine.handler(reviewRequest({ lineId: target.id })),
-    viewerLayer
   );
 
   return {
@@ -280,9 +295,14 @@ const reviewObservations = async () => {
       {
         id: "bank-line-review-shows-in-the-list",
         operation: "listBankLines",
-        value: reviewed.lines,
+        value: reviewed.storedAfterReview,
       },
-      { id: "bank-line-review-refuses-a-viewer", value: failureTag(viewer) },
+      {
+        id: "bank-line-review-viewer-stores-nothing",
+        operation: "listBankLines",
+        value: reviewed.storedAfterViewer,
+      },
+      { id: "bank-line-review-refuses-a-viewer", value: reviewed.viewer },
     ],
   };
 };
