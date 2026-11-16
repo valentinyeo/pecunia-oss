@@ -2,6 +2,7 @@ import { Effect, Option, Schema } from "effect";
 
 import { ConversionOverflow } from "./conversion-overflow.js";
 import { CurrencyMismatch } from "./currency-mismatch.js";
+import { MoneyOverflow } from "./money-overflow.js";
 import type {
   BaseAmount,
   CurrencyCode,
@@ -20,6 +21,8 @@ import type { Rate } from "./rate.js";
 export { ConversionOverflow } from "./conversion-overflow.js";
 
 export { CurrencyMismatch } from "./currency-mismatch.js";
+
+export { MoneyOverflow } from "./money-overflow.js";
 
 export { RateUnavailable } from "./rate-unavailable.js";
 
@@ -108,21 +111,45 @@ const mismatch = (
 ): Effect.Effect<never, CurrencyMismatch> =>
   Effect.fail(new CurrencyMismatch({ left, right }));
 
+const combine = (
+  left: Money,
+  right: Money,
+  operation: "add" | "subtract"
+): Effect.Effect<Money, CurrencyMismatch | MoneyOverflow> => {
+  if (left.currency !== right.currency) {
+    return mismatch(left.currency, right.currency);
+  }
+
+  const total =
+    operation === "add"
+      ? BigInt(left.minor) + BigInt(right.minor)
+      : BigInt(left.minor) - BigInt(right.minor);
+
+  return Option.match(minorUnitsOf(total), {
+    onNone: () =>
+      Effect.fail(
+        new MoneyOverflow({
+          currency: left.currency,
+          left: left.minor,
+          operation,
+          right: right.minor,
+        })
+      ),
+    onSome: (minor) => Effect.succeed(moneyOf(left.currency, minor)),
+  });
+};
+
 export const addMoney = (
   left: Money,
   right: Money
-): Effect.Effect<Money, CurrencyMismatch> =>
-  left.currency === right.currency
-    ? Effect.succeed(moneyOf(left.currency, left.minor + right.minor))
-    : mismatch(left.currency, right.currency);
+): Effect.Effect<Money, CurrencyMismatch | MoneyOverflow> =>
+  combine(left, right, "add");
 
 export const subtractMoney = (
   left: Money,
   right: Money
-): Effect.Effect<Money, CurrencyMismatch> =>
-  left.currency === right.currency
-    ? Effect.succeed(moneyOf(left.currency, left.minor - right.minor))
-    : mismatch(left.currency, right.currency);
+): Effect.Effect<Money, CurrencyMismatch | MoneyOverflow> =>
+  combine(left, right, "subtract");
 
 export const convert = (
   money: Money,

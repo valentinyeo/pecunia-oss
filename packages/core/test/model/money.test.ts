@@ -1,8 +1,9 @@
 import { describe, expect, it } from "@effect/vitest";
-import { Effect, Option, Schema } from "effect";
+import { Effect, Option, Result, Schema } from "effect";
 import * as Arbitrary from "effect/Arbitrary";
 
 import { ConversionOverflow } from "../../src/model/conversion-overflow.js";
+import { MoneyOverflow } from "../../src/model/money-overflow.js";
 import {
   CurrencyMismatch,
   RateUnavailable,
@@ -42,6 +43,8 @@ const moneyOf = (code: string, minor: number) =>
   Schema.decodeSync(MoneySchema)({ currency: code, minor });
 
 const euro = (minor: number) => moneyOf("EUR", minor);
+
+const minorOf = (value: number) => euro(value).minor;
 
 const rateOf = (text: string) => Schema.decodeSync(RateSchema)(text);
 
@@ -109,6 +112,70 @@ describe("money arithmetic", () => {
 
         expect(difference).toStrictEqual(moneyOf(currency, left));
       })
+  );
+
+  it.effect(
+    "adding past the safe integer range fails with MoneyOverflow instead of throwing",
+    () =>
+      Effect.gen(function* overflowIsATypedFailure() {
+        const sum = yield* Effect.flip(
+          addMoney(euro(Number.MAX_SAFE_INTEGER), euro(1))
+        );
+
+        expect(sum).toStrictEqual(
+          new MoneyOverflow({
+            currency: euro(0).currency,
+            left: minorOf(Number.MAX_SAFE_INTEGER),
+            operation: "add",
+            right: minorOf(1),
+          })
+        );
+
+        const difference = yield* Effect.flip(
+          subtractMoney(euro(Number.MIN_SAFE_INTEGER), euro(1))
+        );
+
+        expect(difference).toStrictEqual(
+          new MoneyOverflow({
+            currency: euro(0).currency,
+            left: minorOf(Number.MIN_SAFE_INTEGER),
+            operation: "subtract",
+            right: minorOf(1),
+          })
+        );
+      })
+  );
+
+  it.effect.prop(
+    "arithmetic either lands on the exact sum or reports MoneyOverflow",
+    {
+      left: Arbitrary.schema(Schema.Int),
+      right: Arbitrary.schema(Schema.Int),
+    },
+    ({ left, right }) =>
+      Effect.gen(function* arithmeticStaysInRange() {
+        const sum = yield* Effect.result(addMoney(euro(left), euro(right)));
+        const expected = BigInt(left) + BigInt(right);
+
+        if (
+          expected < BigInt(Number.MIN_SAFE_INTEGER) ||
+          expected > BigInt(Number.MAX_SAFE_INTEGER)
+        ) {
+          expect(Result.isFailure(sum) && sum.failure).toStrictEqual(
+            new MoneyOverflow({
+              currency: euro(0).currency,
+              left: minorOf(left),
+              operation: "add",
+              right: minorOf(right),
+            })
+          );
+        } else {
+          expect(Result.isSuccess(sum) && sum.success).toStrictEqual(
+            euro(Number(expected))
+          );
+        }
+      }),
+    { arbitrary: { runs: 200 } }
   );
 
   it.effect.prop(

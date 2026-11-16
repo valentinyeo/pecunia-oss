@@ -63,6 +63,7 @@ export type { Rate } from "./rate.js";
 export {
   ConversionOverflow,
   CurrencyMismatch,
+  MoneyOverflow,
   RateUnavailable,
   addMoney,
   convert,
