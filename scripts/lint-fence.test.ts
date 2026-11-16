@@ -415,9 +415,7 @@ const isScannedSource = (file: string): boolean =>
   !ignoredScanPrefixes.some((prefix) => file.startsWith(prefix));
 
 const trackedSourceFiles = (): readonly string[] =>
-  execFileSync("git", ["ls-files", "-z"], { cwd: repoRoot, encoding: "utf-8" })
-    .split("\0")
-    .filter(isScannedSource);
+  trackedFiles().filter(isScannedSource);
 
 const trackedManifests = (): readonly string[] =>
   execFileSync("git", ["ls-files", "-z", "*package.json"], {
@@ -432,107 +430,219 @@ const scriptsOf = (file: string): Readonly<Record<string, string>> =>
     readFileSync(path.join(repoRoot, file), "utf-8")
   ).scripts ?? {};
 
-const oxlintFlagAllowlist = {
-  "--fix": "Fix scripts ask Oxlint to rewrite the findings it can repair.",
-  "--format":
-    "A script can print findings in the shape its log reader expects.",
-  "--type-aware":
-    "Type-aware rules only run when the command line asks for them.",
-} satisfies Readonly<Record<string, string>>;
+type ScriptAllowlist = Readonly<Record<string, string>>;
 
-const isAllowlistedOxlintFlag = (flag: string): boolean =>
-  Object.hasOwn(oxlintFlagAllowlist, flag);
+const scriptAllowlist = {
+  oxfmt:
+    "The bare formatter touches only the paths pnpm hands it, with no ignore flag of its own.",
+  "oxfmt --check":
+    "The format check reports every unformatted file and exits non-zero without writing.",
+  "ultracite check && oxfmt --check .":
+    "The lint script runs the whole Ultracite rule set over the tree, then proves formatting.",
+  "ultracite fix && oxfmt .":
+    "The fix script rewrites only what Ultracite and Oxfmt can repair, with every rule still on.",
+  "pnpm run lockfile:check && varlock load && turbo run typecheck typecheck-scripts && ultracite check && oxfmt --check .":
+    "The check script loads env values, typechecks, then lints and format-checks the tree before it reports success.",
+  "node apps/site/scripts/generate-content.ts --git-snapshot && oxfmt .brain/data/git-snapshot.json":
+    "The site build refreshes the git snapshot and formats that one generated file.",
+  "oxlint shared scripts exercises vitest.config.ts vitest.exercise.config.ts && oxfmt --check shared scripts exercises vitest.config.ts vitest.exercise.config.ts package.json tsconfig.json .oxlintrc.json .oxfmtrc.json .pi/settings.json README.md AGENTS.md CONTRIBUTING.md PROVENANCE.md":
+    "The starter example lints its own configs and docs, then format-checks the same paths.",
+  "oxfmt shared scripts exercises vitest.config.ts vitest.exercise.config.ts package.json tsconfig.json .oxlintrc.json .oxfmtrc.json .pi/settings.json README.md AGENTS.md CONTRIBUTING.md PROVENANCE.md":
+    "The starter example formats its own configs and docs with no path excluded.",
+  "pnpm typecheck && pnpm lint && pnpm test":
+    "The starter example runs typecheck, its own lint, then its tests, so the sample keeps the full gate.",
+  "node scripts/generate-content.ts":
+    "The site generate script runs the content build, which reads the debt-ledger config and cannot turn a repo rule off.",
+  "apps/site/scripts/generate-content.ts":
+    "The site content build runs Oxlint itself with the debt-ledger config, so it names the tool without weakening the repo fence.",
+} satisfies ScriptAllowlist;
 
-const shellOperators: ReadonlySet<string> = new Set([
-  "&&",
-  "||",
-  ";",
-  "|",
-  "&",
-  ">",
-  ">>",
-  "<",
-]);
+const lintWordPattern = /oxlint|ultracite|oxfmt|lint/iu;
 
-const shellTokens = (command: string): readonly string[] =>
+const lintToolPattern = /oxlint|ultracite|oxfmt/iu;
+
+const helperExtensions = [".sh", ".mjs", ".cjs", ".js", ".ts"] as const;
+
+const commandWords = (command: string): readonly string[] =>
   command
     .replaceAll(/["']/gu, " ")
     .split(/\s+/u)
     .filter((word) => word !== "");
 
-const isOxlintBinary = (word: string): boolean =>
-  word === "oxlint" || word.endsWith("/oxlint");
+interface ScriptSubject {
+  readonly file: string;
+  readonly name: string;
+  readonly body: string;
+}
 
-const isFlagWord = (word: string): boolean =>
-  word.startsWith("-") && word !== "-";
+interface ConfigCommand {
+  readonly file: string;
+  readonly command: string;
+}
 
-const invocationFlags = (
-  tokens: readonly string[],
-  start: number
-): readonly string[] => {
-  const flags: string[] = [];
+type HelperLookup = (helper: string) => string | undefined;
 
-  for (const word of tokens.slice(start)) {
-    if (word === "--" || shellOperators.has(word)) {
-      break;
-    }
+const mentionsLintTool = (text: string): boolean => lintToolPattern.test(text);
 
-    if (isFlagWord(word)) {
-      flags.push(word);
-    }
-  }
+const helperPathsIn = (subject: ScriptSubject): readonly string[] => [
+  ...new Set(
+    commandWords(subject.body)
+      .filter((word) =>
+        helperExtensions.some((extension) => word.endsWith(extension))
+      )
+      .map((word) =>
+        path.posix.normalize(
+          path.posix.join(path.posix.dirname(subject.file), word)
+        )
+      )
+      .filter((helper) => !helper.startsWith(".."))
+  ),
+];
 
-  return flags;
-};
-
-const flagNames = (word: string): readonly string[] => {
-  const name = word.replace(/[=].*$/u, "");
-
-  if (name.startsWith("--")) {
-    return [name];
-  }
-
-  const flags: string[] = [];
-
-  for (const letter of name.slice(1)) {
-    flags.push(`-${letter}`);
-  }
-
-  return flags;
-};
-
-const flagProblem = (
-  file: string,
-  name: string,
-  command: string,
-  flag: string
-): string =>
-  `${file} script "${name}" runs \`${command}\`, and oxlint flag ${flag} is not on the fence allowlist. Fix: add ${flag} to oxlintFlagAllowlist in scripts/lint-fence.test.ts with a reason for why it cannot hide a finding, or remove it from the script.`;
-
-const scriptFlagProblems = (
-  file: string,
-  scripts: Readonly<Record<string, string>>
+const lintHelpersIn = (
+  subject: ScriptSubject,
+  lookupHelper: HelperLookup
 ): readonly string[] =>
-  Object.entries(scripts).flatMap(([name, command]) => {
-    const tokens = shellTokens(command);
+  helperPathsIn(subject).filter((helper) => {
+    const source = lookupHelper(helper);
 
-    return tokens.flatMap((word, index) =>
-      isOxlintBinary(word)
-        ? invocationFlags(tokens, index + 1).flatMap((flagWord) =>
-            flagNames(flagWord).flatMap((flag) =>
-              isAllowlistedOxlintFlag(flag)
-                ? []
-                : [flagProblem(file, name, command, flag)]
-            )
-          )
-        : []
-    );
+    return source !== undefined && mentionsLintTool(source);
   });
 
-const allScriptFlagProblems = (): readonly string[] =>
-  trackedManifests().flatMap((file) =>
-    scriptFlagProblems(file, scriptsOf(file))
+const bodyProblem = (subject: ScriptSubject): string =>
+  `${subject.file} script "${subject.name}" runs \`${subject.body}\`, which names lint, and scriptAllowlist holds no entry for that exact body. Fix: add it to scriptAllowlist in scripts/lint-fence.test.ts with a one-sentence reason for why it cannot hide a finding, or remove the lint words from the script.`;
+
+const helperProblem = (subject: ScriptSubject, helper: string): string =>
+  `${subject.file} script "${subject.name}" runs ${helper}, which names oxlint, ultracite or oxfmt, and scriptAllowlist holds no entry for that helper. Fix: add "${helper}" to scriptAllowlist in scripts/lint-fence.test.ts with a one-sentence reason, or stop running it from a package.json script.`;
+
+const subjectProblems = (
+  subject: ScriptSubject,
+  lookupHelper: HelperLookup,
+  allowlist: ScriptAllowlist
+): readonly string[] => {
+  const lintHelpers = lintHelpersIn(subject, lookupHelper);
+
+  const judged = lintWordPattern.test(subject.body) || lintHelpers.length > 0;
+
+  return [
+    ...(judged && !Object.hasOwn(allowlist, subject.body)
+      ? [bodyProblem(subject)]
+      : []),
+    ...lintHelpers.flatMap((helper) =>
+      Object.hasOwn(allowlist, helper) ? [] : [helperProblem(subject, helper)]
+    ),
+  ];
+};
+
+const yamlScalars = (source: string): readonly string[] =>
+  source.split("\n").flatMap((line) => {
+    const trimmed = line.trim();
+
+    if (trimmed === "" || trimmed.startsWith("#")) {
+      return [];
+    }
+
+    const scalar = trimmed
+      .replace(/^-\s+/u, "")
+      .replace(/^[A-Za-z0-9_.-]+:\s*/u, "")
+      .replaceAll(/^["']|["']$/gu, "")
+      .trim();
+
+    return scalar === "" ? [] : [scalar];
+  });
+
+const configCommandsIn = (
+  file: string,
+  source: string
+): readonly ConfigCommand[] =>
+  yamlScalars(source)
+    .filter((scalar) => mentionsLintTool(scalar))
+    .map((command) => ({ file, command }));
+
+const configCommandProblem = ({ file, command }: ConfigCommand): string =>
+  `${file} runs \`${command}\`, which names oxlint, ultracite or oxfmt, and scriptAllowlist holds no entry for that exact line. Fix: add it to scriptAllowlist in scripts/lint-fence.test.ts with a one-sentence reason, or drop the line from the hook or workflow config.`;
+
+const configCommandProblems = (
+  commands: readonly ConfigCommand[],
+  allowlist: ScriptAllowlist
+): readonly string[] =>
+  commands.flatMap((command) =>
+    Object.hasOwn(allowlist, command.command)
+      ? []
+      : [configCommandProblem(command)]
   );
+
+const trackedFiles = (): readonly string[] =>
+  execFileSync("git", ["ls-files", "-z"], {
+    cwd: repoRoot,
+    encoding: "utf-8",
+  })
+    .split("\0")
+    .filter((file) => file !== "");
+
+const helperLookupFor = (tracked: ReadonlySet<string>): HelperLookup =>
+  function lookupHelper(helper) {
+    return tracked.has(helper)
+      ? readFileSync(path.join(repoRoot, helper), "utf-8")
+      : undefined;
+  };
+
+const trackedScriptSubjects = (): readonly ScriptSubject[] =>
+  trackedManifests().flatMap((file) =>
+    Object.entries(scriptsOf(file)).map(([name, body]) => ({
+      file,
+      name,
+      body,
+    }))
+  );
+
+const hookConfigFiles = ["lefthook.yml", "lefthook.yaml"];
+
+const configFiles = (tracked: readonly string[]): readonly string[] =>
+  [
+    ...hookConfigFiles,
+    ...tracked.filter(
+      (file) => file.startsWith(".github/workflows/") && /\.ya?ml$/u.test(file)
+    ),
+  ].filter((file) => tracked.includes(file));
+
+const trackedConfigCommands = (): readonly ConfigCommand[] => {
+  const tracked = trackedFiles();
+
+  return configFiles(tracked).flatMap((file) =>
+    configCommandsIn(file, readFileSync(path.join(repoRoot, file), "utf-8"))
+  );
+};
+
+const trackedScriptProblems = (): readonly string[] => {
+  const tracked = new Set(trackedFiles());
+  const lookupHelper = helperLookupFor(tracked);
+
+  return trackedScriptSubjects().flatMap((subject) =>
+    subjectProblems(subject, lookupHelper, scriptAllowlist)
+  );
+};
+
+const staleAllowlistEntries = (): readonly string[] => {
+  const tracked = new Set(trackedFiles());
+  const lookupHelper = helperLookupFor(tracked);
+
+  const used = new Set(trackedConfigCommands().map(({ command }) => command));
+
+  for (const subject of trackedScriptSubjects()) {
+    const lintHelpers = lintHelpersIn(subject, lookupHelper);
+
+    if (lintWordPattern.test(subject.body) || lintHelpers.length > 0) {
+      used.add(subject.body);
+    }
+
+    for (const helper of lintHelpers) {
+      used.add(helper);
+    }
+  }
+
+  return Object.keys(scriptAllowlist).filter((entry) => !used.has(entry));
+};
 
 const severitySpellings: readonly {
   readonly spelling: AllowWarnDeny;
@@ -588,14 +698,24 @@ const unsafeOxlintSpellings: readonly string[] = [
   "--report-unused-disable-directives-severity=off",
 ];
 
-const allowlistedOxlintSpellings: readonly string[] = [
-  "",
-  "--fix",
-  "--type-aware",
-  "--format json",
-  "--format=json",
-  "--fix --type-aware",
+const unsafeScriptBodies: readonly string[] = [
+  "ultracite check -A all",
+  "ultracite check --allow all && oxfmt --check .",
+  "ultracite fix --deny off",
+  'OXLINT_FLAGS="-A all" oxlint $OXLINT_FLAGS',
+  "oxlint shared && oxfmt --check .",
+  "pnpm exec oxlint -A all",
+  "pnpm exec bash scripts/verify-lint.sh",
+  "pnpm --filter @pecunia/core exec oxlint --deny all",
+  "bash scripts/verify-lint.sh",
+  "node scripts/verify-lint.mjs",
+  "tsx scripts/verify-lint.ts",
+  "'oxlint' '-A all'",
+  "  oxlint   -A all  ",
 ];
+
+const fixtureHelper = (helper: string): string | undefined =>
+  helper === "scripts/verify-lint.sh" ? 'oxlint -A all "$@"\n' : undefined;
 
 const directiveMarker = ["//", "oxlint-disable-next-line", "no-debugger"].join(
   " "
@@ -682,6 +802,17 @@ describe("lint fence", () => {
     ).toEqual([]);
   });
 
+  it("gives every allowlisted script a plain sentence", () => {
+    const thin = Object.entries(scriptAllowlist).flatMap(([entry, reason]) =>
+      reason.trim().endsWith(".") && reason.trim().length >= 20 ? [] : [entry]
+    );
+
+    expect(
+      thin,
+      "Every scriptAllowlist reason must be one plain sentence of at least 20 characters ending in a period, because that reason is what a reader checks when a script touches lint."
+    ).toEqual([]);
+  });
+
   it("keeps every rule at error and the fence rules enabled", () => {
     expect(
       weakRuleProblems(lintConfig),
@@ -728,8 +859,16 @@ describe("lint fence", () => {
       "The script scan did not see the workspace manifests. Fix: make trackedManifests in scripts/lint-fence.test.ts list every tracked package.json, so a workspace script cannot weaken lint unseen."
     ).toContain("packages/core/package.json");
     expect(
-      allScriptFlagProblems(),
-      "A package.json script passes an oxlint flag that oxlintFlagAllowlist does not name, so the script can hide findings. Fix: remove the flag so every finding still fails the run, or add it to oxlintFlagAllowlist in scripts/lint-fence.test.ts with a reason."
+      trackedScriptProblems(),
+      "A package.json script names lint, or runs a helper that does, and scriptAllowlist holds no entry for that exact body or helper. Fix: add it to scriptAllowlist in scripts/lint-fence.test.ts with a one-sentence reason, or remove it."
+    ).toEqual([]);
+    expect(
+      configCommandProblems(trackedConfigCommands(), scriptAllowlist),
+      "A hook or workflow config line names oxlint, ultracite or oxfmt without an allowlist entry, so CI could run lint outside the fence. Fix: add that exact line to scriptAllowlist with a reason, or drop it."
+    ).toEqual([]);
+    expect(
+      staleAllowlistEntries(),
+      "scriptAllowlist names a body, helper or config line that nothing uses any more. Fix: delete that entry, or restore the script it pins."
     ).toEqual([]);
     expect(
       lintOptions.typeAware,
@@ -756,64 +895,178 @@ describe("lint fence", () => {
   });
 
   it("fails a workspace script that weakens lint", () => {
-    for (const command of [
+    for (const body of [
       "oxlint --quiet",
       "oxlint -A all",
       "oxlint shared -W all",
       "pnpm --filter @pecunia/core exec oxlint -D all",
+      "ultracite check -A all && oxfmt --check .",
+      "pnpm exec ultracite check --allow all",
+      'OXLINT_FLAGS="-A all" oxlint $OXLINT_FLAGS',
     ]) {
-      const problems = scriptFlagProblems("packages/core/package.json", {
-        lint: command,
-      });
+      const problems = subjectProblems(
+        { file: "packages/core/package.json", name: "lint", body },
+        fixtureHelper,
+        scriptAllowlist
+      );
 
       expect(
         problems.length,
-        `\`${command}\` in a workspace package.json must fail, because every workspace script runs in CI too.`
+        `\`${body}\` in a workspace package.json must fail, because every workspace script runs in CI too.`
       ).toBeGreaterThan(0);
+      expect(problems[0]).toContain("packages/core/package.json");
       expect(problems[0]).toContain('script "lint"');
-      expect(problems[0]).toContain("oxlintFlagAllowlist");
+      expect(problems[0]).toContain("scriptAllowlist");
     }
 
     expect(
-      scriptFlagProblems("packages/core/package.json", {
-        lint: "oxlint --fix shared",
-      }),
-      "An allowlisted flag must pass, so the fence judges the whole command instead of a list of known bad flags."
+      subjectProblems(
+        {
+          file: "packages/core/package.json",
+          name: "lint",
+          body: "ultracite check && oxfmt --check .",
+        },
+        fixtureHelper,
+        scriptAllowlist
+      ),
+      "An allowlisted body must pass, so the fence judges the whole script instead of the words inside it."
     ).toEqual([]);
   });
 
-  it("judges every oxlint flag spelling and source extension by the one allowlist", () => {
+  it("follows a script into the helper it runs", () => {
+    const subject: ScriptSubject = {
+      file: "package.json",
+      name: "lint",
+      body: "bash scripts/verify-lint.sh",
+    };
+
+    expect(
+      lintHelpersIn(subject, fixtureHelper),
+      "The fence must resolve a script's helper path from the manifest directory and read it, so indirection cannot hide a weakened command."
+    ).toEqual(["scripts/verify-lint.sh"]);
+
+    const bodyOnly = {
+      "bash scripts/verify-lint.sh":
+        "The wrapper is approved as one exact body so the helper rule has a script to judge.",
+    } satisfies ScriptAllowlist;
+
+    expect(
+      subjectProblems(subject, fixtureHelper, bodyOnly),
+      "An allowlisted script body must still fail when the helper it runs names oxlint and is not allowlisted, because the helper is where the flags live."
+    ).toEqual([expect.stringContaining("scripts/verify-lint.sh")]);
+
+    expect(
+      helperPathsIn({
+        file: "package.json",
+        name: "deploy:preview",
+        body: "bash scripts/deploy-preview.sh",
+      }),
+      "Helper resolution must work on the real tree, so the scan reads the scripts it claims to read."
+    ).toContain("scripts/deploy-preview.sh");
+  });
+
+  it("judges every lint word in the hook and CI config", () => {
+    const hookSource = [
+      "# oxlint -A all in a comment is prose, not a command",
+      "pre-commit:",
+      "  parallel: false",
+      "  commands:",
+      "    check:",
+      "      run: pnpm exec ultracite check -A all",
+      "    test:",
+      "      run: pnpm test",
+      "    format:",
+      '      run: "oxfmt --check"',
+    ].join("\n");
+
+    expect(
+      configCommandsIn("lefthook.yml", hookSource),
+      "The config scan must judge every command line that names a lint tool and only those, so a commented line or an unrelated hook is not mistaken for one."
+    ).toEqual([
+      { file: "lefthook.yml", command: "pnpm exec ultracite check -A all" },
+      { file: "lefthook.yml", command: "oxfmt --check" },
+    ]);
+    expect(
+      configCommandProblems(
+        configCommandsIn("lefthook.yml", hookSource),
+        scriptAllowlist
+      ).length,
+      "A hook or workflow line that names oxlint, ultracite or oxfmt and is not allowlisted must fail, because a config file hides a bypass the same way a script does."
+    ).toBe(1);
+    expect(
+      configFiles(trackedFiles()),
+      "The config scan must reach the tracked workflows, so a new CI lint step cannot slip past the fence."
+    ).toContain(".github/workflows/ci.yml");
+    expect(
+      configCommandProblems(
+        configCommandsIn(
+          "lefthook.yml",
+          "      run: ultracite check && oxfmt --check ."
+        ),
+        scriptAllowlist
+      ),
+      "An allowlisted command line must pass, so the config rule judges whole commands instead of scanning for bad words."
+    ).toEqual([]);
+  });
+
+  it("judges every script body as one exact string", () => {
     const manifest = "packages/core/package.json";
     const extensions = [...sourceExtensions];
-    const allowlisted = Object.keys(oxlintFlagAllowlist);
 
     expect(
       [...sourceExtensionSet].toSorted(),
       "The source extension set must cover every kind of file Oxlint runs on. Fix: restore .ts, .tsx, .js, .jsx, .mts, .cts, .mjs, and .cjs in sourceExtensions in scripts/lint-fence.test.ts."
     ).toEqual([".cjs", ".cts", ".js", ".jsx", ".mjs", ".mts", ".ts", ".tsx"]);
-    expect(
-      allowlisted.toSorted(),
-      "The script flag allowlist must hold exactly the flags this repo needs. Fix: add or remove the flag in oxlintFlagAllowlist in scripts/lint-fence.test.ts, with a reason."
-    ).toEqual(["--fix", "--format", "--type-aware"]);
 
     let cases = 0;
+    let rejected = 0;
+    let accepted = 0;
 
-    const checkUnsafe = (spelling: string, extension: string): void => {
-      const command = oxlintCommand(spelling, extension);
-      const file = `src/example${extension}`;
-      const problems = scriptFlagProblems(manifest, { lint: command });
-
-      expect(
-        problems.length,
-        `\`${command}\` must fail the script fence, because ${spelling} is not on the allowlist.`
-      ).toBeGreaterThan(0);
-      expect(problems[0], `\`${command}\` must name the script.`).toContain(
-        'script "lint"'
+    const checkBody = (body: string): void => {
+      const problems = subjectProblems(
+        { file: manifest, name: "lint", body },
+        fixtureHelper,
+        scriptAllowlist
       );
-      expect(
-        problems[0],
-        `\`${command}\` must tell the reader to extend oxlintFlagAllowlist.`
-      ).toContain("oxlintFlagAllowlist");
+
+      if (Object.hasOwn(scriptAllowlist, body)) {
+        expect(
+          problems,
+          `\`${body}\` is allowlisted, so the fence must accept it.`
+        ).toEqual([]);
+        accepted += 1;
+      } else {
+        expect(
+          problems.length,
+          `\`${body}\` is not in scriptAllowlist, so the fence must reject it however it is written.`
+        ).toBeGreaterThan(0);
+        expect(problems[0], `\`${body}\` must name the file.`).toContain(
+          manifest
+        );
+        expect(problems[0], `\`${body}\` must name the script.`).toContain(
+          'script "lint"'
+        );
+        expect(
+          problems[0],
+          `\`${body}\` must tell the reader to extend scriptAllowlist.`
+        ).toContain("scriptAllowlist");
+        rejected += 1;
+      }
+
+      cases += 1;
+    };
+
+    for (const body of Object.keys(scriptAllowlist)) {
+      checkBody(body);
+    }
+
+    for (const extension of extensions) {
+      for (const spelling of unsafeOxlintSpellings) {
+        checkBody(oxlintCommand(spelling, extension));
+      }
+
+      const file = `src/example${extension}`;
+
       expect(
         isScannedSource(file),
         `${file} must be scanned, so a suppression in it cannot hide.`
@@ -822,52 +1075,37 @@ describe("lint fence", () => {
         unreasonedDirectivesIn(file, bareDirective).length,
         `A bare oxlint-disable in ${file} must be reported.`
       ).toBe(1);
-
-      cases += 1;
-    };
-
-    const checkAllowed = (spelling: string, extension: string): void => {
-      const command = oxlintCommand(spelling, extension);
-      const file = `src/example${extension}`;
-
-      expect(
-        scriptFlagProblems(manifest, { lint: command }),
-        `\`${command}\` must pass the script fence, because every flag in it is allowlisted.`
-      ).toEqual([]);
-      expect(
-        isScannedSource(file),
-        `${file} must be scanned, so a suppression in it cannot hide.`
-      ).toBe(true);
       expect(
         unreasonedDirectivesIn(file, reasonedDirective),
         `A reasoned directive in ${file} must pass.`
       ).toEqual([]);
-
-      cases += 1;
-    };
-
-    for (const extension of extensions) {
-      for (const spelling of unsafeOxlintSpellings) {
-        checkUnsafe(spelling, extension);
-      }
-
-      for (const spelling of allowlistedOxlintSpellings) {
-        checkAllowed(spelling, extension);
-      }
     }
 
-    const random = seededRandom(20_260_215);
+    const random = seededRandom(20_260_216);
+    const glues = [" ", "  ", " && ", " && pnpm exec ", '  "', "' "];
+    const listedBodies = Object.keys(scriptAllowlist);
+
+    for (const body of listedBodies) {
+      checkBody(`${body} && oxlint -A all`);
+      checkBody(`${body} && ultracite check --allow all`);
+    }
 
     for (let index = 0; index < 600; index += 1) {
-      const extension = pick(random, extensions);
-      const combined = `-${pick(random, ["A", "W", "D"])}${pick(random, ["A", "W", "D", "q"])}`;
+      const glue = pick(random, glues);
+      const roll = random();
 
-      if (random() < 0.25) {
-        checkUnsafe(combined, extension);
-      } else if (random() < 0.5) {
-        checkUnsafe(pick(random, unsafeOxlintSpellings), extension);
+      if (roll < 0.3) {
+        checkBody(pick(random, listedBodies));
+      } else if (roll < 0.55) {
+        checkBody(pick(random, unsafeScriptBodies));
+      } else if (roll < 0.8) {
+        checkBody(
+          `${pick(random, unsafeScriptBodies)}${glue}${pick(random, unsafeScriptBodies)}`
+        );
       } else {
-        checkAllowed(pick(random, allowlistedOxlintSpellings), extension);
+        checkBody(
+          `${pick(random, listedBodies)}${glue}${pick(random, unsafeScriptBodies)}`
+        );
       }
     }
 
@@ -875,6 +1113,14 @@ describe("lint fence", () => {
       cases,
       "The property test must keep at least 600 cases, so shrinking either set is visible."
     ).toBeGreaterThanOrEqual(600);
+    expect(
+      rejected,
+      "The property test must reject the unsafe bodies it generates, so a fence that accepts everything fails here."
+    ).toBeGreaterThanOrEqual(600);
+    expect(
+      accepted,
+      "The property test must accept every allowlist entry, so a fence that accepts nothing fails here."
+    ).toBeGreaterThanOrEqual(Object.keys(scriptAllowlist).length);
   });
 
   it("classifies every severity spelling by its normalised meaning", () => {
