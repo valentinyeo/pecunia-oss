@@ -17,11 +17,22 @@ const BODY_FORMAT = "--format=%H%x09%B";
 const TRAILER = /^\s*(?<token>[^:\s][^:]*?)\s*:\s*(?<value>.*)$/u;
 
 const ADDRESS =
-  /(?:"[^"\\\r\n]{1,64}"|[\p{L}\p{N}][\p{L}\p{N}._%+'-]*)@(?:[\p{L}\p{N}](?:[\p{L}\p{N}-]*[\p{L}\p{N}])?\.)+[\p{L}]{2,}/gu;
+  /(?:"[^"\\\r\n]{1,64}"|[\p{L}\p{N}][\p{L}\p{M}\p{N}._%+'-]*)@(?:[\p{L}\p{N}\p{M}](?:[\p{L}\p{M}\p{N}-]*[\p{L}\p{M}\p{N}])?\.)+[\p{L}\p{M}]{2,}/gu;
 
 const CO_AUTHOR_KEY = "coauthoredby";
 
 const CONTINUATION = /^\s+\S/u;
+
+const LINE_BREAK = /\r\n/gu;
+
+const CONTROL = /[\p{Cc}\p{Cf}]+/gu;
+
+const readableBody = (body: string) =>
+  body
+    .replaceAll(LINE_BREAK, "\n")
+    .split("\n")
+    .map((line) => line.replaceAll(CONTROL, " "))
+    .join("\n");
 
 const trailerKey = (token: string) =>
   token.toLowerCase().replaceAll(/[^a-z0-9]/gu, "");
@@ -81,7 +92,7 @@ export const coAuthorEmailsIn = (body: string): readonly string[] => {
     open = undefined;
   };
 
-  for (const line of body.split("\n")) {
+  for (const line of readableBody(body).split("\n")) {
     if (open !== undefined && CONTINUATION.test(line)) {
       open = `${open} ${line.trim()}`;
 

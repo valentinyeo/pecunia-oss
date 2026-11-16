@@ -7,6 +7,12 @@ import path from "node:path";
 import { Schema } from "effect";
 import { describe, expect, it } from "vitest";
 
+import {
+  coAuthorEmailsIn,
+  identityOffenders,
+  parseIdentityLog,
+  withCoAuthors,
+} from "./check-commit-identity.ts";
 import { findPersonalData } from "./check-no-personal-data.ts";
 import type { AllowList } from "./check-no-personal-data.ts";
 
@@ -572,5 +578,117 @@ describe("a made-up JWT beside the exempt crash-test fixture is reported", () =>
 
   it.runIf(!GITLEAKS)("skipped: gitleaks is not installed", () => {
     expect(GITLEAKS).toBe(false);
+  });
+});
+
+const CO_AUTHOR_KEYS = [
+  "Co-authored-by",
+  "co-authored-by",
+  "CO-AUTHORED-BY",
+  "Co_Authored_By",
+  "Co Authored By",
+  "Co-authored-By",
+  "CO_AUTHORED_BY",
+];
+
+const CO_AUTHOR_MAILBOXES: readonly (readonly [string, string])[] = [
+  ["ada", "acme.test"],
+  ['"jane doe"', "acme.test"],
+  ["bj\u00F6rn", "b\u00FCcher.test"],
+  ["jose\u0301", "bu\u0308cher.test"],
+  [
+    "\u03B4\u03BF\u03BA\u03B9\u03BC\u03AE",
+    "\u03C0\u03B1\u03C1\u03AC\u03B4\u03B5\u03B9\u03B3\u03BC\u03B1.test",
+  ],
+  ["Ada.Lovelace", "ACME.CO.UK"],
+  ["jane+finance", "acme.test"],
+];
+
+const BODY_CONTROLS = [
+  "\u0001",
+  "\u0007",
+  "\u0008",
+  "\u000B",
+  "\u000C",
+  "\u000E",
+  "\u001B",
+  "\u001E",
+  "\u001F",
+  "\r",
+  "\u0085",
+  "\u200B",
+  "\uFEFF",
+];
+
+const CO_AUTHOR_COMMIT = "0f1e2d3c4b5a69788796a5b4c3d2e1f00f1e2d3c";
+
+const PLACEMENTS = [
+  "prose",
+  "line-ending",
+  "trailer-start",
+  "before-address",
+] as const;
+
+const coAuthorBody = (
+  placement: string,
+  control: string,
+  key: string,
+  address: string
+) => {
+  if (placement === "line-ending") {
+    return `Subject${control}\n\n${key}: Ada <${address}>${control}\n`;
+  }
+
+  if (placement === "trailer-start") {
+    return `Subject\n\n${control}${key}: Ada <${address}>\n`;
+  }
+
+  if (placement === "before-address") {
+    return `Subject\n\n${key}: Ada ${control}<${address}>\n`;
+  }
+
+  return `Subject\n\nA change${control}worth noting.\n\n${key}: Ada <${address}>\n`;
+};
+
+const coAuthorOffenders = (body: string) =>
+  identityOffenders(
+    withCoAuthors(
+      parseIdentityLog(
+        `${CO_AUTHOR_COMMIT}\tnoreply@github.com\tnoreply@github.com\n`
+      ),
+      [{ body, commit: CO_AUTHOR_COMMIT }]
+    )
+  ).filter((offender) => offender.field === "co-author");
+
+describe("a co-author trailer is read through any control character and address shape", () => {
+  it(`reads and judges ${CASES} seeded trailers`, () => {
+    const random = makeRandom(SEED + 4);
+
+    const missed: string[] = [];
+
+    for (let index = 0; index < CASES; index += 1) {
+      const [local, domain] = random.pick(CO_AUTHOR_MAILBOXES);
+
+      const address = `${local}@${domain}`;
+
+      const body = coAuthorBody(
+        random.pick(PLACEMENTS),
+        random.pick(BODY_CONTROLS),
+        random.pick(CO_AUTHOR_KEYS),
+        address
+      );
+
+      const extracted = coAuthorEmailsIn(body).map((found) =>
+        found.toLowerCase()
+      );
+
+      const judged = coAuthorOffenders(body);
+
+      if (!extracted.includes(address.toLowerCase()) || judged.length !== 1) {
+        missed.push(body);
+      }
+    }
+
+    expect(missed).toEqual([]);
   });
 });
