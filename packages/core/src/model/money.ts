@@ -1,4 +1,4 @@
-import { Effect, Option, Predicate, Schema } from "effect";
+import { Effect, Option, Predicate, Schema, SchemaGetter } from "effect";
 
 import { ConversionOverflow } from "./conversion-overflow.js";
 import { CurrencyMismatch } from "./currency-mismatch.js";
@@ -67,18 +67,20 @@ const minorUnitExponents = new Map([
 export const minorUnitExponent = (currency: CurrencyCode): number =>
   minorUnitExponents.get(currency) ?? 2;
 
-const BaseAmountSchema = Schema.Struct({
-  currency: CurrencyCodeSchema,
-  minor: MinorUnitsSchema,
-}).pipe(Schema.brand("BaseAmount"));
+declare const BaseAmountBrand: unique symbol;
 
-export type BaseAmount = typeof BaseAmountSchema.Type;
+export interface BaseAmount {
+  readonly [BaseAmountBrand]: "BaseAmount";
+  readonly currency: CurrencyCode;
+  readonly minor: MinorUnits;
+}
 
 const moneyOf = (currency: CurrencyCode, minor: MinorUnits): Money =>
   Schema.decodeSync(MoneySchema)({ currency, minor });
 
 const baseAmountOf = (currency: CurrencyCode, minor: MinorUnits): BaseAmount =>
-  Schema.decodeSync(BaseAmountSchema)({ currency, minor });
+  // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- SAFETY: convertMinor produced these minor units; the brand is type-only and the module's converter is the only way in.
+  ({ currency, minor }) as BaseAmount;
 
 const minorUnitsOf = (minor: bigint): Option.Option<MinorUnits> =>
   minor >= BigInt(Number.MIN_SAFE_INTEGER) &&
@@ -167,36 +169,104 @@ interface ConvertedAmountFields {
   readonly source: Money;
 }
 
-const convertedBaseMatchesRate = Schema.makeFilter<ConvertedAmountFields>(
-  (amounts) =>
-    amounts.source.currency !== amounts.base.currency &&
-    Option.match(
-      convertMinor(
-        amounts.source.minor,
-        amounts.source.currency,
-        amounts.base.currency,
-        amounts.rate
-      ),
-      {
-        onNone: () => false,
-        onSome: (minor) => minor === amounts.base.minor,
-      }
-    ),
-  { expected: "a base amount the rate produces from the source amount" }
-);
+const conversion: unique symbol = Symbol("ConvertedAmount");
 
-const ConvertedAmountSchema = Schema.TaggedStruct("Converted", {
+export class ConvertedAmount {
+  readonly _tag = "Converted";
+  readonly asOf: DateOnly;
+  readonly base: BaseAmount;
+  readonly rate: Rate;
+  readonly source: Money;
+  protected readonly conversion: typeof conversion;
+
+  constructor(fields: ConvertedAmountFields, token: typeof conversion) {
+    this.conversion = token;
+    this.asOf = fields.asOf;
+    this.base = fields.base;
+    this.rate = fields.rate;
+    this.source = fields.source;
+  }
+}
+
+const StoredBaseAmountSchema = Schema.Struct({
+  currency: CurrencyCodeSchema,
+  minor: MinorUnitsSchema,
+});
+
+const StoredConvertedAmountSchema = Schema.TaggedStruct("Converted", {
   asOf: DateOnlySchema,
-  base: BaseAmountSchema,
+  base: StoredBaseAmountSchema,
   rate: RateSchema,
   source: MoneySchema,
-}).check(convertedBaseMatchesRate);
+});
+
+type StoredConvertedAmount = typeof StoredConvertedAmountSchema.Type;
+
+const convertBase = (
+  source: Money,
+  baseCurrency: CurrencyCode,
+  rate: Rate
+): Option.Option<BaseAmount> =>
+  Option.map(
+    convertMinor(source.minor, source.currency, baseCurrency, rate),
+    (minor) => baseAmountOf(baseCurrency, minor)
+  );
+
+const convertedAmountOf = (
+  source: Money,
+  baseCurrency: CurrencyCode,
+  rate: Rate,
+  asOf: DateOnly
+): Option.Option<ConvertedAmount> =>
+  Option.map(
+    convertBase(source, baseCurrency, rate),
+    (base) => new ConvertedAmount({ asOf, base, rate, source }, conversion)
+  );
+
+const decodedConvertedAmount = (
+  stored: StoredConvertedAmount
+): Option.Option<ConvertedAmount> =>
+  convertBase(stored.source, stored.base.currency, stored.rate).pipe(
+    Option.flatMap((base) =>
+      stored.source.currency !== stored.base.currency &&
+      base.minor === stored.base.minor
+        ? Option.some(
+            new ConvertedAmount(
+              {
+                asOf: stored.asOf,
+                base,
+                rate: stored.rate,
+                source: stored.source,
+              },
+              conversion
+            )
+          )
+        : Option.none()
+    )
+  );
+
+const encodedConvertedAmount = (
+  amount: ConvertedAmount
+): StoredConvertedAmount =>
+  StoredConvertedAmountSchema.make({
+    asOf: amount.asOf,
+    base: { currency: amount.base.currency, minor: amount.base.minor },
+    rate: amount.rate,
+    source: amount.source,
+  });
+
+const ConvertedAmountSchema = StoredConvertedAmountSchema.pipe(
+  Schema.decodeTo(Schema.instanceOf(ConvertedAmount), {
+    decode: SchemaGetter.transformOptional((stored) =>
+      stored.pipe(Option.flatMap(decodedConvertedAmount))
+    ),
+    encode: SchemaGetter.transform(encodedConvertedAmount),
+  })
+);
 
 export const SameCurrencyAmountSchema = Schema.TaggedStruct("SameCurrency", {
   amount: MoneySchema,
 });
-
-export type ConvertedAmount = typeof ConvertedAmountSchema.Type;
 
 export type SameCurrencyAmount = typeof SameCurrencyAmountSchema.Type;
 
@@ -221,28 +291,15 @@ export const convertedAmounts = (
 ): Effect.Effect<ConvertedAmount, ConversionOverflow | RateOnSameCurrency> =>
   source.currency === baseCurrency
     ? Effect.fail(new RateOnSameCurrency({ currency: source.currency }))
-    : Option.match(
-        convertMinor(source.minor, source.currency, baseCurrency, rate),
-        {
-          onNone: () =>
-            Effect.fail(
-              new ConversionOverflow({
-                baseCurrency,
-                currency: source.currency,
-                minor: source.minor,
-                rate,
-              })
-            ),
-          onSome: (minor) =>
-            Effect.succeed(
-              ConvertedAmountSchema.make({
-                asOf,
-                base: baseAmountOf(baseCurrency, minor),
-                rate,
-                source,
-              })
-            ),
-        }
+    : Effect.fromOption(
+        convertedAmountOf(source, baseCurrency, rate, asOf),
+        () =>
+          new ConversionOverflow({
+            baseCurrency,
+            currency: source.currency,
+            minor: source.minor,
+            rate,
+          })
       );
 
 export const convert = (

@@ -1,4 +1,4 @@
-import { Option, Schema } from "effect";
+import { Option, Schema, SchemaGetter } from "effect";
 
 import {
   CurrencyCodeSchema,
@@ -10,7 +10,6 @@ import {
   QuantitySchema,
   TimestampSchema,
 } from "./primitives.js";
-import type { Money, Timestamp } from "./primitives.js";
 
 export const InvestmentPlatformSchema = Schema.Struct({
   connector: Schema.Literals(["manual", "trading212"]),
@@ -31,33 +30,100 @@ export const AssetTypeSchema = Schema.Literals([
 
 export type AssetType = typeof AssetTypeSchema.Type;
 
-interface PricedHolding {
-  readonly lastPrice: Option.Option<Money>;
-  readonly pricedAt: Option.Option<Timestamp>;
-  readonly state: "active" | "closed" | "pending";
-}
-
-const pendingHasNoPrice = Schema.makeFilter<PricedHolding>(
-  (holding) =>
-    holding.state !== "pending" ||
-    (Option.isNone(holding.lastPrice) && Option.isNone(holding.pricedAt)),
-  { expected: "no market price on a pending holding" }
-);
-
-export const HoldingSchema = Schema.Struct({
+const HoldingFields = {
   assetType: AssetTypeSchema,
   costBasis: Schema.OptionFromNullishOr(MoneySchema),
   currency: CurrencyCodeSchema,
   id: HoldingIdSchema,
-  lastPrice: Schema.OptionFromNullishOr(MoneySchema),
   name: Schema.NonEmptyString,
   openedOn: DateOnlySchema,
   platformId: PlatformIdSchema,
-  pricedAt: Schema.OptionFromNullishOr(TimestampSchema),
   profileId: ProfileIdSchema,
   quantity: QuantitySchema,
-  state: Schema.Literals(["active", "closed", "pending"]),
   symbol: Schema.NonEmptyString,
-}).check(pendingHasNoPrice);
+} as const;
+
+const StoredHoldingSchema = Schema.Struct({
+  ...HoldingFields,
+  lastPrice: Schema.OptionFromNullishOr(MoneySchema),
+  pricedAt: Schema.OptionFromNullishOr(TimestampSchema),
+  state: Schema.Literals(["active", "closed", "pending"]),
+});
+
+type StoredHolding = typeof StoredHoldingSchema.Type;
+
+export const PendingHoldingSchema = Schema.Struct({
+  ...HoldingFields,
+  state: Schema.Literals(["pending"]),
+});
+
+export const PricedHoldingSchema = Schema.Struct({
+  ...HoldingFields,
+  lastPrice: Schema.OptionFromNullishOr(MoneySchema),
+  pricedAt: Schema.OptionFromNullishOr(TimestampSchema),
+  state: Schema.Literals(["active", "closed"]),
+});
+
+const DecodedHoldingSchema = Schema.Union([
+  PendingHoldingSchema,
+  PricedHoldingSchema,
+]);
+
+type EncodedHolding = typeof DecodedHoldingSchema.Encoded;
+
+const decodedFields = (holding: StoredHolding) => ({
+  assetType: holding.assetType,
+  costBasis: Option.getOrNull(holding.costBasis),
+  currency: holding.currency,
+  id: holding.id,
+  name: holding.name,
+  openedOn: holding.openedOn,
+  platformId: holding.platformId,
+  profileId: holding.profileId,
+  quantity: holding.quantity,
+  symbol: holding.symbol,
+});
+
+const decodedHolding = (
+  holding: StoredHolding
+): Option.Option<EncodedHolding> => {
+  const fields = decodedFields(holding);
+
+  if (holding.state !== "pending") {
+    return Option.some({
+      ...fields,
+      lastPrice: Option.getOrNull(holding.lastPrice),
+      pricedAt: Option.getOrNull(holding.pricedAt),
+      state: holding.state,
+    });
+  }
+
+  if (Option.isSome(holding.lastPrice) || Option.isSome(holding.pricedAt)) {
+    return Option.none();
+  }
+
+  return Option.some({ ...fields, state: "pending" });
+};
+
+const encodedHolding = (holding: EncodedHolding): StoredHolding =>
+  Schema.decodeSync(StoredHoldingSchema)(
+    holding.state === "pending"
+      ? { ...holding, lastPrice: null, pricedAt: null, state: "pending" }
+      : {
+          ...holding,
+          lastPrice: holding.lastPrice ?? null,
+          pricedAt: holding.pricedAt ?? null,
+          state: holding.state,
+        }
+  );
+
+export const HoldingSchema = StoredHoldingSchema.pipe(
+  Schema.decodeTo(DecodedHoldingSchema, {
+    decode: SchemaGetter.transformOptional((stored) =>
+      stored.pipe(Option.flatMap(decodedHolding))
+    ),
+    encode: SchemaGetter.transform(encodedHolding),
+  })
+);
 
 export type Holding = typeof HoldingSchema.Type;

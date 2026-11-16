@@ -5,17 +5,23 @@ import * as Arbitrary from "effect/Arbitrary";
 import { ConversionOverflow } from "../../src/model/conversion-overflow.js";
 import { MoneyOverflow } from "../../src/model/money-overflow.js";
 import {
+  AmountsSchema,
   CurrencyMismatch,
   RateUnavailable,
   addMoney,
   convert,
   convertMinor,
+  convertedAmounts,
   minorUnitExponent,
   subtractMoney,
 } from "../../src/model/money.js";
-import type { RateLookup } from "../../src/model/money.js";
+import type { Amounts, BaseAmount, RateLookup } from "../../src/model/money.js";
 import type { CurrencyCode } from "../../src/model/primitives.js";
-import { CurrencyCodeSchema, MoneySchema } from "../../src/model/primitives.js";
+import {
+  CurrencyCodeSchema,
+  DateOnlySchema,
+  MoneySchema,
+} from "../../src/model/primitives.js";
 import { RateSchema } from "../../src/model/rate.js";
 
 const minorRange = Schema.Int.check(
@@ -47,6 +53,8 @@ const euro = (minor: number) => moneyOf("EUR", minor);
 const minorOf = (value: number) => euro(value).minor;
 
 const rateOf = (text: string) => Schema.decodeSync(RateSchema)(text);
+
+const dateOnly = (text: string) => Schema.decodeSync(DateOnlySchema)(text);
 
 const rateLookup =
   (text: string): RateLookup =>
@@ -352,4 +360,57 @@ describe("minor unit exponents", () => {
       expect(minorUnitExponent(currencyOf(code))).toBe(2);
     }
   });
+});
+
+describe("a base amount exists only as conversion output", () => {
+  it("refuses a raw amount typed as a base amount", () => {
+    // @ts-expect-error -- a base amount is only ever what a conversion produced
+    const fabricated: BaseAmount = {
+      currency: currencyOf("EUR"),
+      minor: euro(999_999).minor,
+    };
+
+    expect(Object.keys(fabricated).toSorted()).toStrictEqual([
+      "currency",
+      "minor",
+    ]);
+  });
+
+  it("exposes no reachable schema that brands a raw amount as a base amount", () => {
+    // @ts-expect-error -- the converted member of the union carries no base field schema
+    const fields: unknown = AmountsSchema.members[0].fields;
+
+    expect(fields).toBeUndefined();
+  });
+
+  it("decodes no raw amount as an amount", () => {
+    expect(() =>
+      Schema.decodeUnknownSync(AmountsSchema)({
+        currency: "EUR",
+        minor: 999_999,
+      })
+    ).toThrow();
+  });
+});
+
+describe("a converted amount keeps one source of truth", () => {
+  it.effect("refuses a spread that retargets the source", () =>
+    Effect.gen(function* spreadCannotLie() {
+      const stored = yield* convertedAmounts(
+        moneyOf("USD", 1000),
+        currencyOf("EUR"),
+        rateOf("0.85"),
+        dateOnly("2024-01-30")
+      );
+
+      // oxlint-disable-next-line typescript/no-misused-spread -- the spread is the illegal construction this test proves a type error
+      const retargeted = { ...stored, source: moneyOf("GBP", 5000) };
+
+      // @ts-expect-error -- a converted amount is nominal, so a spread cannot stand in for one
+      const amounts: Amounts = retargeted;
+
+      expect(stored.base).toStrictEqual({ currency: "EUR", minor: 850 });
+      expect(() => Schema.encodeSync(AmountsSchema)(amounts)).toThrow();
+    })
+  );
 });

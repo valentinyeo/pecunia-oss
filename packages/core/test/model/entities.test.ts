@@ -36,6 +36,7 @@ import {
   convertedAmounts,
   sameCurrencyAmount,
 } from "../../src/model/index.js";
+import type { Holding } from "../../src/model/investment.js";
 import {
   AliasIdSchema,
   ArchiveTargetIdSchema,
@@ -48,8 +49,10 @@ import {
   MemberIdSchema,
   MoneySchema,
   PayeeIdSchema,
+  PlatformIdSchema,
   ProfileIdSchema,
   ProviderAccountIdSchema,
+  QuantitySchema,
   ReportIdSchema,
   RuleIdSchema,
   SubscriptionIdSchema,
@@ -720,6 +723,28 @@ describe("other illegal states the type forbids", () => {
   });
 
   it("rejects a pending holding that already has a market price", () => {
+    const pending = {
+      assetType: "etf",
+      costBasis: Option.none(),
+      currency: currencyOf("EUR"),
+      id: holdingId,
+      name: "Demo World ETF",
+      openedOn: dateOnly("2023-06-01"),
+      platformId: Schema.decodeSync(PlatformIdSchema)("demo-broker"),
+      profileId,
+      quantity: Schema.decodeSync(QuantitySchema)(100_000_000),
+      state: "pending",
+      symbol: "DEMO",
+    } as const;
+
+    const priced: Holding = {
+      ...pending,
+      // @ts-expect-error -- a pending holding has no market price field
+      lastPrice: Option.some(moneyOf("EUR", 500)),
+    };
+
+    expect(priced.state).toBe("pending");
+
     expect(() =>
       Schema.decodeSync(HoldingSchema)({
         ...holdingWire(),
