@@ -2,14 +2,16 @@ import { describe, expect, it } from "@effect/vitest";
 import { Effect, Option, Result, Schema } from "effect";
 import * as Arbitrary from "effect/Arbitrary";
 
-import { ConversionInputInvalid } from "../../src/model/conversion-input-invalid.js";
-import { ConversionOverflow } from "../../src/model/conversion-overflow.js";
-import { MoneyOverflow } from "../../src/model/money-overflow.js";
+import {
+  conversionInputInvalid,
+  conversionOverflow,
+  currencyMismatch,
+  moneyOverflow,
+  rateUnavailable,
+} from "../../src/model/errors.js";
 import {
   AmountsSchema,
   BaseAmount,
-  CurrencyMismatch,
-  RateUnavailable,
   addMoney,
   convert,
   convertMinor,
@@ -138,7 +140,7 @@ describe("money arithmetic", () => {
         );
 
         expect(sum).toStrictEqual(
-          MoneyOverflow.of({
+          moneyOverflow({
             currency: euro(0).currency,
             left: minorOf(Number.MAX_SAFE_INTEGER),
             operation: "add",
@@ -151,7 +153,7 @@ describe("money arithmetic", () => {
         );
 
         expect(difference).toStrictEqual(
-          MoneyOverflow.of({
+          moneyOverflow({
             currency: euro(0).currency,
             left: minorOf(Number.MIN_SAFE_INTEGER),
             operation: "subtract",
@@ -177,7 +179,7 @@ describe("money arithmetic", () => {
           expected > BigInt(Number.MAX_SAFE_INTEGER)
         ) {
           expect(Result.isFailure(sum) && sum.failure).toStrictEqual(
-            MoneyOverflow.of({
+            moneyOverflow({
               currency: euro(0).currency,
               left: minorOf(left),
               operation: "add",
@@ -206,7 +208,7 @@ describe("money arithmetic", () => {
         );
 
         expect(failure).toStrictEqual(
-          CurrencyMismatch.of({ left: euro(0).currency, right: currency })
+          currencyMismatch({ left: euro(0).currency, right: currency })
         );
 
         const subtractionFailure = yield* Effect.flip(
@@ -214,7 +216,7 @@ describe("money arithmetic", () => {
         );
 
         expect(subtractionFailure).toStrictEqual(
-          CurrencyMismatch.of({ left: currency, right: euro(0).currency })
+          currencyMismatch({ left: currency, right: euro(0).currency })
         );
       })
   );
@@ -233,7 +235,7 @@ describe("conversion", () => {
         );
 
         expect(failure).toStrictEqual(
-          RateUnavailable.of({ from: currency, to: euro(0).currency })
+          rateUnavailable({ from: currency, to: euro(0).currency })
         );
       })
   );
@@ -288,7 +290,7 @@ describe("conversion", () => {
       );
 
       expect(failure).toStrictEqual(
-        ConversionOverflow.of({
+        conversionOverflow({
           baseCurrency: currencyOf("GBP"),
           currency: currencyOf("USD"),
           minor: large.minor,
@@ -339,7 +341,7 @@ describe("conversion", () => {
     );
 
     expect(Result.isFailure(outcome) && outcome.failure).toStrictEqual(
-      ConversionInputInvalid.of({
+      conversionInputInvalid({
         from: currencyOf("USD"),
         reason: "unsafe",
         to: currencyOf("GBP"),
@@ -358,7 +360,7 @@ describe("conversion", () => {
     );
 
     expect(Result.isFailure(outcome) && outcome.failure).toStrictEqual(
-      ConversionInputInvalid.of({
+      conversionInputInvalid({
         from: currencyOf("USD"),
         reason: "fractional",
         to: currencyOf("GBP"),

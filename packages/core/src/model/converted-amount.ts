@@ -1,6 +1,3 @@
-// oxlint-disable anti-slop/no-unknown-parameters -- restore is a boundary that parses stored rows
-// oxlint-disable eslint/prefer-object-spread, typescript/no-misused-spread -- the encoded row keeps every own key of the class instance so the strict encoder can reject strays
-
 import {
   Effect,
   Option,
@@ -11,10 +8,15 @@ import {
 } from "effect";
 
 import { BaseAmount } from "./base-amount.js";
-import type { Exact } from "./codec.js";
+// oxlint-disable anti-slop/no-unknown-parameters -- restore is a boundary that parses stored rows
+// oxlint-disable eslint/prefer-object-spread, typescript/no-misused-spread -- the encoded row keeps every own key of the class instance so the strict encoder can reject strays
 import { verified } from "./codec.js";
-import type { ConversionInputInvalid } from "./conversion-input-invalid.js";
-import type { ConversionOverflow } from "./conversion-overflow.js";
+import type {
+  ConversionInputInvalid,
+  ConversionOverflow,
+  RateOnSameCurrency,
+} from "./errors.js";
+import { rateOnSameCurrency } from "./errors.js";
 import type {
   CurrencyCode,
   DateOnly,
@@ -27,7 +29,6 @@ import {
   MinorUnitsSchema,
   MoneySchema,
 } from "./primitives.js";
-import { RateOnSameCurrency } from "./rate-on-same-currency.js";
 import { RateSchema } from "./rate.js";
 import type { Rate } from "./rate.js";
 
@@ -40,7 +41,7 @@ interface ConvertedAmountFields {
   readonly source: Money;
 }
 
-export type StoredConversion = Exact<{
+export interface StoredConversion {
   readonly _tag: "Converted";
   readonly asOf: DateOnly;
   readonly base: {
@@ -49,7 +50,7 @@ export type StoredConversion = Exact<{
   };
   readonly rate: Rate;
   readonly source: Money;
-}>;
+}
 
 export class ConvertedAmount {
   readonly _tag = "Converted";
@@ -78,7 +79,7 @@ export class ConvertedAmount {
     ConversionInputInvalid | ConversionOverflow | RateOnSameCurrency
   > {
     if (source.currency === baseCurrency) {
-      return Result.fail(RateOnSameCurrency.of({ currency: source.currency }));
+      return Result.fail(rateOnSameCurrency({ currency: source.currency }));
     }
 
     return Result.map(

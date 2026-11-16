@@ -1,8 +1,8 @@
 import { Option, Result } from "effect";
 
 import { parse } from "./codec.js";
-import { ConversionInputInvalid } from "./conversion-input-invalid.js";
-import { ConversionOverflow } from "./conversion-overflow.js";
+import type { ConversionInputInvalid, ConversionOverflow } from "./errors.js";
+import { conversionInputInvalid, conversionOverflow } from "./errors.js";
 import type { CurrencyCode, MinorUnits } from "./primitives.js";
 import { MinorUnitsSchema } from "./primitives.js";
 import { RATE_SCALE_FACTOR } from "./rate.js";
@@ -77,7 +77,7 @@ export const convertMinor = (
 ): Result.Result<MinorUnits, ConversionInputInvalid | ConversionOverflow> => {
   if (!Number.isSafeInteger(minor)) {
     return Result.fail(
-      ConversionInputInvalid.of({ from, reason: invalidReason(minor), to })
+      conversionInputInvalid({ from, reason: invalidReason(minor), to })
     );
   }
 
@@ -92,7 +92,7 @@ export const convertMinor = (
   return Option.match(minorUnitsOf(converted), {
     onNone: () =>
       Result.fail(
-        ConversionOverflow.of({
+        conversionOverflow({
           baseCurrency: to,
           currency: from,
           minor,

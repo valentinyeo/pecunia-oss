@@ -2,20 +2,9 @@ import { DateTime, Result, Schema } from "effect";
 import { describe, expect, it } from "vitest";
 
 import type { BaseAmount } from "../../src/model/base-amount.js";
+import { codec, strictOptions } from "../../src/model/codec.js";
 import { ConvertedAmount } from "../../src/model/converted-amount.js";
-import {
-  AmountsSchema,
-  ArchiveStateSchema,
-  CategorizationSchema,
-  ClassificationSchema,
-  RuleSchema,
-  SameCurrencyAmountSchema,
-  SyncRunStateSchema,
-  TaxObligationStatusSchema,
-  codec,
-  sameCurrencyAmount,
-  strictOptions,
-} from "../../src/model/index.js";
+import { sameCurrencyAmount } from "../../src/model/index.js";
 import type {
   Amounts,
   ArchiveState,
@@ -25,6 +14,11 @@ import type {
   SyncRunState,
   TaxObligationStatus,
 } from "../../src/model/index.js";
+import { ArchiveStateSchema } from "../../src/model/invoice.js";
+import {
+  AmountsSchema,
+  SameCurrencyAmountSchema,
+} from "../../src/model/money.js";
 import {
   CategoryIdSchema,
   CurrencyCodeSchema,
@@ -37,6 +31,13 @@ import {
   TransactionIdSchema,
 } from "../../src/model/primitives.js";
 import { RateSchema } from "../../src/model/rate.js";
+import { RuleSchema } from "../../src/model/rule.js";
+import { SyncRunStateSchema } from "../../src/model/run.js";
+import { TaxObligationStatusSchema } from "../../src/model/tax.js";
+import {
+  CategorizationSchema,
+  ClassificationSchema,
+} from "../../src/model/transaction.js";
 
 const timestampOf = (text: string) =>
   Schema.decodeSync(TimestampSchema)(DateTime.makeUnsafe(text));

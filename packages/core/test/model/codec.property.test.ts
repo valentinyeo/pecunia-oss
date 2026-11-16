@@ -1,26 +1,29 @@
 // oxlint-disable anti-slop/no-unknown-parameters, anti-slop/no-unknown-returns, anti-slop/no-unsafe-dictionary-type, anti-slop/no-manual-tagged-construction, anti-slop/no-reflect-apply, anti-slop/no-known-value-widening, anti-slop-effect/no-manual-tagged-construction, typescript/no-unsafe-type-assertion -- the adversarial property test builds wire fixtures and untrusted inputs by hand
 
+// oxlint-disable anti-slop/require-safety-comment-for-type-assertion, eslint/prefer-object-spread, eslint/prefer-destructuring, typescript/no-unnecessary-type-assertion -- the adversarial property test injects strays through untyped handles by design
+
 import { DateTime, Option, Predicate, Result, Schema } from "effect";
 import type { SchemaAST } from "effect";
 import { describe, expect, it } from "vitest";
 
-import { codec, parse } from "../../src/model/codec.js";
-import {
-  ConvertedAmount,
-  ConvertedAmountSchema,
-} from "../../src/model/converted-amount.js";
+import { parse, schemaOf } from "../../src/model/codec.js";
+import { codecs } from "../../src/model/codecs.js";
+import { ConvertedAmount } from "../../src/model/converted-amount.js";
 import * as model from "../../src/model/index.js";
 
-type Codec = Schema.Top & {
-  readonly DecodingServices: never;
-  readonly EncodingServices: never;
-};
+interface Handle {
+  readonly name: string;
+  readonly decode: (
+    input: unknown
+  ) => Result.Result<unknown, Schema.SchemaError>;
+  readonly encode: (value: never) => Result.Result<unknown, Schema.SchemaError>;
+}
 
 type Wire = Readonly<Record<string, unknown>>;
 
 interface Fixture {
   readonly name: string;
-  readonly schema: Codec;
+  readonly schema: Handle;
   readonly wires: readonly Wire[];
 }
 
@@ -29,21 +32,21 @@ interface WireFixture extends Wire {
 }
 
 const at = parse(
-  model.TimestampSchema,
+  model.codecs.timestamp,
   DateTime.makeUnsafe("2024-01-31T10:00:00Z")
 );
 
 const str = (seed: number): string =>
   `018f2b7c-1234-7abc-8def-${String(seed).padStart(12, "0")}`;
 
-const currencyOf = (code: string) => parse(model.CurrencyCodeSchema, code);
+const currencyOf = (code: string) => parse(model.codecs.currencyCode, code);
 
-const rateOf = (text: string) => parse(model.RateSchema, text);
+const rateOf = (text: string) => parse(model.codecs.rate, text);
 
-const dateOf = (text: string) => parse(model.DateOnlySchema, text);
+const dateOf = (text: string) => parse(model.codecs.dateOnly, text);
 
 const moneyOf = (currency: string, minor: number) =>
-  parse(model.MoneySchema, { currency, minor });
+  parse(model.codecs.money, { currency, minor });
 
 const sameCurrencyWire = {
   _tag: "SameCurrency",
@@ -455,50 +458,50 @@ const transactionWire = (withFee: boolean): Wire => ({
 const fixtures: readonly Fixture[] = [
   {
     name: "MoneySchema",
-    schema: model.MoneySchema,
+    schema: model.codecs.money,
     wires: [{ currency: "EUR", minor: 1000 }],
   },
   {
     name: "SameCurrencyAmountSchema",
-    schema: model.SameCurrencyAmountSchema,
+    schema: model.codecs.sameCurrencyAmount,
     wires: [sameCurrencyWire],
   },
   {
     name: "AmountsSchema",
-    schema: model.AmountsSchema,
+    schema: model.codecs.amounts,
     wires: [sameCurrencyWire, { ...convertedWire, vary: false }],
   },
   {
-    name: "ConvertedAmountSchema",
-    schema: ConvertedAmountSchema,
+    name: "codecs.convertedAmount",
+    schema: codecs.convertedAmount,
     wires: [{ ...convertedWire, vary: false }],
   },
-  { name: "ProfileSchema", schema: model.ProfileSchema, wires: [profileWire] },
-  { name: "MemberSchema", schema: model.MemberSchema, wires: [memberWire] },
+  { name: "ProfileSchema", schema: model.codecs.profile, wires: [profileWire] },
+  { name: "MemberSchema", schema: model.codecs.member, wires: [memberWire] },
   {
     name: "ProviderSchema",
-    schema: model.ProviderSchema,
+    schema: model.codecs.provider,
     wires: [providerWire],
   },
   {
     name: "ProviderAccountSchema",
-    schema: model.ProviderAccountSchema,
+    schema: model.codecs.providerAccount,
     wires: [providerAccountWire],
   },
   {
     name: "CategorySchema",
-    schema: model.CategorySchema,
+    schema: model.codecs.category,
     wires: [categoryWire],
   },
-  { name: "PayeeSchema", schema: model.PayeeSchema, wires: [payeeWire] },
+  { name: "PayeeSchema", schema: model.codecs.payee, wires: [payeeWire] },
   {
     name: "MerchantAliasSchema",
-    schema: model.MerchantAliasSchema,
+    schema: model.codecs.merchantAlias,
     wires: [aliasWire],
   },
   {
     name: "RuleSchema",
-    schema: model.RuleSchema,
+    schema: model.codecs.rule,
     wires: [
       "categorize",
       "income_client",
@@ -511,7 +514,7 @@ const fixtures: readonly Fixture[] = [
   },
   {
     name: "SubscriptionStatusSchema",
-    schema: model.SubscriptionStatusSchema,
+    schema: model.codecs.subscriptionStatus,
     wires: [
       "Cancelled",
       "Confirmed",
@@ -522,72 +525,72 @@ const fixtures: readonly Fixture[] = [
   },
   {
     name: "SubscriptionSchema",
-    schema: model.SubscriptionSchema,
+    schema: model.codecs.subscription,
     wires: [subscriptionWire],
   },
   {
     name: "InvestmentPlatformSchema",
-    schema: model.InvestmentPlatformSchema,
+    schema: model.codecs.investmentPlatform,
     wires: [platformWire],
   },
   {
     name: "HoldingSchema",
-    schema: model.HoldingSchema,
+    schema: model.codecs.holding,
     wires: [holdingWire("pending"), holdingWire("active")],
   },
   {
     name: "ExchangeRateSchema",
-    schema: model.ExchangeRateSchema,
+    schema: model.codecs.exchangeRate,
     wires: [exchangeRateWire],
   },
   {
     name: "ArchiveStateSchema",
-    schema: model.ArchiveStateSchema,
+    schema: model.codecs.archiveState,
     wires: ["Archived", "Failed", "Reserved", "Unarchived"].map(archiveWire),
   },
   {
     name: "InvoiceDocumentSchema",
-    schema: model.InvoiceDocumentSchema,
+    schema: model.codecs.invoiceDocument,
     wires: [invoiceWire(false), invoiceWire(true)],
   },
   {
     name: "InvoiceSourceSchema",
-    schema: model.InvoiceSourceSchema,
+    schema: model.codecs.invoiceSource,
     wires: [invoiceSourceWire],
   },
   {
     name: "ArchiveTargetSchema",
-    schema: model.ArchiveTargetSchema,
+    schema: model.codecs.archiveTarget,
     wires: [archiveTargetWire],
   },
   {
     name: "InvoiceExceptionSchema",
-    schema: model.InvoiceExceptionSchema,
+    schema: model.codecs.invoiceException,
     wires: [invoiceExceptionWire],
   },
   {
     name: "TaxProfileSchema",
-    schema: model.TaxProfileSchema,
+    schema: model.codecs.taxProfile,
     wires: [taxProfileWire],
   },
   {
     name: "TaxObligationStatusSchema",
-    schema: model.TaxObligationStatusSchema,
+    schema: model.codecs.taxObligationStatus,
     wires: ["Estimated", "Paid", "WrittenOff"].map(taxStatusWire),
   },
   {
     name: "TaxObligationSchema",
-    schema: model.TaxObligationSchema,
+    schema: model.codecs.taxObligation,
     wires: [taxObligationWire],
   },
   {
     name: "SyncCountsSchema",
-    schema: model.SyncCountsSchema,
+    schema: model.codecs.syncCounts,
     wires: [{ imported: 1, rejected: 0, skipped: 0 }],
   },
   {
     name: "SyncRunStateSchema",
-    schema: model.SyncRunStateSchema,
+    schema: model.codecs.syncRunState,
     wires: [
       "Cancelled",
       "Categorizing",
@@ -597,23 +600,23 @@ const fixtures: readonly Fixture[] = [
       "Succeeded",
     ].map(syncStateWire),
   },
-  { name: "SyncRunSchema", schema: model.SyncRunSchema, wires: [syncRunWire] },
-  { name: "ReportSchema", schema: model.ReportSchema, wires: [reportWire] },
+  { name: "SyncRunSchema", schema: model.codecs.syncRun, wires: [syncRunWire] },
+  { name: "ReportSchema", schema: model.codecs.report, wires: [reportWire] },
   {
     name: "AppSettingSchema",
-    schema: model.AppSettingSchema,
+    schema: model.codecs.appSetting,
     wires: [appSettingWire],
   },
   {
     name: "CategorizationSchema",
-    schema: model.CategorizationSchema,
+    schema: model.codecs.categorization,
     wires: ["Applied", "Confirmed", "None", "Suggested"].map(
       categorizationWire
     ),
   },
   {
     name: "ClassificationSchema",
-    schema: model.ClassificationSchema,
+    schema: model.codecs.classification,
     wires: [
       "Excluded",
       "Income",
@@ -626,12 +629,12 @@ const fixtures: readonly Fixture[] = [
   },
   {
     name: "TransactionSchema",
-    schema: model.TransactionSchema,
+    schema: model.codecs.transaction,
     wires: [transactionWire(false), transactionWire(true)],
   },
   {
     name: "ConversionInputInvalid",
-    schema: model.ConversionInputInvalid,
+    schema: model.codecs.conversionInputInvalid,
     wires: [
       {
         _tag: "ConversionInputInvalid",
@@ -643,7 +646,7 @@ const fixtures: readonly Fixture[] = [
   },
   {
     name: "ConversionOverflow",
-    schema: model.ConversionOverflow,
+    schema: model.codecs.conversionOverflow,
     wires: [
       {
         _tag: "ConversionOverflow",
@@ -656,12 +659,12 @@ const fixtures: readonly Fixture[] = [
   },
   {
     name: "CurrencyMismatch",
-    schema: model.CurrencyMismatch,
+    schema: model.codecs.currencyMismatch,
     wires: [{ _tag: "CurrencyMismatch", left: "EUR", right: "USD" }],
   },
   {
     name: "MoneyOverflow",
-    schema: model.MoneyOverflow,
+    schema: model.codecs.moneyOverflow,
     wires: [
       {
         _tag: "MoneyOverflow",
@@ -674,52 +677,20 @@ const fixtures: readonly Fixture[] = [
   },
   {
     name: "RateUnavailable",
-    schema: model.RateUnavailable,
+    schema: model.codecs.rateUnavailable,
     wires: [{ _tag: "RateUnavailable", from: "EUR", to: "USD" }],
   },
   {
     name: "RateOnSameCurrency",
-    schema: model.RateOnSameCurrency,
+    schema: model.codecs.rateOnSameCurrency,
     wires: [{ _tag: "RateOnSameCurrency", currency: "EUR" }],
   },
 ];
-
-const directlyImported = new Set(["ConvertedAmountSchema"]);
 
 const construct = (
   door: (fields: never) => unknown,
   fields: Record<string, unknown>
 ): unknown => Reflect.apply(door, undefined, [fields]);
-
-const isCodec = (value: unknown): value is Codec => Schema.isSchema(value);
-
-const declaresObjects = (ast: SchemaAST.AST): boolean => {
-  if (Predicate.isTagged(ast, "Objects")) {
-    return true;
-  }
-
-  if (Predicate.isTagged(ast, "Union")) {
-    return ast.types.some(declaresObjects);
-  }
-
-  if (Predicate.isTagged(ast, "Declaration")) {
-    return ast.typeParameters.some(declaresObjects);
-  }
-
-  return false;
-};
-
-const exportedObjectSchemas = (): readonly (readonly [string, Codec])[] => {
-  const out: [string, Codec][] = [];
-
-  for (const [name, value] of Object.entries(model)) {
-    if (isCodec(value) && declaresObjects(Schema.toType(value).ast)) {
-      out.push([name, value]);
-    }
-  }
-
-  return out;
-};
 
 const fieldNamesOf = (ast: SchemaAST.AST): readonly string[] => {
   if (Predicate.isTagged(ast, "Objects")) {
@@ -746,7 +717,7 @@ const foreignPool = (): readonly string[] => {
   const names = new Set<string>(["amount", "asOf", "base", "rate", "source"]);
 
   for (const { schema } of fixtures) {
-    for (const name of fieldNamesOf(Schema.toEncoded(schema).ast)) {
+    for (const name of fieldNamesOf(schemaOf(schema as never).ast)) {
       names.add(name);
     }
   }
@@ -949,22 +920,63 @@ const restoreOf = (stored: unknown): Option.Option<ConvertedAmount> =>
   ConvertedAmount.restore(stored);
 
 describe("one codec owns parsing for every exported model schema", () => {
-  it("registers every exported object schema by name", () => {
-    const registered = fixtures.map(({ name }) => name).toSorted();
+  it("exposes only codec handles, factories and value types", () => {
+    const allowed = new Set([
+      "parse",
+      "render",
+      "verified",
+      "codecs",
+      "RATE_SCALE",
+      "rateText",
+      "BaseAmount",
+      "ConvertedAmount",
+      "addMoney",
+      "convert",
+      "convertedAmounts",
+      "convertMinor",
+      "minorUnitExponent",
+      "sameCurrencyAmount",
+      "sourceAmount",
+      "subtractMoney",
+      "conversionInputInvalid",
+      "conversionOverflow",
+      "currencyMismatch",
+      "moneyOverflow",
+      "rateOnSameCurrency",
+      "rateUnavailable",
+    ]);
 
-    const exported = exportedObjectSchemas()
-      .map(([name]) => name)
-      .toSorted();
+    const names = Object.keys(model).toSorted();
 
-    expect(
-      exported.filter(
-        (name) => !registered.includes(name) && !directlyImported.has(name)
-      )
-    ).toStrictEqual([]);
-
-    expect(registered.filter((name) => !exported.includes(name))).toStrictEqual(
-      [...directlyImported].toSorted()
+    expect(names.filter((name) => !allowed.has(name))).toStrictEqual([]);
+    expect([...allowed].filter((name) => !names.includes(name))).toStrictEqual(
+      []
     );
+
+    for (const [name, value] of Object.entries(model)) {
+      expect(
+        Schema.isSchema(value),
+        `${name} exports a raw schema`
+      ).toStrictEqual(false);
+
+      if (Predicate.isObject(value) && value !== null) {
+        expect(
+          Object.hasOwn(value, "make") ||
+            Object.hasOwn(value, "makeOption") ||
+            Object.hasOwn(value, "makeEffect") ||
+            Object.hasOwn(value, "schema"),
+          `${name} exposes a door`
+        ).toStrictEqual(false);
+      }
+    }
+
+    for (const [name, handle] of Object.entries(model.codecs)) {
+      expect(
+        Object.keys(handle).toSorted(),
+        `${name} hides its schema`
+      ).toStrictEqual(["decode", "encode", "name"]);
+      expect(Schema.isSchema(handle)).toStrictEqual(false);
+    }
   });
 
   it("keeps illegal money shapes out of the type system", () => {
@@ -982,7 +994,7 @@ describe("one codec owns parsing for every exported model schema", () => {
       amount: moneyOf("EUR", 1000),
     };
 
-    const errorFields: Parameters<typeof model.RateUnavailable.of>[0] = {
+    const errorFields: Parameters<typeof model.rateUnavailable>[0] = {
       from: currencyOf("EUR"),
       // @ts-expect-error -- a rate-unavailable error never carries a rate
       rate: rateOf("0.85"),
@@ -1003,7 +1015,7 @@ describe("one codec owns parsing for every exported model schema", () => {
     let cases = 0;
 
     for (const { name, schema, wires } of fixtures) {
-      const handle = codec(schema);
+      const handle = schema;
 
       for (const wire of wires) {
         for (let turn = 0; turn < VARIANTS; turn += 1) {
@@ -1020,7 +1032,7 @@ describe("one codec owns parsing for every exported model schema", () => {
             continue;
           }
 
-          const encoded = handle.encode(decoded.success);
+          const encoded = handle.encode(decoded.success as never);
 
           expect(
             Result.isSuccess(encoded),
@@ -1039,7 +1051,7 @@ describe("one codec owns parsing for every exported model schema", () => {
           ).toStrictEqual(decoded.success);
 
           if (Result.isSuccess(again)) {
-            const reEncoded = handle.encode(again.success);
+            const reEncoded = handle.encode(again.success as never);
 
             expect(
               Result.isSuccess(reEncoded) ? reEncoded.success : undefined,
@@ -1047,8 +1059,8 @@ describe("one codec owns parsing for every exported model schema", () => {
             ).toStrictEqual(encoded.success);
           }
 
-          if (name === "ConvertedAmountSchema") {
-            const amount = parse(ConvertedAmountSchema, input);
+          if (name === "codecs.convertedAmount") {
+            const amount = parse(codecs.convertedAmount, input);
 
             const restored = restoreOf({
               _tag: "Converted",
@@ -1103,7 +1115,7 @@ describe("one codec owns parsing for every exported model schema", () => {
 
             const label = `${name}[${path.join(".")}]`;
             const injected = withForeign(input, path, key, strayValue(key));
-            const decoded = codec(schema).decode(injected);
+            const decoded = schema.decode(injected);
 
             expect(
               Result.isFailure(decoded),
@@ -1121,14 +1133,14 @@ describe("one codec owns parsing for every exported model schema", () => {
           }
         }
 
-        const decoded = codec(schema).decode(input);
+        const decoded = schema.decode(input);
 
         if (Result.isFailure(decoded)) {
           continue;
         }
 
         for (const path of pathsOf(decoded.success)) {
-          const fresh = codec(schema).decode(input);
+          const fresh = schema.decode(input);
 
           if (Result.isFailure(fresh)) {
             continue;
@@ -1148,7 +1160,7 @@ describe("one codec owns parsing for every exported model schema", () => {
 
           Object.assign(node, { [key]: strayValue(key) });
 
-          const encoded = codec(schema).encode(fresh.success);
+          const encoded = schema.encode(fresh.success as never);
 
           expect(
             Result.isFailure(encoded),
@@ -1203,7 +1215,7 @@ const strayValue = (key: string): unknown => {
 };
 
 describe("the sixth verdict reproductions stay rejected", () => {
-  const converted = parse(ConvertedAmountSchema, convertedWire);
+  const converted = parse(codecs.convertedAmount, convertedWire);
 
   const stored = {
     _tag: "Converted",
@@ -1266,7 +1278,7 @@ describe("the sixth verdict reproductions stay rejected", () => {
 
   it("tagged error constructors reject and name a foreign field", () => {
     expect(() =>
-      construct((fields: never) => model.RateUnavailable.of(fields), {
+      construct((fields: never) => model.rateUnavailable(fields), {
         from: currencyOf("EUR"),
         rate: rateOf("0.85"),
         to: currencyOf("USD"),
@@ -1274,14 +1286,14 @@ describe("the sixth verdict reproductions stay rejected", () => {
     ).toThrow(/rate/u);
 
     expect(() =>
-      construct((fields: never) => model.RateOnSameCurrency.of(fields), {
+      construct((fields: never) => model.rateOnSameCurrency(fields), {
         currency: currencyOf("EUR"),
         rate: rateOf("0.85"),
       })
     ).toThrow(/rate/u);
 
     expect(() =>
-      construct((fields: never) => model.CurrencyMismatch.of(fields), {
+      construct((fields: never) => model.currencyMismatch(fields), {
         left: currencyOf("EUR"),
         note: "demo",
         right: currencyOf("USD"),
@@ -1289,37 +1301,37 @@ describe("the sixth verdict reproductions stay rejected", () => {
     ).toThrow(/note/u);
 
     expect(() =>
-      construct((fields: never) => model.MoneyOverflow.of(fields), {
+      construct((fields: never) => model.moneyOverflow(fields), {
         currency: currencyOf("EUR"),
-        left: parse(model.MinorUnitsSchema, 1),
+        left: parse(model.codecs.minorUnits, 1),
         operation: "add",
         rate: rateOf("0.85"),
-        right: parse(model.MinorUnitsSchema, 2),
+        right: parse(model.codecs.minorUnits, 2),
       })
     ).toThrow(/rate/u);
 
     expect(() =>
-      construct((fields: never) => model.ConversionInputInvalid.of(fields), {
+      construct((fields: never) => model.conversionInputInvalid(fields), {
         from: currencyOf("EUR"),
-        minor: parse(model.MinorUnitsSchema, 1),
+        minor: parse(model.codecs.minorUnits, 1),
         reason: "fractional",
         to: currencyOf("USD"),
       })
     ).toThrow(/minor/u);
 
     expect(() =>
-      construct((fields: never) => model.ConversionOverflow.of(fields), {
+      construct((fields: never) => model.conversionOverflow(fields), {
         amount: moneyOf("EUR", 1),
         baseCurrency: currencyOf("EUR"),
         currency: currencyOf("USD"),
-        minor: parse(model.MinorUnitsSchema, 1000),
+        minor: parse(model.codecs.minorUnits, 1000),
         rate: rateOf("0.85"),
       })
     ).toThrow(/amount/u);
   });
 
   it("tagged errors construct from valid fields without overflowing", () => {
-    const unavailable = model.RateUnavailable.of({
+    const unavailable = model.rateUnavailable({
       from: currencyOf("EUR"),
       to: currencyOf("USD"),
     });
@@ -1327,33 +1339,36 @@ describe("the sixth verdict reproductions stay rejected", () => {
     expect(unavailable.message).toContain("No EUR to USD rate");
 
     expect(
-      model.ConversionOverflow.of({
+      model.conversionOverflow({
         baseCurrency: currencyOf("EUR"),
         currency: currencyOf("USD"),
-        minor: parse(model.MinorUnitsSchema, 1000),
+        minor: parse(model.codecs.minorUnits, 1000),
         rate: rateOf("0.85"),
       }).message
     ).toContain("0.85");
 
-    for (const [name, schema] of [
-      ["ConversionInputInvalid", model.ConversionInputInvalid],
-      ["ConversionOverflow", model.ConversionOverflow],
-      ["CurrencyMismatch", model.CurrencyMismatch],
-      ["MoneyOverflow", model.MoneyOverflow],
-      ["RateUnavailable", model.RateUnavailable],
-      ["RateOnSameCurrency", model.RateOnSameCurrency],
-    ] as const) {
-      const wire = fixtures.find((fixture) => fixture.name === name)?.wires[0];
+    const errorFixtures = fixtures.filter(
+      (fixture) =>
+        fixture.name.endsWith("Invalid") ||
+        fixture.name.endsWith("Overflow") ||
+        fixture.name === "CurrencyMismatch" ||
+        fixture.name === "RateUnavailable" ||
+        fixture.name === "RateOnSameCurrency"
+    );
+
+    for (const { name, schema, wires } of errorFixtures) {
+      void schema;
+      const wire = wires[0];
 
       expect(wire, `${name} has no fixture`).toBeDefined();
 
       if (wire !== undefined) {
-        const decoded = codec(schema).decode(wire);
+        const decoded = schema.decode(wire);
 
         expect(Result.isSuccess(decoded), `${name} does not decode`).toBe(true);
 
         if (Result.isSuccess(decoded)) {
-          const encoded = codec(schema).encode(decoded.success);
+          const encoded = schema.encode(decoded.success as never);
 
           expect(Result.isSuccess(encoded), `${name} does not encode`).toBe(
             true
@@ -1364,13 +1379,9 @@ describe("the sixth verdict reproductions stay rejected", () => {
   });
 
   it("encodes valid optional money on invoices and transactions", () => {
-    const invoice = codec(model.InvoiceDocumentSchema).decode(
-      invoiceWire(true)
-    );
+    const invoice = model.codecs.invoiceDocument.decode(invoiceWire(true));
 
-    const transaction = codec(model.TransactionSchema).decode(
-      transactionWire(true)
-    );
+    const transaction = model.codecs.transaction.decode(transactionWire(true));
 
     expect(Result.isSuccess(invoice)).toBe(true);
     expect(Result.isSuccess(transaction)).toBe(true);
@@ -1378,16 +1389,12 @@ describe("the sixth verdict reproductions stay rejected", () => {
     if (Result.isSuccess(invoice)) {
       expect(Option.isSome(invoice.success.amount)).toBe(true);
 
-      const encoded = codec(model.InvoiceDocumentSchema).encode(
-        invoice.success
-      );
+      const encoded = model.codecs.invoiceDocument.encode(invoice.success);
 
       expect(Result.isSuccess(encoded)).toBe(true);
 
       if (Result.isSuccess(encoded)) {
-        const again = codec(model.InvoiceDocumentSchema).decode(
-          encoded.success
-        );
+        const again = model.codecs.invoiceDocument.decode(encoded.success);
 
         expect(
           Result.isSuccess(again) ? again.success : undefined
@@ -1398,14 +1405,12 @@ describe("the sixth verdict reproductions stay rejected", () => {
     if (Result.isSuccess(transaction)) {
       expect(Option.isSome(transaction.success.fee)).toBe(true);
 
-      const encoded = codec(model.TransactionSchema).encode(
-        transaction.success
-      );
+      const encoded = model.codecs.transaction.encode(transaction.success);
 
       expect(Result.isSuccess(encoded)).toBe(true);
 
       if (Result.isSuccess(encoded)) {
-        const again = codec(model.TransactionSchema).decode(encoded.success);
+        const again = model.codecs.transaction.decode(encoded.success);
 
         expect(
           Result.isSuccess(again) ? again.success : undefined
@@ -1417,18 +1422,18 @@ describe("the sixth verdict reproductions stay rejected", () => {
   it("rejects a foreign field on the exported money schema through the codec", () => {
     expect(
       Result.isFailure(
-        codec(model.SameCurrencyAmountSchema).decode({
+        model.codecs.sameCurrencyAmount.decode({
           ...sameCurrencyWire,
           rate: "0.85",
         })
       )
     ).toBe(true);
 
-    const amount = parse(model.SameCurrencyAmountSchema, sameCurrencyWire);
+    const amount = parse(model.codecs.sameCurrencyAmount, sameCurrencyWire);
 
     Object.assign(amount, { rate: rateOf("0.85") });
 
-    expect(Result.isFailure(codec(model.AmountsSchema).encode(amount))).toBe(
+    expect(Result.isFailure(model.codecs.amounts.encode(amount as never))).toBe(
       true
     );
   });
@@ -1438,5 +1443,97 @@ describe("the model fixtures stay made up", () => {
   it("uses no real account identifiers", () => {
     expect(dateOf("2024-01-31")).toBe("2024-01-31");
     expect(rateOf("0.85")).toBeGreaterThan(0n);
+  });
+});
+
+describe("the public surface stays strict about own keys", () => {
+  it("rejects an extra own key on an Option wrapper on encode", () => {
+    const invoice = parse(codecs.invoiceDocument, invoiceWire(true));
+    const wrapped = Option.some(moneyOf("EUR", 250));
+
+    Object.assign(wrapped, { rate: rateOf("0.85") });
+
+    expect(
+      Result.isFailure(
+        codecs.invoiceDocument.encode({ ...invoice, amount: wrapped } as never)
+      )
+    ).toBe(true);
+
+    expect(
+      Result.isFailure(
+        codecs.invoiceDocument.decode({
+          ...invoiceWire(true),
+          amount: Object.assign({ currency: "EUR", minor: 1 }, { rate: 1 }),
+        })
+      )
+    ).toBe(true);
+  });
+
+  it("rejects an extra field on every exported error factory", () => {
+    const cases = [
+      [model.rateUnavailable, { from: "EUR", rate: "0.85", to: "USD" }],
+      [model.rateOnSameCurrency, { currency: "EUR", rate: "0.85" }],
+      [model.currencyMismatch, { left: "EUR", note: "x", right: "USD" }],
+      [
+        model.moneyOverflow,
+        { currency: "EUR", left: 1, operation: "add", rate: "0.85", right: 2 },
+      ],
+      [
+        model.conversionInputInvalid,
+        { from: "EUR", minor: 1, reason: "fractional", to: "USD" },
+      ],
+      [
+        model.conversionOverflow,
+        {
+          amount: { currency: "EUR", minor: 1 },
+          baseCurrency: "EUR",
+          currency: "USD",
+          minor: 1000,
+          rate: "0.85",
+        },
+      ],
+    ] as const;
+
+    for (const [factory, fields] of cases) {
+      expect(
+        () => construct(factory as (input: never) => unknown, fields),
+        `${factory.name} accepted a sibling field`
+      ).toThrow();
+    }
+  });
+
+  it("keeps sibling literals out of the exported value types", () => {
+    const amount = model.sameCurrencyAmount(moneyOf("EUR", 1000));
+
+    const withAmountRate: model.SameCurrencyAmount = {
+      ...sameCurrencyWire,
+      // @ts-expect-error -- a same-currency amount never carries a rate
+      rate: rateOf("0.85"),
+    };
+
+    const forgedTransaction: model.Transaction = {
+      ...parse(codecs.transaction, transactionWire(false)),
+      // @ts-expect-error -- a transaction never carries a subscription frequency
+      frequency: "monthly",
+    };
+
+    const forgedMoney: model.Money = {
+      currency: currencyOf("EUR"),
+      // @ts-expect-error -- a money value never carries a base amount
+      base: moneyOf("EUR", 1),
+      minor: parse(codecs.minorUnits, 1),
+    };
+
+    const forgedStored: model.StoredConversion = {
+      ...convertedWire,
+      // @ts-expect-error -- a stored conversion never carries an amount
+      amount: moneyOf("EUR", 1000),
+    };
+
+    expect(Object.keys(amount).toSorted()).toStrictEqual(["_tag", "amount"]);
+    expect(withAmountRate).toBeDefined();
+    expect(forgedTransaction).toBeDefined();
+    expect(forgedMoney).toBeDefined();
+    expect(forgedStored).toBeDefined();
   });
 });

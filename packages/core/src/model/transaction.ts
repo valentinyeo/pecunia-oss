@@ -2,7 +2,6 @@ import { Option, Schema } from "effect";
 
 import type { Exact } from "./codec.js";
 import { AmountsSchema, sourceAmount } from "./money.js";
-import type { Amounts } from "./money.js";
 import type { Money } from "./primitives.js";
 import {
   CategoryIdSchema,
@@ -65,7 +64,7 @@ export const ClassificationSchema = Schema.Union([
 export type Classification = Exact<typeof ClassificationSchema.Type>;
 
 interface FeeBearingAmounts {
-  readonly amounts: Amounts;
+  readonly amounts: typeof AmountsSchema.Type;
   readonly fee: Option.Option<Money>;
 }
 

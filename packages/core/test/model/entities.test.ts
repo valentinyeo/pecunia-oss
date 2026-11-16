@@ -1,43 +1,32 @@
 import { describe, expect, it } from "@effect/vitest";
 import { DateTime, Effect, Option, Schema } from "effect";
 
+import { AppSettingSchema } from "../../src/model/app-setting.js";
+import {
+  CategorySchema,
+  MerchantAliasSchema,
+  PayeeSchema,
+} from "../../src/model/category.js";
+import { strictOptions } from "../../src/model/codec.js";
+import { rateOnSameCurrency } from "../../src/model/errors.js";
+import { convertedAmounts, sameCurrencyAmount } from "../../src/model/index.js";
+import {
+  HoldingSchema,
+  InvestmentPlatformSchema,
+} from "../../src/model/investment.js";
+import type { Holding } from "../../src/model/investment.js";
 import {
   ArchiveStateSchema,
-  AmountsSchema,
   ArchiveTargetSchema,
-  AppSettingSchema,
-  CategorySchema,
-  CategorizationSchema,
-  ClassificationSchema,
-  ExchangeRateSchema,
-  HoldingSchema,
   InvoiceDocumentSchema,
   InvoiceExceptionSchema,
   InvoiceSourceSchema,
-  InvestmentPlatformSchema,
-  MemberSchema,
-  MerchantAliasSchema,
-  PayeeSchema,
-  ProfileSchema,
-  ProviderAccountSchema,
-  ProviderSchema,
-  RateOnSameCurrency,
-  ReportSchema,
+} from "../../src/model/invoice.js";
+import { ExchangeRateSchema } from "../../src/model/market.js";
+import {
+  AmountsSchema,
   SameCurrencyAmountSchema,
-  RuleSchema,
-  SubscriptionSchema,
-  SubscriptionStatusSchema,
-  SyncRunSchema,
-  SyncRunStateSchema,
-  TaxObligationSchema,
-  TaxObligationStatusSchema,
-  TaxProfileSchema,
-  TransactionSchema,
-  convertedAmounts,
-  sameCurrencyAmount,
-  strictOptions,
-} from "../../src/model/index.js";
-import type { Holding } from "../../src/model/investment.js";
+} from "../../src/model/money.js";
 import {
   AliasIdSchema,
   ArchiveTargetIdSchema,
@@ -62,8 +51,30 @@ import {
   TransactionIdSchema,
 } from "../../src/model/primitives.js";
 import type { DateOnly } from "../../src/model/primitives.js";
+import { MemberSchema, ProfileSchema } from "../../src/model/profile.js";
+import {
+  ProviderAccountSchema,
+  ProviderSchema,
+} from "../../src/model/provider.js";
 import { RateSchema } from "../../src/model/rate.js";
 import type { Rate } from "../../src/model/rate.js";
+import { ReportSchema } from "../../src/model/report.js";
+import { RuleSchema } from "../../src/model/rule.js";
+import { SyncRunSchema, SyncRunStateSchema } from "../../src/model/run.js";
+import {
+  SubscriptionSchema,
+  SubscriptionStatusSchema,
+} from "../../src/model/subscription.js";
+import {
+  TaxObligationSchema,
+  TaxObligationStatusSchema,
+  TaxProfileSchema,
+} from "../../src/model/tax.js";
+import {
+  CategorizationSchema,
+  ClassificationSchema,
+  TransactionSchema,
+} from "../../src/model/transaction.js";
 
 const at = Schema.decodeSync(TimestampSchema)(
   DateTime.makeUnsafe("2024-01-31T10:00:00Z")
@@ -546,7 +557,7 @@ describe("a transaction carries one amount per currency story", () => {
     };
 
     expect(() =>
-      Schema.decodeUnknownSync(AmountsSchema, strictOptions)(tampered)
+      Schema.decodeSync(AmountsSchema, strictOptions)(tampered)
     ).toThrow();
     expect(() => strictTransactionDecoder(withBase)).toThrow();
   });
@@ -595,7 +606,7 @@ describe("a transaction carries one amount per currency story", () => {
       );
 
       expect(failure).toStrictEqual(
-        RateOnSameCurrency.of({ currency: currencyOf("EUR") })
+        rateOnSameCurrency({ currency: currencyOf("EUR") })
       );
     })
   );

@@ -1,7 +1,5 @@
 import { Schema, SchemaGetter } from "effect";
 
-import type { Exact } from "./codec.js";
-
 export const RATE_SCALE = 12;
 
 export const RATE_SCALE_FACTOR = 10n ** BigInt(RATE_SCALE);
@@ -39,6 +37,6 @@ export const RateSchema = Schema.String.check(
   )
 );
 
-export type Rate = Exact<typeof RateSchema.Type>;
+export type Rate = typeof RateSchema.Type;
 
 export const rateText = (rate: Rate): string => toText(rate);

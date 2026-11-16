@@ -4,12 +4,17 @@ import { BaseAmount } from "./base-amount.js";
 import type { RateLookup } from "./base-amount.js";
 import type { Exact } from "./codec.js";
 import { parse } from "./codec.js";
-import type { ConversionInputInvalid } from "./conversion-input-invalid.js";
-import type { ConversionOverflow } from "./conversion-overflow.js";
 import { minorUnitsOf } from "./convert-minor.js";
 import { ConvertedAmount, ConvertedAmountSchema } from "./converted-amount.js";
-import { CurrencyMismatch } from "./currency-mismatch.js";
-import { MoneyOverflow } from "./money-overflow.js";
+import type {
+  ConversionInputInvalid,
+  ConversionOverflow,
+  CurrencyMismatch,
+  MoneyOverflow,
+  RateOnSameCurrency,
+  RateUnavailable,
+} from "./errors.js";
+import { currencyMismatch, moneyOverflow } from "./errors.js";
 import type {
   CurrencyCode,
   DateOnly,
@@ -17,8 +22,6 @@ import type {
   Money,
 } from "./primitives.js";
 import { MoneySchema } from "./primitives.js";
-import type { RateOnSameCurrency } from "./rate-on-same-currency.js";
-import type { RateUnavailable } from "./rate-unavailable.js";
 import type { Rate } from "./rate.js";
 
 export { BaseAmount } from "./base-amount.js";
@@ -27,19 +30,22 @@ export type { ConversionQuery, RateLookup } from "./base-amount.js";
 
 export { convertMinor, minorUnitExponent } from "./convert-minor.js";
 
-export { ConversionInputInvalid } from "./conversion-input-invalid.js";
+export type {
+  ConversionInputInvalid,
+  ConversionInputInvalidFields,
+} from "./errors.js";
 
-export { ConversionOverflow } from "./conversion-overflow.js";
+export type { ConversionOverflow, ConversionOverflowFields } from "./errors.js";
 
 export { ConvertedAmount } from "./converted-amount.js";
 
 export type { StoredConversion } from "./converted-amount.js";
 
-export { CurrencyMismatch } from "./currency-mismatch.js";
+export type { CurrencyMismatch, CurrencyMismatchFields } from "./errors.js";
 
-export { MoneyOverflow } from "./money-overflow.js";
+export type { MoneyOverflow, MoneyOverflowFields } from "./errors.js";
 
-export { RateUnavailable } from "./rate-unavailable.js";
+export type { RateUnavailable, RateUnavailableFields } from "./errors.js";
 
 const moneyOf = (currency: CurrencyCode, minor: MinorUnits): Money =>
   parse(MoneySchema, { currency, minor });
@@ -48,7 +54,7 @@ const mismatch = (
   left: CurrencyCode,
   right: CurrencyCode
 ): Effect.Effect<never, CurrencyMismatch> =>
-  Effect.fail(CurrencyMismatch.of({ left, right }));
+  Effect.fail(currencyMismatch({ left, right }));
 
 const combine = (
   left: Money,
@@ -67,7 +73,7 @@ const combine = (
   return Option.match(minorUnitsOf(total), {
     onNone: () =>
       Effect.fail(
-        MoneyOverflow.of({
+        moneyOverflow({
           currency: left.currency,
           left: left.minor,
           operation,
@@ -106,11 +112,17 @@ export type SameCurrencyAmount = Extract<
   { readonly _tag: "SameCurrency" }
 >;
 
-export const sourceAmount = (amounts: Amounts): Money =>
+export const sourceAmount = (
+  amounts: Amounts | typeof AmountsSchema.Type
+): Money =>
   Predicate.isTagged(amounts, "Converted") ? amounts.source : amounts.amount;
 
 export const sameCurrencyAmount = (amount: Money): SameCurrencyAmount =>
-  parse(SameCurrencyAmountSchema, SameCurrencyAmountSchema.make({ amount }));
+  parse(
+    SameCurrencyAmountSchema,
+    // oxlint-disable-next-line anti-slop-effect/no-manual-tagged-construction -- the tag is written once here because the codec handle is the only strict door
+    { _tag: "SameCurrency", amount }
+  );
 
 export const convertedAmounts = (
   source: Money,

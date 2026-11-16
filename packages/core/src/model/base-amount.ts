@@ -1,10 +1,13 @@
 import { Effect, Option, Result } from "effect";
 
-import type { ConversionInputInvalid } from "./conversion-input-invalid.js";
-import type { ConversionOverflow } from "./conversion-overflow.js";
 import { convertMinor } from "./convert-minor.js";
+import type {
+  ConversionInputInvalid,
+  ConversionOverflow,
+  RateUnavailable,
+} from "./errors.js";
+import { rateUnavailable } from "./errors.js";
 import type { CurrencyCode, MinorUnits, Money } from "./primitives.js";
-import { RateUnavailable } from "./rate-unavailable.js";
 import type { Rate } from "./rate.js";
 
 export interface ConversionQuery {
@@ -46,7 +49,7 @@ export class BaseAmount {
     return Option.match(lookup({ from: money.currency, to: baseCurrency }), {
       onNone: () =>
         Effect.fail(
-          RateUnavailable.of({ from: money.currency, to: baseCurrency })
+          rateUnavailable({ from: money.currency, to: baseCurrency })
         ),
       onSome: (rate) =>
         Effect.fromResult(BaseAmount.atRate(money, baseCurrency, rate)),
