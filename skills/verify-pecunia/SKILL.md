@@ -83,7 +83,7 @@ For every money feature on `main`, the drive is the demo-book helper:
 bash skills/verify-pecunia/scripts/prove-demo-book.sh --feature dashboard-sums
 ```
 
-The helper seeds a fresh demo book, runs the cross-cutting money checks plus that feature's checks, writes evidence, and deletes its scratch directory. It prints one line per check and exits 1 when any check fails. Run `--feature all` before a release or a broad money change.
+The helper seeds a fresh demo book, runs the cross-cutting money checks plus that feature's checks, writes evidence, and deletes its scratch directory. It prints one observation line per check. It never prints a verdict itself: `scripts/verdict.mjs` reads the run's records and prints `PASS` or `FAIL` and sets the exit code. Run `--feature all` before a release or a broad money change.
 
 When the feature page names a screen, drive the screen and its real transport:
 
@@ -146,17 +146,18 @@ bash skills/verify-pecunia/scripts/prove-demo-book.sh --help
 
 It needs Node `24.18.0`, pnpm, `sqlite3`, and `jq`, all present on the project server. Its fence messages name the missing tool and the fix. `--evidence-root <dir>` writes the proof somewhere other than the committed evidence folder; the replay check uses it so a replay never overwrites a proof.
 
-The other scripts are the three checks the helper runs or a reviewer runs by hand:
+The other scripts are the checks the helper runs or a reviewer runs by hand:
 
 ```sh
 node skills/verify-pecunia/scripts/check-feature-map.mjs
 node skills/verify-pecunia/scripts/drive-bank-import.mjs --database /tmp/pecunia-verify/demo.sqlite
+node skills/verify-pecunia/scripts/drive-bank-lines.mjs --capability list
 node skills/verify-pecunia/scripts/replay-proof.mjs
 ```
 
-`check-feature-map.mjs` fails by name when the map and the repository disagree. It counts every problem it prints, whatever the category, and exits non-zero when there is one. `drive-bank-import.mjs` drives `listImportTargets` and `importBankFile` against a seeded demo book and prints one JSON object. `replay-proof.mjs` reads every committed `PROOF.md`, replays its command under a fresh label in a temporary evidence root, and compares the replayed `proof.json` with the saved one by check id, expected value, observed value, and demo book hash. It fails by name when a saved check is missing or a saved observation changed. `PROOF.md` records its replay as `node skills/verify-pecunia/scripts/replay-proof.mjs --only <label>`.
+`check-feature-map.mjs` fails by name when the map and the repository disagree. It counts every problem it prints, whatever the category, and exits non-zero when there is one. `drive-bank-import.mjs` drives `listImportTargets` and `importBankFile` against a seeded demo book and prints one JSON object. `drive-bank-lines.mjs --capability list|edit|review` drives the bank-line capabilities against the demo seed and prints one JSON object per capability. `replay-proof.mjs` reads every committed `PROOF.md`, replays its command under a fresh label in a temporary evidence root, and compares the replayed `proof.json` with the saved one by check id, expected value, observed value, and demo book hash. It fails by name when a saved check is missing or a saved observation changed. `PROOF.md` records its replay as `node skills/verify-pecunia/scripts/replay-proof.mjs --only <label>`.
 
-Every step the helper runs comes from one declared table in `prove-demo-book.sh`, and `scripts/lib/steps.sh` runs each step and each command through one recorder. The recorder keeps the exit code, and a step counts as failed when it did not run, exited non-zero, or wrote no output. `prove-demo-book.sh` prints `PASS` only when every declared step ran and exited 0, and exits non-zero otherwise. `--list-steps` prints that table without running anything.
+The shell records; one node function decides. `scripts/step-table.json` is the declared step table: every step the helper can run, its command ids, the outputs and artifacts it must write, and the capabilities it drives. `scripts/lib/steps.sh` runs each step and appends exactly one record to one record file: the step id, every command it ran with its exit code, every expected output and artifact with whether it was written, and every check with its expected and observed value. Nothing in the shell prints `PASS` or returns a verdict. `scripts/verdict.mjs` reads the step table, the feature map, and the record file, and returns `PASS` only when every declared step has exactly one record with exit 0 and all its commands at exit 0 and all its outputs written, no record is unknown or duplicated, every capability on a feature page is driven by a declared step that has a record, and the record file exists and is not empty. Anything else is `FAIL` and names the step, command, output, or capability. The same function writes `PROOF.md` and `proof.json` from that verdict, so a saved proof cannot claim success when the verdict is `FAIL`. `--list-steps` prints the declared table for a feature without running anything.
 
 The skill's own check proves that mechanism, and it must run before a pull request that touches the helper:
 
@@ -164,7 +165,7 @@ The skill's own check proves that mechanism, and it must run before a pull reque
 node --test skills/verify-pecunia/scripts/check-proofs.test.mjs
 ```
 
-It takes about four minutes. It checks the table against the step functions, runs the unmutated helper, then mutates each declared step to exit 1 and to write no output, asserts the helper exits non-zero without printing `PASS`, rejects a step with no table entry, rejects a bypassed exit code, and asserts the map check fails and counts one problem for a removed capability.
+It takes about half a minute. It checks the table against the step functions, runs the unmutated helper, runs 700 seeded mutations of a passing record file (a dropped record, a duplicated record, a flipped exit code on any command of any step, a blank output, an unknown record, an empty file, a removed capability mapping, a missing file) and asserts the verdict never passes and always names the cause, then runs the real helper with one seeded failing command in every declared step and asserts it exits non-zero, prints no `PASS`, and names every step. It also asserts the map check fails and counts one problem for a removed capability.
 
 ## Gotchas
 
