@@ -1,107 +1,16 @@
 // @effect-diagnostics nodeBuiltinImport:off -- This view of a file belongs to the guard that reads every tracked file through Git.
 export interface DecodedText {
+  readonly offsets?: Int32Array;
   readonly origins?: Int32Array;
   readonly text: string;
 }
 
-export type DecoderId =
-  | "json-string"
-  | "html-entity"
-  | "tag"
-  | "percent"
-  | "separator";
-
-export interface Decoder {
-  readonly decode: (input: DecodedText) => DecodedText;
-  readonly id: DecoderId;
+export interface DecodeOutcome {
+  readonly settled: boolean;
+  readonly text: DecodedText;
 }
 
-const TABLE_SIZE = 65_536;
-
-const escapedCode = (code: number) =>
-  `\\u${code.toString(16).padStart(4, "0")}`;
-
-const classOf = (ranges: readonly (readonly [number, number])[]) =>
-  ranges
-    .map(([low, high]) =>
-      low === high
-        ? escapedCode(low)
-        : `${escapedCode(low)}-${escapedCode(high)}`
-    )
-    .join("");
-
-const tableOf = (ranges: readonly (readonly [number, number])[]) => {
-  const table = new Uint8Array(TABLE_SIZE);
-
-  for (const [low, high] of ranges) {
-    for (let code = low; code <= high; code += 1) {
-      table[code] = 1;
-    }
-  }
-
-  return table;
-};
-
-export const SEPARATOR_RANGES: readonly (readonly [number, number])[] = [
-  [0x09, 0x09],
-  [0x0b, 0x0c],
-  [0x20, 0x20],
-  [0x2d, 0x2d],
-  [0x2e, 0x2e],
-  [0xa0, 0xa0],
-  [0x16_80, 0x16_80],
-  [0x20_00, 0x20_0a],
-  [0x20_10, 0x20_15],
-  [0x20_2f, 0x20_2f],
-  [0x20_5f, 0x20_5f],
-  [0x30_00, 0x30_00],
-  [0xfe_ff, 0xfe_ff],
-];
-
-const FOLDED_RANGES: readonly (readonly [number, number])[] = [
-  [0x09, 0x0d],
-  [0x20, 0x20],
-  [0x2c, 0x2c],
-  [0x3a, 0x3a],
-  [0x3d, 0x3d],
-  [0x85, 0x85],
-  [0xa0, 0xa0],
-  [0x16_80, 0x16_80],
-  [0x20_00, 0x20_0d],
-  [0x20_28, 0x20_29],
-  [0x20_2f, 0x20_2f],
-  [0x20_5f, 0x20_5f],
-  [0x30_00, 0x30_00],
-  [0xfe_ff, 0xfe_ff],
-  [0xff_0c, 0xff_0c],
-  [0xff_1a, 0xff_1a],
-  [0xff_1d, 0xff_1d],
-];
-
-const STRIPPED_RANGES: readonly (readonly [number, number])[] = [
-  [0x22, 0x22],
-  [0x27, 0x27],
-  [0x60, 0x60],
-  [0xab, 0xab],
-  [0xb4, 0xb4],
-  [0xbb, 0xbb],
-  [0x20_18, 0x20_1f],
-];
-
-export const SEPARATOR_CLASS = classOf(SEPARATOR_RANGES);
-
-export const SEPARATOR_CODE = tableOf(SEPARATOR_RANGES);
-
-const FOLDED_CODE = tableOf(FOLDED_RANGES);
-
-const STRIPPED_CODE = tableOf(STRIPPED_RANGES);
-
-export const SEPARATOR_RUN = new RegExp(`[${SEPARATOR_CLASS}]+`, "gu");
-
-export const SEPARATOR_EDGES = new RegExp(
-  `^[${SEPARATOR_CLASS}]+|[${SEPARATOR_CLASS}]+$`,
-  "gu"
-);
+export const MAX_DECODE_PASSES = 8;
 
 const originOf = (input: DecodedText, index: number) =>
   input.origins?.[index] ?? index;
@@ -166,8 +75,8 @@ const SIMPLE_ESCAPES = new Map([
   ["\\", "\\"],
   ["b", " "],
   ["f", " "],
-  ["n", " "],
-  ["r", " "],
+  ["n", "\n"],
+  ["r", "\n"],
   ["t", " "],
 ]);
 
@@ -190,10 +99,8 @@ const decodeJsonEscape = (match: string) => {
   return SIMPLE_ESCAPES.get(body) ?? match;
 };
 
-const JSON_STRING_DECODER: Decoder = {
-  decode: (input) => rewritten(input, JSON_SOURCE_ESCAPE, decodeJsonEscape),
-  id: "json-string",
-};
+const undoJsonEscape = (input: DecodedText) =>
+  rewritten(input, JSON_SOURCE_ESCAPE, decodeJsonEscape);
 
 const NAMED_ENTITIES = new Map([
   ["amp", "&"],
@@ -244,142 +151,143 @@ const decodeEntity = (match: string) => {
     : match;
 };
 
-const HTML_ENTITY_DECODER: Decoder = {
-  decode: (input) => rewritten(input, HTML_ENTITY_SOURCE, decodeEntity),
-  id: "html-entity",
-};
-
-const TAG_SOURCE = /<[^<>\n]{0,200}>/gu;
-
-const TAG_DECODER: Decoder = {
-  decode: (input) => rewritten(input, TAG_SOURCE, () => " "),
-  id: "tag",
-};
+const undoEntities = (input: DecodedText) =>
+  rewritten(input, HTML_ENTITY_SOURCE, decodeEntity);
 
 const PERCENT_SOURCE = /(?:%[0-9a-fA-F]{2})+/gu;
 
+const BYTES = new TextDecoder("utf-8");
+
 const decodePercent = (match: string) => {
-  try {
-    return decodeURIComponent(match);
-  } catch {
-    return match;
+  const bytes: number[] = [];
+
+  for (const part of match.matchAll(/%(?<hex>[0-9a-fA-F]{2})/gu)) {
+    bytes.push(Number.parseInt(part.groups?.hex ?? "", 16));
   }
+
+  return BYTES.decode(Uint8Array.from(bytes));
 };
 
-const PERCENT_DECODER: Decoder = {
-  decode: (input) => rewritten(input, PERCENT_SOURCE, decodePercent),
-  id: "percent",
-};
+const undoPercent = (input: DecodedText) =>
+  rewritten(input, PERCENT_SOURCE, decodePercent);
 
-const folded = (code: number) => FOLDED_CODE[code] === 1;
+const PLUS_SOURCE = /\+/gu;
 
-const stripped = (code: number) => STRIPPED_CODE[code] === 1;
+const undoFormPlus = (input: DecodedText) =>
+  rewritten(input, PLUS_SOURCE, () => " ");
 
-const SEPARATOR: Decoder = {
-  decode: (input) => {
-    const { text } = input;
+const TAG_SOURCE = /<[A-Za-z/!](?:"[^"]*"|'[^']*'|[^<>"'])*>/gsu;
 
-    const parts: string[] = [];
+const undoTag = (input: DecodedText) => rewritten(input, TAG_SOURCE, () => "");
 
-    const origins: number[] = [];
+const ZERO_WIDTH_SOURCE = /[\u200B-\u200D\u2060\uFEFF]/gu;
 
-    let segmentStart = 0;
+const undoZeroWidth = (input: DecodedText) =>
+  rewritten(input, ZERO_WIDTH_SOURCE, () => "");
 
-    let endedWithSeparator = true;
+const HAS_NON_ASCII = /[^\p{ASCII}]/u;
 
-    let changed = false;
+const NON_ASCII_SOURCE = /[^\p{ASCII}]/gu;
 
-    const append = (from: number, to: number) => {
-      if (to <= from) {
-        return;
-      }
+const foldWidth = (match: string) => match.normalize("NFKC");
 
-      parts.push(text.slice(from, to));
+const undoFold = (input: DecodedText) =>
+  HAS_NON_ASCII.test(input.text)
+    ? rewritten(input, NON_ASCII_SOURCE, foldWidth)
+    : input;
 
-      for (let index = from; index < to; index += 1) {
-        origins.push(originOf(input, index));
-      }
+type Step = (input: DecodedText) => DecodedText;
 
-      endedWithSeparator = false;
-    };
-
-    for (let index = 0; index < text.length; index += 1) {
-      const code = text.codePointAt(index) ?? 0;
-
-      if (stripped(code)) {
-        changed = true;
-
-        append(segmentStart, index);
-
-        segmentStart = index + 1;
-
-        continue;
-      }
-
-      if (!folded(code)) {
-        continue;
-      }
-
-      append(segmentStart, index);
-
-      if (!endedWithSeparator) {
-        parts.push(" ");
-
-        origins.push(originOf(input, index));
-
-        endedWithSeparator = true;
-      }
-
-      changed = true;
-
-      segmentStart = index + 1;
-    }
-
-    if (!changed) {
-      return input;
-    }
-
-    append(segmentStart, text.length);
-
-    return { origins: Int32Array.from(origins), text: parts.join("") };
-  },
-  id: "separator",
-};
-
-export const DECODERS: readonly Decoder[] = [
-  JSON_STRING_DECODER,
-  HTML_ENTITY_DECODER,
-  TAG_DECODER,
-  PERCENT_DECODER,
-  SEPARATOR,
+const UNDO_STEPS: readonly Step[] = [
+  undoZeroWidth,
+  undoFold,
+  undoJsonEscape,
+  undoEntities,
+  undoPercent,
+  undoFormPlus,
+  undoTag,
 ];
 
-const MAX_PASSES = 3;
+const READABLE_STEPS: readonly Step[] = UNDO_STEPS.filter(
+  (step) => step !== undoTag
+);
 
-export const decodeText = (text: string): DecodedText => {
+const undoEverything = (steps: readonly Step[], input: DecodedText) => {
+  let current = input;
+
+  for (const step of steps) {
+    current = step(current);
+  }
+
+  return current;
+};
+
+const CAN_CHANGE = /[&%+\\<>\u0080-\uFFFF]/u;
+
+const settle = (text: string, steps: readonly Step[]): DecodeOutcome => {
   let current: DecodedText = { text };
 
-  for (let pass = 0; pass < MAX_PASSES; pass += 1) {
-    let repeats = false;
+  let settled = false;
 
-    for (const decoder of DECODERS) {
-      if (decoder === SEPARATOR) {
+  for (let pass = 0; pass < MAX_DECODE_PASSES; pass += 1) {
+    if (!CAN_CHANGE.test(current.text)) {
+      settled = true;
+
+      break;
+    }
+
+    const next = undoEverything(steps, current);
+
+    if (next.text === current.text) {
+      settled = true;
+
+      break;
+    }
+
+    current = next;
+  }
+
+  return { settled, text: current };
+};
+
+export const decodeText = (text: string): DecodeOutcome =>
+  settle(text, UNDO_STEPS);
+
+export const decodeTaggedText = (text: string): DecodeOutcome =>
+  settle(text, READABLE_STEPS);
+
+const LETTER_OR_DIGIT = /[\p{L}\p{N}]/u;
+
+export const squeezeText = (input: DecodedText): DecodedText => {
+  const characters: string[] = [];
+
+  const origins: number[] = [];
+
+  const offsets: number[] = [];
+
+  let position = 0;
+
+  for (const character of input.text) {
+    const start = position;
+
+    position += character.length;
+
+    for (const lowered of character.toLowerCase()) {
+      if (!LETTER_OR_DIGIT.test(lowered)) {
         continue;
       }
 
-      const next = decoder.decode(current);
+      characters.push(lowered);
 
-      if (next !== current) {
-        repeats = true;
-      }
+      origins.push(originOf(input, start));
 
-      current = next;
-    }
-
-    if (!repeats) {
-      break;
+      offsets.push(start);
     }
   }
 
-  return SEPARATOR.decode(current);
+  return {
+    offsets: Int32Array.from(offsets),
+    origins: Int32Array.from(origins),
+    text: characters.join(""),
+  };
 };

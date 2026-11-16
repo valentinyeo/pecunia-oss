@@ -9,6 +9,10 @@
       "reason": "The content build regenerates this map of file contents, and every string in it comes from a file the guard already reads."
     },
     {
+      "path": "packages/intake-live/test/contact-shapes.ts",
+      "reason": "A table of contact shapes the intake parser must accept or reject. Every mailbox in it is a made-up shape on a real-looking domain, and the test reads the table as input."
+    },
+    {
       "path": "scripts/no-personal-data-allow.json",
       "reason": "The guard's own declaration file. It holds every excused value so the reason can be read beside it, and each value is excused only in the path its entry names."
     }
@@ -35,13 +39,8 @@
       "reason": "The public ClaudeBot user agent, copied into a negotiation test."
     },
     {
-      "path": "packages/intake-live/test/contact-shapes.ts",
-      "value": "a.b+tag@mail.co.uk",
-      "reason": "A contact-shape fixture that proves the intake parser accepts plus tags on a multi-label domain."
-    },
-    {
       "path": "scripts/check-no-personal-data.test.ts",
-      "value": "GB00DEMO12345678901234",
+      "value": "GB82WEST12345698765432",
       "reason": "The planted IBAN in the guard's own test; it must fail there and nowhere else."
     },
     {
@@ -51,13 +50,43 @@
     },
     {
       "path": "scripts/check-no-personal-data.test.ts",
+      "value": "\"demo owner\"@mail.co.uk",
+      "reason": "The planted quoted mailbox in the guard's own test; it must fail there and nowhere else."
+    },
+    {
+      "path": "scripts/check-no-personal-data.test.ts",
+      "value": "demo.person@mailhost.co.uk",
+      "reason": "The planted mailbox inside the percent-encoded contact link in the guard's own test; it must fail there and nowhere else."
+    },
+    {
+      "path": "scripts/check-no-personal-data.test.ts",
       "value": "0123456789abcdef0123456789abcdef",
       "reason": "The planted Cloudflare account id in the guard's own test; it must fail there and nowhere else."
     },
     {
       "path": "scripts/check-no-personal-data.test.ts",
+      "value": "DE89370400440532013000",
+      "reason": "A second made-up IBAN in the guard's own test, used to prove an allow entry excuses only the value it names."
+    },
+    {
+      "path": "scripts/check-no-personal-data.test.ts",
+      "value": "23 45 67",
+      "reason": "The planted form-encoded sort code in the guard's own test; it must fail there and nowhere else."
+    },
+    {
+      "path": "scripts/check-no-personal-data.test.ts",
+      "value": "98765432",
+      "reason": "The planted form-encoded account number in the guard's own test; it must fail there and nowhere else."
+    },
+    {
+      "path": "scripts/check-no-personal-data.test.ts",
       "value": "planted-sample.workers.dev",
       "reason": "The planted deployment hostname in the guard's own test; it must fail there and nowhere else."
+    },
+    {
+      "path": "scripts/check-no-personal-data.property.test.ts",
+      "value": "GB82WEST12345698765432",
+      "reason": "The planted IBAN in the guard's own property test; it must fail there and nowhere else."
     },
     {
       "path": "scripts/check-no-personal-data.test.ts",
