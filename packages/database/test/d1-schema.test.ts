@@ -3,6 +3,7 @@ import { getTableName } from "drizzle-orm";
 import { Effect } from "effect";
 
 import { RunLogs } from "../src/schema/d1.js";
+import { foreignMinorLimit } from "../src/schema/limits.js";
 import {
   accountKindRow,
   aliasRow,
@@ -631,26 +632,26 @@ const constraintCases: readonly ConstraintCase[] = [
     legal: [
       insertStep("transactions", {
         ...transactionRow,
-        base_minor: 9_900_000_000_001,
+        base_minor: 990_000_000_001,
         external_id: "transaction-external-tolerance-legal",
         id: "transaction-tolerance-legal",
         rate: 1.1,
         rate_as_of: "2026-01-01",
         source_currency: "USD",
-        source_minor: 9_000_000_000_000,
+        source_minor: 900_000_000_000,
       }),
     ],
     name: "a large conversion whose base amount is two minor units away from the stored rate",
     rejected: [
       insertStep("transactions", {
         ...transactionRow,
-        base_minor: 9_900_000_000_002,
+        base_minor: 990_000_000_002,
         external_id: "transaction-external-tolerance-rejected",
         id: "transaction-tolerance-rejected",
         rate: 1.1,
         rate_as_of: "2026-01-01",
         source_currency: "USD",
-        source_minor: 9_000_000_000_000,
+        source_minor: 900_000_000_000,
       }),
     ],
   },
@@ -1710,6 +1711,132 @@ it.effect("numbered migrations ship catalog rows and no demo data", () =>
   })
 );
 
+interface BoundedConversionCase {
+  readonly accountId: string;
+  readonly baseCurrency: string;
+  readonly baseMinor: number;
+  readonly label: string;
+  readonly parents: readonly SqlStep[];
+  readonly profileId: string;
+  readonly rate: number;
+  readonly slug: string;
+  readonly sourceCurrency: string;
+  readonly sourceMinor: number;
+}
+
+const dinarBoundParents: readonly SqlStep[] = [
+  insertStep("profiles", {
+    base_currency: "BHD",
+    created_at: 1_767_225_600_000,
+    id: "profile-bound-dinar",
+    kind: "business",
+    name: "Example Bound Dinar Ltd",
+  }),
+  insertStep("provider_accounts", {
+    created_at: 1_767_225_600_000,
+    external_id: "account-external-bound-dinar",
+    id: "account-bound-dinar",
+    kind: "bank",
+    label: "Demo Bound Dinar Bank",
+    profile_id: "profile-bound-dinar",
+    provider_id: "wise",
+  }),
+];
+
+const boundedConversionCases: readonly BoundedConversionCase[] = [
+  {
+    accountId: "account-demo",
+    baseCurrency: "EUR",
+    baseMinor: 990_000_000_000,
+    label: "a 1.1 dollar rate",
+    parents: [],
+    profileId: "profile-demo",
+    rate: 1.1,
+    slug: "rate-1-1",
+    sourceCurrency: "USD",
+    sourceMinor: 900_000_000_000,
+  },
+  {
+    accountId: "account-demo",
+    baseCurrency: "EUR",
+    baseMinor: 920_000_000_000,
+    label: "a 1.15 dollar rate",
+    parents: [],
+    profileId: "profile-demo",
+    rate: 1.15,
+    slug: "rate-1-15",
+    sourceCurrency: "USD",
+    sourceMinor: 800_000_000_000,
+  },
+  {
+    accountId: "account-demo",
+    baseCurrency: "EUR",
+    baseMinor: 972_000_000_000,
+    label: "a 1.08 dollar rate",
+    parents: [],
+    profileId: "profile-demo",
+    rate: 1.08,
+    slug: "rate-1-08",
+    sourceCurrency: "USD",
+    sourceMinor: 900_000_000_000,
+  },
+  {
+    accountId: "account-demo",
+    baseCurrency: "EUR",
+    baseMinor: 600_000_000_000,
+    label: "a 0.006 yen rate",
+    parents: [],
+    profileId: "profile-demo",
+    rate: 0.006,
+    slug: "rate-yen",
+    sourceCurrency: "JPY",
+    sourceMinor: foreignMinorLimit,
+  },
+  {
+    accountId: "account-bound-dinar",
+    baseCurrency: "BHD",
+    baseMinor: 960_000_000_000,
+    label: "a 1.2 dollar rate into a dinar base",
+    parents: dinarBoundParents,
+    profileId: "profile-bound-dinar",
+    rate: 1.2,
+    slug: "rate-dinar-source",
+    sourceCurrency: "USD",
+    sourceMinor: 80_000_000_000,
+  },
+  {
+    accountId: "account-bound-dinar",
+    baseCurrency: "BHD",
+    baseMinor: 850_000_000_000,
+    label: "a 0.85 sterling rate into a dinar base",
+    parents: dinarBoundParents,
+    profileId: "profile-bound-dinar",
+    rate: 0.85,
+    slug: "rate-dinar-base",
+    sourceCurrency: "GBP",
+    sourceMinor: 100_000_000_000,
+  },
+];
+
+const boundedRow = (
+  conversion: BoundedConversionCase,
+  baseMinor: number,
+  suffix: string
+): SqlStep =>
+  insertStep("transactions", {
+    ...transactionRow,
+    base_currency: conversion.baseCurrency,
+    base_minor: baseMinor,
+    external_id: `transaction-external-bound-${conversion.slug}-${suffix}`,
+    id: `transaction-bound-${conversion.slug}-${suffix}`,
+    profile_id: conversion.profileId,
+    provider_account_id: conversion.accountId,
+    rate: conversion.rate,
+    rate_as_of: "2026-01-01",
+    source_currency: conversion.sourceCurrency,
+    source_minor: conversion.sourceMinor,
+  });
+
 it.effect.each(constraintCases)(
   "rejects $name",
   ({ constraint, legal, rejected }) =>
@@ -2021,13 +2148,13 @@ it.effect(
         database,
         insertStep("transactions", {
           ...transactionRow,
-          base_minor: 9_900_000_000_000,
+          base_minor: 990_000_000_000,
           external_id: "transaction-external-rounding-large",
           id: "transaction-rounding-large",
           rate: 1.1,
           rate_as_of: "2026-01-01",
           source_currency: "USD",
-          source_minor: 9_000_000_000_000,
+          source_minor: 900_000_000_000,
         })
       );
 
@@ -2044,6 +2171,131 @@ it.effect(
             source_currency: "USD",
             source_minor: 5,
           })
+        );
+      });
+
+      expect(message).toContain("transactions_rate_amount_check");
+    })
+);
+
+it.effect(
+  "accepts a foreign-currency row whose amounts sit at the conversion bound",
+  () =>
+    Effect.gen(function* acceptBoundedAmount() {
+      const database = yield* migratedBook;
+
+      for (const baseMinor of [foreignMinorLimit, foreignMinorLimit - 1]) {
+        runStep(
+          database,
+          insertStep("transactions", {
+            ...transactionRow,
+            base_minor: baseMinor,
+            external_id: `transaction-external-bound-accepted-${baseMinor}`,
+            id: `transaction-bound-accepted-${baseMinor}`,
+            rate: 1,
+            rate_as_of: "2026-01-01",
+            source_currency: "USD",
+            source_minor: foreignMinorLimit,
+          })
+        );
+      }
+    })
+);
+
+it.effect(
+  "refuses a source amount one minor unit above the conversion bound",
+  () =>
+    Effect.gen(function* rejectBoundedSource() {
+      const database = yield* migratedBook;
+
+      const message = rejectedMessage(() => {
+        runStep(
+          database,
+          insertStep("transactions", {
+            ...transactionRow,
+            base_minor: foreignMinorLimit + 1,
+            external_id: "transaction-external-bound-source",
+            id: "transaction-bound-source",
+            rate: 1,
+            rate_as_of: "2026-01-01",
+            source_currency: "USD",
+            source_minor: foreignMinorLimit + 1,
+          })
+        );
+      });
+
+      expect(message).toContain("transactions_rate_amount_bound_check");
+    })
+);
+
+it.effect(
+  "refuses a base amount one minor unit above the conversion bound",
+  () =>
+    Effect.gen(function* rejectBoundedBase() {
+      const database = yield* migratedBook;
+
+      const message = rejectedMessage(() => {
+        runStep(
+          database,
+          insertStep("transactions", {
+            ...transactionRow,
+            base_minor: foreignMinorLimit + 1,
+            external_id: "transaction-external-bound-base",
+            id: "transaction-bound-base",
+            rate: 1 + 1e-12,
+            rate_as_of: "2026-01-01",
+            source_currency: "USD",
+            source_minor: foreignMinorLimit,
+          })
+        );
+      });
+
+      expect(message).toContain("transactions_rate_amount_bound_check");
+    })
+);
+
+it.effect(
+  "refuses an amount past the conversion bound whose base is two minor units off",
+  () =>
+    Effect.gen(function* rejectUnboundedError() {
+      const database = yield* migratedBook;
+
+      const message = rejectedMessage(() => {
+        runStep(
+          database,
+          insertStep("transactions", {
+            ...transactionRow,
+            base_minor: 4_503_599_627_370_498,
+            external_id: "transaction-external-bound-doubling",
+            id: "transaction-bound-doubling",
+            rate: 1,
+            rate_as_of: "2026-01-01",
+            source_currency: "USD",
+            source_minor: 4_503_599_627_370_496,
+          })
+        );
+      });
+
+      expect(message).toContain("transactions_rate_amount");
+    })
+);
+
+it.effect.each(boundedConversionCases)(
+  "refuses a two minor unit error at the conversion bound for $label",
+  (conversion) =>
+    Effect.gen(function* rejectBoundTwoUnitError() {
+      const database = yield* migratedBook;
+
+      for (const step of conversion.parents) {
+        runStep(database, step);
+      }
+
+      runStep(database, boundedRow(conversion, conversion.baseMinor, "legal"));
+
+      const message = rejectedMessage(() => {
+        runStep(
+          database,
+          boundedRow(conversion, conversion.baseMinor + 2, "rejected")
         );
       });
 

@@ -14,6 +14,8 @@ import {
   text,
 } from "drizzle-orm/sqlite-core";
 
+import { foreignMinorLimit } from "./limits.js";
+
 const nocaseText = customType<{ data: string; driverData: string }>({
   dataType: () => "text COLLATE NOCASE",
 });
@@ -118,8 +120,6 @@ const minorUnitExponents: ReadonlyMap<string, number> = new Map([
 
 const defaultMinorUnitExponent = 2;
 
-const exactIntegerLimit = 4_503_599_627_370_496;
-
 const exponentDifferences = ((): readonly number[] => {
   const exponents = [...minorUnitExponents.values(), defaultMinorUnitExponent];
   const spread = Math.max(...exponents) - Math.min(...exponents);
@@ -176,7 +176,21 @@ const rateAmountCheck = (table: {
 
   return check(
     "transactions_rate_amount_check",
-    sql`${table.sourceCurrency} = ${table.baseCurrency} OR abs(${table.baseMinor} - ${converted}) <= 1 + (abs(${converted}) >= ${sql.raw(String(exactIntegerLimit))})`
+    sql`${table.sourceCurrency} = ${table.baseCurrency} OR abs(${table.baseMinor} - ${converted}) <= 1`
+  );
+};
+
+const rateAmountBoundCheck = (table: {
+  readonly baseCurrency: AnySQLiteColumn;
+  readonly baseMinor: AnySQLiteColumn;
+  readonly sourceCurrency: AnySQLiteColumn;
+  readonly sourceMinor: AnySQLiteColumn;
+}) => {
+  const limit = sql.raw(String(foreignMinorLimit));
+
+  return check(
+    "transactions_rate_amount_bound_check",
+    sql`${table.sourceCurrency} = ${table.baseCurrency} OR (abs(${table.sourceMinor}) <= ${limit} AND abs(${table.baseMinor}) <= ${limit})`
   );
 };
 
@@ -811,6 +825,7 @@ export const Transactions = sqliteTable(
       sql`(${table.sourceCurrency} = ${table.baseCurrency} AND ${table.rate} IS NULL AND ${table.rateAsOf} IS NULL) OR (${table.sourceCurrency} <> ${table.baseCurrency} AND ${finiteRateCheck(table.rate)} AND ${table.rateAsOf} IS NOT NULL)`
     ),
     rateAmountCheck(table),
+    rateAmountBoundCheck(table),
     check(
       "transactions_fee_currency_check",
       sql`${table.feeCurrency} IS NULL OR ${table.feeCurrency} = ${table.sourceCurrency}`
