@@ -1,3 +1,10 @@
+// @effect-diagnostics nodeBuiltinImport:off -- The JWT property runs the installed gitleaks over a probe file it writes under the system temporary directory.
+import { spawnSync } from "node:child_process";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import path from "node:path";
+
+import { Schema } from "effect";
 import { describe, expect, it } from "vitest";
 
 import { findPersonalData } from "./check-no-personal-data.ts";
@@ -445,5 +452,125 @@ describe("every email address is reported after any punctuation, and the placeho
     }
 
     expect({ missed, placeholders }).toEqual({ missed: [], placeholders: [] });
+  });
+});
+
+const GITLEAKS = spawnSync("gitleaks", ["version"]).status === 0;
+
+const GITLEAKS_CONFIG = path.resolve(
+  import.meta.dirname,
+  "..",
+  ".gitleaks.toml"
+);
+
+const Finding = Schema.Struct({
+  RuleID: Schema.String,
+  StartLine: Schema.Finite,
+});
+
+const decodeFindings = Schema.decodeUnknownSync(
+  Schema.fromJsonString(Schema.Array(Finding))
+);
+
+const scanForTokens = (lines: readonly string[]) => {
+  const subject = mkdtempSync(path.join(tmpdir(), "personal-data-jwt-"));
+
+  const reports = mkdtempSync(path.join(tmpdir(), "personal-data-jwt-report-"));
+
+  const report = path.join(reports, "report.json");
+
+  writeFileSync(path.join(subject, "note.md"), `${lines.join("\n")}\n`);
+
+  try {
+    spawnSync("gitleaks", [
+      "dir",
+      subject,
+      "--config",
+      GITLEAKS_CONFIG,
+      "--report-format",
+      "json",
+      "--report-path",
+      report,
+      "--exit-code",
+      "0",
+      "--no-banner",
+    ]);
+
+    const text = readFileSync(report, "utf-8");
+
+    return decodeFindings(text.trim().length === 0 ? "[]" : text);
+  } finally {
+    rmSync(subject, { force: true, recursive: true });
+    rmSync(reports, { force: true, recursive: true });
+  }
+};
+
+const FIXTURE_JWT = [
+  "eyJhbGciOiJIUzI1NiJ9",
+  "eyJzdWIiOiIxMjM0NTY3ODkwIn0",
+  "signatureValue",
+].join(".");
+
+const madeUpJwt = (random: Random) =>
+  [
+    `ey${random.alphanumeric(20)}`,
+    `ey${random.alphanumeric(20)}`,
+    random.alphanumeric(24),
+  ].join(".");
+
+const JWT_SEPARATORS = [" ", ",", ".", "(", ")", '"', "'"];
+
+describe("a made-up JWT beside the exempt crash-test fixture is reported", () => {
+  it.skipIf(!GITLEAKS)(`gitleaks reports ${CASES} seeded placements`, () => {
+    const random = makeRandom(SEED + 3);
+
+    const lines: string[] = [];
+
+    const reported: number[] = [];
+
+    const exempt: number[] = [];
+
+    for (let index = 0; index < CASES; index += 1) {
+      const separator = random.pick(JWT_SEPARATORS);
+
+      const token = madeUpJwt(random);
+
+      const lead = random.prose(2);
+
+      const placement =
+        random.between(1, 2) === 1
+          ? [`${lead} ${FIXTURE_JWT}${separator}${token}`]
+          : [`${lead} ${FIXTURE_JWT}${separator}`, token];
+
+      lines.push(...placement);
+
+      reported.push(lines.length);
+
+      const tail = random.prose(2);
+
+      lines.push(`${lead} ${FIXTURE_JWT}${separator}${tail}`);
+
+      exempt.push(lines.length);
+    }
+
+    const findings = scanForTokens(lines);
+
+    const tokens = findings.filter((finding) => finding.RuleID === "jwt");
+
+    const reportedLines = new Set(tokens.map((finding) => finding.StartLine));
+
+    const missing = reported.filter((line) => !reportedLines.has(line));
+
+    const excused = exempt.filter((line) => reportedLines.has(line));
+
+    expect({ excused, missing, tokens: tokens.length }).toEqual({
+      excused: [],
+      missing: [],
+      tokens: reported.length,
+    });
+  });
+
+  it.runIf(!GITLEAKS)("skipped: gitleaks is not installed", () => {
+    expect(GITLEAKS).toBe(false);
   });
 });
