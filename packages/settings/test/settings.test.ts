@@ -144,26 +144,25 @@ const pick = <Value>(
   random: () => number
 ) => values[Math.floor(random() * values.length) % values.length] ?? values[0];
 
-const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+const knownCurrencies = Intl.supportedValuesOf("currency");
 
-const threeUppercaseLetters = (random: () => number): string =>
-  Array.from({ length: 3 }, () => {
-    const index = Math.floor(random() * alphabet.length) % alphabet.length;
-
-    return alphabet.charAt(index);
-  }).join("");
+const drawCurrency = (random: () => number) =>
+  knownCurrencies[
+    Math.floor(random() * knownCurrencies.length) % knownCurrencies.length
+  ] ?? "EUR";
 
 it.effect(
-  "every three uppercase letters is a currency code, over 500 seeded draws",
+  "every currency the platform lists is accepted and invented codes are refused, over 500 seeded draws",
   () =>
     Effect.sync(() => {
       const random = seededRandom(20_260_104);
 
       for (let index = 0; index < SEEDED_CASES; index += 1) {
-        const code = threeUppercaseLetters(random);
-        const decoded = Schema.decodeResult(CurrencyCodeSchema)(code);
+        const code = drawCurrency(random);
 
-        expect(Result.isSuccess(decoded)).toBe(true);
+        expect(
+          Result.isSuccess(Schema.decodeResult(CurrencyCodeSchema)(code))
+        ).toBe(true);
 
         const distorted = pick(
           [
@@ -172,6 +171,7 @@ it.effect(
             code.slice(0, 2),
             `${code.slice(0, 2)}1`,
             ` ${code}`,
+            "ZZZ",
           ] as const,
           random
         );
@@ -183,6 +183,32 @@ it.effect(
     })
 );
 
+it.effect(
+  "accepts the codes a new install picks and refuses invented ones",
+  () =>
+    Effect.sync(() => {
+      for (const code of ["EUR", "GBP", "USD"]) {
+        expect(
+          Result.isSuccess(Schema.decodeResult(CurrencyCodeSchema)(code))
+        ).toBe(true);
+      }
+
+      expect(
+        Result.isFailure(Schema.decodeResult(CurrencyCodeSchema)("ZZZ"))
+      ).toBe(true);
+
+      for (const tag of ["en-GB", "de-DE"]) {
+        expect(Result.isSuccess(Schema.decodeResult(LocaleSchema)(tag))).toBe(
+          true
+        );
+      }
+
+      expect(Result.isFailure(Schema.decodeResult(LocaleSchema)("xx-ZZ"))).toBe(
+        true
+      );
+    })
+);
+
 const LOCALES = ["en", "en-GB", "pt-BR", "zh-Hant", "es-419", "de-CH"] as const;
 
 const NOT_LOCALES = [
@@ -191,6 +217,7 @@ const NOT_LOCALES = [
   "e",
   "en-GB-extra",
   "en_gb",
+  "xx-ZZ",
   "",
 ] as const;
 
@@ -223,6 +250,7 @@ it.effect(
 
       const zones = [
         "Europe/London",
+        "Europe/Berlin",
         "UTC",
         "America/New_York",
         "Asia/Tokyo",

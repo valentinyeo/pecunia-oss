@@ -5,14 +5,23 @@ import { ProfileNameTaken } from "./profile-name-taken.js";
 import { SettingsUnavailable } from "./settings-unavailable.js";
 import { UnknownProfile } from "./unknown-profile.js";
 
+export { DuplicateProfileId } from "./duplicate-profile-id.js";
+
 export { ProfileNameTaken } from "./profile-name-taken.js";
 
 export { SettingsUnavailable } from "./settings-unavailable.js";
 
 export { UnknownProfile } from "./unknown-profile.js";
 
+const knownCurrencies = new Set(Intl.supportedValuesOf("currency"));
+
+const isKnownCurrency = (value: string) => knownCurrencies.has(value);
+
 export const CurrencyCodeSchema = Schema.String.check(
-  Schema.isPattern(/^[A-Z]{3}$/u)
+  Schema.isPattern(/^[A-Z]{3}$/u),
+  Schema.makeFilter(isKnownCurrency, {
+    expected: "a current ISO 4217 currency code, such as EUR or GBP",
+  })
 ).pipe(Schema.brand("CurrencyCode"));
 
 export type CurrencyCode = typeof CurrencyCodeSchema.Type;
@@ -42,10 +51,32 @@ export const TimeZoneSchema = Schema.String.check(
 
 export type TimeZone = typeof TimeZoneSchema.Type;
 
+const languageOf = (tag: string) => tag.split("-").at(0) ?? "";
+
+const isKnownLocale = (value: string) => {
+  try {
+    const canonical = Intl.getCanonicalLocales(value).at(0);
+
+    if (canonical === undefined) {
+      return false;
+    }
+
+    const resolved = new Intl.DateTimeFormat(canonical).resolvedOptions()
+      .locale;
+
+    return languageOf(resolved) === languageOf(canonical);
+  } catch {
+    return false;
+  }
+};
+
 export const LocaleSchema = Schema.String.check(
   Schema.isPattern(
     /^[a-z]{2,3}(?:-[A-Z][a-z]{3})?(?:-(?:[A-Z]{2}|[0-9]{3}))?$/u
-  )
+  ),
+  Schema.makeFilter(isKnownLocale, {
+    expected: "a language tag the platform knows, such as en-GB or de-DE",
+  })
 ).pipe(Schema.brand("Locale"));
 
 export type Locale = typeof LocaleSchema.Type;
