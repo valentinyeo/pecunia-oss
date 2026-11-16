@@ -163,12 +163,34 @@
       "before": "always retain",
       "after": "always retain with reasoned lint directive",
       "why": "Every non-dev main-Stack stage adopts production DNSSEC on the shared zone."
+    },
+    {
+      "resource": "Pecunia-d1",
+      "file": "apps/api/src/rpc-worker.ts",
+      "before": "always retain",
+      "after": "retain only in prod",
+      "why": "Pecunia's production rows live here; every other stage owns its own database and migrations."
+    },
+    {
+      "resource": "PecuniaDocuments",
+      "file": "apps/api/src/rpc-worker.ts",
+      "before": "always retain",
+      "after": "retain only in prod",
+      "why": "Production invoices and receipts belong to their stage; non-prod buckets hold disposable test documents."
     }
   ],
   "additionalCleanup": "apps/site/test/fixtures/flag-ledger-worker.ts now uses prod-only retention for its matching KV declaration.",
   "startup": {
-    "Mischief": { "before": 1113993, "after": 1113711, "delta": -282 },
-    "LearnFeedbackAuth": { "before": 1515481, "after": 1515207, "delta": -274 }
+    "Mischief": {
+      "before": 1113993,
+      "after": 1113711,
+      "delta": -282
+    },
+    "LearnFeedbackAuth": {
+      "before": 1515481,
+      "after": 1515207,
+      "delta": -274
+    }
   },
   "verification": {
     "lintViolation": "Before cleanup, real oxlint rejected bare retain() in packages/flags/src/cloudflare-store.ts with retain-needs-stage-policy.",

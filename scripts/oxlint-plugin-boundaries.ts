@@ -1429,7 +1429,9 @@ const noBrowserGlobalsOnServer = defineRule({
 
 const isDevtoolsModule = (target: string) =>
   isWithin(target, "packages/devtools") ||
-  /^packages\/auth\/(?:(?:src|dist)\/)?devtools(?:\/|\.|$)/u.test(target);
+  /^packages\/(?:access|auth)\/(?:(?:src|dist)\/)?devtools(?:\/|\.|$)/u.test(
+    target
+  );
 
 const devFolderOf = (target: string) =>
   /^(?<folder>apps\/[^/]+\/src\/dev)(?:\/|$)/u.exec(target)?.groups?.folder;
@@ -1483,7 +1485,7 @@ const noDevtoolsInProduction = defineRule({
       devFolder:
         "Only modules inside {{folder}} may import it. The dev composition is an entry of its own, and production code must not reach it. Fix: move the importing module under `{{folder}}`, or import a production module instead.",
       devtools:
-        "Devtools and test people (@pecunia/devtools, @pecunia/auth/devtools) belong in apps/*/src/dev/**, apps/cli, or tests. The rat_call and rat_test_person capabilities bypass per-request auth and create accounts with a fixed password, so a production composition must never include them. Fix: move this import into `apps/<app>/src/dev/`, `apps/cli`, or a test file.",
+        "Devtools and test people (@pecunia/devtools, @pecunia/auth/devtools, @pecunia/access/devtools) belong in apps/*/src/dev/**, apps/cli, or tests. The rat_call and rat_test_person capabilities bypass per-request auth and create accounts with a fixed password, so a production composition must never include them. Fix: move this import into `apps/<app>/src/dev/`, `apps/cli`, or a test file.",
     },
     type: "problem",
   },
