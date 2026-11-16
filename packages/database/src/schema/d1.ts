@@ -1,4 +1,5 @@
 import { sql } from "drizzle-orm";
+import type { SQL } from "drizzle-orm";
 import type { AnySQLiteColumn } from "drizzle-orm/sqlite-core";
 import {
   check,
@@ -85,6 +86,99 @@ const notBlankChecks = (
   columns.map((column) =>
     check(`${table}_${column.name}_check`, trimmedTextCheck(column))
   );
+
+const minorUnitExponents: ReadonlyMap<string, number> = new Map([
+  ["BHD", 3],
+  ["BIF", 0],
+  ["CLF", 4],
+  ["CLP", 0],
+  ["DJF", 0],
+  ["GNF", 0],
+  ["IQD", 3],
+  ["ISK", 0],
+  ["JOD", 3],
+  ["JPY", 0],
+  ["KMF", 0],
+  ["KRW", 0],
+  ["KWD", 3],
+  ["LYD", 3],
+  ["OMR", 3],
+  ["PYG", 0],
+  ["RWF", 0],
+  ["TND", 3],
+  ["UGX", 0],
+  ["UYI", 0],
+  ["UYW", 4],
+  ["VND", 0],
+  ["VUV", 0],
+  ["XAF", 0],
+  ["XOF", 0],
+  ["XPF", 0],
+]);
+
+const defaultMinorUnitExponent = 2;
+
+const exactIntegerLimit = 4_503_599_627_370_496;
+
+const exponentDifferences = ((): readonly number[] => {
+  const exponents = [...minorUnitExponents.values(), defaultMinorUnitExponent];
+  const spread = Math.max(...exponents) - Math.min(...exponents);
+
+  return Array.from(
+    { length: spread * 2 + 1 },
+    (_, position) => position - spread
+  );
+})();
+
+const minorUnitExponentSql = (column: AnySQLiteColumn) =>
+  sql`(CASE ${column} ${sql.join(
+    [...minorUnitExponents].map(
+      ([currency, exponent]) =>
+        sql`WHEN ${sql.raw(`'${currency}'`)} THEN ${sql.raw(String(exponent))}`
+    ),
+    sql` `
+  )} ELSE ${sql.raw(String(defaultMinorUnitExponent))} END)`;
+
+const scaledProductSql = (product: SQL, difference: number) => {
+  const magnitude = sql.raw(String(10 ** Math.abs(difference)));
+
+  return difference < 0
+    ? sql`(${product}) / ${magnitude}`
+    : sql`(${product}) * ${magnitude}`;
+};
+
+const convertedBaseMinorSql = (table: {
+  readonly baseCurrency: AnySQLiteColumn;
+  readonly rate: AnySQLiteColumn;
+  readonly sourceCurrency: AnySQLiteColumn;
+  readonly sourceMinor: AnySQLiteColumn;
+}) => {
+  const product = sql`${table.sourceMinor} * ${table.rate}`;
+  const difference = sql`${minorUnitExponentSql(table.baseCurrency)} - ${minorUnitExponentSql(table.sourceCurrency)}`;
+
+  return sql`(CASE ${difference} ${sql.join(
+    exponentDifferences.map(
+      (value) =>
+        sql`WHEN ${sql.raw(String(value))} THEN ${scaledProductSql(product, value)}`
+    ),
+    sql` `
+  )} ELSE ${product} END)`;
+};
+
+const rateAmountCheck = (table: {
+  readonly baseCurrency: AnySQLiteColumn;
+  readonly baseMinor: AnySQLiteColumn;
+  readonly rate: AnySQLiteColumn;
+  readonly sourceCurrency: AnySQLiteColumn;
+  readonly sourceMinor: AnySQLiteColumn;
+}) => {
+  const converted = convertedBaseMinorSql(table);
+
+  return check(
+    "transactions_rate_amount_check",
+    sql`${table.sourceCurrency} = ${table.baseCurrency} OR abs(${table.baseMinor} - ${converted}) <= 1 + (abs(${converted}) >= ${sql.raw(String(exactIntegerLimit))})`
+  );
+};
 
 export const RunLogs = sqliteTable(
   "run_logs",
@@ -716,10 +810,7 @@ export const Transactions = sqliteTable(
       "transactions_rate_check",
       sql`(${table.sourceCurrency} = ${table.baseCurrency} AND ${table.rate} IS NULL AND ${table.rateAsOf} IS NULL) OR (${table.sourceCurrency} <> ${table.baseCurrency} AND ${finiteRateCheck(table.rate)} AND ${table.rateAsOf} IS NOT NULL)`
     ),
-    check(
-      "transactions_rate_amount_check",
-      sql`${table.sourceCurrency} = ${table.baseCurrency} OR abs(${table.baseMinor} - ${table.sourceMinor} * ${table.rate}) <= 1 + abs(${table.sourceMinor} * ${table.rate}) / 1000000000000`
-    ),
+    rateAmountCheck(table),
     check(
       "transactions_fee_currency_check",
       sql`${table.feeCurrency} IS NULL OR ${table.feeCurrency} = ${table.sourceCurrency}`
@@ -1076,11 +1167,11 @@ export const InvoiceDocuments = sqliteTable(
     ),
     check(
       "invoice_documents_reserved_check",
-      sql`${table.archiveState} <> 'reserved' OR (${table.archiveFileId} IS NOT NULL AND ${table.archiveTargetId} IS NOT NULL AND ${table.archivedAt} IS NULL AND ${table.archiveFailureReason} IS NULL)`
+      sql`${table.archiveState} <> 'reserved' OR (${table.archiveFileId} IS NOT NULL AND ${trimmedTextCheck(table.archiveFileId)} AND ${table.archiveTargetId} IS NOT NULL AND ${table.archivedAt} IS NULL AND ${table.archiveFailureReason} IS NULL)`
     ),
     check(
       "invoice_documents_archived_check",
-      sql`${table.archiveState} <> 'archived' OR (${table.archiveFileId} IS NOT NULL AND ${table.archiveTargetId} IS NOT NULL AND ${table.archivedAt} IS NOT NULL AND ${table.archiveFailureReason} IS NULL)`
+      sql`${table.archiveState} <> 'archived' OR (${table.archiveFileId} IS NOT NULL AND ${trimmedTextCheck(table.archiveFileId)} AND ${table.archiveTargetId} IS NOT NULL AND ${table.archivedAt} IS NOT NULL AND ${table.archiveFailureReason} IS NULL)`
     ),
     check(
       "invoice_documents_failed_check",

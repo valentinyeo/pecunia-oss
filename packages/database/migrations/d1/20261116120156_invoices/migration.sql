@@ -48,8 +48,8 @@ CREATE TABLE `invoice_documents` (
 	CONSTRAINT "invoice_documents_amount_pair_check" CHECK(("amount_minor" IS NULL) = ("amount_currency" IS NULL)),
 	CONSTRAINT "invoice_documents_sha256_check" CHECK(typeof("sha256") = 'text' AND length("sha256") = 64 AND "sha256" NOT GLOB '*[^0-9a-f]*'),
 	CONSTRAINT "invoice_documents_unarchived_check" CHECK("archive_state" <> 'unarchived' OR ("archive_file_id" IS NULL AND "archive_target_id" IS NULL AND "archived_at" IS NULL AND "archive_failure_reason" IS NULL)),
-	CONSTRAINT "invoice_documents_reserved_check" CHECK("archive_state" <> 'reserved' OR ("archive_file_id" IS NOT NULL AND "archive_target_id" IS NOT NULL AND "archived_at" IS NULL AND "archive_failure_reason" IS NULL)),
-	CONSTRAINT "invoice_documents_archived_check" CHECK("archive_state" <> 'archived' OR ("archive_file_id" IS NOT NULL AND "archive_target_id" IS NOT NULL AND "archived_at" IS NOT NULL AND "archive_failure_reason" IS NULL)),
+	CONSTRAINT "invoice_documents_reserved_check" CHECK("archive_state" <> 'reserved' OR ("archive_file_id" IS NOT NULL AND typeof("archive_file_id") = 'text' AND length(trim("archive_file_id", ' ' || char(9) || char(10) || char(13))) > 0 AND "archive_target_id" IS NOT NULL AND "archived_at" IS NULL AND "archive_failure_reason" IS NULL)),
+	CONSTRAINT "invoice_documents_archived_check" CHECK("archive_state" <> 'archived' OR ("archive_file_id" IS NOT NULL AND typeof("archive_file_id") = 'text' AND length(trim("archive_file_id", ' ' || char(9) || char(10) || char(13))) > 0 AND "archive_target_id" IS NOT NULL AND "archived_at" IS NOT NULL AND "archive_failure_reason" IS NULL)),
 	CONSTRAINT "invoice_documents_failed_check" CHECK("archive_state" <> 'failed' OR ("archive_failure_reason" IS NOT NULL AND typeof("archive_failure_reason") = 'text' AND length(trim("archive_failure_reason", ' ' || char(9) || char(10) || char(13))) > 0 AND "archive_file_id" IS NULL AND "archive_target_id" IS NULL AND "archived_at" IS NULL))
 );
 --> statement-breakpoint
