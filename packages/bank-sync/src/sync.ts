@@ -1,6 +1,7 @@
 import { Effect, Result, Schema } from "effect";
 
-import type { AccountId, Cursor, ProviderId } from "./model.js";
+import type { AccountId, Cursor, ProviderId, RejectedLine } from "./model.js";
+import { RejectedLineSchema } from "./model.js";
 import { parsePage } from "./parse.js";
 import { BankProvider } from "./provider.js";
 import { retryStep } from "./retry.js";
@@ -16,11 +17,17 @@ export const SyncStepSchema = Schema.Literals([
 
 export type SyncStep = typeof SyncStepSchema.Type;
 
+export const maxReportedRejections = 100;
+
 export const SyncedSchema = Schema.TaggedStruct("Synced", {
   count: Schema.Int.check(Schema.isGreaterThanOrEqualTo(0)),
   cursor: Schema.NullOr(Schema.String),
   pages: Schema.Int.check(Schema.isGreaterThanOrEqualTo(0)),
   rejected: Schema.Int.check(Schema.isGreaterThanOrEqualTo(0)),
+  rejectedLines: Schema.Array(RejectedLineSchema).check(
+    Schema.isMaxLength(maxReportedRejections)
+  ),
+  rejectedNotShown: Schema.Int.check(Schema.isGreaterThanOrEqualTo(0)),
 });
 
 export const FailedSchema = Schema.TaggedStruct("Failed", {
@@ -46,7 +53,19 @@ interface SyncProgress {
   readonly cursor: Cursor | null;
   readonly pages: number;
   readonly rejected: number;
+  readonly rejectedLines: readonly RejectedLine[];
 }
+
+const reportedRejections = (
+  progress: SyncProgress,
+  rejected: readonly RejectedLine[]
+): readonly RejectedLine[] => {
+  const room = maxReportedRejections - progress.rejectedLines.length;
+
+  return room <= 0
+    ? progress.rejectedLines
+    : [...progress.rejectedLines, ...rejected.slice(0, room)];
+};
 
 export const runSync = (
   request: SyncRequest
@@ -109,13 +128,17 @@ export const runSync = (
           cursor: parsed.success.nextCursor,
           pages: progress.pages + 1,
           rejected: progress.rejected + parsed.success.rejected.length,
+          rejectedLines: reportedRejections(progress, parsed.success.rejected),
         };
 
         const atEnd =
           advanced.cursor === null || advanced.cursor === progress.cursor;
 
         if (atEnd || advanced.pages >= request.maxPages) {
-          return SyncedSchema.make(advanced);
+          return SyncedSchema.make({
+            ...advanced,
+            rejectedNotShown: advanced.rejected - advanced.rejectedLines.length,
+          });
         }
 
         return yield* syncFrom(advanced);
@@ -126,5 +149,6 @@ export const runSync = (
       cursor: request.startCursor,
       pages: 0,
       rejected: 0,
+      rejectedLines: [],
     });
   });

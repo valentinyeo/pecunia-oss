@@ -83,11 +83,17 @@ export const RejectionReasonSchema = Schema.Literals([
 
 export type RejectionReason = typeof RejectionReasonSchema.Type;
 
-export const RejectedLineSchema = Schema.Struct({
+export const LineFieldRejectionSchema = Schema.Struct({
   field: LineFieldSchema,
+  reason: RejectionReasonSchema,
+});
+
+export type LineFieldRejection = typeof LineFieldRejectionSchema.Type;
+
+export const RejectedLineSchema = Schema.Struct({
+  failures: Schema.Array(LineFieldRejectionSchema).check(Schema.isNonEmpty()),
   index: Schema.Int.check(Schema.isGreaterThanOrEqualTo(0)),
   rawProviderLineId: Schema.NullOr(Schema.String),
-  reason: RejectionReasonSchema,
 });
 
 export type RejectedLine = typeof RejectedLineSchema.Type;

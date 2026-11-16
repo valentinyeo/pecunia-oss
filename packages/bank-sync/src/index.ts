@@ -2,6 +2,7 @@ export {
   AccountIdSchema,
   BookedOnSchema,
   CurrencyCodeSchema,
+  LineFieldRejectionSchema,
   LineFieldSchema,
   MinorUnitsSchema,
   ProviderIdSchema,
@@ -17,6 +18,7 @@ export type {
   BookedOn,
   CurrencyCode,
   LineField,
+  LineFieldRejection,
   MinorUnits,
   ProviderId,
   ProviderLine,
@@ -60,6 +62,7 @@ export type {
 
 export {
   FailedSchema,
+  maxReportedRejections,
   runSync,
   SyncedSchema,
   SyncOutcomeSchema,

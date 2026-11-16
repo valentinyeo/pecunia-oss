@@ -10,6 +10,7 @@ import { parsePage } from "../src/parse.js";
 import type { BankProviderService } from "../src/provider.js";
 import { StoreUnavailable } from "../src/store-unavailable.js";
 import type { BankLineStoreService } from "../src/store.js";
+import { maxReportedRejections } from "../src/sync.js";
 import { wiseRecordedPages } from "../src/wise-recorded.js";
 import { parseWiseRecordedPage, wiseRecordedProvider } from "../src/wise.js";
 import {
@@ -232,7 +233,7 @@ it.effect("never skips a line when a later page fails to store", () =>
     expect(
       (yield* memory.lines).map((item) => item.providerLineId).toSorted()
     ).toEqual(["demo-page-1", "demo-page-2"]);
-    expect([...(yield* memory.totals).entries()]).toEqual([["GBP", 750]]);
+    expect([...(yield* memory.totals).entries()]).toEqual([["GBP", 750n]]);
   })
 );
 
@@ -269,7 +270,7 @@ it.effect("serves a repeated page without doubling a line or a total", () =>
 
     expect(outcome).toMatchObject({ count: 2, pages: 2, rejected: 0 });
     expect(yield* memory.lines).toHaveLength(2);
-    expect([...(yield* memory.totals).entries()]).toEqual([["GBP", 750]]);
+    expect([...(yield* memory.totals).entries()]).toEqual([["GBP", 750n]]);
   })
 );
 
@@ -310,12 +311,91 @@ it.effect("keys stored lines by provider and provider line id", () =>
       [...(yield* memory.totals).entries()].toSorted(([left], [right]) =>
         left.localeCompare(right)
       )
-    ).toEqual([["GBP", 3298]]);
+    ).toEqual([["GBP", 3298n]]);
+  })
+);
+
+it.effect("keeps totals exact when safe integer extremes cancel", () =>
+  Effect.gen(function* extremeTotals() {
+    const memory = yield* makeMemoryBankLineStore;
+
+    const bank = yield* makeFakeBank(
+      scriptedPages([
+        {
+          lines: [
+            line(Number.MAX_SAFE_INTEGER, "demo-max"),
+            line(2, "demo-two"),
+            line(-Number.MAX_SAFE_INTEGER, "demo-min"),
+          ],
+          nextCursor: null,
+          requestCursor: null,
+        },
+      ])
+    );
+
+    const recorded = yield* makeRecordingClock;
+
+    expectSynced(
+      yield* runSyncWith(
+        bank.provider,
+        memory.store,
+        recorded.clock,
+        syncRequest({})
+      )
+    );
+
+    expect([...(yield* memory.totals).entries()]).toEqual([["GBP", 2n]]);
+  })
+);
+
+it.effect("shows a bounded number of rejected lines and counts the rest", () =>
+  Effect.gen(function* boundedRejections() {
+    const memory = yield* makeMemoryBankLineStore;
+
+    const badLines = Array.from(
+      { length: maxReportedRejections + 5 },
+      (_, index): RawProviderLine => ({
+        ...line(0, `demo-bad-${index}`),
+        currency: "gbp",
+      })
+    );
+
+    const bank = yield* makeFakeBank(
+      scriptedPages([
+        { lines: badLines, nextCursor: null, requestCursor: null },
+      ])
+    );
+
+    const recorded = yield* makeRecordingClock;
+
+    const outcome = expectSynced(
+      yield* runSyncWith(
+        bank.provider,
+        memory.store,
+        recorded.clock,
+        syncRequest({})
+      )
+    );
+
+    expect(outcome).toMatchObject({
+      count: 0,
+      rejected: maxReportedRejections + 5,
+      rejectedNotShown: 5,
+    });
+    expect(outcome.rejectedLines).toHaveLength(maxReportedRejections);
+    expect(outcome.rejectedLines[0]).toEqual({
+      failures: [{ field: "currency", reason: "NotACurrencyCode" }],
+      index: 0,
+      rawProviderLineId: "demo-bad-0",
+    });
+    expect(outcome.rejectedLines.at(-1)?.rawProviderLineId).toBe(
+      `demo-bad-${maxReportedRejections - 1}`
+    );
   })
 );
 
 it.effect(
-  "names the field and reason of every rejected line and counts it",
+  "names every bad field and reason of each rejected line and shows them",
   () =>
     Effect.gen(function* rejectedLines() {
       const rawLines: readonly RawProviderLine[] = [
@@ -324,6 +404,12 @@ it.effect(
         { ...line(0, "demo-bad-currency"), currency: "gbp" },
         { ...line(0, "demo-bad-id"), providerLineId: "" },
         { ...line(0, "demo-bad-date"), bookedOn: "2026-02-30" },
+        {
+          ...line(0, "demo-bad-many"),
+          amountMinor: 12.5,
+          bookedOn: "2026-02-30",
+          currency: "gbp",
+        },
       ];
 
       const parsed = parsePage({ lines: rawLines, nextCursor: null });
@@ -337,32 +423,40 @@ it.effect(
       expect(parsed.success.lines.map((item) => item.providerLineId)).toEqual([
         "demo-good",
       ]);
-      expect(parsed.success.rejected).toEqual([
+
+      const expectedRejections = [
         {
-          field: "amountMinor",
+          failures: [{ field: "amountMinor", reason: "NotASafeInteger" }],
           index: 1,
           rawProviderLineId: "demo-bad-amount",
-          reason: "NotASafeInteger",
         },
         {
-          field: "currency",
+          failures: [{ field: "currency", reason: "NotACurrencyCode" }],
           index: 2,
           rawProviderLineId: "demo-bad-currency",
-          reason: "NotACurrencyCode",
         },
         {
-          field: "providerLineId",
+          failures: [{ field: "providerLineId", reason: "EmptyString" }],
           index: 3,
           rawProviderLineId: null,
-          reason: "EmptyString",
         },
         {
-          field: "bookedOn",
+          failures: [{ field: "bookedOn", reason: "NotADate" }],
           index: 4,
           rawProviderLineId: "demo-bad-date",
-          reason: "NotADate",
         },
-      ]);
+        {
+          failures: [
+            { field: "bookedOn", reason: "NotADate" },
+            { field: "amountMinor", reason: "NotASafeInteger" },
+            { field: "currency", reason: "NotACurrencyCode" },
+          ],
+          index: 5,
+          rawProviderLineId: "demo-bad-many",
+        },
+      ];
+
+      expect(parsed.success.rejected).toEqual(expectedRejections);
 
       const memory = yield* makeMemoryBankLineStore;
 
@@ -383,7 +477,12 @@ it.effect(
         )
       );
 
-      expect(outcome).toMatchObject({ count: 1, rejected: 4 });
+      expect(outcome).toMatchObject({
+        count: 1,
+        rejected: 5,
+        rejectedLines: expectedRejections,
+        rejectedNotShown: 0,
+      });
       expect((yield* memory.lines).map((item) => item.providerLineId)).toEqual([
         "demo-good",
       ]);
@@ -500,8 +599,8 @@ it.effect("syncs the made-up Wise recording through the same port", () =>
         left.localeCompare(right)
       )
     ).toEqual([
-      ["EUR", -899],
-      ["GBP", 3650],
+      ["EUR", -899n],
+      ["GBP", 3650n],
     ]);
   })
 );

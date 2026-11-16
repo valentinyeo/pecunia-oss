@@ -135,18 +135,42 @@ export const servedCursors = (
 
 export const totalByCurrency = (
   lines: readonly GeneratedLine[]
-): ReadonlyMap<string, number> => {
-  const totals = new Map<string, number>();
+): ReadonlyMap<string, bigint> => {
+  const totals = new Map<string, bigint>();
 
   for (const line of lines) {
     totals.set(
       line.currency,
-      (totals.get(line.currency) ?? 0) + line.amountMinor
+      (totals.get(line.currency) ?? 0n) + BigInt(line.amountMinor)
     );
   }
 
   return totals;
 };
+
+export interface RawLineOverrides {
+  amountMinor?: unknown;
+  bookedOn?: unknown;
+  currency?: unknown;
+  description?: unknown;
+  providerLineId?: unknown;
+}
+
+export const rawLineWith = (
+  base: RawProviderLine,
+  overrides: RawLineOverrides
+): RawProviderLine => ({
+  amountMinor:
+    "amountMinor" in overrides ? overrides.amountMinor : base.amountMinor,
+  bookedOn: "bookedOn" in overrides ? overrides.bookedOn : base.bookedOn,
+  currency: "currency" in overrides ? overrides.currency : base.currency,
+  description:
+    "description" in overrides ? overrides.description : base.description,
+  providerLineId:
+    "providerLineId" in overrides
+      ? overrides.providerLineId
+      : base.providerLineId,
+});
 
 export const nonEmpty = <A>(values: readonly A[]): readonly [A, ...A[]] => {
   const [first] = values;

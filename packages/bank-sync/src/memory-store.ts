@@ -11,7 +11,7 @@ export interface StoredProviderLine extends ProviderLine {
 export interface MemoryBankLineStore {
   readonly lines: Effect.Effect<readonly StoredProviderLine[]>;
   readonly store: BankLineStoreService;
-  readonly totals: Effect.Effect<ReadonlyMap<CurrencyCode, number>>;
+  readonly totals: Effect.Effect<ReadonlyMap<CurrencyCode, bigint>>;
 }
 
 export const lineKey = (providerId: ProviderId, line: ProviderLine): string =>
@@ -45,11 +45,14 @@ const addLines = (
 
 const totalsOf = (
   rows: ReadonlyMap<string, StoredProviderLine>
-): ReadonlyMap<CurrencyCode, number> => {
-  const totals = new Map<CurrencyCode, number>();
+): ReadonlyMap<CurrencyCode, bigint> => {
+  const totals = new Map<CurrencyCode, bigint>();
 
   for (const row of rows.values()) {
-    totals.set(row.currency, (totals.get(row.currency) ?? 0) + row.amountMinor);
+    totals.set(
+      row.currency,
+      (totals.get(row.currency) ?? 0n) + BigInt(row.amountMinor)
+    );
   }
 
   return totals;

@@ -9,6 +9,7 @@ import {
 import type {
   Cursor,
   LineField,
+  LineFieldRejection,
   ProviderLine,
   ProviderLineId,
   RawProviderLine,
@@ -30,11 +31,6 @@ export interface ParsedPage {
   readonly lines: readonly ProviderLine[];
   readonly nextCursor: Cursor | null;
   readonly rejected: readonly RejectedLine[];
-}
-
-export interface LineFieldRejection {
-  readonly field: LineField;
-  readonly reason: RejectionReason;
 }
 
 const asString = Schema.is(Schema.String);
@@ -130,13 +126,12 @@ const parseDescription = (
 
 const rejectLine = (
   index: number,
-  lineRejection: LineFieldRejection,
+  failures: readonly LineFieldRejection[],
   raw: RawProviderLine
 ): RejectedLine => ({
-  field: lineRejection.field,
+  failures,
   index,
   rawProviderLineId: rawId(raw),
-  reason: lineRejection.reason,
 });
 
 export const parseProviderLine = (
@@ -144,42 +139,43 @@ export const parseProviderLine = (
   index: number
 ): Result.Result<ProviderLine, RejectedLine> => {
   const providerLineId = parseId(raw);
-
-  if (Result.isFailure(providerLineId)) {
-    return Result.fail(rejectLine(index, providerLineId.failure, raw));
-  }
-
   const bookedOn = parseBookedOn(raw);
-
-  if (Result.isFailure(bookedOn)) {
-    return Result.fail(rejectLine(index, bookedOn.failure, raw));
-  }
-
   const amountMinor = parseAmountMinor(raw);
-
-  if (Result.isFailure(amountMinor)) {
-    return Result.fail(rejectLine(index, amountMinor.failure, raw));
-  }
-
   const currency = parseCurrency(raw);
-
-  if (Result.isFailure(currency)) {
-    return Result.fail(rejectLine(index, currency.failure, raw));
-  }
-
   const description = parseDescription(raw);
+  const failures: LineFieldRejection[] = [];
 
-  if (Result.isFailure(description)) {
-    return Result.fail(rejectLine(index, description.failure, raw));
+  const parsedFields: readonly Result.Result<unknown, LineFieldRejection>[] = [
+    providerLineId,
+    bookedOn,
+    amountMinor,
+    currency,
+    description,
+  ];
+
+  for (const parsedField of parsedFields) {
+    if (Result.isFailure(parsedField)) {
+      failures.push(parsedField.failure);
+    }
   }
 
-  return Result.succeed({
-    amountMinor: amountMinor.success,
-    bookedOn: bookedOn.success,
-    currency: currency.success,
-    description: description.success,
-    providerLineId: providerLineId.success,
-  });
+  if (
+    Result.isSuccess(providerLineId) &&
+    Result.isSuccess(bookedOn) &&
+    Result.isSuccess(amountMinor) &&
+    Result.isSuccess(currency) &&
+    Result.isSuccess(description)
+  ) {
+    return Result.succeed({
+      amountMinor: amountMinor.success,
+      bookedOn: bookedOn.success,
+      currency: currency.success,
+      description: description.success,
+      providerLineId: providerLineId.success,
+    });
+  }
+
+  return Result.fail(rejectLine(index, failures, raw));
 };
 
 const parseNextCursor = (

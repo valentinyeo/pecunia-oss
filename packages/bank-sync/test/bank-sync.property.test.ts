@@ -1,12 +1,17 @@
 import { expect, it } from "@effect/vitest";
-import { Effect, Result } from "effect";
+import { Effect, Result, Schema } from "effect";
 
 import { makeFakeBank } from "../src/fake-bank.js";
 import type { FakeBankPage } from "../src/fake-bank.js";
 import { makeMemoryBankLineStore } from "../src/memory-store.js";
-import type { Cursor, RawProviderLine, RejectionReason } from "../src/model.js";
+import type {
+  Cursor,
+  LineField,
+  LineFieldRejection,
+  RawProviderLine,
+  RejectionReason,
+} from "../src/model.js";
 import { parseProviderLine } from "../src/parse.js";
-import type { LineFieldRejection } from "../src/parse.js";
 import {
   cursorOf,
   expectSynced,
@@ -15,13 +20,14 @@ import {
   nonEmpty,
   pick,
   randomInteger,
+  rawLineWith,
   runSyncWith,
   shuffled,
   syncRequest,
   toRawLine,
   totalByCurrency,
 } from "./support.js";
-import type { GeneratedLine, Random } from "./support.js";
+import type { GeneratedLine, Random, RawLineOverrides } from "./support.js";
 
 const caseCount = 600;
 
@@ -101,7 +107,7 @@ const buildScenario = (random: Random): Scenario => {
   return { lines, script };
 };
 
-const sortedEntries = (totals: ReadonlyMap<string, number>) =>
+const sortedEntries = (totals: ReadonlyMap<string, bigint>) =>
   [...totals.entries()].toSorted(([left], [right]) =>
     left.localeCompare(right)
   );
@@ -203,7 +209,7 @@ const baseLine: RawProviderLine = {
 const rejectionOf = (raw: RawProviderLine): LineFieldRejection | null => {
   const parsed = parseProviderLine(raw, 0);
 
-  return Result.isFailure(parsed) ? parsed.failure : null;
+  return Result.isFailure(parsed) ? (parsed.failure.failures[0] ?? null) : null;
 };
 
 const amountRejectionReason = (amountMinor: number): RejectionReason | null => {
@@ -346,4 +352,296 @@ it.effect("accepts exactly the booked dates a calendar can hold", () =>
       });
     }
   })
+);
+
+const fieldOrder: readonly LineField[] = [
+  "providerLineId",
+  "bookedOn",
+  "amountMinor",
+  "currency",
+  "description",
+];
+
+interface BadFieldValue {
+  readonly reason: RejectionReason;
+  readonly value: unknown;
+}
+
+const badFieldValues: Readonly<
+  Record<LineField, readonly [BadFieldValue, ...BadFieldValue[]]>
+> = {
+  amountMinor: [
+    { reason: "NotASafeInteger", value: 12.5 },
+    { reason: "NotASafeInteger", value: Number.MAX_SAFE_INTEGER + 1 },
+    { reason: "NotANumber", value: "1000" },
+    { reason: "NotANumber", value: Number.NaN },
+  ],
+  bookedOn: [
+    { reason: "NotADate", value: "2026-02-30" },
+    { reason: "NotADate", value: "05/01/2026" },
+    { reason: "NotAString", value: 20_260_105 },
+  ],
+  currency: [
+    { reason: "NotACurrencyCode", value: "gbp" },
+    { reason: "NotACurrencyCode", value: "" },
+    { reason: "NotAString", value: 840 },
+  ],
+  description: [
+    { reason: "NotAString", value: 42 },
+    { reason: "NotAString", value: null },
+  ],
+  providerLineId: [
+    { reason: "EmptyString", value: "" },
+    { reason: "NotAString", value: 12 },
+  ],
+};
+
+interface CaseLine {
+  readonly failures: readonly LineFieldRejection[];
+  readonly raw: RawProviderLine;
+}
+
+const buildCaseLines = (random: Random): readonly CaseLine[] => {
+  const count = randomInteger(random, 1, 4);
+  const lines: CaseLine[] = [];
+
+  for (let index = 0; index < count; index += 1) {
+    const chosen = new Set(
+      shuffled(random, fieldOrder).slice(
+        0,
+        randomInteger(random, 0, fieldOrder.length)
+      )
+    );
+
+    const failures: LineFieldRejection[] = [];
+    const overrides: RawLineOverrides = {};
+
+    for (const field of fieldOrder) {
+      if (chosen.has(field)) {
+        const bad = pick(random, badFieldValues[field]);
+
+        overrides[field] = bad.value;
+        failures.push({ field, reason: bad.reason });
+      }
+    }
+
+    lines.push({
+      failures,
+      raw: rawLineWith(baseLine, {
+        providerLineId: `case-bad-${index}`,
+        ...overrides,
+      }),
+    });
+  }
+
+  return lines;
+};
+
+const paginate = <A>(
+  random: Random,
+  values: readonly A[]
+): readonly (readonly A[])[] => {
+  const pages: (readonly A[])[] = [];
+  let consumed = 0;
+
+  while (consumed < values.length) {
+    const take = Math.min(
+      randomInteger(random, 1, 3),
+      values.length - consumed
+    );
+
+    pages.push(values.slice(consumed, consumed + take));
+    consumed += take;
+  }
+
+  return pages;
+};
+
+const scriptedChain = (
+  pages: readonly (readonly RawProviderLine[])[]
+): readonly FakeBankPage[] => {
+  let requestCursor: Cursor | null = null;
+
+  return pages.map((lines, pageIndex) => {
+    const nextCursor =
+      pageIndex === pages.length - 1
+        ? null
+        : cursorOf(`case-bad-cursor-${pageIndex}`);
+
+    const page: FakeBankPage = {
+      failuresBeforeSuccess: 0,
+      lines,
+      nextCursor,
+      requestCursor,
+    };
+
+    requestCursor = nextCursor;
+
+    return page;
+  });
+};
+
+const rawIdOf = (raw: RawProviderLine): string | null =>
+  Schema.is(Schema.String)(raw.providerLineId) && raw.providerLineId !== ""
+    ? raw.providerLineId
+    : null;
+
+interface ExpectedRejection {
+  readonly failures: readonly LineFieldRejection[];
+  readonly index: number;
+  readonly rawProviderLineId: string | null;
+}
+
+const expectedRejections = (
+  pages: readonly (readonly CaseLine[])[]
+): readonly ExpectedRejection[] =>
+  pages.flatMap((pageLines) =>
+    pageLines.flatMap((line, index) =>
+      line.failures.length === 0
+        ? []
+        : [
+            {
+              failures: line.failures,
+              index,
+              rawProviderLineId: rawIdOf(line.raw),
+            },
+          ]
+    )
+  );
+
+it.effect(
+  "names exactly the bad fields of every rejected line in page order",
+  () =>
+    Effect.gen(function* everyBadField() {
+      const random = makeRandom(seed + 4);
+
+      for (let caseIndex = 0; caseIndex < caseCount; caseIndex += 1) {
+        const lines = buildCaseLines(random);
+        const pages = paginate(random, lines);
+        const memory = yield* makeMemoryBankLineStore;
+
+        const bank = yield* makeFakeBank(
+          scriptedChain(pages.map((page) => page.map((line) => line.raw)))
+        );
+
+        const recorded = yield* makeRecordingClock;
+
+        const outcome = expectSynced(
+          yield* runSyncWith(
+            bank.provider,
+            memory.store,
+            recorded.clock,
+            syncRequest({})
+          )
+        );
+
+        const expected = expectedRejections(pages);
+
+        expect({
+          caseIndex,
+          count: outcome.count,
+          rejected: outcome.rejected,
+          rejectedLines: outcome.rejectedLines,
+          rejectedNotShown: outcome.rejectedNotShown,
+        }).toEqual({
+          caseIndex,
+          count: lines.length - expected.length,
+          rejected: expected.length,
+          rejectedLines: expected,
+          rejectedNotShown: 0,
+        });
+      }
+    })
+);
+
+const extremeAmounts = (random: Random): number =>
+  pick(random, [
+    Number.MAX_SAFE_INTEGER,
+    Number.MIN_SAFE_INTEGER,
+    2,
+    -2,
+    0,
+    1,
+    -1,
+    randomInteger(random, -1_000_000, 1_000_000),
+  ]);
+
+it.effect(
+  "keeps an exact bigint total per currency and adds nothing on a rerun",
+  () =>
+    Effect.gen(function* exactTotals() {
+      const random = makeRandom(seed + 5);
+
+      for (let caseIndex = 0; caseIndex < caseCount; caseIndex += 1) {
+        const stressCurrency = pick(random, currencies);
+        const extra = randomInteger(random, 0, 5);
+
+        const amounts = [
+          Number.MAX_SAFE_INTEGER,
+          2,
+          -Number.MAX_SAFE_INTEGER,
+          ...Array.from({ length: extra }, () => extremeAmounts(random)),
+        ];
+
+        const lines: GeneratedLine[] = amounts.map((amountMinor, index) => ({
+          amountMinor,
+          bookedOn: pick(random, bookingDates),
+          currency: index < 3 ? stressCurrency : pick(random, currencies),
+          id: `total-line-${index}`,
+        }));
+
+        const pages = paginate(random, lines);
+        const memory = yield* makeMemoryBankLineStore;
+
+        const bank = yield* makeFakeBank(
+          scriptedChain(pages.map((page) => page.map(toRawLine)))
+        );
+
+        const recorded = yield* makeRecordingClock;
+        const request = syncRequest({});
+
+        const outcome = expectSynced(
+          yield* runSyncWith(
+            bank.provider,
+            memory.store,
+            recorded.clock,
+            request
+          )
+        );
+
+        const totals = sortedEntries(yield* memory.totals);
+
+        const secondOutcome = expectSynced(
+          yield* runSyncWith(
+            bank.provider,
+            memory.store,
+            recorded.clock,
+            request
+          )
+        );
+
+        const totalsAfter = sortedEntries(yield* memory.totals);
+        const expectedTotals = sortedEntries(totalByCurrency(lines));
+
+        expect({
+          caseIndex,
+          count: outcome.count,
+          rejected: outcome.rejected,
+          secondCount: secondOutcome.count,
+          secondRejected: secondOutcome.rejected,
+          storedAfterSecond: (yield* memory.lines).length,
+          totals,
+          totalsAfter,
+        }).toEqual({
+          caseIndex,
+          count: lines.length,
+          rejected: 0,
+          secondCount: 0,
+          secondRejected: 0,
+          storedAfterSecond: lines.length,
+          totals: expectedTotals,
+          totalsAfter: expectedTotals,
+        });
+      }
+    })
 );
