@@ -5,6 +5,14 @@ import path from "node:path";
 
 import { Option, Schema } from "effect";
 
+import {
+  decodeText,
+  SEPARATOR_CLASS,
+  SEPARATOR_CODE,
+  SEPARATOR_EDGES,
+  SEPARATOR_RUN,
+} from "./decoded-text.ts";
+
 const root = path.resolve(import.meta.dirname, "..");
 
 const allowListPath = "scripts/no-personal-data-allow.json";
@@ -15,6 +23,7 @@ export const RULE_IDS = [
   "cloudflare-hostname",
   "email",
   "iban",
+  "secret-block-scalar",
 ] as const;
 
 export type RuleId = (typeof RULE_IDS)[number];
@@ -76,93 +85,6 @@ const NO_REPLY_SENDERS = new Set([
 
 const NO_REPLY_DOMAIN = "users.noreply.github.com";
 
-const TABLE_SIZE = 65_536;
-
-const tableOf = (ranges: readonly (readonly [number, number])[]) => {
-  const table = new Uint8Array(TABLE_SIZE);
-
-  for (const [low, high] of ranges) {
-    for (let code = low; code <= high; code += 1) {
-      table[code] = 1;
-    }
-  }
-
-  return table;
-};
-
-const escapedCode = (code: number) =>
-  `\\u${code.toString(16).padStart(4, "0")}`;
-
-const classOf = (ranges: readonly (readonly [number, number])[]) =>
-  ranges
-    .map(([low, high]) =>
-      low === high
-        ? escapedCode(low)
-        : `${escapedCode(low)}-${escapedCode(high)}`
-    )
-    .join("");
-
-const SEPARATOR_RANGES: readonly (readonly [number, number])[] = [
-  [0x09, 0x09],
-  [0x0b, 0x0c],
-  [0x20, 0x20],
-  [0x2d, 0x2d],
-  [0x2e, 0x2e],
-  [0xa0, 0xa0],
-  [0x16_80, 0x16_80],
-  [0x20_00, 0x20_0a],
-  [0x20_10, 0x20_15],
-  [0x20_2f, 0x20_2f],
-  [0x20_5f, 0x20_5f],
-  [0x30_00, 0x30_00],
-  [0xfe_ff, 0xfe_ff],
-];
-
-const FOLDED_RANGES: readonly (readonly [number, number])[] = [
-  [0x09, 0x0d],
-  [0x20, 0x20],
-  [0x2c, 0x2c],
-  [0x3a, 0x3a],
-  [0x3d, 0x3d],
-  [0x85, 0x85],
-  [0xa0, 0xa0],
-  [0x16_80, 0x16_80],
-  [0x20_00, 0x20_0d],
-  [0x20_28, 0x20_29],
-  [0x20_2f, 0x20_2f],
-  [0x20_5f, 0x20_5f],
-  [0x30_00, 0x30_00],
-  [0xfe_ff, 0xfe_ff],
-  [0xff_0c, 0xff_0c],
-  [0xff_1a, 0xff_1a],
-  [0xff_1d, 0xff_1d],
-];
-
-const STRIPPED_RANGES: readonly (readonly [number, number])[] = [
-  [0x22, 0x22],
-  [0x27, 0x27],
-  [0x60, 0x60],
-  [0xab, 0xab],
-  [0xb4, 0xb4],
-  [0xbb, 0xbb],
-  [0x20_18, 0x20_1f],
-];
-
-const SEPARATOR_CLASS = classOf(SEPARATOR_RANGES);
-
-const SEPARATOR_CODE = tableOf(SEPARATOR_RANGES);
-
-const FOLDED_CODE = tableOf(FOLDED_RANGES);
-
-const STRIPPED_CODE = tableOf(STRIPPED_RANGES);
-
-const SEPARATOR_RUN = new RegExp(`[${SEPARATOR_CLASS}]+`, "gu");
-
-const SEPARATOR_EDGES = new RegExp(
-  `^[${SEPARATOR_CLASS}]+|[${SEPARATOR_CLASS}]+$`,
-  "gu"
-);
-
 const NUMBER_RUN = new RegExp(`[0-9${SEPARATOR_CLASS}]+`, "gu");
 
 const IBAN_RUN = new RegExp(`[\\p{L}\\p{N}${SEPARATOR_CLASS}]+`, "gu");
@@ -172,6 +94,8 @@ const IBAN_EDGE = /[\p{L}\p{N}_]/u;
 const TOKEN_EDGE = /[\p{L}\p{N}_:+/]/u;
 
 const ALNUM = /[\p{L}\p{N}]/u;
+
+const LETTER = /\p{L}/u;
 
 const DIGIT = /[0-9]/u;
 
@@ -360,6 +284,8 @@ const ADVICE: Record<RuleId, string> = {
   email:
     "an email address on a real domain. Personal data belongs in the database, scoped to a profile, never in source. Fix: replace it with an example address (`demo@example.com`) or move it to user data.",
   iban: "an International Bank Account Number. Bank details belong to a person, and anyone can read this repository. Fix: delete the number and read it from user data, scoped to a `Profile`.",
+  "secret-block-scalar":
+    "a token written on the indented line below its key. A block scalar keeps the value, and anyone can read this repository. Fix: read it from the environment with varlock, or use a made-up example value.",
 };
 
 const domainOf = (address: string) =>
@@ -464,73 +390,6 @@ const lineIndexOf = (starts: readonly number[], position: number) => {
   return low;
 };
 
-interface NormalisedText {
-  readonly origins: Int32Array;
-  readonly text: string;
-}
-
-const normalise = (text: string): NormalisedText => {
-  const origins = new Int32Array(text.length + 1);
-
-  const parts: string[] = [];
-
-  let written = 0;
-
-  let segmentStart = 0;
-
-  let endedWithSeparator = true;
-
-  const append = (from: number, to: number) => {
-    if (to <= from) {
-      return;
-    }
-
-    parts.push(text.slice(from, to));
-
-    for (let index = from; index < to; index += 1) {
-      origins[written + index - from] = index;
-    }
-
-    written += to - from;
-
-    endedWithSeparator = false;
-  };
-
-  for (let index = 0; index < text.length; index += 1) {
-    const code = text.codePointAt(index) ?? 0;
-
-    if (STRIPPED_CODE[code] === 1) {
-      append(segmentStart, index);
-
-      segmentStart = index + 1;
-
-      continue;
-    }
-
-    if (FOLDED_CODE[code] !== 1) {
-      continue;
-    }
-
-    append(segmentStart, index);
-
-    if (!endedWithSeparator) {
-      parts.push(" ");
-
-      origins[written] = index;
-
-      written += 1;
-
-      endedWithSeparator = true;
-    }
-
-    segmentStart = index + 1;
-  }
-
-  append(segmentStart, text.length);
-
-  return { origins, text: parts.join("") };
-};
-
 interface TextSource {
   readonly lineAt: (position: number) => number;
   readonly rawOf: (start: number, end: number) => string;
@@ -547,20 +406,16 @@ const rawSource = (text: string): TextSource => {
   };
 };
 
-const normalisedSource = (text: string): TextSource => {
+const decodedSource = (text: string): TextSource => {
   const starts = lineStartsOf(text.split("\n"));
 
-  const normalised = normalise(text);
+  const { origins, text: decodedText } = decodeText(text);
 
   return {
-    lineAt: (position) =>
-      lineIndexOf(starts, normalised.origins[position] ?? position),
+    lineAt: (position) => lineIndexOf(starts, origins?.[position] ?? position),
     rawOf: (start, end) =>
-      text.slice(
-        normalised.origins[start] ?? start,
-        (normalised.origins[end - 1] ?? end) + 1
-      ),
-    text: normalised.text,
+      text.slice(origins?.[start] ?? start, (origins?.[end - 1] ?? end) + 1),
+    text: decodedText,
   };
 };
 
@@ -958,6 +813,85 @@ const accountIdFindings = (
     });
   });
 
+const BLOCK_SCALAR_KEY =
+  /^[ \t]*(?:-[ \t]+)?[A-Za-z0-9_.-]*(?:token|secret|password|passwd|api[_-]?key)[A-Za-z0-9_.-]*[ \t]*:[ \t]*[|>][-+]?[ \t]*$/iu;
+
+const BLOCK_SCALAR_TOKEN =
+  /^[ \t]+(?<quote>["'`])?(?<token>[A-Za-z0-9_\-+=]{24,})\k<quote>[ \t]*$/u;
+
+const BLOCK_SCALAR_ENTROPY = 3.5;
+
+const indentOf = (line: string) => line.length - line.trimStart().length;
+
+const entropyOf = (value: string) => {
+  const counts = new Map<string, number>();
+
+  for (const character of value) {
+    counts.set(character, (counts.get(character) ?? 0) + 1);
+  }
+
+  let entropy = 0;
+
+  for (const count of counts.values()) {
+    const share = count / value.length;
+
+    entropy -= share * Math.log2(share);
+  }
+
+  return entropy;
+};
+
+const readsAsBlockScalarToken = (value: string) =>
+  DIGIT.test(value) &&
+  LETTER.test(value) &&
+  entropyOf(value) >= BLOCK_SCALAR_ENTROPY;
+
+const blockScalarFindings = (
+  filePath: string,
+  lines: readonly string[],
+  allow: AllowList
+): readonly PersonalDataFinding[] => {
+  const findings: PersonalDataFinding[] = [];
+
+  for (let index = 0; index < lines.length; index += 1) {
+    const line = lines[index] ?? "";
+
+    if (!BLOCK_SCALAR_KEY.test(line)) {
+      continue;
+    }
+
+    const keyIndent = indentOf(line);
+
+    for (let cursor = index + 1; cursor < lines.length; cursor += 1) {
+      const next = lines[cursor] ?? "";
+
+      if (next.trim().length === 0) {
+        continue;
+      }
+
+      if (indentOf(next) <= keyIndent) {
+        break;
+      }
+
+      const value = BLOCK_SCALAR_TOKEN.exec(next)?.groups?.token;
+
+      if (
+        value !== undefined &&
+        readsAsBlockScalarToken(value) &&
+        !allowsValue(allow, filePath, value)
+      ) {
+        findings.push({
+          file: filePath,
+          line: cursor + 1,
+          rule: "secret-block-scalar",
+        });
+      }
+    }
+  }
+
+  return findings;
+};
+
 const sourceFindings = (
   filePath: string,
   source: TextSource,
@@ -997,8 +931,9 @@ export const findPersonalData = (
 
   return uniqueFindings([
     ...accountIdFindings(filePath, text.split("\n"), allow),
+    ...blockScalarFindings(filePath, text.split("\n"), allow),
     ...sourceFindings(filePath, rawSource(text), allow),
-    ...sourceFindings(filePath, normalisedSource(text), allow),
+    ...sourceFindings(filePath, decodedSource(text), allow),
   ]);
 };
 
