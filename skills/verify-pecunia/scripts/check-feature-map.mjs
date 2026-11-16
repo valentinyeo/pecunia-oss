@@ -4,7 +4,12 @@ import { join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const SCRIPT_DIR = fileURLToPath(new URL(".", import.meta.url));
-const REPO_ROOT = join(SCRIPT_DIR, "..", "..", "..");
+const arguments_ = process.argv.slice(2);
+const rootIndex = arguments_.indexOf("--root");
+const REPO_ROOT =
+  rootIndex === -1
+    ? join(SCRIPT_DIR, "..", "..", "..")
+    : arguments_[rootIndex + 1];
 const FEATURES_DIR = join(REPO_ROOT, "skills", "verify-pecunia", "features");
 const README_PATH = join(FEATURES_DIR, "README.md");
 const SKIPPED_DIRECTORIES = new Set([
@@ -15,12 +20,21 @@ const SKIPPED_DIRECTORIES = new Set([
   "tests",
 ]);
 
-const failures = [];
+const counts = {
+  mapping: 0,
+  planned: 0,
+  status: 0,
+  unexported: 0,
+  unnamed: 0,
+};
 
-const fail = (line) => {
-  failures.push(line);
+const fail = (category, line) => {
+  counts[category] += 1;
   process.stderr.write(`FAIL ${line}\n`);
 };
+
+const problems = () =>
+  Object.values(counts).reduce((sum, count) => sum + count, 0);
 
 const sectionOf = (source, heading) => {
   const lines = source.split("\n");
@@ -102,6 +116,7 @@ for (const path of capabilityFiles) {
 
     if (name === undefined) {
       fail(
+        "mapping",
         `${match[1]} is implemented in ${relative(REPO_ROOT, path)} with no defineContract name`
       );
       continue;
@@ -157,6 +172,7 @@ for (const [pageName, page] of pages) {
   for (const name of page.named) {
     if (onPage.has(name)) {
       fail(
+        "mapping",
         `${name} is on ${onPage.get(name)} and ${pageName}; one feature page owns a capability`
       );
       continue;
@@ -166,19 +182,20 @@ for (const [pageName, page] of pages) {
 
     if (!capabilities.has(name)) {
       fail(
+        "mapping",
         `${pageName} lists ${name} but no package or app implements that capability`
       );
     }
 
     if (page.status === "planned") {
       fail(
+        "planned",
         `${name} exists on main but ${pageName} still marks the feature planned`
       );
     }
   }
 }
 
-let unnamed = 0;
 for (const [name, modulePath] of capabilities) {
   if (onPage.has(name)) {
     continue;
@@ -187,44 +204,41 @@ for (const [name, modulePath] of capabilities) {
   const declared = notMoney.get(name);
 
   if (declared === undefined) {
-    unnamed += 1;
     fail(
+      "unnamed",
       `${name} (${modulePath}) is on no feature page and not in the not-money table`
     );
     continue;
   }
 
   if (declared !== modulePath) {
-    unnamed += 1;
     fail(
+      "mapping",
       `${name} is implemented in ${modulePath} but the not-money table says ${declared}`
     );
   }
 }
 
-let unexported = 0;
 for (const [name, modulePath] of notMoney) {
   if (!capabilities.has(name)) {
-    unexported += 1;
     fail(
+      "unexported",
       `the not-money table lists ${name} but ${modulePath} does not implement it`
     );
   }
 }
 
-let statusMismatch = 0;
 for (const [pageName, page] of pages) {
   const declared = readmeStatus.get(pageName);
 
   if (declared === undefined) {
-    statusMismatch += 1;
-    fail(`features/README.md has no status row for ${pageName}`);
+    fail("status", `features/README.md has no status row for ${pageName}`);
     continue;
   }
 
   if (declared !== page.status) {
-    statusMismatch += 1;
     fail(
+      "status",
       `features/README.md says ${pageName} is ${declared} but the page says ${page.status}`
     );
   }
@@ -232,17 +246,15 @@ for (const [pageName, page] of pages) {
 
 for (const pageName of readmeStatus.keys()) {
   if (!pages.has(pageName)) {
-    statusMismatch += 1;
-    fail(`features/README.md links ${pageName}, which does not exist`);
+    fail(
+      "status",
+      `features/README.md links ${pageName}, which does not exist`
+    );
   }
 }
 
-const planned = [...pages.values()].filter(
-  (page) => page.status === "planned" && page.named.size > 0
-).length;
-
 process.stdout.write(
-  `SUMMARY unnamed=${unnamed} unexported=${unexported} planned=${planned} status=${statusMismatch} capabilities=${capabilities.size} mapped=${onPage.size} notMoney=${notMoney.size}\n`
+  `SUMMARY unnamed=${counts.unnamed} unexported=${counts.unexported} planned=${counts.planned} status=${counts.status} mapping=${counts.mapping} problems=${problems()} capabilities=${capabilities.size} mapped=${onPage.size} notMoney=${notMoney.size}\n`
 );
 
-process.exit(failures.length === 0 ? 0 : 1);
+process.exit(problems() === 0 ? 0 : 1);
