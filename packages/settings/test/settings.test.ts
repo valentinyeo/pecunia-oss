@@ -279,6 +279,48 @@ it.effect(
     })
 );
 
+it.effect(
+  "a store seeded with a previous setup gives a new profile a new id",
+  () =>
+    Effect.gen(function* reseedFromReadSetup() {
+      const previous = yield* Effect.gen(function* makeTwoProfiles() {
+        yield* createProfile.handler(profile("Example Ltd"));
+        yield* createProfile.handler(profile("Demo Person"));
+
+        return yield* readSetup.handler({});
+      }).pipe(Effect.provide(memorySettingsLayer()));
+
+      const next = yield* Effect.gen(function* addThirdProfile() {
+        const created = yield* createProfile.handler(profile("Third Ltd"));
+
+        yield* saveSettings.handler(settingsFor(created.id, "KWD"));
+
+        return { created, setup: yield* readSetup.handler({}) };
+      }).pipe(
+        Effect.provide(
+          memorySettingsLayer({
+            profiles: previous.profiles,
+            setting: previous.setting ?? undefined,
+          })
+        )
+      );
+
+      expect(previous.profiles.map((stored) => stored.id)).toEqual([
+        "profile-1",
+        "profile-2",
+      ]);
+      expect(next.created.id).toBe("profile-3");
+      expect(next.setup.profiles.map((stored) => stored.id)).toEqual([
+        "profile-1",
+        "profile-2",
+        "profile-3",
+      ]);
+      expect(
+        next.setup.profiles.filter((stored) => stored.baseCurrency === "KWD")
+      ).toHaveLength(1);
+    })
+);
+
 const PROFILE_CASES = 600;
 
 const SEED_ID_POOL = [
