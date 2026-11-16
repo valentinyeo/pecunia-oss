@@ -670,6 +670,40 @@ importers:
         specifier: 5.1.0
         version: 5.1.0(@types/node@24.19.2)(jsdom@31.0.0(@noble/hashes@2.4.0))(vite@8.3.8(@types/node@24.19.2)(jiti@2.7.0)(yaml@2.9.1))
 
+  packages/bank-import:
+    dependencies:
+      '@pecunia/capability':
+        specifier: workspace:*
+        version: link:../capability
+      '@pecunia/core':
+        specifier: workspace:*
+        version: link:../core
+      '@xstate/effect':
+        specifier: 1.0.0-beta.0
+        version: 1.0.0-beta.0(@oxlint/plugins@1.93.0)(effect@4.1.4)(xstate@6.0.0-beta.1)
+      effect:
+        specifier: 4.1.4
+        version: 4.1.4
+      xstate:
+        specifier: 6.0.0-beta.1
+        version: 6.0.0-beta.1
+    devDependencies:
+      '@effect/platform-node':
+        specifier: 4.1.4
+        version: 4.1.4(effect@4.1.4)(redis@6.2.1)
+      '@effect/vitest':
+        specifier: 4.1.4
+        version: 4.1.4(effect@4.1.4)(vitest@5.1.0(@types/node@24.19.2)(jsdom@31.0.0(@noble/hashes@2.4.0))(vite@8.3.8(@types/node@24.19.2)(jiti@2.7.0)(yaml@2.9.1)))
+      '@types/node':
+        specifier: 24.19.2
+        version: 24.19.2
+      typescript:
+        specifier: 7.0.2
+        version: 7.0.2
+      vitest:
+        specifier: 5.1.0
+        version: 5.1.0(@types/node@24.19.2)(jsdom@31.0.0(@noble/hashes@2.4.0))(vite@8.3.8(@types/node@24.19.2)(jiti@2.7.0)(yaml@2.9.1))
+
   packages/basin:
     dependencies:
       '@alchemy.run/cloudflare':
@@ -1146,6 +1180,31 @@ importers:
       foldkit:
         specifier: 0.170.0
         version: 0.170.0(@effect/platform-browser@4.1.4(effect@4.1.4))(effect@4.1.4)
+      typescript:
+        specifier: 7.0.2
+        version: 7.0.2
+      vitest:
+        specifier: 5.1.0
+        version: 5.1.0(@types/node@24.19.2)(jsdom@31.0.0(@noble/hashes@2.4.0))(vite@8.3.8(@types/node@24.19.2)(jiti@2.7.0)(yaml@2.9.1))
+
+  packages/settings:
+    dependencies:
+      '@pecunia/capability':
+        specifier: workspace:*
+        version: link:../capability
+      '@pecunia/core':
+        specifier: workspace:*
+        version: link:../core
+      effect:
+        specifier: 4.1.4
+        version: 4.1.4
+    devDependencies:
+      '@effect/vitest':
+        specifier: 4.1.4
+        version: 4.1.4(effect@4.1.4)(vitest@5.1.0(@types/node@24.19.2)(jsdom@31.0.0(@noble/hashes@2.4.0))(vite@8.3.8(@types/node@24.19.2)(jiti@2.7.0)(yaml@2.9.1)))
+      '@types/node':
+        specifier: 24.19.2
+        version: 24.19.2
       typescript:
         specifier: 7.0.2
         version: 7.0.2
