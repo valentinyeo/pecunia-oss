@@ -18,7 +18,7 @@ const originOf = (input: DecodedText, index: number) =>
 const rewritten = (
   input: DecodedText,
   pattern: RegExp,
-  replacement: (match: string) => string
+  replacement: (match: string, index: number) => string
 ): DecodedText => {
   const parts: string[] = [];
 
@@ -31,7 +31,7 @@ const rewritten = (
   for (const match of input.text.matchAll(pattern)) {
     const start = match.index ?? 0;
 
-    const text = replacement(match[0]);
+    const text = replacement(match[0], start);
 
     if (text === match[0]) {
       continue;
@@ -171,10 +171,119 @@ const decodePercent = (match: string) => {
 const undoPercent = (input: DecodedText) =>
   rewritten(input, PERCENT_SOURCE, decodePercent);
 
+const QUOTED_PRINTABLE_SOURCE = /(?:[=][0-9a-fA-F]{2})+/gu;
+
+const STRICT_BYTES = new TextDecoder("utf-8", { fatal: true });
+
+const QUOTED_PRINTABLE_PIECE = /[=](?<hex>[0-9a-fA-F]{2})/gu;
+
+const QUOTED_PRINTABLE_TEXT = /^(?:[@.,:;=+\-_/]|[^\p{ASCII}])*$/u;
+
+const decodeQuotedPrintableEscape = (match: string) => {
+  const bytes: number[] = [];
+
+  for (const part of match.matchAll(QUOTED_PRINTABLE_PIECE)) {
+    bytes.push(Number.parseInt(part.groups?.hex ?? "", 16));
+  }
+
+  try {
+    const decoded = STRICT_BYTES.decode(Uint8Array.from(bytes));
+
+    return decoded.length > 0 && QUOTED_PRINTABLE_TEXT.test(decoded)
+      ? decoded
+      : match;
+  } catch {
+    return match;
+  }
+};
+
+const undoQuotedPrintable = (input: DecodedText) =>
+  rewritten(input, QUOTED_PRINTABLE_SOURCE, decodeQuotedPrintableEscape);
+
+const BASE64_RUN =
+  /(?<![A-Za-z0-9+/])(?<run>[A-Za-z0-9+/_-]{13,}={0,2})(?![A-Za-z0-9+/=])/gu;
+
+const EMPHASIS_EDGE = /^[-_]+|[-_]+$/gu;
+
+const BASE64_ALPHABET = /^[A-Za-z0-9+/]*$/u;
+
+const INVISIBLE = /[\t\n\r]/gu;
+
+const CONTROL = /[\p{Cc}]/u;
+
+const readsAsPrintable = (text: string) =>
+  !CONTROL.test(text.replaceAll(INVISIBLE, ""));
+
+const decodeBase64 = (match: string) => {
+  const candidates = [match, match.replaceAll(EMPHASIS_EDGE, "")];
+
+  for (const candidate of candidates) {
+    if (candidate.length < 16) {
+      continue;
+    }
+
+    const normalized = candidate.replaceAll("-", "+").replaceAll("_", "/");
+
+    const body = normalized.replaceAll(/[=]+$/gu, "");
+
+    if (body.length % 4 === 1 || !BASE64_ALPHABET.test(body)) {
+      continue;
+    }
+
+    const padded = body.padEnd(
+      body.length + ((4 - (body.length % 4)) % 4),
+      "="
+    );
+
+    const bytes = Buffer.from(padded, "base64");
+
+    if (bytes.toString("base64") !== padded || bytes.length === 0) {
+      continue;
+    }
+
+    try {
+      const decoded = STRICT_BYTES.decode(bytes);
+
+      if (readsAsPrintable(decoded)) {
+        return decoded;
+      }
+    } catch {
+      continue;
+    }
+  }
+
+  return match;
+};
+
+const undoBase64 = (input: DecodedText) =>
+  rewritten(input, BASE64_RUN, decodeBase64);
+
 const PLUS_SOURCE = /\+/gu;
 
+const readsAsLocalPart = (text: string, index: number) => {
+  let start = index;
+
+  while (start > 0 && !/\s/u.test(text[start - 1] ?? "")) {
+    start -= 1;
+  }
+
+  let end = index;
+
+  while (end < text.length && !/\s/u.test(text[end] ?? "")) {
+    end += 1;
+  }
+
+  const token = text.slice(start, end);
+
+  const at = token.indexOf("@");
+
+  return at > index - start;
+};
+
 const undoFormPlus = (input: DecodedText) =>
-  rewritten(input, PLUS_SOURCE, () => " ");
+  rewritten(input, PLUS_SOURCE, (_match, index) =>
+    readsAsLocalPart(input.text, index) ? "+" : " "
+  );
 
 const TAG_SOURCE = /<[A-Za-z/!](?:"[^"]*"|'[^']*'|[^<>"'])*>/gsu;
 
@@ -204,6 +313,10 @@ const UNDO_STEPS: readonly Step[] = [
   undoJsonEscape,
   undoEntities,
   undoPercent,
+  undoQuotedPrintable,
+  undoZeroWidth,
+  undoFold,
+  undoBase64,
   undoFormPlus,
   undoTag,
 ];
@@ -222,7 +335,8 @@ const undoEverything = (steps: readonly Step[], input: DecodedText) => {
   return current;
 };
 
-const CAN_CHANGE = /[&%+\\<>\u0080-\uFFFF]/u;
+const CAN_CHANGE =
+  /[&%+\\<=>\u0080-\uFFFF]|(?<![A-Za-z0-9+/])[CDI-Za-fw-z0-9][A-Za-z0-9+/_-]{13,}={0,2}/u;
 
 const settle = (text: string, steps: readonly Step[]): DecodeOutcome => {
   let current: DecodedText = { text };
