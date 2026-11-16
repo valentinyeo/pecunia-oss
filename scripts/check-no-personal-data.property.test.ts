@@ -19,6 +19,8 @@ import {
   RULE_IDS,
 } from "./check-no-personal-data.ts";
 import type { AllowList, RuleId } from "./check-no-personal-data.ts";
+import { DECODERS, decodeText } from "./decoded-text.ts";
+import type { DecoderId } from "./decoded-text.ts";
 
 const empty: AllowList = { skipped: [], values: [] };
 
@@ -518,6 +520,30 @@ const exampleHostname = (random: Random) =>
     "*.pages.dev",
   ]);
 
+const secretValue = (random: Random) =>
+  `${random.alphanumeric(32)}${random.digits(8)}`;
+
+const secretBlock = (value: string) =>
+  [
+    "services:",
+    "  demo:",
+    "    CLOUDFLARE_API_TOKEN: |-",
+    `      ${value}`,
+  ].join("\n");
+
+const secretBlockDocument = (random: Random) =>
+  secretBlock(random.pick([secretValue(random), `"${secretValue(random)}"`]));
+
+const secretBlockWithoutToken = (random: Random) =>
+  secretBlock(
+    random.pick([
+      "read-from-the-environment",
+      "example-value-for-the-demo",
+      "demo",
+      '"demo-token-value"',
+    ])
+  );
+
 interface Detector {
   readonly covers: readonly RuleId[];
   readonly harmless: (random: Random) => string;
@@ -582,6 +608,13 @@ const DETECTORS: readonly Detector[] = [
     path: "README.md",
     sensitive: hostnameDocument,
   },
+  {
+    covers: ["secret-block-scalar"],
+    harmless: secretBlockWithoutToken,
+    name: "secret-block-scalar",
+    path: "apps/infra/wrangler.yaml",
+    sensitive: secretBlockDocument,
+  },
 ];
 
 const allowPath = path.resolve(
@@ -631,6 +664,144 @@ describe("every sensitive value is reported whatever formatting wraps it", () =>
 
     expect({ missed, noisy }).toEqual({ missed: [], noisy: [] });
   }, 60_000);
+});
+
+const ENCODED_CASES = 20;
+
+const ENCODED_DETECTORS = [
+  "iban",
+  "sort-code-and-account",
+  "bank-field-pair",
+  "email",
+  "quoted-mailbox-email",
+];
+
+const ENTITY_CODES = new Map([
+  [" ", "&nbsp;"],
+  ["%", "&#37;"],
+  [".", "&#46;"],
+  ["@", "&#64;"],
+]);
+
+const identityEncoded = (text: string) => text;
+
+const jsonEncoded = (text: string) => JSON.stringify(text).slice(1, -1);
+
+const entityEncoded = (text: string) =>
+  text.replaceAll(
+    /[@.% ]/gu,
+    (character) => ENTITY_CODES.get(character) ?? character
+  );
+
+const tagEncoded = (text: string) =>
+  text.replaceAll(/(?<=[\p{L}\p{N}])[ \t\n\r]+(?=[\p{L}\p{N}])/gu, "<br>");
+
+const percentOf = (character: string) =>
+  [...new TextEncoder().encode(character)]
+    .map((byte) => `%${byte.toString(16).toUpperCase().padStart(2, "0")}`)
+    .join("");
+
+const percentEncoded = (text: string) =>
+  text.replaceAll(/[^A-Za-z0-9\n]/gu, percentOf);
+
+interface Encoder {
+  readonly covers: readonly DecoderId[];
+  readonly encode: (text: string) => string;
+  readonly name: string;
+}
+
+const ENCODERS: readonly Encoder[] = [
+  { covers: [], encode: identityEncoded, name: "identity" },
+  { covers: ["json-string"], encode: jsonEncoded, name: "json-escape" },
+  {
+    covers: ["html-entity", "separator"],
+    encode: entityEncoded,
+    name: "html-entity",
+  },
+  { covers: ["tag"], encode: tagEncoded, name: "tag-wrap" },
+  { covers: ["percent"], encode: percentEncoded, name: "percent-encode" },
+  {
+    covers: ["html-entity", "percent"],
+    encode: (text) => percentEncoded(entityEncoded(text)),
+    name: "entity-then-percent",
+  },
+  {
+    covers: ["html-entity", "percent"],
+    encode: (text) => entityEncoded(percentEncoded(text)),
+    name: "percent-then-entity",
+  },
+  {
+    covers: ["tag", "percent"],
+    encode: (text) => percentEncoded(tagEncoded(text)),
+    name: "tag-then-percent",
+  },
+  {
+    covers: ["json-string", "percent"],
+    encode: (text) => percentEncoded(jsonEncoded(text)),
+    name: "json-then-percent",
+  },
+];
+
+describe("every encoded spelling of a leak is read, and its harmless twin is quiet", () => {
+  it(`reads ${ENCODED_DETECTORS.length * ENCODERS.length * ENCODED_CASES} seeded encodings`, () => {
+    const undecoded = DECODERS.map((decoder) => decoder.id).filter(
+      (id) => !ENCODERS.some((encoder) => encoder.covers.includes(id))
+    );
+
+    const unnamed = ENCODED_DETECTORS.filter(
+      (name) => !DETECTORS.some((detector) => detector.name === name)
+    );
+
+    expect({ undecoded, unnamed }).toEqual({ undecoded: [], unnamed: [] });
+
+    const missed: string[] = [];
+
+    const noisy: string[] = [];
+
+    let cases = 0;
+
+    for (const [kind, name] of ENCODED_DETECTORS.entries()) {
+      const detector = DETECTORS.find((entry) => entry.name === name);
+
+      if (detector === undefined) {
+        continue;
+      }
+
+      for (const [index, encoder] of ENCODERS.entries()) {
+        const random = makeRandom(SEED + 101 + kind * 31 + index);
+
+        for (let attempt = 0; attempt < ENCODED_CASES; attempt += 1) {
+          const sensitive = encoder.encode(detector.sensitive(random));
+
+          const rules = rulesOf(detector.path, sensitive);
+
+          if (!detector.covers.every((rule) => rules.includes(rule))) {
+            missed.push(`${encoder.name}/${name}: ${sensitive}`);
+          }
+
+          const harmless = encoder.encode(detector.harmless(random));
+
+          if (rulesOf(detector.path, harmless).length > 0) {
+            noisy.push(`${encoder.name}/${name}: ${harmless}`);
+          }
+
+          cases += 1;
+        }
+      }
+    }
+
+    expect(cases).toBeGreaterThanOrEqual(600);
+
+    expect({ missed, noisy }).toEqual({ missed: [], noisy: [] });
+  }, 120_000);
+
+  it("reads a leak through a decoder that runs to a fixed point", () => {
+    expect(decodeText("%26%2364%3B").text).toBe("@");
+
+    expect(decodeText("GB82<br>WEST").text).toBe("GB82 WEST");
+
+    expect(decodeText("\\u0040").text).toBe("@");
+  });
 });
 
 const pad = (value: number) => String(value).padStart(2, "0");

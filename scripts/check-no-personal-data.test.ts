@@ -28,9 +28,6 @@ const testFile = "scripts/check-no-personal-data.test.ts";
 const grouped = (value: string, separator: string) =>
   value.split("_").join(separator);
 
-const iban = (separator: string) =>
-  grouped("GB82_WEST_1234_5698_7654_32", separator);
-
 const sortCode = (separator: string) => grouped("20_45_67", separator);
 
 const accountNumber = (separator: string) => grouped("1029_3847", separator);
@@ -104,28 +101,7 @@ describe("planted personal data fails", () => {
   });
 });
 
-describe("an IBAN in any written form fails", () => {
-  it("fails on a spaced IBAN inside a document", () => {
-    expect(
-      ruleOf("docs/payments.md", `Wire to ${iban(" ")} before Friday.`)
-    ).toEqual(["iban"]);
-  });
-
-  it("fails on a glued mixed case IBAN", () => {
-    expect(
-      ruleOf(
-        "apps/cli/src/accounts.ts",
-        `const iban = "${grouped("Gb82_West_1234_5698_7654_32", "")}";`
-      )
-    ).toEqual(["iban"]);
-  });
-
-  it("fails on an IBAN that wraps across a line break", () => {
-    expect(ruleOf("docs/payments.md", `IBAN:\n${iban("\n")}`)).toEqual([
-      "iban",
-    ]);
-  });
-
+describe("an IBAN fails in any written form", () => {
   it("names the line the spaced IBAN sits on", () => {
     expect(
       lineOf(
@@ -133,23 +109,6 @@ describe("an IBAN in any written form fails", () => {
         `IBAN:\n\n${grouped("DE89_3704_0044_0532_0130_00", " ")}`
       )
     ).toEqual([3]);
-  });
-});
-
-describe("ordinary identifiers are not IBANs", () => {
-  it.each([
-    ["a four character code", 'const code = "at12";'],
-    ["digits with prose around them", "the id is 12 and the total is 34"],
-    [
-      "a forty character commit sha",
-      'const pin = "ab12cd34ef56789012345678901234567890123";',
-    ],
-    [
-      "a thirty two character hex digest",
-      'const digest = "0123456789abcdef0123456789abcdef";',
-    ],
-  ])("passes on %s", (_label, text) => {
-    expect(ruleOf("apps/cli/src/notes.ts", text)).toEqual([]);
   });
 });
 
@@ -209,21 +168,6 @@ describe("a Cloudflare account id fails wherever it names an account", () => {
         'const accountId = "0123456789abcdef0123456789abcdef";'
       )
     ).toEqual(["cloudflare-account-id"]);
-  });
-});
-
-describe("an email address fails in any written form", () => {
-  it.each([
-    ["an international domain", ["owner", "b\u00FCcher.de"].join("@")],
-    [
-      "an international local part",
-      ["\u03B4\u03BF\u03BA\u03B9\u03BC\u03AE", "gmail.com"].join("@"),
-    ],
-    ["a quoted local part", ['"jane.doe"', "acme.co.uk"].join("@")],
-  ])("fails on %s", (_label, address) => {
-    expect(
-      ruleOf("apps/site/test/fixture.ts", `const owner = "${address}";`)
-    ).toEqual(["email"]);
   });
 });
 
@@ -302,22 +246,40 @@ describe("example values pass", () => {
   });
 });
 
-describe("a sort code and an account number in any written form fail", () => {
-  it("fails on a bare pair joined by a space", () => {
+describe("a token on the indented line below its key fails", () => {
+  const token = "Xk3Qw9Zt5Lb7Nc2Md4Pf6Rg8Sh1Vj0Wa3Ye5Ui7a";
+
+  it("names the line the token sits on", () => {
     expect(
-      ruleOf("docs/payments.md", `${sortCode("-")} ${accountNumber("")}`)
-    ).toEqual(["bank-account"]);
+      lineOf(
+        "apps/infra/wrangler.yaml",
+        [
+          "services:",
+          "  demo:",
+          "    CLOUDFLARE_API_TOKEN: |-",
+          `      ${token}`,
+        ].join("\n")
+      )
+    ).toEqual([4]);
   });
 
-  it("fails on a pair inside a JSON object", () => {
+  it("fails on a block scalar value in quotes", () => {
+    expect(
+      ruleOf("apps/infra/wrangler.yaml", `api_secret: >-\n  "${token}"`)
+    ).toEqual(["secret-block-scalar"]);
+  });
+
+  it("passes on a block scalar read from the environment", () => {
     expect(
       ruleOf(
-        "apps/site/src/profile.ts",
-        `{"sortCode":${grouped("20_45_67", "")},"accountNumber":${grouped("1029_3847", "")}}`
+        "apps/infra/wrangler.yaml",
+        "api_secret: |-\n  read-from-the-environment"
       )
-    ).toEqual(["bank-account"]);
+    ).toEqual([]);
   });
+});
 
+describe("a sort code and an account number in any written form fail", () => {
   it("fails on a sort code with a field between it and the account", () => {
     const sample = [
       "const account = {",
