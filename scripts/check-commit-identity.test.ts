@@ -234,7 +234,7 @@ describe("git output", () => {
     );
 
     const bodies = parseBodyLog(
-      "\u001E0f1e2d3c4b5a69788796a5b4c3d2e1f00f1e2d3c\tSubject\n\nCo-authored-by: Ada <ada@acme.test>\n"
+      "\u00000f1e2d3c4b5a69788796a5b4c3d2e1f00f1e2d3c\tSubject\n\nCo-authored-by: Ada <ada@acme.test>\n"
     );
 
     expect(withCoAuthors(commits, bodies)).toEqual([
@@ -251,6 +251,11 @@ describe("git output", () => {
     ["a leading space", `  Co-authored-by: Ada <ada@acme.test>`],
     ["text after the address", `Co-authored-by: Ada <ada@acme.test> thanks`],
     ["a folded line", `Co-authored-by: Ada\n <ada@acme.test>`],
+    ["a quoted local part", `Co-authored-by: Jane Doe <"jane doe"@acme.test>`],
+    [
+      "an international address",
+      `Co-authored-by: Bj\u00F6rn <bj\u00F6rn@b\u00FCcher.test>`,
+    ],
   ])("fails a commit whose co-author trailer has %s", (_label, trailer) => {
     const sha = "0f1e2d3c4b5a69788796a5b4c3d2e1f00f1e2d3c";
 
@@ -258,12 +263,43 @@ describe("git output", () => {
       `${sha}\tnoreply@github.com\tnoreply@github.com\n`
     );
 
-    const bodies = parseBodyLog(`\u001E${sha}\tSubject\n\n${trailer}\n`);
+    const bodies = parseBodyLog(`${sha}\tSubject\n\n${trailer}\n\u0000`);
 
     expect(
       identityOffenders(withCoAuthors(commits, bodies)).map(
         (offender) => offender.field
       )
     ).toEqual(["co-author"]);
+  });
+
+  it("reads a body that carries a record separator before the trailer", () => {
+    const sha = "0f1e2d3c4b5a69788796a5b4c3d2e1f00f1e2d3c";
+
+    expect(
+      parseBodyLog(
+        `${sha}\tSubject\n\nA body with a \u001E in it.\n\nCo-authored-by: Ada <ada@acme.test>\u0000`
+      )
+    ).toEqual([
+      {
+        body: "Subject\n\nA body with a \u001E in it.\n\nCo-authored-by: Ada <ada@acme.test>",
+        commit: sha,
+      },
+    ]);
+  });
+
+  it("reads a trailer with a quoted local part", () => {
+    expect(
+      coAuthorEmailsIn(
+        `Subject\n\nCo-authored-by: Jane Doe <"jane doe"@acme.test>\n`
+      )
+    ).toEqual(['"jane doe"@acme.test']);
+  });
+
+  it("reads a trailer with an international address", () => {
+    expect(
+      coAuthorEmailsIn(
+        `Subject\n\nCo-authored-by: Bj\u00F6rn <bj\u00F6rn@b\u00FCcher.test>\n`
+      )
+    ).toEqual(["bj\u00F6rn@b\u00FCcher.test"]);
   });
 });

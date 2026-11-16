@@ -12,11 +12,12 @@ const NO_REPLY_DOMAIN = "users.noreply.github.com";
 
 const IDENTITY_FORMAT = "--format=%H%x09%ae%x09%ce";
 
-const BODY_FORMAT = "--format=%x1e%H%x09%B";
+const BODY_FORMAT = "--format=%H%x09%B";
 
 const TRAILER = /^\s*(?<token>[^:\s][^:]*?)\s*:\s*(?<value>.*)$/u;
 
-const ADDRESS = /[A-Za-z0-9._%+'-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/gu;
+const ADDRESS =
+  /(?:"[^"\\\r\n]{1,64}"|[\p{L}\p{N}][\p{L}\p{N}._%+'-]*)@(?:[\p{L}\p{N}](?:[\p{L}\p{N}-]*[\p{L}\p{N}])?\.)+[\p{L}]{2,}/gu;
 
 const CO_AUTHOR_KEY = "coauthoredby";
 
@@ -132,7 +133,7 @@ export const parseIdentityLog = (log: string): readonly CommitIdentity[] =>
 
 export const parseBodyLog = (log: string): readonly CommitBody[] =>
   log
-    .split("\u001E")
+    .split("\u0000")
     .filter((record) => record.trim().length > 0)
     .map((record) => {
       const separator = record.indexOf("\t");
@@ -188,15 +189,15 @@ export const offenderMessage = (offender: IdentityOffender) =>
     ? `commit ${offender.commit.slice(0, 12)} (co-author): a Co-authored-by trailer uses a real email address on ${offender.domain}. Commit trailers are public, so a real address names a person. Fix: drop the trailer with \`git interpret-trailers --in-place --trim-empty --trailer "Co-authored-by:" <message-file>\` and recommit.`
     : `commit ${offender.commit.slice(0, 12)} (${offender.field}): commit author or committer uses a real email address on ${offender.domain}. Commits are public, so a real address names a person. Fix: set \`git config user.email <id>+<login>@users.noreply.github.com\` and recommit.`;
 
-const log = (range: string, format: string) =>
-  execFileSync("git", ["log", format, range], { encoding: "utf-8" });
+const log = (range: string, args: readonly string[]) =>
+  execFileSync("git", ["log", ...args, range], { encoding: "utf-8" });
 
 const run = () => {
   const range = process.argv[2] ?? "HEAD";
 
   const commits = withCoAuthors(
-    parseIdentityLog(log(range, IDENTITY_FORMAT)),
-    parseBodyLog(log(range, BODY_FORMAT))
+    parseIdentityLog(log(range, [IDENTITY_FORMAT])),
+    parseBodyLog(log(range, [BODY_FORMAT, "-z"]))
   );
 
   const offenders = identityOffenders(commits);
