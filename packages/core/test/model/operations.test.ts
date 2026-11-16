@@ -2,8 +2,9 @@
 // oxlint-disable anti-slop/require-safety-comment-for-type-assertion, typescript/no-unsafe-type-assertion, effect-tests/no-manual-effect-runtime-in-tests -- the table marks each entry's channel, and one loop must settle Effect, Result and throwing operations the same way
 
 import { describe, expect, it } from "@effect/vitest";
-import { Effect, Option, Predicate, Result } from "effect";
+import { Effect, Option, Predicate, Result, Schema } from "effect";
 
+import { isModelCodec } from "../../src/model/codec.js";
 import * as model from "../../src/model/index.js";
 import type { OperationEntry } from "../../src/model/operation.js";
 import {
@@ -11,6 +12,7 @@ import {
   operationEntries,
   operations,
 } from "../../src/model/operations.js";
+import { MoneySchema } from "../../src/model/primitives.js";
 
 const SEED = 0x2b_9e_14_d3;
 
@@ -471,5 +473,248 @@ describe("the earlier verdict reproductions stay rejected", () => {
 
       expect(message, `${entry.name} lookup wrapper`).toContain('"amount"');
     }
+  });
+});
+
+interface Probe {
+  readonly label: string;
+  readonly value: unknown;
+}
+
+const probeMoney = () => moneyOf("EUR", 1000);
+
+const bareProbe = (): unknown =>
+  Object.assign(Object.create(null), probeMoney());
+
+const functionProbe = (foreign?: {
+  readonly key: string | symbol;
+  readonly value: unknown;
+}): unknown => Object.assign(() => null, probeMoney(), foreign ?? {});
+
+const pick = <T>(values: readonly T[], index: number): T => {
+  const value = values[index % values.length];
+
+  if (value === undefined) {
+    throw new Error("the table hands out no row to test.");
+  }
+
+  return value;
+};
+
+const foreignAt = (
+  turn: number
+): { readonly key: string | symbol; readonly value: unknown } => ({
+  key: foreignKeys[turn % foreignKeys.length] ?? "rate",
+  value: foreignValues()[turn % 2],
+});
+
+const probesOf = (foreign: {
+  readonly key: string | symbol;
+  readonly value: unknown;
+}): readonly Probe[] => {
+  const bare = bareProbe();
+  const probe = functionProbe();
+  const keyed = functionProbe(foreign);
+
+  class ProbeAmount {
+    readonly currency = "EUR";
+    readonly minor = 1000;
+  }
+
+  return [
+    { label: "a function carrying money fields", value: probe },
+    {
+      label: `a function carrying money fields plus ${String(foreign.key)}`,
+      value: keyed,
+    },
+    {
+      label: "a class instance carrying money fields",
+      value: new ProbeAmount(),
+    },
+    { label: "a null-prototype object carrying money fields", value: bare },
+  ];
+};
+
+const defiledCall = (
+  entry: OperationEntry,
+  index: number,
+  value: unknown
+): readonly unknown[] => {
+  const call = [...samplesOf(entry)];
+  const argument = entry.arguments[index];
+
+  call[index] =
+    argument !== undefined && argument.kind === "callback"
+      ? () => value
+      : value;
+
+  return call;
+};
+
+describe("no function, class instance or bare prototype reaches a domain argument", () => {
+  it("rejects every one of them and still passes every valid call", () => {
+    let cases = 0;
+    let covered = 0;
+
+    const check = (
+      entry: OperationEntry,
+      index: number,
+      probe: Probe,
+      turn: number
+    ): void => {
+      const label = `${entry.name} argument ${String(index)} ${probe.label} seed ${String(SEED)} turn ${String(turn)}`;
+      const message = rejectionOf(
+        entry,
+        defiledCall(entry, index, probe.value)
+      );
+
+      expect(message, label).toBeDefined();
+      expect(message ?? "", label).toContain('"$"');
+
+      cases += 1;
+    };
+
+    for (const entry of operationEntries) {
+      expect(
+        rejectionOf(entry, samplesOf(entry)),
+        `${entry.name} accepts`
+      ).toBeUndefined();
+
+      for (const [index, argument] of entry.arguments.entries()) {
+        for (const [turn, probe] of probesOf(foreignAt(index)).entries()) {
+          check(entry, index, probe, turn);
+          covered += 1;
+        }
+
+        expect(argument.domain.length).toBeGreaterThan(0);
+      }
+    }
+
+    for (let turn = 0; turn < 700; turn += 1) {
+      const entry = pick(operationEntries, turn);
+      const index = (rotation() + turn) % entry.arguments.length;
+      const probe = pick(probesOf(foreignAt(turn)), rotation() + turn);
+
+      check(entry, index, probe, turn);
+    }
+
+    expect(cases).toBeGreaterThanOrEqual(700);
+    expect(covered).toBe(
+      operationEntries.reduce(
+        (total, entry) => total + entry.arguments.length * 4,
+        0
+      )
+    );
+  });
+});
+
+interface Leak {
+  readonly label: string;
+  readonly path: string;
+}
+
+const looksLikeEncoder = (value: object): boolean =>
+  typeof Reflect.get(value, "decode") === "function" &&
+  typeof Reflect.get(value, "encode") === "function";
+
+const leaksOf = (root: unknown): readonly Leak[] => {
+  const leaks: Leak[] = [];
+  const seen = new WeakSet<object>();
+
+  const visit = (value: unknown, path: string, depth: number): void => {
+    if (
+      (typeof value !== "object" || value === null) &&
+      typeof value !== "function"
+    ) {
+      return;
+    }
+
+    const node: object = value;
+
+    if (seen.has(node)) {
+      return;
+    }
+
+    seen.add(node);
+
+    if (Schema.isSchema(node)) {
+      leaks.push({ label: "a raw schema", path });
+    } else if (looksLikeEncoder(node) && !isModelCodec(node)) {
+      leaks.push({ label: "an encoder that skips the gate", path });
+    }
+
+    if (depth >= 8) {
+      return;
+    }
+
+    for (const key of Reflect.ownKeys(node)) {
+      visit(Reflect.get(node, key), `${path}.${String(key)}`, depth + 1);
+    }
+  };
+
+  visit(root, "$", 0);
+
+  return leaks;
+};
+
+describe("operation metadata hands out names and samples only", () => {
+  it("exposes no raw schema and no encoder outside the gate on any export", () => {
+    expect(leaksOf(model)).toStrictEqual([]);
+  });
+
+  it("names the path of a leak it is handed", () => {
+    const leaks = leaksOf({ nested: [{ oops: MoneySchema }] });
+
+    expect(leaks[0]?.path).toBe("$.nested.0.oops");
+    expect(leaks[0]?.label).toBe("a raw schema");
+    expect(leaks.length).toBeGreaterThan(0);
+  });
+
+  it("keeps every argument spec to a name, a kind and a sample", () => {
+    for (const entry of operationEntries) {
+      for (const argument of entry.arguments) {
+        expect(
+          Object.keys(argument).toSorted(),
+          `${entry.name} spec keys`
+        ).toStrictEqual(["domain", "kind", "sample"]);
+      }
+    }
+  });
+});
+
+describe("the sixty-fifth verdict reproductions stay closed", () => {
+  it("rejects a function dressed as money wherever a domain value is expected", () => {
+    const money = moneyOf("EUR", 1000);
+    const disguised = Object.assign(() => null, money, { rate: "0.85" });
+
+    expect(
+      rejectionOf(operations.addMoney, [disguised, money]),
+      "addMoney"
+    ).toContain('"$"');
+
+    expect(
+      rejectionOf(operations["BaseAmount.atRate"], [
+        disguised,
+        "EUR",
+        rateOf("0.85"),
+      ]),
+      "BaseAmount.atRate"
+    ).toContain('"$"');
+  });
+
+  it("keeps the operation metadata free of the schema it gates with", () => {
+    for (const entry of operationEntries) {
+      for (const argument of entry.arguments) {
+        expect(Object.hasOwn(argument, "handle")).toBe(false);
+        expect(argument.sample()).toBeDefined();
+      }
+    }
+
+    expect(
+      Object.hasOwn(
+        operations["BaseAmount.atRate"].arguments[0] ?? {},
+        "handle"
+      )
+    ).toBe(false);
   });
 });
