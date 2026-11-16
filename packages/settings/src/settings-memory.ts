@@ -24,12 +24,7 @@ export const emptySettings: SettingsSeed = {
   setting: undefined,
 };
 
-interface MemorySettings {
-  readonly profiles: readonly Profile[];
-  readonly setting: AppSetting | undefined;
-}
-
-const setupOf = (state: MemorySettings): Setup => ({
+const setupOf = (state: SettingsSeed): Setup => ({
   profiles: state.profiles,
   setting: state.setting ?? null,
 });
@@ -43,7 +38,7 @@ export const memorySettingsLayer = (seed: SettingsSeed = emptySettings) =>
   Layer.effect(
     SettingsStore,
     Effect.gen(function* makeMemorySettings() {
-      const state = yield* Ref.make<MemorySettings>({
+      const state = yield* Ref.make<SettingsSeed>({
         profiles: seed.profiles,
         setting: seed.setting,
       });
@@ -73,7 +68,7 @@ export const memorySettingsLayer = (seed: SettingsSeed = emptySettings) =>
                 });
               }
 
-              const saved: MemorySettings = {
+              const saved: SettingsSeed = {
                 profiles: current.profiles.map((profile) =>
                   withCurrency(profile, settings)
                 ),
