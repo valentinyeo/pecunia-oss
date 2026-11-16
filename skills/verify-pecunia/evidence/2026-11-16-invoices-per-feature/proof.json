@@ -1,96 +1,109 @@
 {
-  "feature": "invoices",
   "branch": "verify-skill",
-  "commit": "a395bd9e",
-  "node": "v24.18.0",
-  "ranAt": "2026-11-16T15:42:33Z",
-  "seed": {
-    "command": "pnpm --filter @pecunia/database db:seed:demo /tmp/pecunia-verify-fMspd9/demo.sqlite"
-  },
-  "demoBookSha256": "527991d3898ec8fdce1029ee97f92a7c25f955c54e2375b38566f95f32537191",
-  "passed": true,
-  "failed": 0,
-  "total": 10,
   "checks": [
     {
+      "actual": "unnamed=0 unexported=0 planned=0 status=0 problems=0 exit=0",
+      "expected": "unnamed=0 unexported=0 planned=0 status=0 problems=0 exit=0",
+      "feature": "invoices",
+      "id": "feature-map-matches-capabilities",
+      "passed": true,
+      "step": "feature-map"
+    },
+    {
+      "actual": "wrongDeclarations=0 wrongRows=0 columns=11",
+      "expected": "wrongDeclarations=0 wrongRows=0 columns=11",
+      "feature": "invoices",
       "id": "money-is-integer-minor-units",
-      "title": "Money is an integer of minor units",
-      "feature": "all",
       "passed": true,
-      "expected": "0 wrong declarations, 0 wrong rows, 11 columns",
-      "actual": "0 wrong declarations, 0 wrong rows, 11 columns"
+      "step": "generic"
     },
     {
+      "actual": "wrongCurrencies=0 columns=13",
+      "expected": "wrongCurrencies=0 columns=13",
+      "feature": "invoices",
       "id": "currency-is-an-iso-code",
-      "title": "Every amount carries an ISO currency code",
-      "feature": "all",
       "passed": true,
-      "expected": "0 wrong currencies, 13 columns",
-      "actual": "0 wrong currencies, 13 columns"
+      "step": "generic"
     },
     {
+      "actual": "integrity=ok foreignKeyViolations=0 tablesWithOrphans=0 scopedTables=17",
+      "expected": "integrity=ok foreignKeyViolations=0 tablesWithOrphans=0 scopedTables=17",
+      "feature": "invoices",
       "id": "every-row-belongs-to-a-profile",
-      "title": "Every row belongs to a profile and every reference resolves",
-      "feature": "all",
       "passed": true,
-      "expected": "ok, 0 foreign key violations, 0 tables with orphan rows, 17 scoped tables",
-      "actual": "ok, 0 foreign key violations, 0 tables with orphan rows, 17 scoped tables"
+      "step": "generic"
     },
     {
+      "actual": "nonPlaceholderEmails=0 profiles=Demo Person,Example Ltd",
+      "expected": "nonPlaceholderEmails=0 profiles=Demo Person,Example Ltd",
+      "feature": "invoices",
       "id": "demo-book-holds-made-up-identities",
-      "title": "The demo book holds made-up identities only",
-      "feature": "all",
       "passed": true,
-      "expected": "0 non-placeholder emails, Demo Person,Example Ltd",
-      "actual": "0 non-placeholder emails, Demo Person,Example Ltd"
+      "step": "generic"
     },
     {
+      "actual": "0",
+      "expected": "0",
+      "feature": "invoices",
       "id": "invoice-matches-its-line",
-      "title": "A linked invoice matches its transaction exactly",
-      "feature": "invoices",
       "passed": true,
-      "expected": "0",
-      "actual": "0"
+      "step": "invoices"
     },
     {
-      "id": "invoice-exception-has-no-document",
-      "title": "An exception names a transaction with no document",
-      "feature": "invoices",
-      "passed": true,
+      "actual": "4250 documents=0",
       "expected": "4250 documents=0",
-      "actual": "4250 documents=0"
+      "feature": "invoices",
+      "id": "invoice-exception-has-no-document",
+      "passed": true,
+      "step": "invoices"
     },
     {
+      "actual": "0",
+      "expected": "0",
+      "feature": "invoices",
       "id": "invoice-unarchived",
-      "title": "An unarchived document names no archive",
-      "feature": "invoices",
       "passed": true,
-      "expected": "0",
-      "actual": "0"
+      "step": "invoices"
     },
     {
+      "actual": "0",
+      "expected": "0",
+      "feature": "invoices",
       "id": "invoice-archived",
-      "title": "An archived document names a target",
-      "feature": "invoices",
       "passed": true,
-      "expected": "0",
-      "actual": "0"
+      "step": "invoices"
     },
     {
+      "actual": "0",
+      "expected": "0",
+      "feature": "invoices",
       "id": "invoice-vendors",
-      "title": "Every invoice vendor belongs to the profile",
-      "feature": "invoices",
       "passed": true,
-      "expected": "0",
-      "actual": "0"
+      "step": "invoices"
     },
     {
-      "id": "invoice-archive-states",
-      "title": "Every archive state carries the columns it promises",
-      "feature": "invoices",
-      "passed": true,
+      "actual": "0",
       "expected": "0",
-      "actual": "0"
+      "feature": "invoices",
+      "id": "invoice-archive-states",
+      "passed": true,
+      "step": "invoices"
     }
-  ]
+  ],
+  "commit": "81f3d793",
+  "declared": 11,
+  "demoBookSha256": "527991d3898ec8fdce1029ee97f92a7c25f955c54e2375b38566f95f32537191",
+  "evaluated": 11,
+  "failed": 0,
+  "failedSteps": 0,
+  "failures": [],
+  "feature": "invoices",
+  "node": "v24.18.0",
+  "passed": true,
+  "ranAt": "2026-11-16T20:04:33Z",
+  "seed": {
+    "command": "pnpm --filter @pecunia/database db:seed:demo /tmp/pecunia-verify-4KeoKV/demo.sqlite"
+  },
+  "steps": 4,
+  "total": 11
 }

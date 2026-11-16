@@ -1,20 +1,31 @@
-# Verification proof: invoices
+# Verification proof: invoices-per-feature
 
 - Run label: `invoices-per-feature`
-- Run at: 2026-11-16T15:42:33Z
-- Branch: `verify-skill` at `a395bd9e`
+- Run at: 2026-11-16T20:04:33Z
+- Branch: `verify-skill` at `81f3d793`
 - Node: `v24.18.0`
-- Demo seed: `pnpm --filter @pecunia/database db:seed:demo /tmp/pecunia-verify-fMspd9/demo.sqlite`
+- Demo seed: `pnpm --filter @pecunia/database db:seed:demo /tmp/pecunia-verify-4KeoKV/demo.sqlite`
 - Demo book SHA-256: `527991d3898ec8fdce1029ee97f92a7c25f955c54e2375b38566f95f32537191`
 - The scratch database is deleted after the run; `proof.json` holds every observation.
 
 ## Commands
 
 ```sh
-pnpm --filter @pecunia/database db:seed:demo /tmp/pecunia-verify-fMspd9/demo.sqlite
+pnpm turbo run build --filter=@pecunia/bank-import...
+pnpm turbo run build --filter=@pecunia/bank-lines...
+pnpm --filter @pecunia/database db:seed:demo /tmp/pecunia-verify-4KeoKV/demo.sqlite
 bash skills/verify-pecunia/scripts/prove-demo-book.sh --feature invoices --label invoices-per-feature
 node skills/verify-pecunia/scripts/replay-proof.mjs --only invoices-per-feature
 ```
+
+## Steps
+
+| Step | Exit | Commands | Expectations |
+| --- | --- | --- | --- |
+| `seed` | 0 | `seed` 0 | 0 |
+| `feature-map` | 0 | `map` 0 | 1 |
+| `generic` | 0 |  | 4 |
+| `invoices` | 0 |  | 6 |
 
 ## Seeded tables
 
@@ -45,32 +56,33 @@ tax_profiles: 1 rows
 transactions: 12 rows
 ```
 
-## Checks
+## Expectations
 
-| Check | Result | Expected | Observed |
+| Expectation | Result | Expected | Observed |
 | --- | --- | --- | --- |
-| `money-is-integer-minor-units` Money is an integer of minor units | PASS | `0 wrong declarations, 0 wrong rows, 11 columns` | `0 wrong declarations, 0 wrong rows, 11 columns` |
-| `currency-is-an-iso-code` Every amount carries an ISO currency code | PASS | `0 wrong currencies, 13 columns` | `0 wrong currencies, 13 columns` |
-| `every-row-belongs-to-a-profile` Every row belongs to a profile and every reference resolves | PASS | `ok, 0 foreign key violations, 0 tables with orphan rows, 17 scoped tables` | `ok, 0 foreign key violations, 0 tables with orphan rows, 17 scoped tables` |
-| `demo-book-holds-made-up-identities` The demo book holds made-up identities only | PASS | `0 non-placeholder emails, Demo Person,Example Ltd` | `0 non-placeholder emails, Demo Person,Example Ltd` |
-| `invoice-matches-its-line` A linked invoice matches its transaction exactly | PASS | `0` | `0` |
-| `invoice-exception-has-no-document` An exception names a transaction with no document | PASS | `4250 documents=0` | `4250 documents=0` |
-| `invoice-unarchived` An unarchived document names no archive | PASS | `0` | `0` |
-| `invoice-archived` An archived document names a target | PASS | `0` | `0` |
-| `invoice-vendors` Every invoice vendor belongs to the profile | PASS | `0` | `0` |
-| `invoice-archive-states` Every archive state carries the columns it promises | PASS | `0` | `0` |
+| `feature-map-matches-capabilities` | passed | `unnamed=0 unexported=0 planned=0 status=0 problems=0 exit=0` | `unnamed=0 unexported=0 planned=0 status=0 problems=0 exit=0` |
+| `money-is-integer-minor-units` | passed | `wrongDeclarations=0 wrongRows=0 columns=11` | `wrongDeclarations=0 wrongRows=0 columns=11` |
+| `currency-is-an-iso-code` | passed | `wrongCurrencies=0 columns=13` | `wrongCurrencies=0 columns=13` |
+| `every-row-belongs-to-a-profile` | passed | `integrity=ok foreignKeyViolations=0 tablesWithOrphans=0 scopedTables=17` | `integrity=ok foreignKeyViolations=0 tablesWithOrphans=0 scopedTables=17` |
+| `demo-book-holds-made-up-identities` | passed | `nonPlaceholderEmails=0 profiles=Demo Person,Example Ltd` | `nonPlaceholderEmails=0 profiles=Demo Person,Example Ltd` |
+| `invoice-matches-its-line` | passed | `0` | `0` |
+| `invoice-exception-has-no-document` | passed | `4250 documents=0` | `4250 documents=0` |
+| `invoice-unarchived` | passed | `0` | `0` |
+| `invoice-archived` | passed | `0` | `0` |
+| `invoice-vendors` | passed | `0` | `0` |
+| `invoice-archive-states` | passed | `0` | `0` |
 
 ## Verdict
 
-PASS: 10 checks held against the seeded demo book.
+PASS: 4 steps ran, 11 expectations held against the seeded demo book.
 
 ## What this proves
 
 - The migrations and the demo seed fill a real SQLite database with the demo book.
 - Every money value read back is an integer of minor units with an ISO currency code.
-- The money promises named by the checks hold for the demo data, each asserted against a stated expected value.
+- Every expectation named above matched its observation for the demo data.
 
 ## What this does not prove
 
-- No finance screen, capability, CLI command, or MCP tool exists on this branch, so this run drives the demo book at the data layer, not a user surface.
-- A green run does not prove a new capability reads the same rows the same way; the pull request that adds the surface still needs its own proof.
+- The capability drives run on the package memory ledger and the demo seed; a persistent store and the RPC, MCP, and CLI projections are not exercised.
+- No finance screen is reached, so the demo-book expectations read the seeded data at the data layer.

@@ -1,0 +1,20 @@
+{
+  "observations": [
+    {
+      "id": "bank-line-list-returns-the-demo-book",
+      "value": "total=12 demoLines=12 awaiting=2"
+    },
+    {
+      "id": "bank-line-list-orders-newest-first",
+      "value": "true"
+    },
+    {
+      "id": "bank-line-list-filters-by-direction",
+      "value": "lines=8 allOut=true bookOut=8"
+    },
+    {
+      "id": "bank-line-list-pages-without-repeats",
+      "value": "first=5 second=5 overlap=0"
+    }
+  ]
+}

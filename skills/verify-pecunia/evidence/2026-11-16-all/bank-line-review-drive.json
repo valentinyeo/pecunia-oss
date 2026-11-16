@@ -1,0 +1,16 @@
+{
+  "observations": [
+    {
+      "id": "bank-line-review-marks-the-line",
+      "value": "tag=Reviewed hasTime=true"
+    },
+    {
+      "id": "bank-line-review-shows-in-the-list",
+      "value": "Reviewed"
+    },
+    {
+      "id": "bank-line-review-refuses-a-viewer",
+      "value": "Forbidden"
+    }
+  ]
+}

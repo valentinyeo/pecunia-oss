@@ -1,0 +1,24 @@
+{
+  "observations": [
+    {
+      "id": "import-targets-listed",
+      "value": "label=Demo Bank kind=bank base=EUR provider=Wise"
+    },
+    {
+      "id": "import-writes-every-line",
+      "value": "imported=5 alreadyImported=0 rejected=0"
+    },
+    {
+      "id": "import-replay-adds-nothing",
+      "value": "imported=0 alreadyImported=5"
+    },
+    {
+      "id": "import-names-a-rejected-line",
+      "value": "imported=1 rejected=1 reason=bad-date"
+    },
+    {
+      "id": "import-refuses-unknown-account",
+      "value": "ImportAccountNotFound"
+    }
+  ]
+}
