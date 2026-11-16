@@ -124,6 +124,21 @@ describe("an IBAN in any written form fails", () => {
     ).toEqual(["iban"]);
   });
 
+  it.each([
+    ["a tab", "\t"],
+    ["a non-breaking space", "\u00A0"],
+    ["a double space", "  "],
+    ["a hyphen", "-"],
+    ["mixed separators", " \t\u00A0 "],
+  ])("fails on an IBAN joined by %s", (_label, separator) => {
+    expect(
+      ruleOf(
+        "apps/cli/src/accounts.ts",
+        `const iban = "${["GB82", "WEST", "1234", "5698", "7654", "32"].join(separator)}";`
+      )
+    ).toEqual(["iban"]);
+  });
+
   it("fails on a spaced IBAN inside a document", () => {
     expect(
       ruleOf(
@@ -208,6 +223,66 @@ describe("a Cloudflare account id fails wherever it names an account", () => {
   });
 });
 
+describe("an email address fails in any written form", () => {
+  it.each([
+    ["an international domain", ["owner", "b\u00FCcher.de"].join("@")],
+    [
+      "an international local part",
+      ["\u03B4\u03BF\u03BA\u03B9\u03BC\u03AE", "gmail.com"].join("@"),
+    ],
+    ["a quoted local part", ['"jane.doe"', "acme.co.uk"].join("@")],
+  ])("fails on %s", (_label, address) => {
+    expect(
+      ruleOf("apps/site/test/fixture.ts", `const owner = "${address}";`)
+    ).toEqual(["email"]);
+  });
+
+  it.each([
+    ["a backslash", "\\"],
+    ["a parenthesis", "("],
+    ["a quote", "'"],
+  ])("fails on an address right after %s", (_label, punctuation) => {
+    expect(
+      ruleOf(
+        "apps/site/test/fixture.ts",
+        `const owner = "${punctuation}${["owner", "gmail.com"].join("@")}";`
+      )
+    ).toEqual(["email"]);
+  });
+});
+
+describe("a Cloudflare account id on the line after its name fails", () => {
+  const id = "0123456789abcdef0123456789abcdef";
+
+  it.each([
+    ["above the value", `const accountId =\n  "${id}";`],
+    [
+      "above the value with a blank line between",
+      `const accountId =\n\n  "${id}";`,
+    ],
+    [
+      "two lines above a fallback value",
+      `const accountId =\n  readAccount() ??\n  "${id}";`,
+    ],
+  ])("fails on an account id with its name %s", (_label, text) => {
+    expect(ruleOf("apps/cli/src/ids.ts", text)).toEqual([
+      "cloudflare-account-id",
+    ]);
+  });
+});
+
+describe("only the documented placeholder hosts are exempt", () => {
+  it.each([
+    ["a tenant label", "example.private-tenant.workers.dev"],
+    ["a tenant label on pages", "example.private-tenant.pages.dev"],
+    ["a deeper tenant", "example.example.workers.dev"],
+  ])("fails on a real deployment host with %s", (_label, hostname) => {
+    expect(
+      ruleOf("README.md", `Live at <https://${hostname}/health>.`)
+    ).toEqual(["cloudflare-hostname"]);
+  });
+});
+
 describe("example values pass", () => {
   it.each([
     "demo@example.com",
@@ -218,6 +293,8 @@ describe("example values pass", () => {
     "noreply@github.com",
     "noreply@anthropic.com",
     "1234+someone@users.noreply.github.com",
+    '"jane.doe"@example.com',
+    "bj\u00F6rn@example.com",
     "example.workers.dev",
     "example.pages.dev",
     "example.cloudflareaccess.com",
@@ -276,6 +353,65 @@ describe("a sort code and an account number in any written form fail", () => {
       ).toEqual(["bank-account"]);
     }
   );
+
+  it.each([
+    ["a field", '  currency: "GBP",\n  '],
+    ["two fields", '  currency: "GBP",\n  type: "personal",\n  '],
+    [
+      "three fields",
+      '  currency: "GBP",\n  type: "personal",\n  label: "Everyday",\n  ',
+    ],
+  ])(
+    "fails on a sort code with %s between it and the account",
+    (_label, between) => {
+      const sample = [
+        "const account = {",
+        `  sortCode: "${glued("20", "-", "45", "-", "67")}",`,
+        `${between}number: "${glued("1029", "3847")}",`,
+        "};",
+      ];
+
+      expect(ruleOf("apps/site/src/profile.ts", sample.join("\n"))).toEqual([
+        "bank-account",
+      ]);
+    }
+  );
+
+  it("fails on a sort code and account number split by non-breaking separators", () => {
+    const sample = [
+      `sortCode: "${glued("20", "\u00A0", "45", "\u00A0", "67")}",`,
+      `number: "${glued("1029", "\u00A0", "3847")}",`,
+    ];
+
+    expect(ruleOf("apps/site/src/profile.ts", sample.join("\n"))).toEqual([
+      "bank-account",
+    ]);
+  });
+
+  it("fails on a sort code and account number split by non-breaking hyphens", () => {
+    const sample = [
+      `sortCode: "${glued("20", "\u2011", "45", "\u2011", "67")}",`,
+      `number: "${glued("1029", "\u2011", "3847")}",`,
+    ];
+
+    expect(ruleOf("apps/site/src/profile.ts", sample.join("\n"))).toEqual([
+      "bank-account",
+    ]);
+  });
+
+  it("passes a sort code and account number far apart in one file", () => {
+    const sample = [
+      `sortCode: "${spaced("20", "45", "67")}",`,
+      `currency: "GBP",`,
+      `type: "personal",`,
+      `label: "Everyday",`,
+      `owner: "demo",`,
+      `bank: "example",`,
+      `number: "${glued("1029", "3847")}",`,
+    ];
+
+    expect(ruleOf("apps/site/src/profile.ts", sample.join("\n"))).toEqual([]);
+  });
 
   it("fails on the account number below a blank line", () => {
     const sample = [

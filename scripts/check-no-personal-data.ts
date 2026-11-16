@@ -170,7 +170,7 @@ const IBAN = new RegExp(
 );
 
 const EMAIL =
-  /(?<!\\)\b[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)*\.[A-Za-z]{2,}/gu;
+  /(?:"[^"\\\s]{1,64}"|[\p{L}\p{N}][\p{L}\p{N}._%+'’-]*)@(?:[\p{L}\p{N}](?:[\p{L}\p{N}-]*[\p{L}\p{N}])?\.)+[\p{L}]{2,}/gu;
 
 const CLOUDFLARE_ACCOUNT_ID = /\b[0-9a-f]{32}\b/giu;
 
@@ -179,10 +179,32 @@ const CLOUDFLARE_ACCOUNT_NAMED = /account[ _-]?id|dash\.cloudflare\.com/iu;
 const CLOUDFLARE_HOSTNAME =
   /\b(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+(?:pages\.dev|workers\.dev|cloudflareaccess\.com)\b/giu;
 
-const SORT_CODE =
-  /\b(?:\d{6}|\d{2}(?<separator>[-.–— ])\d{2}\k<separator>\d{2})\b/gu;
+const SORT_CODE = /\b(?:\d{6}|\d{2}[-.–— ]\d{2}[-.–— ]\d{2})\b/gu;
 
 const ACCOUNT_NUMBER = /\b\d{4}[ -]?\d{4}\b/gu;
+
+const ACCOUNT_WINDOW = 4;
+
+const ACCOUNT_CONTEXT = 3;
+
+const SPACING = /[\t\u00A0\u2007\u202F]+| {2,}/gu;
+
+const NON_BREAKING_HYPHENS = /[\u2010-\u2015]+/gu;
+
+const hyphenated = /[\s\u002D\u2010-\u2015]+/gu;
+
+const spaced = (text: string) =>
+  text.replaceAll(SPACING, " ").replaceAll(NON_BREAKING_HYPHENS, "-");
+
+const unescaped = (text: string) => text.replaceAll(/\\[nrtbfv0]/gu, " ");
+
+const unHyphenated = (text: string) => text.replaceAll(hyphenated, " ");
+
+const EXAMPLE_HOSTNAMES = new Set([
+  "example.cloudflareaccess.com",
+  "example.pages.dev",
+  "example.workers.dev",
+]);
 
 const CONFIG_FILE = /\.(?:env|json|jsonc|toml|ya?ml)$/u;
 
@@ -210,11 +232,8 @@ const hasReservedDomain = (address: string) => {
   );
 };
 
-const isExampleHostname = (hostname: string) => {
-  const name = hostname.toLowerCase();
-
-  return name === "example" || name.startsWith("example.");
-};
+const isExampleHostname = (hostname: string) =>
+  EXAMPLE_HOSTNAMES.has(hostname.toLowerCase());
 
 export const isConfigFile = (filePath: string) =>
   CONFIG_FILE.test(filePath) || path.basename(filePath).startsWith(".env");
@@ -253,12 +272,42 @@ const denseLines = (lines: readonly string[]) =>
     text.trim().length === 0 ? [] : [{ index, text }]
   );
 
+const previousTexts = (
+  lines: readonly string[],
+  index: number,
+  count: number
+) => {
+  const texts: string[] = [];
+
+  for (
+    let cursor = index - 1;
+    cursor >= 0 && texts.length < count;
+    cursor -= 1
+  ) {
+    const text = lines[cursor];
+
+    if (text !== undefined && text.trim().length > 0) {
+      texts.push(text);
+    }
+  }
+
+  return texts;
+};
+
+const namesAccount = (lines: readonly string[], index: number) =>
+  [lines[index] ?? "", ...previousTexts(lines, index, ACCOUNT_CONTEXT)].some(
+    (text) => CLOUDFLARE_ACCOUNT_NAMED.test(text)
+  );
+
 const bankAccountFindings = (
   filePath: string,
   lines: readonly string[],
   allow: AllowList
 ): readonly PersonalDataFinding[] => {
-  const dense = denseLines(lines);
+  const dense = denseLines(lines).map((entry) => ({
+    index: entry.index,
+    text: spaced(entry.text),
+  }));
 
   return dense.flatMap((entry, position) => {
     const [sortCode] = matchesIn(SORT_CODE, entry.text);
@@ -268,7 +317,10 @@ const bankAccountFindings = (
     }
 
     const accountNumber = dense
-      .slice(Math.max(position - 1, 0), position + 2)
+      .slice(
+        Math.max(position - ACCOUNT_WINDOW, 0),
+        position + ACCOUNT_WINDOW + 1
+      )
       .flatMap((neighbour) => matchesIn(ACCOUNT_NUMBER, neighbour.text))
       .find((candidate) => !allowsValue(allow, filePath, candidate));
 
@@ -298,10 +350,10 @@ export const findPersonalData = (
   const lineFindings = lines.flatMap(
     (line, index): readonly PersonalDataFinding[] => {
       const found: readonly RuleId[] = [
-        ...matchesIn(IBAN, line)
+        ...matchesIn(IBAN, unHyphenated(line))
           .filter((value) => !allowsValue(allow, filePath, value))
           .map(() => "iban" as const),
-        ...matchesIn(EMAIL, line)
+        ...matchesIn(EMAIL, unescaped(line))
           .filter((address) => !allowsEmail(allow, filePath, address))
           .map(() => "email" as const),
         ...matchesIn(CLOUDFLARE_HOSTNAME, line)
@@ -311,7 +363,7 @@ export const findPersonalData = (
               !allowsValue(allow, filePath, hostname)
           )
           .map(() => "cloudflare-hostname" as const),
-        ...(isConfigFile(filePath) || CLOUDFLARE_ACCOUNT_NAMED.test(line)
+        ...(isConfigFile(filePath) || namesAccount(lines, index)
           ? matchesIn(CLOUDFLARE_ACCOUNT_ID, line)
               .filter((value) => !allowsValue(allow, filePath, value))
               .map(() => "cloudflare-account-id" as const)

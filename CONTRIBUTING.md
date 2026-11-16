@@ -10,7 +10,9 @@ Anything that names a person, a company, a merchant, an account, an amount, or a
 - Never paste a real statement, account number, sort code, IBAN, or email address into a commit, a PR, an issue, or `.brain/`. The value is public the second it lands.
 - Migrations seed catalog rows only. Demo data ships outside numbered migrations.
 
-`pnpm check` runs `scripts/check-no-personal-data.ts`, which fails on an IBAN in any written form, a sort code beside an account number, an email address outside the example domains, a Cloudflare account id in a config file or beside an account name, and a real `*.pages.dev` or `*.workers.dev` hostname in any letter case. Every exception is one entry with a reason in `scripts/no-personal-data-allow.json`, plus the path it is excused in, so an entry never hides the same value in another file. CI runs the same guard plus [gitleaks](https://github.com/gitleaks/gitleaks) over the pushed range.
+`pnpm check` runs `scripts/check-no-personal-data.ts`, which fails on an IBAN in any written form, a sort code beside an account number, an email address outside the example domains, a Cloudflare account id in a config file or beside an account name, and a real `*.pages.dev`, `*.workers.dev` or `*.cloudflareaccess.com` hostname in any letter case. Spaces, tabs, non-breaking spaces and hyphens between the groups of an IBAN do not hide it, and a sort code still pairs with an account number when other fields or blank lines sit between them. Only the three documented placeholder hosts (`example.workers.dev`, `example.pages.dev`, `example.cloudflareaccess.com`) are exempt, so a host that starts with `example.` but then names a real tenant still fails. Every other exception is one entry with a reason in `scripts/no-personal-data-allow.json`, plus the path it is excused in, so an entry never hides the same value in another file. CI runs the same guard plus [gitleaks](https://github.com/gitleaks/gitleaks) over the pushed range, and its exemptions are exact: a commit citation is excused only when every long token on that line is a citation, and the crash-test JWT only as that exact token, so a second secret beside either one still fails.
+
+Known limits: the guard matches the characters it is given. Fullwidth characters, such as an IBAN written in fullwidth digits or an address written with a fullwidth at sign or dot, and an ideographic full stop (U+3002) written where a hostname has a dot, pass unread. Those shapes are rare in the text this app is handed, and reading every fullwidth character as its ASCII twin or every ideographic full stop as a dot would flag ordinary Japanese and Chinese text. A person who pastes such text still has to read it before committing.
 
 ## Set a no-reply commit address
 
@@ -20,7 +22,7 @@ Commits are public, so a real email address in one is a leak. Point Git at the a
 git config user.email "<id>+<login>@users.noreply.github.com"
 ```
 
-`scripts/check-commit-identity.ts` fails on any author, committer, or `Co-authored-by:` trailer outside `@users.noreply.github.com`, `noreply@github.com`, and `noreply@anthropic.com`. It reads the trailer the way Git does, so a leading space, a folded line, or text after the address does not hide one. It reads the range you pass (`node scripts/check-commit-identity.ts origin/main..HEAD`) and defaults to every commit reachable from `HEAD`.
+`scripts/check-commit-identity.ts` fails on any author, committer, or `Co-authored-by:` trailer outside `@users.noreply.github.com`, `noreply@github.com`, and `noreply@anthropic.com`. It reads the trailer the way Git does, so a leading space, a folded line, text after the address, a quoted local part, an international address, or a stray control character in the body does not hide one. It reads the range you pass (`node scripts/check-commit-identity.ts origin/main..HEAD`) and defaults to every commit reachable from `HEAD`.
 
 ## Run the gate
 

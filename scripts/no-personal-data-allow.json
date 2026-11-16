@@ -61,6 +61,21 @@
     },
     {
       "path": "scripts/check-no-personal-data.test.ts",
+      "value": "example.private-tenant.workers.dev",
+      "reason": "The planted real-shaped hostname in the guard's own test; it must fail there and nowhere else."
+    },
+    {
+      "path": "scripts/check-no-personal-data.test.ts",
+      "value": "example.private-tenant.pages.dev",
+      "reason": "The planted real-shaped hostname in the guard's own test; it must fail there and nowhere else."
+    },
+    {
+      "path": "scripts/check-no-personal-data.test.ts",
+      "value": "example.example.workers.dev",
+      "reason": "The planted real-shaped hostname in the guard's own test; it must fail there and nowhere else."
+    },
+    {
+      "path": "scripts/check-no-personal-data.test.ts",
       "value": "12345678",
       "reason": "The planted account number in the guard's own test; it must fail there and nowhere else."
     }

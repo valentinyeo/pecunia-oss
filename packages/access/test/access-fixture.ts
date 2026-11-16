@@ -15,9 +15,9 @@ import {
 } from "../src/index.js";
 import type { JsonWebKey } from "../src/index.js";
 
-export const TEAM_DOMAIN = "example-team.cloudflareaccess.com";
+export const TEAM_DOMAIN = "example.cloudflareaccess.com";
 
-export const OTHER_TEAM_DOMAIN = "other-team.cloudflareaccess.com";
+export const OTHER_TEAM_DOMAIN = "other-team.invalid";
 
 export const AUDIENCE = "demo-access-application";
 
