@@ -52,6 +52,7 @@ export type {
   MatchType,
   Rule,
   RuleDirection,
+  RuleDraft,
   RuleKind,
 } from "./rule.js";
 

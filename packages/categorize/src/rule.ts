@@ -126,3 +126,9 @@ export const isCategorizeRule = (rule: Rule): rule is CategorizeRule =>
 
 export const isClassificationRule = (rule: Rule): rule is ClassificationRule =>
   rule.kind !== "categorize";
+
+type DistributiveOmit<Value, Key extends PropertyKey> = Value extends unknown
+  ? Omit<Value, Key>
+  : never;
+
+export type RuleDraft = DistributiveOmit<Rule, "id" | "profileId">;
