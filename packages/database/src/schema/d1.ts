@@ -73,15 +73,17 @@ const dateOnlyChecks = (
     )
   );
 
+const blankWhitespace = sql`' ' || char(9) || char(10) || char(13)`;
+
+const trimmedTextCheck = (column: AnySQLiteColumn) =>
+  sql`typeof(${column}) = 'text' AND length(trim(${column}, ${blankWhitespace})) > 0`;
+
 const notBlankChecks = (
   table: string,
   columns: readonly AnySQLiteColumn[]
 ): readonly ReturnType<typeof check>[] =>
   columns.map((column) =>
-    check(
-      `${table}_${column.name}_check`,
-      sql`typeof(${column}) = 'text' AND length(trim(${column})) > 0`
-    )
+    check(`${table}_${column.name}_check`, trimmedTextCheck(column))
   );
 
 export const RunLogs = sqliteTable(
@@ -1082,7 +1084,7 @@ export const InvoiceDocuments = sqliteTable(
     ),
     check(
       "invoice_documents_failed_check",
-      sql`${table.archiveState} <> 'failed' OR (${table.archiveFailureReason} IS NOT NULL AND length(trim(${table.archiveFailureReason})) > 0 AND ${table.archiveFileId} IS NULL AND ${table.archiveTargetId} IS NULL AND ${table.archivedAt} IS NULL)`
+      sql`${table.archiveState} <> 'failed' OR (${table.archiveFailureReason} IS NOT NULL AND ${trimmedTextCheck(table.archiveFailureReason)} AND ${table.archiveFileId} IS NULL AND ${table.archiveTargetId} IS NULL AND ${table.archivedAt} IS NULL)`
     ),
   ]
 );
@@ -1105,10 +1107,7 @@ export const InvoiceExceptions = sqliteTable(
       foreignColumns: [Transactions.profileId, Transactions.id],
     }),
     ...integerChecks("invoice_exceptions", [table.recordedAt]),
-    check(
-      "invoice_exceptions_reason_check",
-      sql`length(trim(${table.reason})) > 0`
-    ),
+    check("invoice_exceptions_reason_check", trimmedTextCheck(table.reason)),
   ]
 );
 
@@ -1212,7 +1211,7 @@ export const TaxObligations = sqliteTable(
     ),
     check(
       "tax_obligations_write_off_check",
-      sql`(${table.status} = 'written_off' AND ${table.writeOffReason} IS NOT NULL AND length(trim(${table.writeOffReason})) > 0 AND ${table.settledTransactionId} IS NULL) OR (${table.status} <> 'written_off' AND ${table.writeOffReason} IS NULL)`
+      sql`(${table.status} = 'written_off' AND ${table.writeOffReason} IS NOT NULL AND ${trimmedTextCheck(table.writeOffReason)} AND ${table.settledTransactionId} IS NULL) OR (${table.status} <> 'written_off' AND ${table.writeOffReason} IS NULL)`
     ),
   ]
 );

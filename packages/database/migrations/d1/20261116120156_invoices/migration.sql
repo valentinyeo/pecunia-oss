@@ -50,7 +50,7 @@ CREATE TABLE `invoice_documents` (
 	CONSTRAINT "invoice_documents_unarchived_check" CHECK("archive_state" <> 'unarchived' OR ("archive_file_id" IS NULL AND "archive_target_id" IS NULL AND "archived_at" IS NULL AND "archive_failure_reason" IS NULL)),
 	CONSTRAINT "invoice_documents_reserved_check" CHECK("archive_state" <> 'reserved' OR ("archive_file_id" IS NOT NULL AND "archive_target_id" IS NOT NULL AND "archived_at" IS NULL AND "archive_failure_reason" IS NULL)),
 	CONSTRAINT "invoice_documents_archived_check" CHECK("archive_state" <> 'archived' OR ("archive_file_id" IS NOT NULL AND "archive_target_id" IS NOT NULL AND "archived_at" IS NOT NULL AND "archive_failure_reason" IS NULL)),
-	CONSTRAINT "invoice_documents_failed_check" CHECK("archive_state" <> 'failed' OR ("archive_failure_reason" IS NOT NULL AND length(trim("archive_failure_reason")) > 0 AND "archive_file_id" IS NULL AND "archive_target_id" IS NULL AND "archived_at" IS NULL))
+	CONSTRAINT "invoice_documents_failed_check" CHECK("archive_state" <> 'failed' OR ("archive_failure_reason" IS NOT NULL AND typeof("archive_failure_reason") = 'text' AND length(trim("archive_failure_reason", ' ' || char(9) || char(10) || char(13))) > 0 AND "archive_file_id" IS NULL AND "archive_target_id" IS NULL AND "archived_at" IS NULL))
 );
 --> statement-breakpoint
 CREATE TABLE `invoice_exceptions` (
@@ -61,7 +61,7 @@ CREATE TABLE `invoice_exceptions` (
 	CONSTRAINT `fk_invoice_exceptions_profile_id_profiles_id_fk` FOREIGN KEY (`profile_id`) REFERENCES `profiles`(`id`),
 	CONSTRAINT `fk_invoice_exceptions_profile_id_transaction_id_transactions_profile_id_id_fk` FOREIGN KEY (`profile_id`,`transaction_id`) REFERENCES `transactions`(`profile_id`,`id`),
 	CONSTRAINT "invoice_exceptions_recorded_at_integer_check" CHECK(typeof("recorded_at") = 'integer' AND "recorded_at" BETWEEN -9007199254740991 AND 9007199254740991),
-	CONSTRAINT "invoice_exceptions_reason_check" CHECK(length(trim("reason")) > 0)
+	CONSTRAINT "invoice_exceptions_reason_check" CHECK(typeof("reason") = 'text' AND length(trim("reason", ' ' || char(9) || char(10) || char(13))) > 0)
 );
 --> statement-breakpoint
 CREATE TABLE `invoice_sources` (
@@ -90,7 +90,7 @@ CREATE TABLE `invoice_sources` (
 	CONSTRAINT "invoice_sources_retrieval_email_boolean_check" CHECK("retrieval_email" IN (0, 1)),
 	CONSTRAINT "invoice_sources_retrieval_portal_boolean_check" CHECK("retrieval_portal" IN (0, 1)),
 	CONSTRAINT "invoice_sources_retrieval_two_factor_boolean_check" CHECK("retrieval_two_factor" IN (0, 1)),
-	CONSTRAINT "invoice_sources_pattern_check" CHECK(typeof("pattern") = 'text' AND length(trim("pattern")) > 0)
+	CONSTRAINT "invoice_sources_pattern_check" CHECK(typeof("pattern") = 'text' AND length(trim("pattern", ' ' || char(9) || char(10) || char(13))) > 0)
 );
 --> statement-breakpoint
 CREATE UNIQUE INDEX `archive_targets_profile_provider_idx` ON `archive_targets` (`profile_id`,`provider`);--> statement-breakpoint

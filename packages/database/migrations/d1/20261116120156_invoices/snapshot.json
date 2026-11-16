@@ -1,8 +1,8 @@
 {
   "version": "7",
   "dialect": "sqlite",
-  "id": "4b6433ba-be49-49cd-9e44-30839604d66c",
-  "prevIds": ["04f97ad3-259a-4b8d-aa24-c03b9dfc9923"],
+  "id": "b3dae1ed-2b74-4052-9f8d-3a8ab6d12156",
+  "prevIds": ["62f27067-4f79-45dd-995f-58ee8e55067e"],
   "ddl": [
     {
       "name": "app_setting",
@@ -4102,7 +4102,7 @@
     {
       "table": "invoice_documents",
       "name": "invoice_documents_failed_check",
-      "value": "\"archive_state\" <> 'failed' OR (\"archive_failure_reason\" IS NOT NULL AND length(trim(\"archive_failure_reason\")) > 0 AND \"archive_file_id\" IS NULL AND \"archive_target_id\" IS NULL AND \"archived_at\" IS NULL)",
+      "value": "\"archive_state\" <> 'failed' OR (\"archive_failure_reason\" IS NOT NULL AND typeof(\"archive_failure_reason\") = 'text' AND length(trim(\"archive_failure_reason\", ' ' || char(9) || char(10) || char(13))) > 0 AND \"archive_file_id\" IS NULL AND \"archive_target_id\" IS NULL AND \"archived_at\" IS NULL)",
       "entityType": "checks"
     },
     {
@@ -4114,7 +4114,7 @@
     {
       "table": "invoice_exceptions",
       "name": "invoice_exceptions_reason_check",
-      "value": "length(trim(\"reason\")) > 0",
+      "value": "typeof(\"reason\") = 'text' AND length(trim(\"reason\", ' ' || char(9) || char(10) || char(13))) > 0",
       "entityType": "checks"
     },
     {
@@ -4180,7 +4180,7 @@
     {
       "table": "invoice_sources",
       "name": "invoice_sources_pattern_check",
-      "value": "typeof(\"pattern\") = 'text' AND length(trim(\"pattern\")) > 0",
+      "value": "typeof(\"pattern\") = 'text' AND length(trim(\"pattern\", ' ' || char(9) || char(10) || char(13))) > 0",
       "entityType": "checks"
     },
     {
@@ -4192,7 +4192,7 @@
     {
       "table": "members",
       "name": "members_email_check",
-      "value": "typeof(\"email\") = 'text' AND length(trim(\"email\")) > 0",
+      "value": "typeof(\"email\") = 'text' AND length(trim(\"email\", ' ' || char(9) || char(10) || char(13))) > 0",
       "entityType": "checks"
     },
     {
@@ -4210,7 +4210,7 @@
     {
       "table": "merchant_aliases",
       "name": "merchant_aliases_pattern_check",
-      "value": "typeof(\"pattern\") = 'text' AND length(trim(\"pattern\")) > 0",
+      "value": "typeof(\"pattern\") = 'text' AND length(trim(\"pattern\", ' ' || char(9) || char(10) || char(13))) > 0",
       "entityType": "checks"
     },
     {
@@ -4354,7 +4354,7 @@
     {
       "table": "rules",
       "name": "rules_pattern_check",
-      "value": "typeof(\"pattern\") = 'text' AND length(trim(\"pattern\")) > 0",
+      "value": "typeof(\"pattern\") = 'text' AND length(trim(\"pattern\", ' ' || char(9) || char(10) || char(13))) > 0",
       "entityType": "checks"
     },
     {

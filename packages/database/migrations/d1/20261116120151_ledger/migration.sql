@@ -25,7 +25,7 @@ CREATE TABLE `merchant_aliases` (
 	CONSTRAINT `fk_merchant_aliases_profile_id_profiles_id_fk` FOREIGN KEY (`profile_id`) REFERENCES `profiles`(`id`),
 	CONSTRAINT `fk_merchant_aliases_profile_id_payee_id_payees_profile_id_id_fk` FOREIGN KEY (`profile_id`,`payee_id`) REFERENCES `payees`(`profile_id`,`id`),
 	CONSTRAINT "merchant_aliases_created_at_integer_check" CHECK(typeof("created_at") = 'integer' AND "created_at" BETWEEN -9007199254740991 AND 9007199254740991),
-	CONSTRAINT "merchant_aliases_pattern_check" CHECK(typeof("pattern") = 'text' AND length(trim("pattern")) > 0),
+	CONSTRAINT "merchant_aliases_pattern_check" CHECK(typeof("pattern") = 'text' AND length(trim("pattern", ' ' || char(9) || char(10) || char(13))) > 0),
 	CONSTRAINT "merchant_aliases_match_type_check" CHECK("match_type" IN ('exact', 'prefix', 'contains'))
 );
 --> statement-breakpoint
@@ -74,7 +74,7 @@ CREATE TABLE `rules` (
 	CONSTRAINT "rules_priority_integer_check" CHECK(typeof("priority") = 'integer' AND "priority" BETWEEN -9007199254740991 AND 9007199254740991),
 	CONSTRAINT "rules_updated_at_integer_check" CHECK(typeof("updated_at") = 'integer' AND "updated_at" BETWEEN -9007199254740991 AND 9007199254740991),
 	CONSTRAINT "rules_enabled_boolean_check" CHECK("enabled" IN (0, 1)),
-	CONSTRAINT "rules_pattern_check" CHECK(typeof("pattern") = 'text' AND length(trim("pattern")) > 0),
+	CONSTRAINT "rules_pattern_check" CHECK(typeof("pattern") = 'text' AND length(trim("pattern", ' ' || char(9) || char(10) || char(13))) > 0),
 	CONSTRAINT "rules_kind_check" CHECK("kind" IN ('categorize', 'self_transfer', 'refund', 'internal_transfer', 'exclude', 'income_client', 'tax_payment')),
 	CONSTRAINT "rules_match_field_check" CHECK("match_field" IN ('merchant', 'reference', 'description')),
 	CONSTRAINT "rules_match_type_check" CHECK("match_type" IN ('exact', 'contains', 'prefix', 'digits_only')),

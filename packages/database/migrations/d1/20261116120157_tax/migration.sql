@@ -26,7 +26,7 @@ CREATE TABLE `tax_obligations` (
 	CONSTRAINT "tax_obligations_status_check" CHECK("status" IN ('estimated', 'paid', 'written_off')),
 	CONSTRAINT "tax_obligations_paid_settled_check" CHECK("status" <> 'paid' OR "settled_transaction_id" IS NOT NULL),
 	CONSTRAINT "tax_obligations_estimated_check" CHECK("status" <> 'estimated' OR "settled_transaction_id" IS NULL),
-	CONSTRAINT "tax_obligations_write_off_check" CHECK(("status" = 'written_off' AND "write_off_reason" IS NOT NULL AND length(trim("write_off_reason")) > 0 AND "settled_transaction_id" IS NULL) OR ("status" <> 'written_off' AND "write_off_reason" IS NULL))
+	CONSTRAINT "tax_obligations_write_off_check" CHECK(("status" = 'written_off' AND "write_off_reason" IS NOT NULL AND typeof("write_off_reason") = 'text' AND length(trim("write_off_reason", ' ' || char(9) || char(10) || char(13))) > 0 AND "settled_transaction_id" IS NULL) OR ("status" <> 'written_off' AND "write_off_reason" IS NULL))
 );
 --> statement-breakpoint
 CREATE TABLE `tax_profiles` (

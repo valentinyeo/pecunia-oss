@@ -1,8 +1,8 @@
 {
   "version": "7",
   "dialect": "sqlite",
-  "id": "3ff06390-db69-4372-9e93-7c8f6ea8a61e",
-  "prevIds": ["4b6433ba-be49-49cd-9e44-30839604d66c"],
+  "id": "1dafd8ab-eb34-436c-99ce-e54c5a2803c1",
+  "prevIds": ["b3dae1ed-2b74-4052-9f8d-3a8ab6d12156"],
   "ddl": [
     {
       "name": "app_setting",
@@ -4482,7 +4482,7 @@
     {
       "table": "invoice_documents",
       "name": "invoice_documents_failed_check",
-      "value": "\"archive_state\" <> 'failed' OR (\"archive_failure_reason\" IS NOT NULL AND length(trim(\"archive_failure_reason\")) > 0 AND \"archive_file_id\" IS NULL AND \"archive_target_id\" IS NULL AND \"archived_at\" IS NULL)",
+      "value": "\"archive_state\" <> 'failed' OR (\"archive_failure_reason\" IS NOT NULL AND typeof(\"archive_failure_reason\") = 'text' AND length(trim(\"archive_failure_reason\", ' ' || char(9) || char(10) || char(13))) > 0 AND \"archive_file_id\" IS NULL AND \"archive_target_id\" IS NULL AND \"archived_at\" IS NULL)",
       "entityType": "checks"
     },
     {
@@ -4494,7 +4494,7 @@
     {
       "table": "invoice_exceptions",
       "name": "invoice_exceptions_reason_check",
-      "value": "length(trim(\"reason\")) > 0",
+      "value": "typeof(\"reason\") = 'text' AND length(trim(\"reason\", ' ' || char(9) || char(10) || char(13))) > 0",
       "entityType": "checks"
     },
     {
@@ -4560,7 +4560,7 @@
     {
       "table": "invoice_sources",
       "name": "invoice_sources_pattern_check",
-      "value": "typeof(\"pattern\") = 'text' AND length(trim(\"pattern\")) > 0",
+      "value": "typeof(\"pattern\") = 'text' AND length(trim(\"pattern\", ' ' || char(9) || char(10) || char(13))) > 0",
       "entityType": "checks"
     },
     {
@@ -4572,7 +4572,7 @@
     {
       "table": "members",
       "name": "members_email_check",
-      "value": "typeof(\"email\") = 'text' AND length(trim(\"email\")) > 0",
+      "value": "typeof(\"email\") = 'text' AND length(trim(\"email\", ' ' || char(9) || char(10) || char(13))) > 0",
       "entityType": "checks"
     },
     {
@@ -4590,7 +4590,7 @@
     {
       "table": "merchant_aliases",
       "name": "merchant_aliases_pattern_check",
-      "value": "typeof(\"pattern\") = 'text' AND length(trim(\"pattern\")) > 0",
+      "value": "typeof(\"pattern\") = 'text' AND length(trim(\"pattern\", ' ' || char(9) || char(10) || char(13))) > 0",
       "entityType": "checks"
     },
     {
@@ -4734,7 +4734,7 @@
     {
       "table": "rules",
       "name": "rules_pattern_check",
-      "value": "typeof(\"pattern\") = 'text' AND length(trim(\"pattern\")) > 0",
+      "value": "typeof(\"pattern\") = 'text' AND length(trim(\"pattern\", ' ' || char(9) || char(10) || char(13))) > 0",
       "entityType": "checks"
     },
     {
@@ -5028,7 +5028,7 @@
     {
       "table": "tax_obligations",
       "name": "tax_obligations_write_off_check",
-      "value": "(\"status\" = 'written_off' AND \"write_off_reason\" IS NOT NULL AND length(trim(\"write_off_reason\")) > 0 AND \"settled_transaction_id\" IS NULL) OR (\"status\" <> 'written_off' AND \"write_off_reason\" IS NULL)",
+      "value": "(\"status\" = 'written_off' AND \"write_off_reason\" IS NOT NULL AND typeof(\"write_off_reason\") = 'text' AND length(trim(\"write_off_reason\", ' ' || char(9) || char(10) || char(13))) > 0 AND \"settled_transaction_id\" IS NULL) OR (\"status\" <> 'written_off' AND \"write_off_reason\" IS NULL)",
       "entityType": "checks"
     },
     {

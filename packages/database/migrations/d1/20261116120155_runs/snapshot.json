@@ -1,8 +1,8 @@
 {
   "version": "7",
   "dialect": "sqlite",
-  "id": "04f97ad3-259a-4b8d-aa24-c03b9dfc9923",
-  "prevIds": ["45267005-24ff-49eb-9578-f997c778b6f5"],
+  "id": "62f27067-4f79-45dd-995f-58ee8e55067e",
+  "prevIds": ["d2490363-2594-4c86-ba8d-8eabf178e386"],
   "ddl": [
     {
       "name": "app_setting",
@@ -3279,7 +3279,7 @@
     {
       "table": "members",
       "name": "members_email_check",
-      "value": "typeof(\"email\") = 'text' AND length(trim(\"email\")) > 0",
+      "value": "typeof(\"email\") = 'text' AND length(trim(\"email\", ' ' || char(9) || char(10) || char(13))) > 0",
       "entityType": "checks"
     },
     {
@@ -3297,7 +3297,7 @@
     {
       "table": "merchant_aliases",
       "name": "merchant_aliases_pattern_check",
-      "value": "typeof(\"pattern\") = 'text' AND length(trim(\"pattern\")) > 0",
+      "value": "typeof(\"pattern\") = 'text' AND length(trim(\"pattern\", ' ' || char(9) || char(10) || char(13))) > 0",
       "entityType": "checks"
     },
     {
@@ -3441,7 +3441,7 @@
     {
       "table": "rules",
       "name": "rules_pattern_check",
-      "value": "typeof(\"pattern\") = 'text' AND length(trim(\"pattern\")) > 0",
+      "value": "typeof(\"pattern\") = 'text' AND length(trim(\"pattern\", ' ' || char(9) || char(10) || char(13))) > 0",
       "entityType": "checks"
     },
     {

@@ -1090,6 +1090,70 @@ const constraintCases: readonly ConstraintCase[] = [
       }),
     ],
   },
+  {
+    constraint: "members_email_check",
+    legal: [insertStep("members", checkMemberRow)],
+    name: "a member email made only of a tab",
+    rejected: [
+      insertStep("members", {
+        ...checkMemberRow,
+        email: "\t",
+        id: "member-tab-email-rejected",
+      }),
+    ],
+  },
+  {
+    constraint: "rules_pattern_check",
+    legal: [insertStep("rules", checkRuleRow)],
+    name: "a rule pattern made only of a newline",
+    rejected: [
+      insertStep("rules", {
+        ...checkRuleRow,
+        id: "rule-newline-pattern-rejected",
+        pattern: "\n",
+      }),
+    ],
+  },
+  {
+    constraint: "tax_obligations_write_off_check",
+    legal: [
+      insertStep("tax_obligations", {
+        ...taxObligationRow,
+        id: "obligation-written-off-tab-legal",
+        status: "written_off",
+        write_off_reason: "The demo company closed before the demo due date.",
+      }),
+    ],
+    name: "a written-off tax obligation whose reason is a tab",
+    rejected: [
+      insertStep("tax_obligations", {
+        ...taxObligationRow,
+        id: "obligation-written-off-tab-rejected",
+        status: "written_off",
+        write_off_reason: "\t",
+      }),
+    ],
+  },
+  {
+    constraint: "invoice_documents_failed_check",
+    legal: [
+      insertStep("invoice_documents", {
+        ...invoiceDocumentRow,
+        archive_failure_reason: "The demo archive refused the upload.",
+        archive_state: "failed",
+        id: "document-failed-newline-legal",
+      }),
+    ],
+    name: "a failed document whose archive failure reason is a newline",
+    rejected: [
+      insertStep("invoice_documents", {
+        ...invoiceDocumentRow,
+        archive_failure_reason: "\n",
+        archive_state: "failed",
+        id: "document-failed-newline-rejected",
+      }),
+    ],
+  },
 ];
 
 const integerValues = [1.5];

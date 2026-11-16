@@ -1,7 +1,7 @@
 {
   "version": "7",
   "dialect": "sqlite",
-  "id": "0cb9cc36-8464-4304-b3dd-bb0d7d2d947a",
+  "id": "429e5c08-7e89-4cc6-8db9-a527ca6ff89c",
   "prevIds": ["f7737ae2-cd0b-4504-bf9e-a80b383ca461"],
   "ddl": [
     {
@@ -397,7 +397,7 @@
     {
       "table": "members",
       "name": "members_email_check",
-      "value": "typeof(\"email\") = 'text' AND length(trim(\"email\")) > 0",
+      "value": "typeof(\"email\") = 'text' AND length(trim(\"email\", ' ' || char(9) || char(10) || char(13))) > 0",
       "entityType": "checks"
     },
     {
