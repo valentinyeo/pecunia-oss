@@ -1,17 +1,17 @@
 ---
 name: money-math
 description: Verify Pecunia's money arithmetic against the database that enforces it. Use before or after changing a minor-unit column, a currency exponent, the conversion tolerance, the foreign-minor limit, or a money CHECK constraint, and when asked "is money still exact", "prove the conversion", or "did this migration change the money rules".
-plain: "Money is integer minor units with a currency code. Prove the database still accepts exactly the safe integers, three-letter codes, one-unit conversions and the foreign bound."
+plain: "Money is integer minor units with a currency code. Prove the database still accepts every safe amount, code, exponent and conversion tolerance."
 diagram: |-
   money rule changed?
-  ├ minor units  → integer range
-  ├ currency     → three uppercase letters
-  ├ same pair    → identity
-  ├ exponents    → ten to the difference
-  ├ conversion   → within one minor unit
-  └ foreign row  → within the limit
+  ├ amount   → integer range
+  ├ currency → three letters
+  ├ pair     → identity
+  ├ exponent → powers of ten
+  ├ convert  → one unit off
+  └ foreign  → within limit
       │
-  600 seeded cases each → real SQLite
+  600 cases → real SQLite
 ---
 
 # Money math
