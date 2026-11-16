@@ -1,5 +1,5 @@
 import { describe, expect, it } from "@effect/vitest";
-import { Effect, Fiber } from "effect";
+import { Cause, Effect, Exit, Fiber } from "effect";
 import { TestClock } from "effect/testing";
 
 import {
@@ -277,6 +277,26 @@ describe("sortLines", () => {
           unsorted()
         );
       })
+  );
+
+  it.effect("propagates interruption instead of reporting it", () =>
+    Effect.gen(function* interruptedSort() {
+      const fiber = yield* sortLines(oneLineRequest("Example Cafe")).pipe(
+        Effect.provideService(
+          SortingProvider,
+          makeFakeSorter({ mode: "hang" })
+        ),
+        Effect.forkChild
+      );
+
+      yield* Fiber.interrupt(fiber);
+
+      const exit = yield* Fiber.await(fiber);
+
+      expect(Exit.isFailure(exit) && Cause.hasInterrupts(exit.cause)).toBe(
+        true
+      );
+    })
   );
 
   it.effect("running the sort twice changes nothing", () =>

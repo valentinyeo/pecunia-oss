@@ -1,4 +1,12 @@
-import { Duration, Effect, Exit, Option, Predicate, Schema } from "effect";
+import {
+  Cause,
+  Duration,
+  Effect,
+  Exit,
+  Option,
+  Predicate,
+  Schema,
+} from "effect";
 
 import {
   CategorizationSchema,
@@ -76,6 +84,10 @@ const sortLine = (
       );
 
     if (Exit.isFailure(exit)) {
+      if (Cause.hasInterrupts(exit.cause)) {
+        return yield* Effect.interrupt;
+      }
+
       return { failure: failureFor(line, provider.name, "failed"), line };
     }
 
