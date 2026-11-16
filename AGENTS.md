@@ -39,6 +39,12 @@ The base Effect plugin owns diagnostic severity. Child configs may add exact `al
 - **`@pecunia/auth`**:
   - Path: `packages/auth`
   - Role: Better Auth cartridge over the chosen `DatabaseVendor`: `Auth`, `CurrentPerson`, and the RPC middleware that provides it; only `Unauthenticated` crosses the wire. `@pecunia/auth/devtools` adds `runAsPerson`, the dev-only `rat_test_person` capability, and `testPersonLayer`
+- **`@pecunia/settings`**:
+  - Path: `packages/settings`
+  - Role: Settings cartridge: the language, time zone, and profile base currency a new install sets up without code changes. Core owns the `Profile`, `AppSetting`, and `Setup` schemas, the `readSetup`, `saveSettings`, and `createProfile` contracts, and the `UnknownProfile`, `ProfileNameTaken`, and `SettingsUnavailable` failures. `SettingsStore` is the port; `@pecunia/settings/memory` is the reference adapter. A locale, time zone, or currency code is parsed and branded before it reaches the store
+- **`@pecunia/bank-import`**:
+  - Path: `packages/bank-import`
+  - Role: Bank-file import cartridge: parses the demo bank CSV format at the boundary, fingerprints each line with SHA-256 over its parsed fields, and records it once per account. Core owns the `ImportTarget`, `ImportSummary`, and `RejectedLine` schemas, the `listImportTargets` and `importBankFile` contracts, and the `BankFileRejected`, `ImportAccountNotFound`, and `ImportUnavailable` failures. `ImportLedger` is the port; `@pecunia/bank-import/memory` is the reference adapter. The job is an XState machine in `src/import-machine.ts`; the fingerprint is the `external_id` the `transactions_account_external_idx` unique index enforces
 - **`@pecunia/flags`**:
   - Path: `packages/flags`
   - Role: Typed flags cartridge: scoped evidence ladders, Config and memory adapters, cartridge-owned Alchemy KV, and a default Durable Object ledger. The DO commits values, receipts, and projection markers together; alarms project to KV. Readers never call the DO. Empty KV uses Config or declared defaults; read failures follow the catalog's `failurePolicy`. `EVENTS_ENABLED` stays deploy-time Config. Core owns declarations and the `flip_feature_flag`, `record_flag_evidence`, and `read_flag_ledger` contracts. Climbs use capability approval; `off` bypasses approval but stays audited. Only the CLI mounts operator capabilities; its default composition has no live ledger. Public readers and the sandbox stay read-only. Replace both exports in `apps/site/src/flags.ts` with `Flags.defaults(eventFlags)` to remove the adapter package.
