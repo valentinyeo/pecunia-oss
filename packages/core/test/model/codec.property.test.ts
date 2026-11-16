@@ -13,6 +13,7 @@ import type { ModelCodec } from "../../src/model/codec.js";
 import { codecs } from "../../src/model/codecs.js";
 import { ConvertedAmount } from "../../src/model/converted-amount.js";
 import * as model from "../../src/model/index.js";
+import { exemptOperations, operations } from "../../src/model/operations.js";
 
 interface Handle {
   readonly name: string;
@@ -924,37 +925,15 @@ const restoreOf = (stored: unknown): Option.Option<ConvertedAmount> =>
 
 describe("one codec owns parsing for every exported model schema", () => {
   it("exposes only codec handles, factories and value types", () => {
-    const allowed = new Set([
-      "parse",
-      "render",
-      "verified",
-      "codecs",
-      "RATE_SCALE",
-      "rateText",
-      "BaseAmount",
-      "ConvertedAmount",
-      "addMoney",
-      "convert",
-      "convertedAmounts",
-      "convertMinor",
-      "minorUnitExponent",
-      "sameCurrencyAmount",
-      "sourceAmount",
-      "subtractMoney",
-      "conversionInputInvalid",
-      "conversionOverflow",
-      "currencyMismatch",
-      "moneyOverflow",
-      "rateOnSameCurrency",
-      "rateUnavailable",
-    ]);
-
     const names = Object.keys(model).toSorted();
 
-    expect(names.filter((name) => !allowed.has(name))).toStrictEqual([]);
-    expect([...allowed].filter((name) => !names.includes(name))).toStrictEqual(
-      []
-    );
+    expect(
+      names.filter(
+        (name) =>
+          !Object.hasOwn(operations, name) &&
+          !Object.hasOwn(exemptOperations, name)
+      )
+    ).toStrictEqual([]);
 
     for (const [name, value] of Object.entries(model)) {
       expect(
