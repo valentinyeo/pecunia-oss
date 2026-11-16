@@ -1,4 +1,44 @@
 {
+  "demoNumbers": {
+    "featureMap": "unnamed=0 unexported=0 planned=0 status=0 problems=0 exit=0",
+    "moneyIsInteger": "wrongDeclarations=0 wrongRows=0 columns=11",
+    "currencyIsIsoCode": "wrongCurrencies=0 columns=13",
+    "everyRowInProfile": "integrity=ok foreignKeyViolations=0 tablesWithOrphans=0 scopedTables=17",
+    "madeUpIdentities": "nonPlaceholderEmails=0 profiles=Demo Person,Example Ltd",
+    "demoAccounts": "Demo Bank (bank),Demo Broker (investment)",
+    "demoSyncRuns": "2",
+    "importTargets": "label=Demo Bank kind=bank base=EUR provider=Wise",
+    "importWrites": "imported=5 alreadyImported=0 rejected=0",
+    "importReplay": "imported=0 alreadyImported=5",
+    "importRejectedLine": "imported=1 rejected=1 reason=bad-date",
+    "importUnknownAccount": "ImportAccountNotFound",
+    "bankLineListReturns": "total=12 demoLines=12 awaiting=2",
+    "bankLineListFilters": "lines=8 allOut=true bookOut=8",
+    "bankLineListPages": "first=5 second=5 overlap=0",
+    "editCategory": "category=0192f0c1-000d-75e9-8fd7-fd7e43c901ee note=Demo note written by the verify drive",
+    "editLineProfile": "lineId=0192f0c1-0027-7c11-8261-2619d29e6868 profileId=0192f0c1-0001-702d-8484-48490b729601",
+    "demoRuleSweep": "0192f0c1-0015-727a-8b92-b929ac9448a7 category-match=1 priority=10 enabled=1",
+    "dashboardSpend": "328955",
+    "dashboardSpendLines": "transaction-demo-02,transaction-demo-03,transaction-demo-04,transaction-demo-05,transaction-demo-11",
+    "dashboardIncome": "480000",
+    "dashboardTransfers": "160000",
+    "dashboardExcluded": "1500",
+    "dashboardPending": "transaction-demo-12",
+    "dashboardCategory": "299000",
+    "dashboardParentCategory": "299000",
+    "subscriptionsActive": "1",
+    "subscriptionsAnnualCost": "358800",
+    "subscriptionsCancelled": "1",
+    "holdingsValueMath": "Demo Bitcoin value=8640000 gain=8040000; Demo World ETF value=780000000 gain=779550000",
+    "holdingsPendingUnknown": "1",
+    "holdingsKnownValue": "788640000",
+    "conversionRecordedLines": "transaction-demo-03 2999 USD -> 2765 EUR at 0.922; transaction-demo-05 12000 GBP -> 14040 EUR at 1.17",
+    "taxPaidTotal": "250000",
+    "taxUnpaidTotal": "312500",
+    "taxYear": "GB 4-6",
+    "invoiceException": "4250 documents=0",
+    "reviewMarks": "tag=Reviewed hasTime=true"
+  },
   "features": {
     "all": [
       "seed",
@@ -46,105 +86,398 @@
       "commands": ["seed"],
       "outputs": ["seed-log", "demo-book"],
       "artifacts": [],
-      "capabilities": []
+      "capabilities": [],
+      "expectations": []
     },
     {
       "id": "build",
       "commands": ["build-import", "build-lines"],
       "outputs": ["build-log"],
       "artifacts": [],
-      "capabilities": []
+      "capabilities": [],
+      "expectations": []
     },
     {
       "id": "feature-map",
       "commands": ["map"],
       "outputs": [],
       "artifacts": [],
-      "capabilities": []
+      "capabilities": [],
+      "expectations": [
+        {
+          "id": "feature-map-matches-capabilities",
+          "equalsDemoNumber": "featureMap"
+        }
+      ]
     },
     {
       "id": "generic",
       "commands": [],
       "outputs": [],
       "artifacts": [],
-      "capabilities": []
+      "capabilities": [],
+      "expectations": [
+        {
+          "id": "money-is-integer-minor-units",
+          "equalsDemoNumber": "moneyIsInteger"
+        },
+        {
+          "id": "currency-is-an-iso-code",
+          "equalsDemoNumber": "currencyIsIsoCode"
+        },
+        {
+          "id": "every-row-belongs-to-a-profile",
+          "equalsDemoNumber": "everyRowInProfile"
+        },
+        {
+          "id": "demo-book-holds-made-up-identities",
+          "equalsDemoNumber": "madeUpIdentities"
+        }
+      ]
     },
     {
       "id": "accounts-and-bank-lines",
       "commands": ["bank-import"],
       "outputs": [],
       "artifacts": ["bank-import-drive.json"],
-      "capabilities": ["listImportTargets", "importBankFile"]
+      "capabilities": ["listImportTargets", "importBankFile"],
+      "expectations": [
+        {
+          "id": "bank-lines-stay-in-their-account",
+          "equals": "0"
+        },
+        {
+          "id": "bank-lines-never-repeat",
+          "equals": "0"
+        },
+        {
+          "id": "demo-accounts",
+          "equalsDemoNumber": "demoAccounts"
+        },
+        {
+          "id": "demo-sync-runs",
+          "equalsDemoNumber": "demoSyncRuns"
+        },
+        {
+          "id": "sync-import-count-matches-lines",
+          "isTrue": true
+        },
+        {
+          "id": "sync-failure-names-itself",
+          "equals": "0"
+        },
+        {
+          "id": "sync-rejections-match-count",
+          "isTrue": true
+        },
+        {
+          "id": "import-targets-listed",
+          "equalsDemoNumber": "importTargets",
+          "capability": "listImportTargets"
+        },
+        {
+          "id": "import-writes-every-line",
+          "equalsDemoNumber": "importWrites",
+          "capability": "importBankFile"
+        },
+        {
+          "id": "import-replay-adds-nothing",
+          "equalsDemoNumber": "importReplay"
+        },
+        {
+          "id": "import-names-a-rejected-line",
+          "equalsDemoNumber": "importRejectedLine"
+        },
+        {
+          "id": "import-refuses-unknown-account",
+          "equalsDemoNumber": "importUnknownAccount"
+        }
+      ]
     },
     {
       "id": "bank-line-list",
       "commands": ["bank-line-list"],
       "outputs": [],
       "artifacts": ["bank-line-list-drive.json"],
-      "capabilities": ["listBankLines"]
+      "capabilities": ["listBankLines"],
+      "expectations": [
+        {
+          "id": "bank-line-list-returns-the-demo-book",
+          "equalsDemoNumber": "bankLineListReturns",
+          "capability": "listBankLines"
+        },
+        {
+          "id": "bank-line-list-orders-newest-first",
+          "isTrue": true
+        },
+        {
+          "id": "bank-line-list-filters-by-direction",
+          "equalsDemoNumber": "bankLineListFilters"
+        },
+        {
+          "id": "bank-line-list-pages-without-repeats",
+          "equalsDemoNumber": "bankLineListPages"
+        }
+      ]
     },
     {
       "id": "bank-line-edit",
       "commands": ["bank-line-edit"],
       "outputs": [],
       "artifacts": ["bank-line-edit-drive.json"],
-      "capabilities": ["editBankLine"]
+      "capabilities": ["editBankLine"],
+      "expectations": [
+        {
+          "id": "bank-line-edit-sets-category-and-note",
+          "equalsDemoNumber": "editCategory",
+          "capability": "editBankLine"
+        },
+        {
+          "id": "bank-line-edit-keeps-the-line-in-its-profile",
+          "equalsDemoNumber": "editLineProfile"
+        },
+        {
+          "id": "bank-line-edit-refuses-an-unknown-line",
+          "equals": "UnknownBankLine"
+        },
+        {
+          "id": "bank-line-edit-refuses-a-foreign-category",
+          "equals": "UnknownCategory"
+        }
+      ]
     },
     {
       "id": "bank-line-review",
       "commands": ["bank-line-review"],
       "outputs": [],
       "artifacts": ["bank-line-review-drive.json"],
-      "capabilities": ["reviewBankLine"]
+      "capabilities": ["reviewBankLine"],
+      "expectations": [
+        {
+          "id": "bank-line-review-marks-the-line",
+          "capability": "reviewBankLine",
+          "equalsDemoNumber": "reviewMarks"
+        },
+        {
+          "id": "bank-line-review-shows-in-the-list",
+          "equals": "Reviewed"
+        },
+        {
+          "id": "bank-line-review-refuses-a-viewer",
+          "equals": "Forbidden"
+        }
+      ]
     },
     {
       "id": "categories-and-rules",
       "commands": [],
       "outputs": [],
       "artifacts": [],
-      "capabilities": []
+      "capabilities": [],
+      "expectations": [
+        {
+          "id": "applied-rule-sets-category",
+          "equals": "0"
+        },
+        {
+          "id": "classification-rule-sets-classification",
+          "equals": "0"
+        },
+        {
+          "id": "rule-targets-stay-in-profile",
+          "equals": "0"
+        },
+        {
+          "id": "merchant-aliases-stay-in-profile",
+          "equals": "0"
+        },
+        {
+          "id": "demo-rule-sweeps-its-line",
+          "equalsDemoNumber": "demoRuleSweep"
+        }
+      ]
     },
     {
       "id": "dashboard-sums",
       "commands": [],
       "outputs": [],
       "artifacts": [],
-      "capabilities": []
+      "capabilities": [],
+      "expectations": [
+        {
+          "id": "dashboard-spend",
+          "equalsDemoNumber": "dashboardSpend"
+        },
+        {
+          "id": "dashboard-spend-lines",
+          "equalsDemoNumber": "dashboardSpendLines"
+        },
+        {
+          "id": "dashboard-income",
+          "equalsDemoNumber": "dashboardIncome"
+        },
+        {
+          "id": "dashboard-transfers",
+          "equalsDemoNumber": "dashboardTransfers"
+        },
+        {
+          "id": "dashboard-excluded",
+          "equalsDemoNumber": "dashboardExcluded"
+        },
+        {
+          "id": "dashboard-pending",
+          "equalsDemoNumber": "dashboardPending"
+        },
+        {
+          "id": "dashboard-category",
+          "equalsDemoNumber": "dashboardCategory"
+        },
+        {
+          "id": "dashboard-parent-category",
+          "equalsDemoNumber": "dashboardParentCategory"
+        }
+      ]
     },
     {
       "id": "subscriptions",
       "commands": [],
       "outputs": [],
       "artifacts": [],
-      "capabilities": []
+      "capabilities": [],
+      "expectations": [
+        {
+          "id": "subscriptions-have-a-frequency-rule",
+          "equals": "0"
+        },
+        {
+          "id": "subscriptions-active",
+          "equalsDemoNumber": "subscriptionsActive"
+        },
+        {
+          "id": "subscriptions-annual-cost",
+          "equalsDemoNumber": "subscriptionsAnnualCost"
+        },
+        {
+          "id": "subscriptions-cancelled",
+          "equalsDemoNumber": "subscriptionsCancelled"
+        }
+      ]
     },
     {
       "id": "investments",
       "commands": [],
       "outputs": [],
       "artifacts": [],
-      "capabilities": []
+      "capabilities": [],
+      "expectations": [
+        {
+          "id": "holdings-value-math",
+          "equalsDemoNumber": "holdingsValueMath"
+        },
+        {
+          "id": "holdings-stay-whole-cents",
+          "equals": "0"
+        },
+        {
+          "id": "holdings-pending-unknown",
+          "equalsDemoNumber": "holdingsPendingUnknown"
+        },
+        {
+          "id": "holdings-known-value",
+          "equalsDemoNumber": "holdingsKnownValue"
+        },
+        {
+          "id": "holdings-platforms",
+          "equals": "0"
+        }
+      ]
     },
     {
       "id": "fx-conversion",
       "commands": [],
       "outputs": [],
       "artifacts": [],
-      "capabilities": []
+      "capabilities": [],
+      "expectations": [
+        {
+          "id": "conversion-rounds-exactly",
+          "equals": "0"
+        },
+        {
+          "id": "conversion-keeps-same-currency",
+          "equals": "0"
+        },
+        {
+          "id": "conversion-has-a-monthly-rate",
+          "equals": "0"
+        },
+        {
+          "id": "conversion-recorded-lines",
+          "equalsDemoNumber": "conversionRecordedLines"
+        }
+      ]
     },
     {
       "id": "tax",
       "commands": [],
       "outputs": [],
       "artifacts": [],
-      "capabilities": []
+      "capabilities": [],
+      "expectations": [
+        {
+          "id": "tax-settles-once",
+          "equals": "0"
+        },
+        {
+          "id": "tax-unpaid-has-no-settlement",
+          "equals": "0"
+        },
+        {
+          "id": "tax-paid-total",
+          "equalsDemoNumber": "taxPaidTotal"
+        },
+        {
+          "id": "tax-unpaid-total",
+          "equalsDemoNumber": "taxUnpaidTotal"
+        },
+        {
+          "id": "tax-year",
+          "equalsDemoNumber": "taxYear"
+        }
+      ]
     },
     {
       "id": "invoices",
       "commands": [],
       "outputs": [],
       "artifacts": [],
-      "capabilities": []
+      "capabilities": [],
+      "expectations": [
+        {
+          "id": "invoice-matches-its-line",
+          "equals": "0"
+        },
+        {
+          "id": "invoice-exception-has-no-document",
+          "equalsDemoNumber": "invoiceException"
+        },
+        {
+          "id": "invoice-unarchived",
+          "equals": "0"
+        },
+        {
+          "id": "invoice-archived",
+          "equals": "0"
+        },
+        {
+          "id": "invoice-vendors",
+          "equals": "0"
+        },
+        {
+          "id": "invoice-archive-states",
+          "equals": "0"
+        }
+      ]
     }
   ]
 }

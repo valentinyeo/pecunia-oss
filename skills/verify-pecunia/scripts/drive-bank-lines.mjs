@@ -126,20 +126,29 @@ const listObservations = () =>
       const firstIds = first.lines.map((line) => line.id);
       const secondIds = second.lines.map((line) => line.id);
       const overlap = secondIds.filter((id) => firstIds.includes(id)).length;
+      const awaiting = page.lines.filter(
+        (line) => line.review._tag === "Awaiting"
+      ).length;
 
       return {
-        awaiting: page.lines.filter((line) => line.review._tag === "Awaiting")
-          .length,
-        capability: "list",
-        demoLines: demoBankLines.length,
-        filtered: {
-          allOut: filtered.lines.every((line) => line.direction === "out"),
-          bookOut,
-          count: filtered.lines.length,
-        },
-        ordered: ordered ? "newest first" : "out of order",
-        pages: { first: firstIds.length, overlap, second: secondIds.length },
-        total: page.lines.length,
+        observations: [
+          {
+            id: "bank-line-list-returns-the-demo-book",
+            value: `total=${page.lines.length} demoLines=${demoBankLines.length} awaiting=${awaiting}`,
+          },
+          {
+            id: "bank-line-list-orders-newest-first",
+            value: ordered ? "true" : "false",
+          },
+          {
+            id: "bank-line-list-filters-by-direction",
+            value: `lines=${filtered.lines.length} allOut=${filtered.lines.every((line) => line.direction === "out")} bookOut=${bookOut}`,
+          },
+          {
+            id: "bank-line-list-pages-without-repeats",
+            value: `first=${firstIds.length} second=${secondIds.length} overlap=${overlap}`,
+          },
+        ],
       };
     }).pipe(Effect.provide(ownerLayer))
   );
@@ -180,19 +189,24 @@ const editObservations = () =>
         .pipe(Effect.result);
 
       return {
-        capability: "edit",
-        edited: {
-          category:
-            Option.isSome(edited.category) && edited.category.value === category
-              ? "category set"
-              : "category kept",
-          lineId: edited.id,
-          note: edited.note === writtenNote ? "note set" : "note kept",
-          profileKept:
-            edited.profileId === demoProfileId && edited.id === target.id,
-        },
-        unknownCategory: failureTag(unknownCategory),
-        unknownLine: failureTag(unknownLine),
+        observations: [
+          {
+            id: "bank-line-edit-sets-category-and-note",
+            value: `category=${Option.isSome(edited.category) ? edited.category.value : "none"} note=${edited.note}`,
+          },
+          {
+            id: "bank-line-edit-keeps-the-line-in-its-profile",
+            value: `lineId=${edited.id} profileId=${edited.profileId}`,
+          },
+          {
+            id: "bank-line-edit-refuses-an-unknown-line",
+            value: failureTag(unknownLine),
+          },
+          {
+            id: "bank-line-edit-refuses-a-foreign-category",
+            value: failureTag(unknownCategory),
+          },
+        ],
       };
     }).pipe(Effect.provide(ownerLayer))
   );
@@ -213,7 +227,9 @@ const reviewObservations = async () => {
       const listed = page.lines.find((line) => line.id === target.id);
 
       return {
-        at: marked.review._tag === "Reviewed" ? "a recorded time" : "no time",
+        at:
+          marked.review._tag === "Reviewed" &&
+          typeof marked.review.at === "number",
         lineId: marked.id,
         listed: listed === undefined ? "missing" : listed.review._tag,
         tag: marked.review._tag,
@@ -226,9 +242,14 @@ const reviewObservations = async () => {
   );
 
   return {
-    capability: "review",
-    reviewed,
-    viewer: failureTag(viewer),
+    observations: [
+      {
+        id: "bank-line-review-marks-the-line",
+        value: `tag=${reviewed.tag} hasTime=${reviewed.at}`,
+      },
+      { id: "bank-line-review-shows-in-the-list", value: reviewed.listed },
+      { id: "bank-line-review-refuses-a-viewer", value: failureTag(viewer) },
+    ],
   };
 };
 

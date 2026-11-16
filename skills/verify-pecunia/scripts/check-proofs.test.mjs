@@ -13,7 +13,12 @@ import { dirname, join } from "node:path";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 
-import { judge, readCapabilities } from "./verdict.mjs";
+import {
+  evaluate,
+  judge,
+  readCapabilities,
+  readPageExpectations,
+} from "./verdict.mjs";
 
 const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = join(SCRIPT_DIR, "..", "..", "..");
@@ -25,7 +30,9 @@ const RECORDS_PATH = join(tmpdir(), "pecunia-check-records.jsonl");
 const FEATURE = "all";
 const table = JSON.parse(readFileSync(TABLE_PATH, "utf8"));
 const capabilities = readCapabilities(FEATURES_DIR);
+const pageExpectations = readPageExpectations(FEATURES_DIR);
 const stepsById = new Map(table.steps.map((step) => [step.id, step]));
+const demoNumbers = table.demoNumbers ?? {};
 
 const makeRandom = (seed) => {
   let state = seed >>> 0;
@@ -39,6 +46,29 @@ const makeRandom = (seed) => {
 
 const pick = (random, items) => items[Math.floor(random() * items.length)];
 
+const satisfyingValue = (expectation) => {
+  if (expectation.equals !== undefined) {
+    return expectation.equals;
+  }
+
+  if (expectation.equalsDemoNumber !== undefined) {
+    return demoNumbers[expectation.equalsDemoNumber];
+  }
+
+  if (expectation.contains !== undefined) {
+    return `before ${expectation.contains} after`;
+  }
+
+  if (expectation.countEquals !== undefined) {
+    return Array.from(
+      { length: expectation.countEquals },
+      (_, index) => `item-${index}`
+    ).join(",");
+  }
+
+  return expectation.isTrue === true ? "true" : "false";
+};
+
 const passingRecords = (feature = FEATURE) =>
   table.features[feature].map((id) => {
     const step = stepsById.get(id);
@@ -49,130 +79,299 @@ const passingRecords = (feature = FEATURE) =>
         name,
         path: join(tmpdir(), name),
       })),
-      checks: [
-        {
-          actual: "ok",
-          expected: "ok",
-          id: `probe-${id}`,
-          title: `Probe for ${id}`,
-        },
-      ],
       commands: step.commands.map((command) => ({ exit: 0, id: command })),
       data: {},
       exit: 0,
       feature,
+      observations: step.expectations.map((expectation) => ({
+        id: expectation.id,
+        value: satisfyingValue(expectation),
+      })),
       outputs: step.outputs.map((name) => ({ found: true, name })),
       step: id,
     };
   });
 
-const judgeRecords = (records, caseTable = table) =>
+const judgeRecords = (
+  records,
+  caseTable = table,
+  casePages = pageExpectations
+) =>
   judge({
     capabilities,
     feature: FEATURE,
+    pageExpectations: casePages,
     records,
     recordsPath: RECORDS_PATH,
     table: caseTable,
   });
 
+const observedRecords = (records) =>
+  records.filter((record) => record.observations.length > 0);
+
+const mutated = (records) => structuredClone(records);
+
 const mutate = (records, random) => {
-  const kind = Math.floor(random() * 8);
+  const kind = Math.floor(random() * 16);
+  const withObservations = observedRecords(records);
+  const record = pick(random, withObservations);
+  const observation = pick(random, record.observations);
 
   if (kind === 0) {
-    const index = Math.floor(random() * records.length);
+    const next = mutated(records);
+
+    next.find((entry) => entry.step === record.step).observations =
+      record.observations.filter((entry) => entry.id !== observation.id);
 
     return {
-      cause: records[index].step,
-      records: records.filter((_, position) => position !== index),
+      cause: observation.id,
+      records: next,
       table,
+      pages: pageExpectations,
     };
   }
 
   if (kind === 1) {
-    const index = Math.floor(random() * records.length);
-    const next = structuredClone(records);
-
-    next.push(structuredClone(records[index]));
-
-    return { cause: records[index].step, records: next, table };
-  }
-
-  if (kind === 2) {
-    const eligible = records.filter((record) => record.commands.length > 0);
-    const record = pick(random, eligible);
-    const command = pick(random, record.commands);
-    const next = structuredClone(records);
-    const target = next
-      .find((entry) => entry.step === record.step)
-      .commands.find((entry) => entry.id === command.id);
-
-    target.exit = 1;
-
-    return { cause: command.id, records: next, table };
-  }
-
-  if (kind === 3) {
-    const eligible = records.filter((record) => record.outputs.length > 0);
-    const record = pick(random, eligible);
-    const output = pick(random, record.outputs);
-    const next = structuredClone(records);
+    const next = mutated(records);
 
     next
       .find((entry) => entry.step === record.step)
-      .outputs.find((entry) => entry.name === output.name).found = false;
+      .observations.find((entry) => entry.id === observation.id).value =
+      "mutated-observation";
 
-    return { cause: output.name, records: next, table };
+    return {
+      cause: observation.id,
+      records: next,
+      table,
+      pages: pageExpectations,
+    };
+  }
+
+  if (kind === 2) {
+    const next = mutated(records);
+
+    next
+      .find((entry) => entry.step === record.step)
+      .observations.push({ id: "probe-unexpected", value: "value" });
+
+    return {
+      cause: "probe-unexpected",
+      records: next,
+      table,
+      pages: pageExpectations,
+    };
+  }
+
+  if (kind === 3) {
+    const next = mutated(records);
+
+    next
+      .find((entry) => entry.step === record.step)
+      .observations.push(structuredClone(observation));
+
+    return {
+      cause: observation.id,
+      records: next,
+      table,
+      pages: pageExpectations,
+    };
   }
 
   if (kind === 4) {
-    const next = structuredClone(records);
+    const caseTable = structuredClone(table);
+    const step = caseTable.steps.find((entry) => entry.id === record.step);
+
+    step.expectations = step.expectations.filter(
+      (expectation) => expectation.id !== observation.id
+    );
+
+    return {
+      cause: observation.id,
+      records: mutated(records),
+      table: caseTable,
+      pages: pageExpectations,
+    };
+  }
+
+  if (kind === 5) {
+    const casePages = structuredClone(pageExpectations);
+    const id = observation.id;
+
+    casePages.crossCutting = casePages.crossCutting.filter(
+      (entry) => entry !== id
+    );
+
+    for (const [page, ids] of casePages.pages) {
+      casePages.pages.set(
+        page,
+        ids.filter((entry) => entry !== id)
+      );
+    }
+
+    return { cause: id, records: mutated(records), table, pages: casePages };
+  }
+
+  if (kind === 6) {
+    const next = mutated(records);
+
+    next.find((entry) => entry.step === record.step).observations = [];
+
+    return {
+      cause: observation.id,
+      records: next,
+      table,
+      pages: pageExpectations,
+    };
+  }
+
+  if (kind === 7) {
+    const index = records.indexOf(record);
+
+    return {
+      cause: record.step,
+      records: records.filter((_, position) => position !== index),
+      table,
+      pages: pageExpectations,
+    };
+  }
+
+  if (kind === 8) {
+    const next = mutated(records);
+
+    next.push(structuredClone(records[records.indexOf(record)]));
+
+    return {
+      cause: record.step,
+      records: next,
+      table,
+      pages: pageExpectations,
+    };
+  }
+
+  if (kind === 9) {
+    const eligible = records.filter((entry) => entry.commands.length > 0);
+
+    if (eligible.length === 0) {
+      return mutate(records, random);
+    }
+
+    const target = pick(random, eligible);
+    const command = pick(random, target.commands);
+    const next = mutated(records);
+
+    next
+      .find((entry) => entry.step === target.step)
+      .commands.find((entry) => entry.id === command.id).exit = 1;
+
+    return {
+      cause: command.id,
+      records: next,
+      table,
+      pages: pageExpectations,
+    };
+  }
+
+  if (kind === 10) {
+    const eligible = records.filter((entry) => entry.outputs.length > 0);
+
+    if (eligible.length === 0) {
+      return mutate(records, random);
+    }
+
+    const target = pick(random, eligible);
+    const output = pick(random, target.outputs);
+    const next = mutated(records);
+
+    next
+      .find((entry) => entry.step === target.step)
+      .outputs.find((entry) => entry.name === output.name).found = false;
+
+    return {
+      cause: output.name,
+      records: next,
+      table,
+      pages: pageExpectations,
+    };
+  }
+
+  if (kind === 11) {
+    const next = mutated(records);
     const ghost = "probe-ghost-step";
 
     next.push({
       artifacts: [],
-      checks: [],
       commands: [],
       data: {},
       exit: 0,
       feature: FEATURE,
+      observations: [],
       outputs: [],
       step: ghost,
     });
 
-    return { cause: ghost, records: next, table };
+    return { cause: ghost, records: next, table, pages: pageExpectations };
   }
 
-  if (kind === 5) {
-    return { cause: "empty", records: [], table };
+  if (kind === 12) {
+    return { cause: "empty", records: [], table, pages: pageExpectations };
   }
 
-  if (kind === 6) {
-    const names = [...capabilities.values()].flat();
-    const name = pick(random, names);
+  if (kind === 13) {
+    const name = pick(random, [...capabilities.values()].flat());
     const caseTable = structuredClone(table);
 
     for (const step of caseTable.steps) {
       step.capabilities = step.capabilities.filter((entry) => entry !== name);
     }
 
-    return { cause: name, records: structuredClone(records), table: caseTable };
+    return {
+      cause: name,
+      records: mutated(records),
+      table: caseTable,
+      pages: pageExpectations,
+    };
   }
 
-  return { cause: "missing", records: undefined, table };
+  if (kind === 14) {
+    return {
+      cause: "missing",
+      records: undefined,
+      table,
+      pages: pageExpectations,
+    };
+  }
+
+  const caseTable = structuredClone(table);
+  const step = caseTable.steps.find((entry) => entry.id === record.step);
+  const expectation = step.expectations.find(
+    (entry) => entry.id === observation.id
+  );
+
+  for (const predicate of [
+    "equals",
+    "equalsDemoNumber",
+    "contains",
+    "countEquals",
+    "isTrue",
+    "isFalse",
+  ]) {
+    delete expectation[predicate];
+  }
+
+  return {
+    cause: observation.id,
+    records: mutated(records),
+    table: caseTable,
+    pages: pageExpectations,
+  };
 };
 
 const injectStepFailure = (source, id) => {
   const header = `step_${id.replaceAll("-", "_")}() {`;
-  const step = stepsById.get(id);
 
   assert.ok(source.includes(header), `${header} is missing`);
 
-  const line =
-    step.commands.length > 0
-      ? `steps_run_command ${step.commands[0]} false`
-      : `check injected-${id} "Injected failure" expected observed`;
-
-  return source.replace(header, `${header}\n  ${line}`);
+  return source.replace(header, `${header}\n  steps_observe injected failure`);
 };
 
 const runProof = (scriptPath, label) => {
@@ -285,10 +484,54 @@ test("every step function has one table entry and every entry has one function",
   );
 });
 
+test("each page expectation id is declared once and resolves to a value", () => {
+  const ids = [
+    ...pageExpectations.crossCutting,
+    ...[...pageExpectations.pages.values()].flat(),
+  ];
+  const tableIds = table.steps.flatMap((step) =>
+    step.expectations.map((expectation) => expectation.id)
+  );
+
+  assert.equal(new Set(pageExpectations.crossCutting).size, 5);
+  assert.equal(new Set(ids).size, ids.length, "a page repeats an id");
+  assert.deepEqual([...tableIds].sort(), [...ids].sort());
+
+  for (const step of table.steps) {
+    for (const expectation of step.expectations) {
+      if (expectation.equalsDemoNumber !== undefined) {
+        assert.ok(
+          demoNumbers[expectation.equalsDemoNumber] !== undefined,
+          `${expectation.id} names demo number ${expectation.equalsDemoNumber}, which the table does not declare`
+        );
+      }
+    }
+  }
+});
+
+test("the closed predicate set compares, counts and negates", () => {
+  const caseOf = (expectation, value) =>
+    evaluate({ demoNumbers, expectation, value }).ok;
+
+  assert.equal(caseOf({ equals: "12" }, "12"), true);
+  assert.equal(caseOf({ equals: "12" }, "12 "), false);
+  assert.equal(caseOf({ equalsDemoNumber: "dashboardSpend" }, "328955"), true);
+  assert.equal(caseOf({ equalsDemoNumber: "absent" }, "328955"), false);
+  assert.equal(caseOf({ contains: "GB 4-6" }, "tax year GB 4-6"), true);
+  assert.equal(caseOf({ contains: "GB 4-6" }, "tax year"), false);
+  assert.equal(caseOf({ countEquals: 5 }, "a,b,c,d,e"), true);
+  assert.equal(caseOf({ countEquals: 5 }, "a,b,c,d"), false);
+  assert.equal(caseOf({ isTrue: true }, "true"), true);
+  assert.equal(caseOf({ isFalse: true }, "false"), true);
+  assert.equal(caseOf({ isFalse: true }, "true"), false);
+  assert.notEqual(caseOf({}, "true"), true);
+  assert.notEqual(caseOf({ equals: "a", isTrue: true }, "a"), true);
+});
+
 test("the unmutated helper passes", () => {
   const result = runProof(SCRIPT_PATH, "check-whole");
   const expected = new RegExp(
-    `^PASS ${table.features[FEATURE].length} steps, \\d+ checks, 0 failed\\.$`,
+    `^PASS ${table.features[FEATURE].length} steps, \\d+ expectations, 0 failed\\.$`,
     "mu"
   );
 
@@ -312,8 +555,9 @@ test("the verdict never passes a mutated record file and names the cause", () =>
       cause,
       records,
       table: caseTable,
+      pages,
     } = mutate(passingRecords(), random);
-    const result = judgeRecords(records, caseTable);
+    const result = judgeRecords(records, caseTable, pages);
     const text = result.failures.join("\n");
     const context = `seed ${seed} case ${index} cause ${cause}`;
 
@@ -326,7 +570,7 @@ test("the verdict never passes a mutated record file and names the cause", () =>
   }
 });
 
-test("a failing command in every step fails the helper closed", () => {
+test("a failing observation in every step fails the helper closed", () => {
   const source = readFileSync(SCRIPT_PATH, "utf8");
   const mutated = table.features[FEATURE].reduce(
     (text, id) => injectStepFailure(text, id),

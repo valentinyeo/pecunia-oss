@@ -33,7 +33,7 @@ Every demo-book run also runs these, whichever feature you select:
 
 `scripts/check-feature-map.mjs` reads every capability implemented in the packages and apps and fails by name when one is on no feature page and not in the table below, when a page marks a feature `planned` while a capability for it exists, or when a page, the status table, and the repository disagree.
 
-The check ids in a page still need a matching check in `scripts/prove-demo-book.sh`. A behavior the app no longer does is either doc drift or a product regression: fix the map for drift, report the regression and keep it out of the map fix.
+The expectation ids in a page must match the declarations in `scripts/step-table.json` exactly: the verdict fails when a page lists an id the table does not declare, and when the table declares an id no page covers. A behavior the app no longer does is either doc drift or a product regression: fix the map for drift, report the regression and keep it out of the map fix.
 
 ## Not money capabilities
 

@@ -15,11 +15,36 @@ const DEFAULT_TABLE = join(SCRIPT_DIR, "step-table.json");
 const DEFAULT_FEATURES = join(SCRIPT_DIR, "..", "features");
 const PASS = "PASS";
 const FAIL = "FAIL";
+const PREDICATES = [
+  "equals",
+  "equalsDemoNumber",
+  "contains",
+  "countEquals",
+  "isTrue",
+  "isFalse",
+];
 
 const asArray = (value) => (Array.isArray(value) ? value : []);
 
 export const readTable = (path = DEFAULT_TABLE) =>
   JSON.parse(readFileSync(path, "utf8"));
+
+const readPageLines = (directory, name) =>
+  readFileSync(join(directory, name), "utf8").split("\n");
+
+const bulletsAfter = (lines, start, pattern) => {
+  const end = lines.findIndex(
+    (line, index) => index > start && line.startsWith("## ")
+  );
+
+  return lines
+    .slice(start + 1, end === -1 ? undefined : end)
+    .flatMap((line) => {
+      const match = pattern.exec(line);
+
+      return match === null ? [] : [match[1]];
+    });
+};
 
 export const readCapabilities = (directory = DEFAULT_FEATURES) => {
   const capabilities = new Map();
@@ -29,29 +54,49 @@ export const readCapabilities = (directory = DEFAULT_FEATURES) => {
       continue;
     }
 
-    const lines = readFileSync(join(directory, name), "utf8").split("\n");
+    const lines = readPageLines(directory, name);
     const start = lines.indexOf("## Capabilities");
 
     if (start === -1) {
       continue;
     }
 
-    const end = lines.findIndex(
-      (line, index) => index > start && line.startsWith("## ")
-    );
-    const section = lines.slice(start + 1, end === -1 ? undefined : end);
-
     capabilities.set(
       name.replace(/\.md$/u, ""),
-      section.flatMap((line) => {
-        const match = /^- `([^`]+)`/u.exec(line);
-
-        return match === null ? [] : [match[1]];
-      })
+      bulletsAfter(lines, start, /^- `([^`]+)`/u)
     );
   }
 
   return capabilities;
+};
+
+export const readPageExpectations = (directory = DEFAULT_FEATURES) => {
+  const pages = new Map();
+
+  for (const name of readdirSync(directory).sort()) {
+    if (!name.endsWith(".md") || name === "README.md") {
+      continue;
+    }
+
+    const lines = readPageLines(directory, name);
+    const start = lines.findIndex((line) =>
+      line.startsWith("Checks this drive runs")
+    );
+
+    pages.set(
+      name.replace(/\.md$/u, ""),
+      start === -1 ? [] : bulletsAfter(lines, start, /^- `([a-z0-9-]+)`: /u)
+    );
+  }
+
+  const lines = readPageLines(directory, "README.md");
+  const start = lines.indexOf("## Cross-cutting checks");
+
+  return {
+    crossCutting:
+      start === -1 ? [] : bulletsAfter(lines, start, /^- `([a-z0-9-]+)`$/u),
+    pages,
+  };
 };
 
 const judgeCommands = ({ fail, record, step }) => {
@@ -116,53 +161,229 @@ const judgeEntries = ({ declared, fail, kind, recorded, step }) => {
   }
 };
 
-const judgeChecks = ({ checks, fail }) => {
-  const ids = new Set();
+export const evaluate = ({ demoNumbers, expectation, value }) => {
+  const declared = PREDICATES.filter((key) => expectation[key] !== undefined);
 
-  for (const check of checks) {
-    if (ids.has(check.id)) {
-      fail(`check ${check.id} is recorded more than once`);
+  if (declared.length !== 1) {
+    return {
+      actual: value === undefined ? "not observed" : value,
+      expected: `one of ${PREDICATES.join(", ")}`,
+      ok: false,
+      problem:
+        declared.length === 0
+          ? `expectation ${expectation.id} declares no predicate`
+          : `expectation ${expectation.id} declares ${declared.length} predicates`,
+    };
+  }
+
+  const predicate = declared[0];
+
+  if (predicate === "equals") {
+    return {
+      actual: value,
+      expected: expectation.equals,
+      ok: value === expectation.equals,
+    };
+  }
+
+  if (predicate === "equalsDemoNumber") {
+    const expected = demoNumbers[expectation.equalsDemoNumber];
+
+    return {
+      actual: value,
+      expected:
+        expected === undefined
+          ? `demo number ${expectation.equalsDemoNumber} (not declared)`
+          : expected,
+      ok: expected !== undefined && value === expected,
+    };
+  }
+
+  if (predicate === "contains") {
+    return {
+      actual: value,
+      expected: `contains ${expectation.contains}`,
+      ok: value.includes(expectation.contains),
+    };
+  }
+
+  if (predicate === "countEquals") {
+    const counted = value
+      .split(",")
+      .filter((item) => item.trim().length > 0).length;
+
+    return {
+      actual: value,
+      expected: `count ${expectation.countEquals}`,
+      ok: counted === expectation.countEquals,
+    };
+  }
+
+  return {
+    actual: value,
+    expected: predicate === "isTrue" ? "true" : "false",
+    ok: value === (predicate === "isTrue" ? "true" : "false"),
+  };
+};
+
+const judgeExpectations = ({
+  demoNumbers,
+  fail,
+  record,
+  step,
+  expectations,
+  observed,
+  evaluated,
+  seen,
+}) => {
+  const declared = new Map();
+
+  for (const expectation of asArray(step.expectations)) {
+    if (declared.has(expectation.id)) {
+      fail(`step ${step.id} declares expectation ${expectation.id} twice`);
+      continue;
     }
 
-    ids.add(check.id);
-
-    if (check.expected !== check.actual) {
+    if (seen.has(expectation.id)) {
       fail(
-        `check ${check.id} expected ${check.expected} and observed ${check.actual}`
+        `step ${step.id} declares expectation ${expectation.id}, which another step already declares`
+      );
+      continue;
+    }
+
+    declared.set(expectation.id, expectation);
+    seen.add(expectation.id);
+
+    if (
+      expectation.capability !== undefined &&
+      !asArray(step.capabilities).includes(expectation.capability)
+    ) {
+      fail(
+        `step ${step.id} expectation ${expectation.id} names capability ${expectation.capability}, which the step does not declare`
       );
     }
   }
+
+  for (const [id, expectation] of declared) {
+    const found = observed.filter((entry) => entry.id === id);
+
+    if (found.length === 0) {
+      fail(`step ${step.id} expectation ${id} was not observed`);
+      expectations.push({
+        actual: "not observed",
+        expected: asArray(PREDICATES)
+          .filter((key) => expectation[key] !== undefined)
+          .map((key) => `${key} ${expectation[key]}`)
+          .join(" "),
+        id,
+        passed: false,
+        step: step.id,
+      });
+      continue;
+    }
+
+    if (found.length > 1) {
+      fail(`step ${step.id} observed ${id} ${found.length} times`);
+      expectations.push({
+        actual: `${found.length} observations`,
+        expected: "one observation",
+        id,
+        passed: false,
+        step: step.id,
+      });
+      continue;
+    }
+
+    const value =
+      typeof found[0].value === "string"
+        ? found[0].value
+        : JSON.stringify(found[0].value ?? null);
+    const result = evaluate({
+      demoNumbers,
+      expectation,
+      value,
+    });
+
+    evaluated.push(id);
+
+    if (result.problem !== undefined) {
+      fail(`step ${step.id} ${result.problem}`);
+    }
+
+    if (!result.ok && result.problem === undefined) {
+      fail(
+        `step ${step.id} expectation ${id} expected ${result.expected} and observed ${result.actual}`
+      );
+    }
+
+    expectations.push({
+      actual: result.actual ?? "not observed",
+      expected: result.expected,
+      id,
+      passed: result.ok,
+      step: step.id,
+    });
+  }
+
+  for (const entry of observed) {
+    if (!declared.has(entry.id)) {
+      fail(
+        `step ${step.id} observed ${entry.id}, which the step table does not expect`
+      );
+    }
+  }
+
+  return declared.size;
 };
 
 const judgeCoverage = ({
   capabilities,
   fail,
   feature,
-  listed,
   planned,
+  ran,
   table,
 }) => {
   const pages = feature === "all" ? [...capabilities.keys()] : [feature];
 
   for (const page of pages) {
     for (const name of capabilities.get(page) ?? []) {
-      const mapped = asArray(table.steps)
-        .filter((step) => asArray(step.capabilities).includes(name))
-        .map((step) => step.id);
+      const owners = asArray(table.steps).filter(
+        (step) =>
+          planned.includes(step.id) && asArray(step.capabilities).includes(name)
+      );
 
-      if (mapped.length === 0) {
-        fail(`capability ${name} has no drive step in the step table`);
+      if (owners.length === 0) {
+        fail(`${page} capability ${name} has no drive step in the step table`);
         continue;
       }
 
-      const driven = mapped.some(
-        (id) =>
-          planned.includes(id) && listed.some((record) => record.step === id)
-      );
+      const proven = owners
+        .filter((step) => ran.has(step.id))
+        .flatMap((step) => asArray(step.expectations))
+        .filter((expectation) => expectation.capability === name);
 
-      if (!driven) {
-        fail(`capability ${name} has no drive step that ran`);
+      if (proven.length === 0) {
+        fail(`${page} capability ${name} has no declared expectation`);
       }
+    }
+  }
+};
+
+const judgePages = ({ expected, fail, feature, tableIds }) => {
+  const allowed = new Set(expected);
+
+  for (const id of expected) {
+    if (!tableIds.has(id)) {
+      fail(`feature page expectation ${id} has no entry in the step table`);
+    }
+  }
+
+  for (const id of tableIds) {
+    if (!allowed.has(id)) {
+      fail(
+        `step table expectation ${id} is on no feature page the ${feature} run covers`
+      );
     }
   }
 };
@@ -170,6 +391,7 @@ const judgeCoverage = ({
 export const judge = ({
   capabilities,
   feature,
+  pageExpectations,
   records,
   recordsError,
   recordsPath,
@@ -184,7 +406,10 @@ export const judge = ({
   const listed = records ?? [];
   const steps = new Map(asArray(table.steps).map((step) => [step.id, step]));
   const seen = new Set();
-  const checks = [];
+  const expectations = [];
+  const evaluated = [];
+  const ran = new Set();
+  let declared = 0;
 
   if (recordsError === undefined) {
     if (records === undefined) {
@@ -216,6 +441,7 @@ export const judge = ({
     }
 
     seen.add(record.step);
+    ran.add(step.id);
 
     if (record.exit !== 0) {
       fail(`step ${record.step} exited ${record.exit}`);
@@ -236,10 +462,16 @@ export const judge = ({
       recorded: record.artifacts,
       step: step.id,
     });
-
-    for (const check of asArray(record.checks)) {
-      checks.push({ ...check, feature, step: step.id });
-    }
+    declared += judgeExpectations({
+      demoNumbers: table.demoNumbers ?? {},
+      evaluated,
+      expectations,
+      fail,
+      observed: asArray(record.observations),
+      record,
+      seen,
+      step,
+    });
   }
 
   if (listed.length > 0) {
@@ -250,11 +482,48 @@ export const judge = ({
     }
   }
 
-  judgeChecks({ checks, fail });
-  judgeCoverage({ capabilities, fail, feature, listed, planned, table });
+  judgeCoverage({ capabilities, fail, feature, planned, ran, table });
+
+  const pages = pageExpectations ?? { crossCutting: [], pages: new Map() };
+  const featurePages =
+    feature === "all"
+      ? [...pages.pages.keys()]
+      : pages.pages.has(feature)
+        ? [feature]
+        : [];
+
+  if (pages.crossCutting.length === 0) {
+    fail("the feature map cross-cutting section lists no expectation ids");
+  }
+
+  for (const page of featurePages) {
+    if ((pages.pages.get(page) ?? []).length === 0) {
+      fail(`the ${page} page lists no expectation ids`);
+    }
+  }
+
+  const expected = [
+    ...pages.crossCutting,
+    ...featurePages.flatMap((page) => pages.pages.get(page) ?? []),
+  ];
+  const tableIds = new Set(
+    planned.flatMap((id) =>
+      asArray(steps.get(id)?.expectations).map((expectation) => expectation.id)
+    )
+  );
+
+  judgePages({ expected, fail, feature, tableIds });
+
+  if (evaluated.length !== declared) {
+    fail(
+      `${evaluated.length} of ${declared} declared expectations were evaluated`
+    );
+  }
 
   return {
-    checks,
+    declared,
+    evaluated: evaluated.length,
+    expectations,
     failures,
     passed: failures.length === 0,
     steps: planned,
@@ -305,8 +574,8 @@ const proofMarkdown = ({
   records,
   result,
 }) => {
-  const failedChecks = result.checks.filter(
-    (check) => check.expected !== check.actual
+  const failedExpectations = result.expectations.filter(
+    (expectation) => !expectation.passed
   ).length;
   const lines = [];
   const commands = [];
@@ -347,7 +616,7 @@ const proofMarkdown = ({
   lines.push(
     "## Steps",
     "",
-    "| Step | Exit | Commands | Checks |",
+    "| Step | Exit | Commands | Expectations |",
     "| --- | --- | --- | --- |"
   );
 
@@ -360,11 +629,11 @@ const proofMarkdown = ({
         : asArray(record.commands)
             .map((command) => `\`${command.id}\` ${command.exit}`)
             .join(", ");
-    const checkCount = result.checks.filter(
-      (check) => check.step === id
+    const count = result.expectations.filter(
+      (expectation) => expectation.step === id
     ).length;
 
-    lines.push(`| \`${id}\` | ${exit} | ${commandList} | ${checkCount} |`);
+    lines.push(`| \`${id}\` | ${exit} | ${commandList} | ${count} |`);
   }
 
   lines.push(
@@ -375,17 +644,15 @@ const proofMarkdown = ({
     data.seedRows ?? "",
     "```",
     "",
-    "## Checks",
+    "## Expectations",
     "",
-    "| Check | Result | Expected | Observed |",
+    "| Expectation | Result | Expected | Observed |",
     "| --- | --- | --- | --- |"
   );
 
-  for (const check of result.checks) {
-    const outcome = check.expected === check.actual ? "passed" : "failed";
-
+  for (const expectation of result.expectations) {
     lines.push(
-      `| \`${check.id}\` ${check.title} | ${outcome} | \`${check.expected}\` | \`${check.actual}\` |`
+      `| \`${expectation.id}\` | ${expectation.passed ? "passed" : "failed"} | \`${expectation.expected}\` | \`${expectation.actual}\` |`
     );
   }
 
@@ -403,11 +670,11 @@ const proofMarkdown = ({
 
   if (passed) {
     lines.push(
-      `${PASS}: ${result.steps.length} steps ran, ${result.checks.length} checks held against the seeded demo book.`
+      `${PASS}: ${result.steps.length} steps ran, ${result.evaluated} expectations held against the seeded demo book.`
     );
   } else {
     lines.push(
-      `${FAIL}: ${failures.length} problems, ${failedChecks} of ${result.checks.length} checks failed.`,
+      `${FAIL}: ${failures.length} problems, ${failedExpectations} of ${result.expectations.length} expectations failed, ${result.evaluated} of ${result.declared} declared expectations evaluated.`,
       ""
     );
 
@@ -422,7 +689,7 @@ const proofMarkdown = ({
     lines.push(
       "- The migrations and the demo seed fill a real SQLite database with the demo book.",
       "- Every money value read back is an integer of minor units with an ISO currency code.",
-      "- Every check named above held for the demo data against its stated expected value."
+      "- Every expectation named above matched its observation for the demo data."
     );
 
     for (const line of artifacts) {
@@ -437,7 +704,7 @@ const proofMarkdown = ({
     "## What this does not prove",
     "",
     "- The capability drives run on the package memory ledger and the demo seed; a persistent store and the RPC, MCP, and CLI projections are not exercised.",
-    "- No finance screen is reached, so the demo-book checks read the seeded data at the data layer.",
+    "- No finance screen is reached, so the demo-book expectations read the seeded data at the data layer.",
     ""
   );
 
@@ -457,16 +724,15 @@ const writeEvidence = ({
 }) => {
   mkdirSync(evidence, { recursive: true });
 
-  const checks = result.checks.map((check) => ({
-    actual: check.actual,
-    expected: check.expected,
-    feature: check.feature,
-    id: check.id,
-    passed: check.expected === check.actual,
-    step: check.step,
-    title: check.title,
+  const checks = result.expectations.map((expectation) => ({
+    actual: expectation.actual,
+    expected: expectation.expected,
+    feature,
+    id: expectation.id,
+    passed: expectation.passed,
+    step: expectation.step,
   }));
-  const failedChecks = checks.filter((check) => !check.passed).length;
+  const failed = checks.filter((expectation) => !expectation.passed).length;
   const failedSteps = asArray(records).filter(
     (record) => record.exit !== 0
   ).length;
@@ -474,8 +740,10 @@ const writeEvidence = ({
     branch: data.branch ?? "unknown",
     checks,
     commit: data.commit ?? "unknown",
+    declared: result.declared,
     demoBookSha256: data.demoBookSha256 ?? "unknown",
-    failed: failedChecks,
+    evaluated: result.evaluated,
+    failed,
     failedSteps,
     failures,
     feature,
@@ -565,6 +833,7 @@ const runCheck = (arguments_) => {
   const result = judge({
     capabilities: readCapabilities(featuresDirectory),
     feature,
+    pageExpectations: readPageExpectations(featuresDirectory),
     records,
     recordsError,
     recordsPath,
@@ -592,19 +861,19 @@ const runCheck = (arguments_) => {
     process.stderr.write(`${FAIL} ${failure}\n`);
   }
 
-  const failedChecks = result.checks.filter(
-    (check) => check.expected !== check.actual
+  const failedExpectations = result.expectations.filter(
+    (expectation) => !expectation.passed
   ).length;
 
   process.stdout.write(`Proof: ${join(evidence, "PROOF.md")}\n`);
 
   if (passed) {
     process.stdout.write(
-      `${PASS} ${result.steps.length} steps, ${result.checks.length} checks, 0 failed.\n`
+      `${PASS} ${result.steps.length} steps, ${result.evaluated} expectations, 0 failed.\n`
     );
   } else {
     process.stdout.write(
-      `${FAIL} ${result.failures.length} problems, ${failedChecks} of ${result.checks.length} checks failed.\n`
+      `${FAIL} ${result.failures.length} problems, ${failedExpectations} of ${result.expectations.length} expectations failed, ${result.evaluated} of ${result.declared} declared expectations evaluated.\n`
     );
   }
 

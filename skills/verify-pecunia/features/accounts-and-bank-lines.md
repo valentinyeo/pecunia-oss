@@ -87,9 +87,9 @@ node skills/verify-pecunia/scripts/drive-bank-lines.mjs --capability edit
 node skills/verify-pecunia/scripts/drive-bank-lines.mjs --capability review
 ```
 
-`drive-bank-import.mjs` reads the seeded demo book for its import targets, then drives `listImportTargets` and `importBankFile` through the package handlers with the memory ledger and the demo CSV fixture. It prints one JSON object: the listed targets, the first import summary, the replay summary, the rejected line, and the unknown-account refusal. The helper writes the same object to `bank-import-drive.json` next to `proof.json`.
+`drive-bank-import.mjs` reads the seeded demo book for its import targets, then drives `listImportTargets` and `importBankFile` through the package handlers with the memory ledger and the demo CSV fixture. It prints its named observations as one JSON object: the listed target, the first import summary, the replay summary, the rejected line, and the unknown-account refusal. The helper writes the same object to `bank-import-drive.json` next to `proof.json`.
 
-`drive-bank-lines.mjs` drives one bank-line capability per run against the demo seed with the memory store. `list` prints the total, the awaiting count, the ordering, the filtered count, and the two pages. `edit` prints the edited category and note, the profile check, and the two refusals. `review` prints the review time, the list read-back, and the viewer refusal. The helper writes each object to `bank-line-<capability>-drive.json` next to `proof.json`.
+`drive-bank-lines.mjs` drives one bank-line capability per run against the demo seed with the memory store. `list` observes the total and awaiting count, the ordering, the out filter with its `allOut` flag, and the two pages. `edit` observes the stored category and note, the line's profile, and the two refusals. `review` observes the review tag and time, the list read-back, and the viewer refusal. The helper writes each object to `bank-line-<capability>-drive.json` next to `proof.json`. No drive compares a value with an expected one; `scripts/verdict.mjs` does that from `scripts/step-table.json`.
 
 ## Proof a pull request must attach
 

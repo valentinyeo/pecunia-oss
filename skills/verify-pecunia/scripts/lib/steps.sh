@@ -5,7 +5,7 @@ STEPS_META_FILE=
 STEPS_COMMANDS_FILE=
 STEPS_OUTPUTS_FILE=
 STEPS_ARTIFACTS_FILE=
-STEPS_CHECKS_FILE=
+STEPS_OBSERVATIONS_FILE=
 STEPS_CURRENT=
 
 steps_init() {
@@ -27,11 +27,11 @@ steps_reset_step() {
   STEPS_COMMANDS_FILE=$STEPS_STATE_DIR/commands.tsv
   STEPS_OUTPUTS_FILE=$STEPS_STATE_DIR/outputs.tsv
   STEPS_ARTIFACTS_FILE=$STEPS_STATE_DIR/artifacts.tsv
-  STEPS_CHECKS_FILE=$STEPS_STATE_DIR/checks.jsonl
+  STEPS_OBSERVATIONS_FILE=$STEPS_STATE_DIR/observations.tsv
   : > "$STEPS_COMMANDS_FILE"
   : > "$STEPS_OUTPUTS_FILE"
   : > "$STEPS_ARTIFACTS_FILE"
-  : > "$STEPS_CHECKS_FILE"
+  : > "$STEPS_OBSERVATIONS_FILE"
 }
 
 steps_run_command() {
@@ -63,10 +63,19 @@ steps_keep_artifact() {
   return 0
 }
 
-check() {
-  local id=$1 title=$2 expected=$3 actual=$4
-  jq -cn --arg id "$id" --arg title "$title" --arg expected "$expected" --arg actual "$actual" '{id: $id, title: $title, expected: $expected, actual: $actual}' >> "$STEPS_CHECKS_FILE"
-  printf 'check %s expected=%s observed=%s\n' "$id" "$expected" "$actual"
+steps_observe() {
+  local id=$1 value=$2
+  printf '%s\t%s\n' "$id" "$(printf '%s' "$value" | tr '\t\n' '  ')" >> "$STEPS_OBSERVATIONS_FILE"
+  printf 'observation %s=%s\n' "$id" "$value"
+  return 0
+}
+
+steps_observe_json() {
+  local path=$1 id value
+  while IFS=$'\t' read -r id value; do
+    [ -n "$id" ] || continue
+    steps_observe "$id" "$value"
+  done < <(jq -r '(.observations // [])[] | [.id, .value] | @tsv' "$path" 2>/dev/null || true)
   return 0
 }
 
@@ -79,7 +88,7 @@ steps_write_record() {
     --rawfile commands "$STEPS_COMMANDS_FILE" \
     --rawfile outputs "$STEPS_OUTPUTS_FILE" \
     --rawfile artifacts "$STEPS_ARTIFACTS_FILE" \
-    --slurpfile checks "$STEPS_CHECKS_FILE" \
+    --rawfile observations "$STEPS_OBSERVATIONS_FILE" \
     --slurpfile meta "$STEPS_META_FILE" \
     '{
       step: $step,
@@ -88,7 +97,7 @@ steps_write_record() {
       commands: [$commands | split("\n")[] | select(length > 0) | split("\t") | {id: .[0], exit: (.[1] | tonumber)}],
       outputs: [$outputs | split("\n")[] | select(length > 0) | split("\t") | {name: .[0], found: (.[1] == "yes")}],
       artifacts: [$artifacts | split("\n")[] | select(length > 0) | split("\t") | {name: .[0], found: (.[1] == "yes"), path: .[2]}],
-      checks: $checks,
+      observations: [$observations | split("\n")[] | select(length > 0) | split("\t") | {id: .[0], value: (.[1:] | join("\t"))}],
       data: ($meta | from_entries)
     }' >> "$STEPS_RECORDS"
 }
@@ -102,6 +111,6 @@ steps_run_step() {
     printf 'step %s was not recorded\n' "$id" >&2
     return 0
   fi
-  [ "$status" -eq 0 ] || printf 'step %s exited %s\n' "$id" "$status" >&2
+  [ "$status" -eq 0 ] || printf 'step %s exited %s\n' "$id" >&2
   return 0
 }

@@ -91,14 +91,31 @@ const observations = await Effect.runPromise(
     const unknown = yield* importBankFile
       .handler(request(content, UNKNOWN_ACCOUNT, "demo-bank.csv"))
       .pipe(Effect.result);
+    const first = listed[0];
 
     return {
-      listed,
-      imported,
-      replayed,
-      broken,
-      unknownAccount:
-        unknown._tag === "Failure" ? unknown.failure._tag : "Imported",
+      observations: [
+        {
+          id: "import-targets-listed",
+          value: `label=${first.label} kind=${first.kind} base=${first.baseCurrency} provider=${first.providerLabel}`,
+        },
+        {
+          id: "import-writes-every-line",
+          value: `imported=${imported.imported} alreadyImported=${imported.alreadyImported} rejected=${imported.rejected.length}`,
+        },
+        {
+          id: "import-replay-adds-nothing",
+          value: `imported=${replayed.imported} alreadyImported=${replayed.alreadyImported}`,
+        },
+        {
+          id: "import-names-a-rejected-line",
+          value: `imported=${broken.imported} rejected=${broken.rejected.length} reason=${broken.rejected[0].reason}`,
+        },
+        {
+          id: "import-refuses-unknown-account",
+          value: unknown._tag === "Failure" ? unknown.failure._tag : "Imported",
+        },
+      ],
     };
   }).pipe(Effect.provide(layer))
 );
