@@ -3,9 +3,10 @@
 // oxlint-disable anti-slop/require-safety-comment-for-type-assertion, eslint/prefer-object-spread, eslint/prefer-destructuring, typescript/no-unnecessary-type-assertion -- the adversarial property test injects strays through untyped handles by design
 // oxlint-disable anti-slop/no-object-parameters, anti-slop/no-runtime-typeof, anti-slop/no-reflect-get -- the adversarial property test walks untrusted decoded trees on purpose
 
-import { DateTime, Option, Predicate, Result, Schema } from "effect";
+import { expect, it } from "@effect/vitest";
+import { DateTime, Effect, Option, Predicate, Result, Schema } from "effect";
 import type { SchemaAST } from "effect";
-import { describe, expect, it } from "vitest";
+import { describe } from "vitest";
 
 import { parse, render, schemaOf, verified } from "../../src/model/codec.js";
 import type { ModelCodec } from "../../src/model/codec.js";
@@ -2324,4 +2325,412 @@ describe("every node rejects a foreign own key attached any way", () => {
       })
     ).toThrow(/rate/u);
   });
+});
+
+interface UnionDoor {
+  readonly handle: Handle;
+  readonly name: string;
+  readonly wires: readonly Wire[];
+}
+
+const unionDoors: readonly UnionDoor[] = [
+  {
+    handle: model.codecs.amounts as never,
+    name: "amounts",
+    wires: [sameCurrencyWire, convertedWire],
+  },
+  {
+    handle: model.codecs.categorization as never,
+    name: "categorization",
+    wires: ["Applied", "Confirmed", "None", "Suggested"].map(
+      categorizationWire
+    ),
+  },
+  {
+    handle: model.codecs.classification as never,
+    name: "classification",
+    wires: [
+      "Excluded",
+      "Income",
+      "InternalTransfer",
+      "None",
+      "Refund",
+      "SelfTransfer",
+      "TaxPayment",
+    ].map(classificationWire),
+  },
+  {
+    handle: model.codecs.archiveState as never,
+    name: "archiveState",
+    wires: ["Archived", "Failed", "Reserved", "Unarchived"].map(archiveWire),
+  },
+  {
+    handle: model.codecs.taxObligationStatus as never,
+    name: "taxObligationStatus",
+    wires: ["Estimated", "Paid", "WrittenOff"].map(taxStatusWire),
+  },
+  {
+    handle: model.codecs.syncRunState as never,
+    name: "syncRunState",
+    wires: [
+      "Cancelled",
+      "Categorizing",
+      "ChunkDone",
+      "Failed",
+      "Running",
+      "Succeeded",
+    ].map(syncStateWire),
+  },
+  {
+    handle: model.codecs.subscriptionStatus as never,
+    name: "subscriptionStatus",
+    wires: [
+      "Cancelled",
+      "Confirmed",
+      "Detected",
+      "Dismissed",
+      "NotRecurring",
+    ].map((tag) => subscriptionStatusWire(tag)),
+  },
+  {
+    handle: model.codecs.rule as never,
+    name: "rule",
+    wires: [
+      "categorize",
+      "exclude",
+      "income_client",
+      "internal_transfer",
+      "refund",
+      "self_transfer",
+      "tax_payment",
+    ].map(ruleWire),
+  },
+];
+
+const stampOf = () => DateTime.makeUnsafe("2024-02-01T09:00:00Z");
+
+const forgedMoneyOf = (): object =>
+  Object.assign({ currency: "EUR", minor: 1000 }, { rate: "0.85" });
+
+const hiddenRateMoneyOf = (): object =>
+  Object.defineProperty({ currency: "EUR", minor: 1000 }, "rate", {
+    configurable: true,
+    value: "0.85",
+  });
+
+const attemptCall = (run: () => unknown): unknown => {
+  try {
+    return run();
+  } catch (error) {
+    return error;
+  }
+};
+
+const siblingKeysOf = (
+  branch: unknown,
+  siblings: readonly unknown[]
+): readonly ForeignKey[] => {
+  const own = new Set(Reflect.ownKeys(branch as object));
+  const keys = new Set<ForeignKey>();
+
+  for (const sibling of siblings) {
+    for (const key of Reflect.ownKeys(sibling as object)) {
+      if (!own.has(key)) {
+        keys.add(key);
+      }
+    }
+  }
+
+  return [...keys];
+};
+
+describe("a union resolves to one branch before it checks keys", () => {
+  it("rejects a key that only a sibling union branch allows", () => {
+    let cases = 0;
+
+    for (const { handle, name, wires } of unionDoors) {
+      const branches = wires.map((wire) => handle.decode(wire));
+
+      for (const [index, decoded] of branches.entries()) {
+        if (Result.isFailure(decoded)) {
+          continue;
+        }
+
+        const branch = decoded.success;
+
+        const siblings = branches.flatMap((other) =>
+          Result.isSuccess(other) ? [other.success] : []
+        );
+
+        for (const siblingKey of siblingKeysOf(branch, siblings)) {
+          const seed = String(siblingKey);
+
+          const candidates: readonly ForeignKey[] = [siblingKey, Symbol(seed)];
+
+          for (const key of candidates) {
+            for (const method of attachMethods) {
+              if (Object.hasOwn(branch as object, key)) {
+                continue;
+              }
+
+              const holder: { current: unknown } = { current: branch };
+              const label = `${name} branch ${String(index)} ${method} ${String(key)} seed ${SEED}`;
+
+              const restore = attachForeign(
+                {
+                  key: undefined,
+                  label,
+                  node: branch as object,
+                  parent: undefined,
+                },
+                holder,
+                method,
+                key,
+                strayValue(seed)
+              );
+
+              if (restore === undefined) {
+                continue;
+              }
+
+              try {
+                expectEveryDoorRejects(
+                  handle,
+                  holder.current,
+                  String(key),
+                  label
+                );
+                cases += 3;
+              } finally {
+                restore();
+              }
+            }
+          }
+        }
+      }
+    }
+
+    expect(cases).toBeGreaterThanOrEqual(280);
+  });
+
+  it("rejects a sibling key on a union nested in a transaction", () => {
+    const transaction = parse(codecs.transaction, transactionWire(true));
+
+    const nested = [
+      {
+        key: "categoryId",
+        attach: (value: Wire) => {
+          const categorization = Object.hasOwn(value, "categorization")
+            ? value.categorization
+            : undefined;
+
+          return Object.assign(categorization as object, {
+            categoryId: str(4),
+          });
+        },
+        path: "categorization",
+      },
+      {
+        key: "ruleId",
+        attach: (value: Wire) => {
+          const classification = Object.hasOwn(value, "classification")
+            ? value.classification
+            : undefined;
+
+          return Object.assign(classification as object, { ruleId: str(7) });
+        },
+        path: "classification",
+      },
+      {
+        key: "base",
+        attach: (value: Wire) => {
+          const amounts = Object.hasOwn(value, "amounts")
+            ? value.amounts
+            : undefined;
+
+          return Object.assign(amounts as object, {
+            base: { currency: "EUR", minor: 1000 },
+          });
+        },
+        path: "amounts",
+      },
+    ];
+
+    for (const { key, attach, path } of nested) {
+      const forged = structuredClone(transaction) as Wire;
+
+      attach(forged);
+
+      const label = `transaction.${path} ${key} seed ${SEED}`;
+
+      expectEveryDoorRejects(codecs.transaction as never, forged, key, label);
+    }
+  });
+});
+
+describe("a readable timestamp stays a storable timestamp", () => {
+  const readApis = Object.entries(DateTime as Readonly<Record<string, unknown>>)
+    .filter(
+      (entry): entry is [string, (self: object) => unknown] =>
+        typeof entry[1] === "function"
+    )
+    .map(([name, api]) => ({
+      name,
+      read: (value: object): void => {
+        const result = attemptCall(() => api(value));
+
+        if (typeof result === "function") {
+          attemptCall(() => (result as (self: object) => unknown)(value));
+        }
+      },
+    }));
+
+  it("round-trips a timestamp after every DateTime read API", () => {
+    let cases = 0;
+
+    for (const { name, read } of readApis) {
+      const value = stampOf();
+
+      read(value);
+
+      const label = `${name} seed ${SEED}`;
+      const decoded = codecs.timestamp.decode(value);
+
+      expect(
+        Result.isFailure(decoded) ? decoded.failure.message : "accepted",
+        `${label} decode`
+      ).toBe("accepted");
+
+      expect(
+        Result.isFailure(codecs.timestamp.encode(value as never)),
+        `${label} encode`
+      ).toBe(false);
+
+      expect(
+        () => verified(codecs.timestamp, value),
+        `${label} verified`
+      ).not.toThrow();
+
+      cases += 1;
+    }
+
+    expect(cases).toBeGreaterThanOrEqual(80);
+  });
+
+  it("rejects a foreign key attached after a DateTime read API", () => {
+    const readApisWithCaches = readApis.filter(({ name }) =>
+      [
+        "getPart",
+        "getPartUtc",
+        "toParts",
+        "toPartsUtc",
+        "toEpochMillis",
+        "formatIso",
+      ].includes(name)
+    );
+
+    expect(readApisWithCaches.length).toBeGreaterThanOrEqual(5);
+
+    for (const { name, read } of readApisWithCaches) {
+      for (const method of attachMethods) {
+        const value = stampOf();
+        const holder: { current: unknown } = { current: value };
+
+        read(value);
+
+        const label = `timestamp ${name} ${method} seed ${SEED}`;
+
+        const restore = attachForeign(
+          {
+            key: undefined,
+            label,
+            node: value,
+            parent: undefined,
+          },
+          holder,
+          method,
+          "rate",
+          "0.85"
+        );
+
+        if (restore === undefined) {
+          continue;
+        }
+
+        try {
+          expectEveryDoorRejects(
+            codecs.timestamp as never,
+            holder.current,
+            "rate",
+            label
+          );
+        } finally {
+          restore();
+        }
+      }
+    }
+  });
+});
+
+describe("the money operations refuse a money that carries a foreign key", () => {
+  it.effect(
+    "rejects an attached rate at atRate, convert, addMoney and subtractMoney",
+    () =>
+      Effect.gen(function* forgeMoneyOperations() {
+        const rate = rateOf("0.85");
+        const money = moneyOf("EUR", 1000);
+        let cases = 0;
+
+        for (const forged of [forgedMoneyOf(), hiddenRateMoneyOf()]) {
+          const atRate = model.BaseAmount.atRate(
+            forged as never,
+            money.currency,
+            rate
+          );
+
+          expect(
+            Result.isFailure(atRate) ? atRate.failure.message : "accepted",
+            `atRate seed ${SEED}`
+          ).toContain("rate");
+
+          const converts: readonly Effect.Effect<unknown, Error>[] = [
+            model.BaseAmount.convert(forged as never, money.currency, () =>
+              Option.none()
+            ),
+            model.convert(forged as never, money.currency, () => Option.none()),
+            model.addMoney(forged as never, money),
+            model.addMoney(money, forged as never),
+            model.subtractMoney(forged as never, money),
+            model.subtractMoney(money, forged as never),
+          ];
+
+          for (const effect of converts) {
+            const result = yield* Effect.result(effect);
+
+            expect(
+              Result.isFailure(result) ? result.failure.message : "accepted",
+              `effect seed ${SEED}`
+            ).toContain("rate");
+
+            cases += 1;
+          }
+
+          const converting = model.ConvertedAmount.converting(
+            forged as never,
+            currencyOf("USD"),
+            rate,
+            dateOf("2024-01-30")
+          );
+
+          expect(
+            Result.isFailure(converting)
+              ? converting.failure.message
+              : "accepted",
+            `converting seed ${SEED}`
+          ).toContain("rate");
+        }
+
+        expect(cases).toBeGreaterThanOrEqual(10);
+      })
+  );
 });
