@@ -484,26 +484,23 @@ type HelperLookup = (helper: string) => string | undefined;
 
 const mentionsLintTool = (text: string): boolean => lintToolPattern.test(text);
 
-const helperPathsIn = (subject: ScriptSubject): readonly string[] => [
+const helperPathsIn = (base: string, command: string): readonly string[] => [
   ...new Set(
-    commandWords(subject.body)
+    commandWords(command)
       .filter((word) =>
         helperExtensions.some((extension) => word.endsWith(extension))
       )
-      .map((word) =>
-        path.posix.normalize(
-          path.posix.join(path.posix.dirname(subject.file), word)
-        )
-      )
+      .map((word) => path.posix.normalize(path.posix.join(base, word)))
       .filter((helper) => !helper.startsWith(".."))
   ),
 ];
 
 const lintHelpersIn = (
-  subject: ScriptSubject,
+  base: string,
+  command: string,
   lookupHelper: HelperLookup
 ): readonly string[] =>
-  helperPathsIn(subject).filter((helper) => {
+  helperPathsIn(base, command).filter((helper) => {
     const source = lookupHelper(helper);
 
     return source !== undefined && mentionsLintTool(source);
@@ -515,12 +512,19 @@ const bodyProblem = (subject: ScriptSubject): string =>
 const helperProblem = (subject: ScriptSubject, helper: string): string =>
   `${subject.file} script "${subject.name}" runs ${helper}, which names oxlint, ultracite or oxfmt, and scriptAllowlist holds no entry for that helper. Fix: add "${helper}" to scriptAllowlist in scripts/lint-fence.test.ts with a one-sentence reason, or stop running it from a package.json script.`;
 
+const subjectBase = (subject: ScriptSubject): string =>
+  path.posix.dirname(subject.file);
+
 const subjectProblems = (
   subject: ScriptSubject,
   lookupHelper: HelperLookup,
   allowlist: ScriptAllowlist
 ): readonly string[] => {
-  const lintHelpers = lintHelpersIn(subject, lookupHelper);
+  const lintHelpers = lintHelpersIn(
+    subjectBase(subject),
+    subject.body,
+    lookupHelper
+  );
 
   const judged = lintWordPattern.test(subject.body) || lintHelpers.length > 0;
 
@@ -553,24 +557,41 @@ const yamlScalars = (source: string): readonly string[] =>
 
 const configCommandsIn = (
   file: string,
-  source: string
+  source: string,
+  lookupHelper: HelperLookup
 ): readonly ConfigCommand[] =>
   yamlScalars(source)
-    .filter((scalar) => mentionsLintTool(scalar))
+    .filter(
+      (scalar) =>
+        mentionsLintTool(scalar) ||
+        lintHelpersIn(".", scalar, lookupHelper).length > 0
+    )
     .map((command) => ({ file, command }));
 
 const configCommandProblem = ({ file, command }: ConfigCommand): string =>
   `${file} runs \`${command}\`, which names oxlint, ultracite or oxfmt, and scriptAllowlist holds no entry for that exact line. Fix: add it to scriptAllowlist in scripts/lint-fence.test.ts with a one-sentence reason, or drop the line from the hook or workflow config.`;
 
+const configHelperProblem = (
+  { file, command }: ConfigCommand,
+  helper: string
+): string =>
+  `${file} runs \`${command}\`, which runs ${helper}, and that helper names oxlint, ultracite or oxfmt with no entry in scriptAllowlist. Fix: add "${helper}" to scriptAllowlist in scripts/lint-fence.test.ts with a one-sentence reason, or drop the line.`;
+
 const configCommandProblems = (
   commands: readonly ConfigCommand[],
-  allowlist: ScriptAllowlist
+  allowlist: ScriptAllowlist,
+  lookupHelper: HelperLookup
 ): readonly string[] =>
-  commands.flatMap((command) =>
-    Object.hasOwn(allowlist, command.command)
+  commands.flatMap((command) => [
+    ...(Object.hasOwn(allowlist, command.command)
       ? []
-      : [configCommandProblem(command)]
-  );
+      : [configCommandProblem(command)]),
+    ...lintHelpersIn(".", command.command, lookupHelper).flatMap((helper) =>
+      Object.hasOwn(allowlist, helper)
+        ? []
+        : [configHelperProblem(command, helper)]
+    ),
+  ]);
 
 const trackedFiles = (): readonly string[] =>
   execFileSync("git", ["ls-files", "-z"], {
@@ -606,11 +627,19 @@ const configFiles = (tracked: readonly string[]): readonly string[] =>
     ),
   ].filter((file) => tracked.includes(file));
 
+const trackedHelperLookup = (): HelperLookup =>
+  helperLookupFor(new Set(trackedFiles()));
+
 const trackedConfigCommands = (): readonly ConfigCommand[] => {
   const tracked = trackedFiles();
+  const lookupHelper = helperLookupFor(new Set(tracked));
 
   return configFiles(tracked).flatMap((file) =>
-    configCommandsIn(file, readFileSync(path.join(repoRoot, file), "utf-8"))
+    configCommandsIn(
+      file,
+      readFileSync(path.join(repoRoot, file), "utf-8"),
+      lookupHelper
+    )
   );
 };
 
@@ -627,10 +656,22 @@ const staleAllowlistEntries = (): readonly string[] => {
   const tracked = new Set(trackedFiles());
   const lookupHelper = helperLookupFor(tracked);
 
-  const used = new Set(trackedConfigCommands().map(({ command }) => command));
+  const used = new Set<string>();
+
+  for (const { command } of trackedConfigCommands()) {
+    used.add(command);
+
+    for (const helper of lintHelpersIn(".", command, lookupHelper)) {
+      used.add(helper);
+    }
+  }
 
   for (const subject of trackedScriptSubjects()) {
-    const lintHelpers = lintHelpersIn(subject, lookupHelper);
+    const lintHelpers = lintHelpersIn(
+      subjectBase(subject),
+      subject.body,
+      lookupHelper
+    );
 
     if (lintWordPattern.test(subject.body) || lintHelpers.length > 0) {
       used.add(subject.body);
@@ -714,8 +755,13 @@ const unsafeScriptBodies: readonly string[] = [
   "  oxlint   -A all  ",
 ];
 
-const fixtureHelper = (helper: string): string | undefined =>
-  helper === "scripts/verify-lint.sh" ? 'oxlint -A all "$@"\n' : undefined;
+const fixtureHelper = (helper: string): string | undefined => {
+  if (helper === "scripts/verify-lint.sh" || helper === "ci/lint.sh") {
+    return 'oxlint -A all "$@"\n';
+  }
+
+  return undefined;
+};
 
 const directiveMarker = ["//", "oxlint-disable-next-line", "no-debugger"].join(
   " "
@@ -863,7 +909,11 @@ describe("lint fence", () => {
       "A package.json script names lint, or runs a helper that does, and scriptAllowlist holds no entry for that exact body or helper. Fix: add it to scriptAllowlist in scripts/lint-fence.test.ts with a one-sentence reason, or remove it."
     ).toEqual([]);
     expect(
-      configCommandProblems(trackedConfigCommands(), scriptAllowlist),
+      configCommandProblems(
+        trackedConfigCommands(),
+        scriptAllowlist,
+        trackedHelperLookup()
+      ),
       "A hook or workflow config line names oxlint, ultracite or oxfmt without an allowlist entry, so CI could run lint outside the fence. Fix: add that exact line to scriptAllowlist with a reason, or drop it."
     ).toEqual([]);
     expect(
@@ -941,7 +991,7 @@ describe("lint fence", () => {
     };
 
     expect(
-      lintHelpersIn(subject, fixtureHelper),
+      lintHelpersIn(subjectBase(subject), subject.body, fixtureHelper),
       "The fence must resolve a script's helper path from the manifest directory and read it, so indirection cannot hide a weakened command."
     ).toEqual(["scripts/verify-lint.sh"]);
 
@@ -956,11 +1006,7 @@ describe("lint fence", () => {
     ).toEqual([expect.stringContaining("scripts/verify-lint.sh")]);
 
     expect(
-      helperPathsIn({
-        file: "package.json",
-        name: "deploy:preview",
-        body: "bash scripts/deploy-preview.sh",
-      }),
+      helperPathsIn(".", "bash scripts/deploy-preview.sh"),
       "Helper resolution must work on the real tree, so the scan reads the scripts it claims to read."
     ).toContain("scripts/deploy-preview.sh");
   });
@@ -977,22 +1023,34 @@ describe("lint fence", () => {
       "      run: pnpm test",
       "    format:",
       '      run: "oxfmt --check"',
+      "    wrapper:",
+      "      run: bash ci/lint.sh",
     ].join("\n");
 
     expect(
-      configCommandsIn("lefthook.yml", hookSource),
-      "The config scan must judge every command line that names a lint tool and only those, so a commented line or an unrelated hook is not mistaken for one."
+      configCommandsIn("lefthook.yml", hookSource, fixtureHelper),
+      "The config scan must judge every command line that names a lint tool or runs a helper that does, and only those, so a commented line or an unrelated hook is not mistaken for one."
     ).toEqual([
       { file: "lefthook.yml", command: "pnpm exec ultracite check -A all" },
       { file: "lefthook.yml", command: "oxfmt --check" },
+      { file: "lefthook.yml", command: "bash ci/lint.sh" },
     ]);
     expect(
       configCommandProblems(
-        configCommandsIn("lefthook.yml", hookSource),
-        scriptAllowlist
+        configCommandsIn("lefthook.yml", hookSource, fixtureHelper),
+        scriptAllowlist,
+        fixtureHelper
       ).length,
-      "A hook or workflow line that names oxlint, ultracite or oxfmt and is not allowlisted must fail, because a config file hides a bypass the same way a script does."
-    ).toBe(1);
+      "A hook or workflow line that names oxlint, ultracite or oxfmt, or runs a helper that does, and is not allowlisted must fail, because a config file hides a bypass the same way a script does."
+    ).toBe(3);
+    expect(
+      configCommandProblems(
+        configCommandsIn("lefthook.yml", hookSource, fixtureHelper),
+        scriptAllowlist,
+        fixtureHelper
+      )[2],
+      "A config line that hides its flags in a helper must name that helper, so the reader knows which file to approve."
+    ).toContain("ci/lint.sh");
     expect(
       configFiles(trackedFiles()),
       "The config scan must reach the tracked workflows, so a new CI lint step cannot slip past the fence."
@@ -1001,12 +1059,32 @@ describe("lint fence", () => {
       configCommandProblems(
         configCommandsIn(
           "lefthook.yml",
-          "      run: ultracite check && oxfmt --check ."
+          "      run: ultracite check && oxfmt --check .",
+          fixtureHelper
         ),
-        scriptAllowlist
+        scriptAllowlist,
+        fixtureHelper
       ),
       "An allowlisted command line must pass, so the config rule judges whole commands instead of scanning for bad words."
     ).toEqual([]);
+
+    const wrapperOnly = {
+      "bash ci/lint.sh":
+        "The CI wrapper is approved as one exact line so the helper rule has a config line to judge.",
+    } satisfies ScriptAllowlist;
+
+    expect(
+      configCommandProblems(
+        configCommandsIn(
+          "lefthook.yml",
+          "      run: bash ci/lint.sh",
+          fixtureHelper
+        ),
+        wrapperOnly,
+        fixtureHelper
+      ),
+      "An allowlisted config line must still fail when the helper it runs names oxlint and is not allowlisted, because the helper is where the flags live."
+    ).toEqual([expect.stringContaining("ci/lint.sh")]);
   });
 
   it("judges every script body as one exact string", () => {
