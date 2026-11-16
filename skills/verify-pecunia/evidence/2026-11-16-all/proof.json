@@ -114,10 +114,26 @@
       "step": "accounts-and-bank-lines"
     },
     {
+      "actual": "stored=5 imported=5",
+      "expected": "stored=5 imported=5",
+      "feature": "all",
+      "id": "import-stores-every-line",
+      "passed": true,
+      "step": "accounts-and-bank-lines"
+    },
+    {
       "actual": "imported=0 alreadyImported=5",
       "expected": "imported=0 alreadyImported=5",
       "feature": "all",
       "id": "import-replay-adds-nothing",
+      "passed": true,
+      "step": "accounts-and-bank-lines"
+    },
+    {
+      "actual": "stored=5 alreadyImported=5",
+      "expected": "stored=5 alreadyImported=5",
+      "feature": "all",
+      "id": "import-replay-stores-nothing",
       "passed": true,
       "step": "accounts-and-bank-lines"
     },
@@ -174,6 +190,14 @@
       "expected": "category=0192f0c1-000d-75e9-8fd7-fd7e43c901ee note=Demo note written by the verify drive",
       "feature": "all",
       "id": "bank-line-edit-sets-category-and-note",
+      "passed": true,
+      "step": "bank-line-edit"
+    },
+    {
+      "actual": "category=0192f0c1-000d-75e9-8fd7-fd7e43c901ee note=Demo note written by the verify drive",
+      "expected": "category=0192f0c1-000d-75e9-8fd7-fd7e43c901ee note=Demo note written by the verify drive",
+      "feature": "all",
+      "id": "bank-line-edit-stores-category-and-note",
       "passed": true,
       "step": "bank-line-edit"
     },
@@ -522,20 +546,35 @@
       "step": "invoices"
     }
   ],
-  "commit": "81f3d793",
-  "declared": 65,
+  "commit": "1fb6b3bc",
+  "declared": 68,
   "demoBookSha256": "527991d3898ec8fdce1029ee97f92a7c25f955c54e2375b38566f95f32537191",
-  "evaluated": 65,
+  "evaluated": 68,
   "failed": 0,
   "failedSteps": 0,
   "failures": [],
   "feature": "all",
   "node": "v24.18.0",
   "passed": true,
-  "ranAt": "2026-11-16T20:04:24Z",
+  "ranAt": "2026-11-16T20:40:17Z",
   "seed": {
-    "command": "pnpm --filter @pecunia/database db:seed:demo /tmp/pecunia-verify-FNyAjg/demo.sqlite"
+    "command": "pnpm --filter @pecunia/database db:seed:demo /tmp/pecunia-verify-LJT25w/demo.sqlite"
+  },
+  "stepExpectations": {
+    "feature-map": 1,
+    "generic": 4,
+    "accounts-and-bank-lines": 14,
+    "bank-line-list": 4,
+    "bank-line-edit": 5,
+    "bank-line-review": 3,
+    "categories-and-rules": 5,
+    "dashboard-sums": 8,
+    "subscriptions": 4,
+    "investments": 5,
+    "fx-conversion": 4,
+    "tax": 5,
+    "invoices": 6
   },
   "steps": 15,
-  "total": 65
+  "total": 68
 }

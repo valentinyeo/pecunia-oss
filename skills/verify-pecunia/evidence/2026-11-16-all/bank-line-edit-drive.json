@@ -5,6 +5,10 @@
       "value": "category=0192f0c1-000d-75e9-8fd7-fd7e43c901ee note=Demo note written by the verify drive"
     },
     {
+      "id": "bank-line-edit-stores-category-and-note",
+      "value": "category=0192f0c1-000d-75e9-8fd7-fd7e43c901ee note=Demo note written by the verify drive"
+    },
+    {
       "id": "bank-line-edit-keeps-the-line-in-its-profile",
       "value": "lineId=0192f0c1-0027-7c11-8261-2619d29e6868 profileId=0192f0c1-0001-702d-8484-48490b729601"
     },

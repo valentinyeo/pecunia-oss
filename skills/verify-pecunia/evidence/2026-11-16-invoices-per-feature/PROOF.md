@@ -1,10 +1,10 @@
 # Verification proof: invoices-per-feature
 
 - Run label: `invoices-per-feature`
-- Run at: 2026-11-16T20:04:33Z
-- Branch: `verify-skill` at `81f3d793`
+- Run at: 2026-11-16T20:40:32Z
+- Branch: `verify-skill` at `1fb6b3bc`
 - Node: `v24.18.0`
-- Demo seed: `pnpm --filter @pecunia/database db:seed:demo /tmp/pecunia-verify-4KeoKV/demo.sqlite`
+- Demo seed: `pnpm --filter @pecunia/database db:seed:demo /tmp/pecunia-verify-Eu6GBW/demo.sqlite`
 - Demo book SHA-256: `527991d3898ec8fdce1029ee97f92a7c25f955c54e2375b38566f95f32537191`
 - The scratch database is deleted after the run; `proof.json` holds every observation.
 
@@ -13,7 +13,7 @@
 ```sh
 pnpm turbo run build --filter=@pecunia/bank-import...
 pnpm turbo run build --filter=@pecunia/bank-lines...
-pnpm --filter @pecunia/database db:seed:demo /tmp/pecunia-verify-4KeoKV/demo.sqlite
+pnpm --filter @pecunia/database db:seed:demo /tmp/pecunia-verify-Eu6GBW/demo.sqlite
 bash skills/verify-pecunia/scripts/prove-demo-book.sh --feature invoices --label invoices-per-feature
 node skills/verify-pecunia/scripts/replay-proof.mjs --only invoices-per-feature
 ```
@@ -26,6 +26,8 @@ node skills/verify-pecunia/scripts/replay-proof.mjs --only invoices-per-feature
 | `feature-map` | 0 | `map` 0 | 1 |
 | `generic` | 0 |  | 4 |
 | `invoices` | 0 |  | 6 |
+
+Total: 11 expectations across 4 steps, 11 declared, 11 evaluated.
 
 ## Seeded tables
 

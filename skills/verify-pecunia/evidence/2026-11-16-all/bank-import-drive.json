@@ -9,8 +9,16 @@
       "value": "imported=5 alreadyImported=0 rejected=0"
     },
     {
+      "id": "import-stores-every-line",
+      "value": "stored=5 imported=5"
+    },
+    {
       "id": "import-replay-adds-nothing",
       "value": "imported=0 alreadyImported=5"
+    },
+    {
+      "id": "import-replay-stores-nothing",
+      "value": "stored=5 alreadyImported=5"
     },
     {
       "id": "import-names-a-rejected-line",
