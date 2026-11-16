@@ -429,6 +429,48 @@ describe("a sort code and an account number in any written form fail", () => {
     ]);
   });
 
+  it.each([
+    ["a tab", "\t"],
+    ["a tab and spaces", "\t  "],
+    ["a comma", ", "],
+    ["a semicolon", "; "],
+    ["a pipe", " | "],
+    ["a newline", "\n  "],
+  ])(
+    "fails on a sort code and an account number split by %s, in either order",
+    (_label, gap) => {
+      const sortCode = glued("20", "-", "45", "-", "67");
+
+      const account = glued("1029", "3847");
+
+      expect(ruleOf("docs/payments.md", `${sortCode}${gap}${account}`)).toEqual(
+        ["bank-account"]
+      );
+
+      expect(ruleOf("docs/payments.md", `${account}${gap}${sortCode}`)).toEqual(
+        ["bank-account"]
+      );
+    }
+  );
+
+  it.each([
+    ["an ISO date", "2024-01-02"],
+    ["a dotted date", "01.04.2019"],
+    ["a slashed date", "01/04/2019"],
+    ["a timestamp", "2024-01-02T03:04:05"],
+    ["a clock time", "03:04:05"],
+    ["a mobile number", "+44 7700 900123"],
+    ["a landline number", "(020) 7946 0958"],
+  ])("passes on %s beside an account number in one record", (_label, value) => {
+    expect(
+      ruleOf("docs/payments.md", `${value}\t${glued("1029", "3847")}`)
+    ).toEqual([]);
+
+    expect(
+      ruleOf("docs/payments.md", `${glued("1029", "3847")}, ${value}`)
+    ).toEqual([]);
+  });
+
   it("passes a sort code and account number from separate export records", () => {
     const firstRecord = [
       `sortCode: "${spaced("20", "45", "67")}",`,

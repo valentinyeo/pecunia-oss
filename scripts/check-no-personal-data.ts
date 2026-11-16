@@ -73,7 +73,9 @@ const NO_REPLY_SENDERS = new Set([
 
 const NO_REPLY_DOMAIN = "users.noreply.github.com";
 
-const SEPARATOR = String.raw`\t\v\f \u00A0\u1680\u2000-\u200A\u202F\u205F\u3000\uFEFF\u2010-\u2015.-`;
+const NUMBER_SEPARATOR = String.raw`\v\f \u00A0\u1680\u2000-\u200A\u202F\u205F\u3000\uFEFF\u2010-\u2015.-`;
+
+const SEPARATOR = String.raw`\t${NUMBER_SEPARATOR}`;
 
 const SEPARATOR_ANY = `[${SEPARATOR}]*`;
 
@@ -208,14 +210,23 @@ const CLOUDFLARE_ACCOUNT_NAMED = /account[ _-]?id|dash\.cloudflare\.com/iu;
 const CLOUDFLARE_HOSTNAME =
   /\b(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+(?:pages\.dev|workers\.dev|cloudflareaccess\.com)\b/giu;
 
-const SORT_CODE = new RegExp(
-  `(?<![\\p{L}\\p{N}_])(?:\\d{6}|\\d{2}[${SEPARATOR}]*\\d{2}[${SEPARATOR}]*\\d{2})(?![\\p{L}\\p{N}_])(?![${SEPARATOR}]*\\d)`,
+const NUMBER_RUN = new RegExp(`[\\d${NUMBER_SEPARATOR}]+`, "gu");
+
+const EDGE_SEPARATOR = new RegExp(
+  `^[${NUMBER_SEPARATOR}]+|[${NUMBER_SEPARATOR}]+$`,
   "gu"
 );
 
+const WORD_EDGE = /[\p{L}\p{N}_]/u;
+
+const SORT_CODE = new RegExp(
+  `^(?:\\d{6}|\\d{2}[${NUMBER_SEPARATOR}]*\\d{2}[${NUMBER_SEPARATOR}]*\\d{2})$`,
+  "u"
+);
+
 const ACCOUNT_NUMBER = new RegExp(
-  `(?<![\\p{L}\\p{N}_])(?:\\d{8}|\\d{4}[${SEPARATOR}]*\\d{4})(?![\\p{L}\\p{N}_])(?![${SEPARATOR}]*\\d)`,
-  "gu"
+  `^(?:\\d{8}|\\d{4}[${NUMBER_SEPARATOR}]*\\d{4})$`,
+  "u"
 );
 
 const ACCOUNT_DISTANCE = 400;
@@ -361,6 +372,29 @@ const textsWithinReach = (
   return texts;
 };
 
+const numberTokensIn = (text: string): readonly string[] =>
+  [...text.matchAll(NUMBER_RUN)].flatMap((match) => {
+    const run = match[0].replaceAll(EDGE_SEPARATOR, "");
+
+    if (run.length === 0) {
+      return [];
+    }
+
+    const start = (match.index ?? 0) + match[0].indexOf(run);
+
+    const touchesWord =
+      WORD_EDGE.test(text[start - 1] ?? "") ||
+      WORD_EDGE.test(text[start + run.length] ?? "");
+
+    return touchesWord ? [] : [run];
+  });
+
+const sortCodesIn = (text: string) =>
+  numberTokensIn(text).filter((token) => SORT_CODE.test(token));
+
+const accountNumbersIn = (text: string) =>
+  numberTokensIn(text).filter((token) => ACCOUNT_NUMBER.test(token));
+
 const bankAccountFindings = (
   filePath: string,
   lines: readonly string[],
@@ -369,14 +403,12 @@ const bankAccountFindings = (
   const dense: readonly DenseLine[] = denseLines(lines);
 
   return dense.flatMap((entry, position) => {
-    const [sortCode] = matchesIn(SORT_CODE, entry.text);
-
-    if (sortCode === undefined) {
+    if (sortCodesIn(entry.text).length === 0) {
       return [];
     }
 
     const accountNumber = textsWithinReach(dense, position)
-      .flatMap((text) => matchesIn(ACCOUNT_NUMBER, text))
+      .flatMap(accountNumbersIn)
       .find((candidate) => !allowsValue(allow, filePath, candidate));
 
     return accountNumber === undefined
