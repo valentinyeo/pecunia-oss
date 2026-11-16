@@ -30,8 +30,27 @@ export const QuantitySchema = Schema.Int.check(
 
 export type Quantity = typeof QuantitySchema.Type;
 
+const monthLengths = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+
+const isLeapYear = (year: number): boolean =>
+  year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0);
+
+const monthLength = (year: number, month: number): number =>
+  month === 2 && isLeapYear(year) ? 29 : (monthLengths[month - 1] ?? 0);
+
+const isCalendarDate = (text: string): boolean => {
+  const [year = 0, month = 0, day = 0] = text.split("-").map(Number);
+
+  return (
+    month >= 1 && month <= 12 && day >= 1 && day <= monthLength(year, month)
+  );
+};
+
 export const DateOnlySchema = Schema.String.check(
-  Schema.isPattern(/^\d{4}-\d{2}-\d{2}$/u)
+  Schema.isPattern(/^\d{4}-\d{2}-\d{2}$/u),
+  Schema.makeFilter(isCalendarDate, {
+    expected: "a calendar date that exists",
+  })
 ).pipe(Schema.brand("DateOnly"));
 
 export type DateOnly = typeof DateOnlySchema.Type;

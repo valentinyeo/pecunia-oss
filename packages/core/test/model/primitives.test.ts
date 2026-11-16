@@ -41,4 +41,36 @@ describe("domain primitives", () => {
     expect(Schema.decodeSync(DateOnlySchema)("2024-01-31")).toBe("2024-01-31");
     expect(() => Schema.decodeSync(DateOnlySchema)("31/01/2024")).toThrow();
   });
+
+  it("rejects a date no calendar has", () => {
+    const impossible = [
+      "2024-00-10",
+      "2024-13-01",
+      "2024-01-00",
+      "2024-01-32",
+      "2024-04-31",
+      "2024-99-99",
+      "2023-02-29",
+      "2024-02-30",
+      "1900-02-29",
+    ];
+
+    for (const text of impossible) {
+      expect(() => Schema.decodeSync(DateOnlySchema)(text)).toThrow();
+    }
+  });
+
+  it("accepts the last day of every month and a leap day", () => {
+    const possible = [
+      "2024-01-31",
+      "2024-02-29",
+      "2000-02-29",
+      "2024-04-30",
+      "2024-12-31",
+    ];
+
+    for (const text of possible) {
+      expect(Schema.decodeSync(DateOnlySchema)(text)).toBe(text);
+    }
+  });
 });
