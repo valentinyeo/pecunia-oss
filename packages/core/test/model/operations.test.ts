@@ -363,11 +363,13 @@ describe("every operation rejects a foreign key on any argument at any depth", (
             const samples = samplesOf(entry);
             const wrapper = Option.some(argument.sample());
             const holder = { current: wrapper };
+
             const ref: NodeRef = {
               key: undefined,
               node: wrapper,
               parent: undefined,
             };
+
             const restore = attach(ref, holder, method, key, "stranger");
 
             if (restore === undefined) {
