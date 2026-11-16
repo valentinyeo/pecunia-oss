@@ -2,7 +2,7 @@ import { Effect, Option, Predicate, Schema } from "effect";
 
 import { BaseAmount } from "./base-amount.js";
 import type { RateLookup } from "./base-amount.js";
-import { closedUnion } from "./closed-union.js";
+import { closed, closedUnion } from "./closed-union.js";
 import type { ConversionInputInvalid } from "./conversion-input-invalid.js";
 import type { ConversionOverflow } from "./conversion-overflow.js";
 import { minorUnitsOf } from "./convert-minor.js";
@@ -90,18 +90,22 @@ export const subtractMoney = (
 ): Effect.Effect<Money, CurrencyMismatch | MoneyOverflow> =>
   combine(left, right, "subtract");
 
-export const SameCurrencyAmountSchema = Schema.TaggedStruct("SameCurrency", {
-  amount: MoneySchema,
-});
+export const SameCurrencyAmountSchema = closed(
+  Schema.TaggedStruct("SameCurrency", {
+    amount: MoneySchema,
+  })
+);
 
-export type SameCurrencyAmount = typeof SameCurrencyAmountSchema.Type;
-
-export const AmountsSchema = closedUnion([
-  ConvertedAmountSchema,
-  SameCurrencyAmountSchema,
-]);
+export const AmountsSchema = closed(
+  closedUnion([ConvertedAmountSchema, SameCurrencyAmountSchema])
+);
 
 export type Amounts = typeof AmountsSchema.Type;
+
+export type SameCurrencyAmount = Extract<
+  Amounts,
+  { readonly _tag: "SameCurrency" }
+>;
 
 export const sourceAmount = (amounts: Amounts): Money =>
   Predicate.isTagged(amounts, "Converted") ? amounts.source : amounts.amount;

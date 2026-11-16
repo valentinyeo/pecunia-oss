@@ -8,6 +8,7 @@ import {
 } from "effect";
 
 import { BaseAmount } from "./base-amount.js";
+import { closed } from "./closed-union.js";
 import type { ConversionInputInvalid } from "./conversion-input-invalid.js";
 import type { ConversionOverflow } from "./conversion-overflow.js";
 import type {
@@ -166,20 +167,22 @@ const convertedAmountEncode = SchemaGetter.transformEffect<
       )
 );
 
-export const ConvertedAmountSchema = StoredConvertedAmountSchema.pipe(
-  Schema.decodeTo(
-    Schema.declare((value: unknown): value is ConvertedAmount =>
-      ConvertedAmount.isConvertedAmount(value)
-    ).check(
-      Schema.makeFilter(conversionIsExact, {
-        expected: "a conversion that matches its own source, rate, and base",
-      })
-    ),
-    {
-      decode: SchemaGetter.transformOptional((stored) =>
-        stored.pipe(Option.flatMap(decodedConvertedAmount))
+export const ConvertedAmountSchema = closed(
+  StoredConvertedAmountSchema.pipe(
+    Schema.decodeTo(
+      Schema.declare((value: unknown): value is ConvertedAmount =>
+        ConvertedAmount.isConvertedAmount(value)
+      ).check(
+        Schema.makeFilter(conversionIsExact, {
+          expected: "a conversion that matches its own source, rate, and base",
+        })
       ),
-      encode: convertedAmountEncode,
-    }
+      {
+        decode: SchemaGetter.transformOptional((stored) =>
+          stored.pipe(Option.flatMap(decodedConvertedAmount))
+        ),
+        encode: convertedAmountEncode,
+      }
+    )
   )
 );

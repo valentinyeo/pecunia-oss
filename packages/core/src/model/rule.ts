@@ -1,6 +1,6 @@
 import { Option, Schema } from "effect";
 
-import { closedUnion } from "./closed-union.js";
+import { closed, closedUnion } from "./closed-union.js";
 import {
   CategoryIdSchema,
   MinorUnitsSchema,
@@ -88,6 +88,6 @@ const boundsAreOrdered = Schema.makeFilter<typeof RuleUnion.Type>(
   { expected: "minAmount at or below maxAmount" }
 );
 
-export const RuleSchema = RuleUnion.check(boundsAreOrdered);
+export const RuleSchema = closed(RuleUnion.check(boundsAreOrdered));
 
 export type Rule = typeof RuleSchema.Type;

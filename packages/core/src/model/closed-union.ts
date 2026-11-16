@@ -3,17 +3,16 @@ import {
   Predicate,
   Result,
   Schema,
-  SchemaGetter,
+  SchemaAST,
   SchemaIssue,
 } from "effect";
-import type { SchemaAST } from "effect";
-
-import { strictParseOptions } from "./parse-options.js";
 
 type Member = Schema.Top & {
   readonly DecodingServices: never;
   readonly EncodingServices: never;
 };
+
+type Codec = Member;
 
 type TypeOf<S> = S extends { readonly Type: infer T } ? T : never;
 
@@ -37,195 +36,247 @@ type ClosedMembers<Members extends readonly Member[]> = {
   };
 };
 
-const fieldsOf = (
-  ast: SchemaAST.AST
-): readonly (readonly [string, SchemaAST.AST])[] => {
-  if (Predicate.isTagged(ast, "Objects")) {
-    return ast.propertySignatures.flatMap((signature) =>
-      Predicate.isString(signature.name) &&
-      !Predicate.isTagged(signature.type, "Never")
-        ? [[signature.name, signature.type] as const]
-        : []
-    );
-  }
+const CandidateSchema = Schema.Record(Schema.String, Schema.Unknown);
 
-  if (Predicate.isTagged(ast, "Union")) {
-    return ast.types.flatMap(fieldsOf);
-  }
-
-  return [];
-};
-
-const ownKeys = (member: Member): readonly string[] => [
-  ...new Set([
-    ...fieldsOf(Schema.toEncoded(member).ast).map(([key]) => key),
-    ...fieldsOf(Schema.toType(member).ast).map(([key]) => key),
-  ]),
-];
-
-const isSchemaRecord = (value: unknown): value is Record<string, Schema.Top> =>
-  Predicate.isObject(value) && Object.values(value).every(Schema.isSchema);
-
-const closedFields = (
-  fields: Record<string, Schema.Top>,
-  forbidden: readonly string[]
-): Schema.Top => {
-  const closed: Record<string, Schema.Top> = {};
-
-  for (const [key, field] of Object.entries(fields)) {
-    closed[key] = field;
-  }
-
-  for (const key of forbidden) {
-    if (!Object.hasOwn(closed, key)) {
-      closed[key] = Schema.optionalKey(Schema.Never);
-    }
-  }
-
-  return Schema.Struct(closed);
-};
-
-const closedStruct = (
-  ast: SchemaAST.AST,
-  forbidden: readonly string[]
-): Schema.Top => {
-  const fields: Record<string, Schema.Top> = {};
-
-  for (const [key, type] of fieldsOf(ast)) {
-    fields[key] = Schema.make(type);
-  }
-
-  return closedFields(fields, forbidden);
-};
-
-const asInvalid = (
-  result: Result.Result<unknown, Schema.SchemaError>,
-  options: SchemaAST.ParseOptions
-): Effect.Effect<unknown, SchemaIssue.Issue> =>
-  Result.isFailure(result)
-    ? Effect.fail(
-        new SchemaIssue.InvalidValue(
-          { message: result.failure.message },
-          undefined,
-          options
-        )
-      )
-    : Effect.succeed(result.success);
-
-const declaredNames = (ast: SchemaAST.AST): readonly string[] =>
-  fieldsOf(ast).map(([key]) => key);
-
-const StrayCandidateSchema = Schema.Record(Schema.String, Schema.Unknown);
-
-type StrayCandidate = typeof StrayCandidateSchema.Type;
+type Candidate = typeof CandidateSchema.Type;
 
 const declaredFields = (
-  ast: SchemaAST.AST
-): ReadonlyMap<string, SchemaAST.AST> => new Map(fieldsOf(ast));
+  ast: SchemaAST.Objects
+): ReadonlyMap<string, SchemaAST.AST> =>
+  new Map(
+    ast.propertySignatures.flatMap((signature) =>
+      Predicate.isString(signature.name)
+        ? [[signature.name, signature.type] as const]
+        : []
+    )
+  );
 
-const nestedStrayField = (
+const matchesTag = (ast: SchemaAST.AST, tag: string): boolean =>
+  (Predicate.isTagged(ast, "Literal") && ast.literal === tag) ||
+  (Predicate.isTagged(ast, "Union") &&
+    ast.types.some(
+      (member) =>
+        Predicate.isTagged(member, "Literal") && member.literal === tag
+    ));
+
+const resolved = (ast: SchemaAST.AST): SchemaAST.AST => {
+  if (!Predicate.isTagged(ast, "Declaration")) {
+    return ast;
+  }
+
+  const [inner] = ast.typeParameters;
+
+  return inner === undefined ? ast : resolved(inner);
+};
+
+const branchOf = (
   ast: SchemaAST.AST,
-  value: StrayCandidate
+  value: Candidate
+): SchemaAST.AST | undefined => {
+  if (!Predicate.isTagged(ast, "Union")) {
+    return undefined;
+  }
+
+  const tag = value._tag;
+
+  if (!Predicate.isString(tag)) {
+    return undefined;
+  }
+
+  return ast.types.find((candidate) => {
+    const member = resolved(candidate);
+
+    if (!Predicate.isTagged(member, "Objects")) {
+      return false;
+    }
+
+    const declared = declaredFields(member).get("_tag");
+
+    return declared !== undefined && matchesTag(declared, tag);
+  });
+};
+
+const unionKeys = (ast: SchemaAST.AST): ReadonlySet<string> =>
+  new Set(
+    Predicate.isTagged(ast, "Union")
+      ? ast.types.flatMap((candidate) => {
+          const member = resolved(candidate);
+
+          return Predicate.isTagged(member, "Objects")
+            ? [...declaredFields(member).keys()]
+            : [];
+        })
+      : []
+  );
+
+const strayInUnion = (
+  ast: SchemaAST.AST,
+  value: Candidate
 ): string | undefined => {
+  const branch = branchOf(ast, value);
+
+  if (branch !== undefined) {
+    return strayField(branch, value);
+  }
+
+  const known = unionKeys(ast);
+
+  return Object.keys(value).find((key) => !known.has(key));
+};
+
+const strayField = (
+  ast: SchemaAST.AST,
+  value: Candidate
+): string | undefined => {
+  if (Predicate.isTagged(ast, "Union")) {
+    return strayInUnion(ast, value);
+  }
+
+  if (Predicate.isTagged(ast, "Declaration")) {
+    const [declared] = ast.typeParameters;
+
+    return declared === undefined ? undefined : strayField(declared, value);
+  }
+
   if (!Predicate.isTagged(ast, "Objects") || ast.indexSignatures.length > 0) {
     return undefined;
   }
 
   const fields = declaredFields(ast);
 
-  for (const [key, child] of Object.entries(value)) {
-    const type = fields.get(key);
+  for (const key of Object.keys(value)) {
+    const field = fields.get(key);
 
-    if (!Predicate.isTagged(type, "Objects") || !Predicate.isObject(child)) {
+    if (field === undefined) {
+      return key;
+    }
+
+    if (Predicate.isTagged(field, "Never")) {
       continue;
     }
 
-    const nested = strayField(
-      type,
-      Schema.decodeSync(StrayCandidateSchema)(child)
-    );
+    const child = value[key];
 
-    if (nested !== undefined) {
-      return nested;
+    if (Predicate.isObject(child)) {
+      const nested = strayField(
+        field,
+        Schema.decodeSync(CandidateSchema)(child)
+      );
+
+      if (nested !== undefined) {
+        return nested;
+      }
     }
   }
 
   return undefined;
 };
 
-const strayField = (
-  ast: SchemaAST.AST,
-  value: StrayCandidate
-): string | undefined => {
-  const stray = Object.keys(value).find(
-    (key) => !declaredNames(ast).includes(key)
-  );
+const fromResult = <T>(
+  result: Result.Result<T, Schema.SchemaError>
+): Effect.Effect<T, SchemaIssue.Issue> =>
+  Result.isSuccess(result)
+    ? Effect.succeed(result.success)
+    : Effect.fail(result.failure.issue);
 
-  return stray ?? nestedStrayField(ast, value);
-};
+const strictOptions = (
+  options: SchemaAST.ParseOptions
+): SchemaAST.ParseOptions => ({
+  ...options,
+  onExcessProperty: "error",
+});
 
-const rejectsStrayKeys = <T extends Schema.Top>(schema: T) =>
-  schema.check(
-    Schema.makeFilter<T["Type"]>((value) => {
-      const stray = Predicate.isObject(value)
-        ? strayField(
-            Schema.toEncoded(schema).ast,
-            Schema.decodeSync(StrayCandidateSchema)(value)
+const rejectStray =
+  (ast: SchemaAST.AST, options: SchemaAST.ParseOptions) =>
+  (input: Candidate): Effect.Effect<void, SchemaIssue.Issue> => {
+    const stray = strayField(ast, input);
+
+    return stray === undefined
+      ? Effect.void
+      : Effect.fail(
+          new SchemaIssue.InvalidValue(
+            { message: `unexpected field "${stray}"` },
+            input,
+            options
           )
-        : undefined;
+        );
+  };
 
-      return stray === undefined ? true : `unexpected field "${stray}"`;
-    })
+export const closed = <S extends Codec>(schema: S): S => {
+  const encodedAst = Schema.toEncoded(schema).ast;
+
+  const typeAst = Schema.toType(schema).ast;
+
+  const declaresFields =
+    Predicate.isTagged(typeAst, "Objects") ||
+    Predicate.isTagged(typeAst, "Union");
+
+  const storedAst = Predicate.isTagged(encodedAst, "Objects")
+    ? encodedAst
+    : undefined;
+
+  const scanAst = declaresFields ? typeAst : storedAst;
+
+  const ast = new SchemaAST.Declaration(
+    [encodedAst],
+    () => (input, _self, options) => {
+      const decode = () =>
+        fromResult(
+          Schema.decodeUnknownResult(schema, strictOptions(options))(input)
+        );
+
+      if (!Predicate.isObject(input)) {
+        return decode();
+      }
+
+      return rejectStray(
+        encodedAst,
+        options
+      )(Schema.decodeSync(CandidateSchema)(input)).pipe(Effect.flatMap(decode));
+    },
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    () => (input, _self, options) => {
+      const encode = () =>
+        fromResult(
+          Schema.encodeUnknownResult(schema, strictOptions(options))(input)
+        );
+
+      if (scanAst === undefined || !Predicate.isObject(input)) {
+        return encode();
+      }
+
+      return rejectStray(
+        scanAst,
+        options
+      )(Schema.decodeSync(CandidateSchema)(input)).pipe(Effect.flatMap(encode));
+    }
   );
 
-const closedMember = (
-  member: Member,
-  forbidden: readonly string[]
-): Schema.Top => {
-  const encoded = Schema.toEncoded(member).ast;
-  const decoded = Schema.toType(member).ast;
+  const wrapped = Schema.make<S>(ast);
 
-  if (
-    Predicate.isTagged(decoded, "Objects") &&
-    Predicate.isTagged(encoded, "Objects") &&
-    Predicate.hasProperty(member, "fields") &&
-    isSchemaRecord(member.fields)
-  ) {
-    return rejectsStrayKeys(closedFields(member.fields, forbidden));
+  Object.defineProperty(wrapped, "make", {
+    configurable: true,
+    enumerable: true,
+    writable: true,
+    value: (
+      input: Parameters<S["make"]>[0],
+      options?: Parameters<S["make"]>[1]
+    ) => schema.make(input, options),
+  });
+
+  if (Predicate.hasProperty(schema, "cases")) {
+    Object.assign(wrapped, { cases: schema.cases });
   }
 
-  if (!Predicate.isTagged(encoded, "Objects")) {
-    return rejectsStrayKeys(member);
+  if (Predicate.hasProperty(schema, "members")) {
+    Object.assign(wrapped, { members: schema.members });
   }
 
-  return closedStruct(encoded, forbidden).pipe(
-    Schema.decodeTo(Schema.toType(member), {
-      decode: SchemaGetter.transformEffect((stored, options) =>
-        asInvalid(
-          Schema.decodeUnknownResult(member, strictParseOptions)(stored),
-          options
-        )
-      ),
-      encode: SchemaGetter.transformEffect((value, options) => {
-        const stray = Predicate.isObject(value)
-          ? strayField(encoded, Schema.decodeSync(StrayCandidateSchema)(value))
-          : undefined;
-
-        return stray === undefined
-          ? asInvalid(
-              Schema.encodeUnknownResult(member, strictParseOptions)(value),
-              options
-            )
-          : Effect.fail(
-              new SchemaIssue.InvalidValue(
-                { message: `unexpected field "${stray}"` },
-                undefined,
-                options
-              )
-            );
-      }),
-    })
-  );
+  return wrapped;
 };
 
 export const closedUnion = <
@@ -233,28 +284,11 @@ export const closedUnion = <
 >(
   members: Members
 ): Schema.Union<ClosedMembers<Members>> => {
-  const declared = members.map(ownKeys);
-  const everyKey = [...new Set(declared.flat())];
-
-  const closed = members.map((member, index) =>
-    closedMember(
-      member,
-      everyKey.filter((key) => !(declared[index] ?? []).includes(key))
-    )
-  );
-
   const union = Schema.make<Schema.Union<ClosedMembers<Members>>>(
-    Schema.Union(closed).ast
+    Schema.Union(members).ast
   );
 
-  attachMembers(union, closed);
+  Object.assign(union, { members });
 
   return union;
-};
-
-const attachMembers = (
-  union: Schema.Top,
-  members: readonly Schema.Top[]
-): void => {
-  Object.assign(union, { members });
 };

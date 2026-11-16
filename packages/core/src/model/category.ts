@@ -1,5 +1,6 @@
 import { Option, Schema } from "effect";
 
+import { closed } from "./closed-union.js";
 import {
   AliasIdSchema,
   CategoryIdSchema,
@@ -28,15 +29,17 @@ const parentIsAnotherCategory = Schema.makeFilter<ParentedCategory>(
   { expected: "a parent other than the category itself" }
 );
 
-export const CategorySchema = Schema.Struct({
-  archivedAt: Schema.OptionFromNullishOr(TimestampSchema),
-  color: Schema.NonEmptyString,
-  id: CategoryIdSchema,
-  name: Schema.NonEmptyString,
-  parentId: Schema.OptionFromNullishOr(CategoryIdSchema),
-  profileId: ProfileIdSchema,
-  spendingType: SpendingTypeSchema,
-}).check(parentIsAnotherCategory);
+export const CategorySchema = closed(
+  Schema.Struct({
+    archivedAt: Schema.OptionFromNullishOr(TimestampSchema),
+    color: Schema.NonEmptyString,
+    id: CategoryIdSchema,
+    name: Schema.NonEmptyString,
+    parentId: Schema.OptionFromNullishOr(CategoryIdSchema),
+    profileId: ProfileIdSchema,
+    spendingType: SpendingTypeSchema,
+  }).check(parentIsAnotherCategory)
+);
 
 export type Category = typeof CategorySchema.Type;
 
@@ -49,23 +52,27 @@ export const PayeeKindSchema = Schema.Literals([
 
 export type PayeeKind = typeof PayeeKindSchema.Type;
 
-export const PayeeSchema = Schema.Struct({
-  archivedAt: Schema.OptionFromNullishOr(TimestampSchema),
-  defaultCategoryId: Schema.OptionFromNullishOr(CategoryIdSchema),
-  id: PayeeIdSchema,
-  kind: PayeeKindSchema,
-  name: Schema.NonEmptyString,
-  profileId: ProfileIdSchema,
-});
+export const PayeeSchema = closed(
+  Schema.Struct({
+    archivedAt: Schema.OptionFromNullishOr(TimestampSchema),
+    defaultCategoryId: Schema.OptionFromNullishOr(CategoryIdSchema),
+    id: PayeeIdSchema,
+    kind: PayeeKindSchema,
+    name: Schema.NonEmptyString,
+    profileId: ProfileIdSchema,
+  })
+);
 
 export type Payee = typeof PayeeSchema.Type;
 
-export const MerchantAliasSchema = Schema.Struct({
-  aliasId: AliasIdSchema,
-  matchType: Schema.Literals(["contains", "exact", "prefix"]),
-  pattern: Schema.NonEmptyString,
-  payeeId: PayeeIdSchema,
-  profileId: ProfileIdSchema,
-});
+export const MerchantAliasSchema = closed(
+  Schema.Struct({
+    aliasId: AliasIdSchema,
+    matchType: Schema.Literals(["contains", "exact", "prefix"]),
+    pattern: Schema.NonEmptyString,
+    payeeId: PayeeIdSchema,
+    profileId: ProfileIdSchema,
+  })
+);
 
 export type MerchantAlias = typeof MerchantAliasSchema.Type;

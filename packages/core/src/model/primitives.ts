@@ -1,5 +1,7 @@
 import { Schema } from "effect";
 
+import { closed } from "./closed-union.js";
+
 export const CurrencyCodeSchema = Schema.NonEmptyString.check(
   Schema.isPattern(/^[A-Z]{3}$/u)
 ).pipe(Schema.brand("CurrencyCode"));
@@ -14,10 +16,12 @@ export const MinorUnitsSchema = Schema.Int.check(
 
 export type MinorUnits = typeof MinorUnitsSchema.Type;
 
-export const MoneySchema = Schema.Struct({
-  currency: CurrencyCodeSchema,
-  minor: MinorUnitsSchema,
-}).pipe(Schema.brand("Money"));
+export const MoneySchema = closed(
+  Schema.Struct({
+    currency: CurrencyCodeSchema,
+    minor: MinorUnitsSchema,
+  }).pipe(Schema.brand("Money"))
+);
 
 export type Money = typeof MoneySchema.Type;
 
