@@ -47,7 +47,9 @@ const rejection = (
 ): LineFieldRejection => ({ field, reason });
 
 const rawId = (raw: RawProviderLine): string | null =>
-  asString(raw.providerLineId) ? raw.providerLineId : null;
+  asString(raw.providerLineId) && raw.providerLineId !== ""
+    ? raw.providerLineId
+    : null;
 
 const parseId = (
   raw: RawProviderLine

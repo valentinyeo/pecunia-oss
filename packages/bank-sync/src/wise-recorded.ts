@@ -21,7 +21,7 @@ export const wiseRecordedPages: readonly unknown[] = [
   {
     activities: [
       {
-        amountMinor: 899,
+        amountMinor: -899,
         bookingDate: "2026-02-04",
         currency: "EUR",
         description: "Sample Bookshop",

@@ -1,4 +1,4 @@
-import { Schema } from "effect";
+import { DateTime, Option, Schema, SchemaTransformation } from "effect";
 
 export const ProviderIdSchema = Schema.NonEmptyString.pipe(
   Schema.brand("ProviderId")
@@ -32,7 +32,23 @@ export const MinorUnitsSchema = Schema.Int.pipe(Schema.brand("MinorUnits"));
 
 export type MinorUnits = typeof MinorUnitsSchema.Type;
 
-export const BookedOnSchema = Schema.DateFromString;
+const isCalendarDate = Schema.makeFilter<string>(
+  (value) =>
+    Option.exists(
+      DateTime.make(`${value}T00:00:00Z`),
+      (date) => DateTime.formatIsoDateUtc(date) === value
+    ),
+  { expected: "a real calendar date in YYYY-MM-DD form" }
+);
+
+const BookedOnTextSchema = Schema.String.check(
+  Schema.isPattern(/^\d{4}-\d{2}-\d{2}$/u),
+  isCalendarDate
+);
+
+export const BookedOnSchema = BookedOnTextSchema.pipe(
+  Schema.decodeTo(Schema.Date, SchemaTransformation.dateFromString)
+);
 
 export type BookedOn = typeof BookedOnSchema.Type;
 
