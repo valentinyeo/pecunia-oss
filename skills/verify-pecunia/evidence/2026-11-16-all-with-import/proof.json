@@ -1,0 +1,448 @@
+{
+  "feature": "all",
+  "branch": "verify-skill",
+  "commit": "e0926ce3",
+  "node": "v24.18.0",
+  "ranAt": "2026-11-16T17:58:15Z",
+  "seed": {
+    "command": "pnpm --filter @pecunia/database db:seed:demo /tmp/pecunia-verify-OxbyMh/demo.sqlite"
+  },
+  "demoBookSha256": "527991d3898ec8fdce1029ee97f92a7c25f955c54e2375b38566f95f32537191",
+  "passed": true,
+  "failed": 0,
+  "total": 54,
+  "checks": [
+    {
+      "id": "money-is-integer-minor-units",
+      "title": "Money is an integer of minor units",
+      "feature": "all",
+      "passed": true,
+      "expected": "0 wrong declarations, 0 wrong rows, 11 columns",
+      "actual": "0 wrong declarations, 0 wrong rows, 11 columns"
+    },
+    {
+      "id": "currency-is-an-iso-code",
+      "title": "Every amount carries an ISO currency code",
+      "feature": "all",
+      "passed": true,
+      "expected": "0 wrong currencies, 13 columns",
+      "actual": "0 wrong currencies, 13 columns"
+    },
+    {
+      "id": "every-row-belongs-to-a-profile",
+      "title": "Every row belongs to a profile and every reference resolves",
+      "feature": "all",
+      "passed": true,
+      "expected": "ok, 0 foreign key violations, 0 tables with orphan rows, 17 scoped tables",
+      "actual": "ok, 0 foreign key violations, 0 tables with orphan rows, 17 scoped tables"
+    },
+    {
+      "id": "demo-book-holds-made-up-identities",
+      "title": "The demo book holds made-up identities only",
+      "feature": "all",
+      "passed": true,
+      "expected": "0 non-placeholder emails, Demo Person,Example Ltd",
+      "actual": "0 non-placeholder emails, Demo Person,Example Ltd"
+    },
+    {
+      "id": "feature-map-matches-capabilities",
+      "title": "Every capability is on a feature page or declared not money",
+      "feature": "all",
+      "passed": true,
+      "expected": "0 unnamed, 0 unexported, 0 planned with a capability, 0 status mismatches",
+      "actual": "0 unnamed, 0 unexported, 0 planned with a capability, 0 status mismatches"
+    },
+    {
+      "id": "bank-lines-stay-in-their-account",
+      "title": "Every bank line belongs to its account's profile",
+      "feature": "accounts-and-bank-lines",
+      "passed": true,
+      "expected": "0",
+      "actual": "0"
+    },
+    {
+      "id": "bank-lines-never-repeat",
+      "title": "No bank line repeats inside one account",
+      "feature": "accounts-and-bank-lines",
+      "passed": true,
+      "expected": "0",
+      "actual": "0"
+    },
+    {
+      "id": "demo-accounts",
+      "title": "The demo book has a bank account and a broker account",
+      "feature": "accounts-and-bank-lines",
+      "passed": true,
+      "expected": "Demo Bank (bank),Demo Broker (investment)",
+      "actual": "Demo Bank (bank),Demo Broker (investment)"
+    },
+    {
+      "id": "demo-sync-runs",
+      "title": "The demo book has one sync that succeeded and one that failed",
+      "feature": "accounts-and-bank-lines",
+      "passed": true,
+      "expected": "2",
+      "actual": "2"
+    },
+    {
+      "id": "sync-import-count-matches-lines",
+      "title": "The succeeded sync wrote the number of lines it reports",
+      "feature": "accounts-and-bank-lines",
+      "passed": true,
+      "expected": "1",
+      "actual": "1"
+    },
+    {
+      "id": "sync-failure-names-itself",
+      "title": "The failed sync names its failure",
+      "feature": "accounts-and-bank-lines",
+      "passed": true,
+      "expected": "0",
+      "actual": "0"
+    },
+    {
+      "id": "sync-rejections-match-count",
+      "title": "The failed sync quarantines the number of lines it reports",
+      "feature": "accounts-and-bank-lines",
+      "passed": true,
+      "expected": "1",
+      "actual": "1"
+    },
+    {
+      "id": "import-targets-listed",
+      "title": "The demo book lists its bank account as an import target",
+      "feature": "accounts-and-bank-lines",
+      "passed": true,
+      "expected": "Demo Bank kind=bank base=EUR provider=Wise",
+      "actual": "Demo Bank kind=bank base=EUR provider=Wise"
+    },
+    {
+      "id": "import-writes-every-line",
+      "title": "An import writes every line in the demo file",
+      "feature": "accounts-and-bank-lines",
+      "passed": true,
+      "expected": "imported=5 alreadyImported=0 rejected=0",
+      "actual": "imported=5 alreadyImported=0 rejected=0"
+    },
+    {
+      "id": "import-replay-adds-nothing",
+      "title": "A replay of the same file adds no rows",
+      "feature": "accounts-and-bank-lines",
+      "passed": true,
+      "expected": "imported=0 alreadyImported=5",
+      "actual": "imported=0 alreadyImported=5"
+    },
+    {
+      "id": "import-names-a-rejected-line",
+      "title": "A broken line is rejected by name and kept out",
+      "feature": "accounts-and-bank-lines",
+      "passed": true,
+      "expected": "imported=1 rejected=1 reason=bad-date",
+      "actual": "imported=1 rejected=1 reason=bad-date"
+    },
+    {
+      "id": "import-refuses-unknown-account",
+      "title": "An import refuses an account the profile does not hold",
+      "feature": "accounts-and-bank-lines",
+      "passed": true,
+      "expected": "ImportAccountNotFound",
+      "actual": "ImportAccountNotFound"
+    },
+    {
+      "id": "applied-rule-sets-category",
+      "title": "An applied rule set the line's category",
+      "feature": "categories-and-rules",
+      "passed": true,
+      "expected": "0",
+      "actual": "0"
+    },
+    {
+      "id": "classification-rule-sets-classification",
+      "title": "A classification rule set the line's classification",
+      "feature": "categories-and-rules",
+      "passed": true,
+      "expected": "0",
+      "actual": "0"
+    },
+    {
+      "id": "rule-targets-stay-in-profile",
+      "title": "Rule targets stay inside their profile",
+      "feature": "categories-and-rules",
+      "passed": true,
+      "expected": "0",
+      "actual": "0"
+    },
+    {
+      "id": "merchant-aliases-stay-in-profile",
+      "title": "Merchant aliases stay inside their profile",
+      "feature": "categories-and-rules",
+      "passed": true,
+      "expected": "0",
+      "actual": "0"
+    },
+    {
+      "id": "demo-rule-sweeps-its-line",
+      "title": "The demo Cloud rule swept the demo Cloud line",
+      "feature": "categories-and-rules",
+      "passed": true,
+      "expected": "0192f0c1-0015-727a-8b92-b929ac9448a7 category-match=1 priority=10 enabled=1",
+      "actual": "0192f0c1-0015-727a-8b92-b929ac9448a7 category-match=1 priority=10 enabled=1"
+    },
+    {
+      "id": "dashboard-spend",
+      "title": "Posted spend over the demo business book",
+      "feature": "dashboard-sums",
+      "passed": true,
+      "expected": "328955",
+      "actual": "328955"
+    },
+    {
+      "id": "dashboard-spend-lines",
+      "title": "Posted spend comes from the five promised lines",
+      "feature": "dashboard-sums",
+      "passed": true,
+      "expected": "transaction-demo-02,transaction-demo-03,transaction-demo-04,transaction-demo-05,transaction-demo-11",
+      "actual": "transaction-demo-02,transaction-demo-03,transaction-demo-04,transaction-demo-05,transaction-demo-11"
+    },
+    {
+      "id": "dashboard-income",
+      "title": "Posted income is counted once",
+      "feature": "dashboard-sums",
+      "passed": true,
+      "expected": "480000",
+      "actual": "480000"
+    },
+    {
+      "id": "dashboard-transfers",
+      "title": "Internal and self transfers never count as spend",
+      "feature": "dashboard-sums",
+      "passed": true,
+      "expected": "160000",
+      "actual": "160000"
+    },
+    {
+      "id": "dashboard-excluded",
+      "title": "Excluded lines never count as spend",
+      "feature": "dashboard-sums",
+      "passed": true,
+      "expected": "1500",
+      "actual": "1500"
+    },
+    {
+      "id": "dashboard-pending",
+      "title": "A pending line is not posted spend",
+      "feature": "dashboard-sums",
+      "passed": true,
+      "expected": "transaction-demo-12",
+      "actual": "transaction-demo-12"
+    },
+    {
+      "id": "dashboard-category",
+      "title": "Posted Cloud total",
+      "feature": "dashboard-sums",
+      "passed": true,
+      "expected": "299000",
+      "actual": "299000"
+    },
+    {
+      "id": "dashboard-parent-category",
+      "title": "Software includes its Cloud child",
+      "feature": "dashboard-sums",
+      "passed": true,
+      "expected": "299000",
+      "actual": "299000"
+    },
+    {
+      "id": "subscriptions-have-a-frequency-rule",
+      "title": "Every counted subscription has a frequency rule",
+      "feature": "subscriptions",
+      "passed": true,
+      "expected": "0",
+      "actual": "0"
+    },
+    {
+      "id": "subscriptions-active",
+      "title": "The demo book has one active subscription",
+      "feature": "subscriptions",
+      "passed": true,
+      "expected": "1",
+      "actual": "1"
+    },
+    {
+      "id": "subscriptions-annual-cost",
+      "title": "The active subscription costs 358800 EUR minor units a year",
+      "feature": "subscriptions",
+      "passed": true,
+      "expected": "358800",
+      "actual": "358800"
+    },
+    {
+      "id": "subscriptions-cancelled",
+      "title": "The cancelled demo subscription stays out",
+      "feature": "subscriptions",
+      "passed": true,
+      "expected": "1",
+      "actual": "1"
+    },
+    {
+      "id": "holdings-value-math",
+      "title": "Holding values come from integer quantity and price",
+      "feature": "investments",
+      "passed": true,
+      "expected": "Demo Bitcoin value=8640000 gain=8040000; Demo World ETF value=780000000 gain=779550000",
+      "actual": "Demo Bitcoin value=8640000 gain=8040000; Demo World ETF value=780000000 gain=779550000"
+    },
+    {
+      "id": "holdings-stay-whole-cents",
+      "title": "Every priced holding value lands on a whole minor unit",
+      "feature": "investments",
+      "passed": true,
+      "expected": "0",
+      "actual": "0"
+    },
+    {
+      "id": "holdings-pending-unknown",
+      "title": "A pending holding carries no price",
+      "feature": "investments",
+      "passed": true,
+      "expected": "1",
+      "actual": "1"
+    },
+    {
+      "id": "holdings-known-value",
+      "title": "Known portfolio value leaves the pending holding out",
+      "feature": "investments",
+      "passed": true,
+      "expected": "788640000",
+      "actual": "788640000"
+    },
+    {
+      "id": "holdings-platforms",
+      "title": "Every holding's platform exists",
+      "feature": "investments",
+      "passed": true,
+      "expected": "0",
+      "actual": "0"
+    },
+    {
+      "id": "conversion-rounds-exactly",
+      "title": "Base amounts round from source times rate",
+      "feature": "fx-conversion",
+      "passed": true,
+      "expected": "0",
+      "actual": "0"
+    },
+    {
+      "id": "conversion-keeps-same-currency",
+      "title": "Same-currency lines keep their amount and carry no rate",
+      "feature": "fx-conversion",
+      "passed": true,
+      "expected": "0",
+      "actual": "0"
+    },
+    {
+      "id": "conversion-has-a-monthly-rate",
+      "title": "Every foreign line has a monthly rate row",
+      "feature": "fx-conversion",
+      "passed": true,
+      "expected": "0",
+      "actual": "0"
+    },
+    {
+      "id": "conversion-recorded-lines",
+      "title": "The demo book records both foreign lines",
+      "feature": "fx-conversion",
+      "passed": true,
+      "expected": "transaction-demo-03 2999 USD -> 2765 EUR at 0.922; transaction-demo-05 12000 GBP -> 14040 EUR at 1.17",
+      "actual": "transaction-demo-03 2999 USD -> 2765 EUR at 0.922; transaction-demo-05 12000 GBP -> 14040 EUR at 1.17"
+    },
+    {
+      "id": "tax-settles-once",
+      "title": "A paid obligation is settled by a tax payment of the same amount",
+      "feature": "tax",
+      "passed": true,
+      "expected": "0",
+      "actual": "0"
+    },
+    {
+      "id": "tax-unpaid-has-no-settlement",
+      "title": "An unpaid obligation carries no settlement",
+      "feature": "tax",
+      "passed": true,
+      "expected": "0",
+      "actual": "0"
+    },
+    {
+      "id": "tax-paid-total",
+      "title": "Paid tax total",
+      "feature": "tax",
+      "passed": true,
+      "expected": "250000",
+      "actual": "250000"
+    },
+    {
+      "id": "tax-unpaid-total",
+      "title": "Unpaid tax total",
+      "feature": "tax",
+      "passed": true,
+      "expected": "312500",
+      "actual": "312500"
+    },
+    {
+      "id": "tax-year",
+      "title": "The demo tax year starts on 6 April",
+      "feature": "tax",
+      "passed": true,
+      "expected": "GB 4-6",
+      "actual": "GB 4-6"
+    },
+    {
+      "id": "invoice-matches-its-line",
+      "title": "A linked invoice matches its transaction exactly",
+      "feature": "invoices",
+      "passed": true,
+      "expected": "0",
+      "actual": "0"
+    },
+    {
+      "id": "invoice-exception-has-no-document",
+      "title": "An exception names a transaction with no document",
+      "feature": "invoices",
+      "passed": true,
+      "expected": "4250 documents=0",
+      "actual": "4250 documents=0"
+    },
+    {
+      "id": "invoice-unarchived",
+      "title": "An unarchived document names no archive",
+      "feature": "invoices",
+      "passed": true,
+      "expected": "0",
+      "actual": "0"
+    },
+    {
+      "id": "invoice-archived",
+      "title": "An archived document names a target",
+      "feature": "invoices",
+      "passed": true,
+      "expected": "0",
+      "actual": "0"
+    },
+    {
+      "id": "invoice-vendors",
+      "title": "Every invoice vendor belongs to the profile",
+      "feature": "invoices",
+      "passed": true,
+      "expected": "0",
+      "actual": "0"
+    },
+    {
+      "id": "invoice-archive-states",
+      "title": "Every archive state carries the columns it promises",
+      "feature": "invoices",
+      "passed": true,
+      "expected": "0",
+      "actual": "0"
+    }
+  ]
+}
