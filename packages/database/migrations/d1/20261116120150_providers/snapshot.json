@@ -1,8 +1,8 @@
 {
   "version": "7",
   "dialect": "sqlite",
-  "id": "d965b37d-e43e-4ae7-8d02-8aee7e55a55f",
-  "prevIds": ["59f7935d-cc79-44d1-a101-eceed151d8f1"],
+  "id": "f29cf7bc-e51a-4c7a-9d5d-6d9c77a52308",
+  "prevIds": ["0cb9cc36-8464-4304-b3dd-bb0d7d2d947a"],
   "ddl": [
     {
       "name": "app_setting",
@@ -713,6 +713,12 @@
     },
     {
       "table": "members",
+      "name": "members_email_check",
+      "value": "typeof(\"email\") = 'text' AND length(trim(\"email\")) > 0",
+      "entityType": "checks"
+    },
+    {
+      "table": "members",
       "name": "members_role_check",
       "value": "\"role\" IN ('owner', 'viewer')",
       "entityType": "checks"
@@ -757,6 +763,12 @@
       "table": "provider_accounts",
       "name": "provider_accounts_last_synced_at_integer_check",
       "value": "\"last_synced_at\" IS NULL OR (typeof(\"last_synced_at\") = 'integer' AND \"last_synced_at\" BETWEEN -9007199254740991 AND 9007199254740991)",
+      "entityType": "checks"
+    },
+    {
+      "table": "provider_accounts",
+      "name": "provider_accounts_sync_start_date_date_check",
+      "value": "\"sync_start_date\" IS NULL OR (typeof(\"sync_start_date\") = 'text' AND length(\"sync_start_date\") = 10 AND \"sync_start_date\" GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]')",
       "entityType": "checks"
     },
     {

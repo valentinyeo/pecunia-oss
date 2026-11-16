@@ -57,6 +57,33 @@ const currencyCodeChecks = (
 const finiteRateCheck = (column: AnySQLiteColumn) =>
   sql`typeof(${column}) = 'real' AND ${column} > 0 AND ${column} < 1e300`;
 
+const dateOnlyCheck = (column: AnySQLiteColumn) =>
+  sql`typeof(${column}) = 'text' AND length(${column}) = 10 AND ${column} GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'`;
+
+const dateOnlyChecks = (
+  table: string,
+  columns: readonly AnySQLiteColumn[]
+): readonly ReturnType<typeof check>[] =>
+  columns.map((column) =>
+    check(
+      `${table}_${column.name}_date_check`,
+      column.notNull
+        ? dateOnlyCheck(column)
+        : sql`${column} IS NULL OR (${dateOnlyCheck(column)})`
+    )
+  );
+
+const notBlankChecks = (
+  table: string,
+  columns: readonly AnySQLiteColumn[]
+): readonly ReturnType<typeof check>[] =>
+  columns.map((column) =>
+    check(
+      `${table}_${column.name}_check`,
+      sql`typeof(${column}) = 'text' AND length(trim(${column})) > 0`
+    )
+  );
+
 export const RunLogs = sqliteTable(
   "run_logs",
   {
@@ -128,6 +155,7 @@ export const Members = sqliteTable(
     uniqueIndex("members_profile_email_idx").on(table.profileId, table.email),
     index("members_email_idx").on(table.email),
     ...integerChecks("members", [table.createdAt]),
+    ...notBlankChecks("members", [table.email]),
     check("members_role_check", sql`${table.role} IN ('owner', 'viewer')`),
   ]
 );
@@ -204,6 +232,7 @@ export const ProviderAccounts = sqliteTable(
       table.createdAt,
       table.lastSyncedAt,
     ]),
+    ...dateOnlyChecks("provider_accounts", [table.syncStartDate]),
     check(
       "provider_accounts_kind_check",
       sql`${table.kind} IN ('bank', 'investment', 'books', 'csv', 'manual')`
@@ -359,6 +388,7 @@ export const Rules = sqliteTable(
       table.updatedAt,
     ]),
     ...booleanChecks("rules", [table.enabled]),
+    ...notBlankChecks("rules", [table.pattern]),
     check(
       "rules_kind_check",
       sql`${table.kind} IN ('categorize', 'self_transfer', 'refund', 'internal_transfer', 'exclude', 'income_client', 'tax_payment')`
@@ -411,6 +441,7 @@ export const MerchantAliases = sqliteTable(
       foreignColumns: [Payees.profileId, Payees.id],
     }),
     ...integerChecks("merchant_aliases", [table.createdAt]),
+    ...notBlankChecks("merchant_aliases", [table.pattern]),
     check(
       "merchant_aliases_match_type_check",
       sql`${table.matchType} IN ('exact', 'prefix', 'contains')`
@@ -472,6 +503,7 @@ export const SyncRuns = sqliteTable(
       table.startedAt,
       table.updatedAt,
     ]),
+    ...dateOnlyChecks("sync_runs", [table.windowFrom, table.windowTo]),
     check(
       "sync_runs_kind_check",
       sql`${table.kind} IN ('bank_sync', 'categorization')`
@@ -633,6 +665,7 @@ export const Transactions = sqliteTable(
       table.suggestedAt,
       table.updatedAt,
     ]),
+    ...dateOnlyChecks("transactions", [table.rateAsOf, table.valueDate]),
     check(
       "transactions_status_check",
       sql`${table.status} IN ('posted', 'pending', 'reversed')`
@@ -655,7 +688,7 @@ export const Transactions = sqliteTable(
     ),
     check(
       "transactions_suggested_check",
-      sql`(${table.categorization} = 'suggested') = (${table.suggestionModel} IS NOT NULL AND ${table.suggestedAt} IS NOT NULL)`
+      sql`(${table.categorization} = 'suggested' AND ${table.suggestionModel} IS NOT NULL AND ${table.suggestedAt} IS NOT NULL) OR (${table.categorization} <> 'suggested' AND ${table.suggestionModel} IS NULL AND ${table.suggestedAt} IS NULL)`
     ),
     check(
       "transactions_applied_rule_check",
@@ -680,6 +713,10 @@ export const Transactions = sqliteTable(
     check(
       "transactions_rate_check",
       sql`(${table.sourceCurrency} = ${table.baseCurrency} AND ${table.rate} IS NULL AND ${table.rateAsOf} IS NULL) OR (${table.sourceCurrency} <> ${table.baseCurrency} AND ${finiteRateCheck(table.rate)} AND ${table.rateAsOf} IS NOT NULL)`
+    ),
+    check(
+      "transactions_rate_amount_check",
+      sql`${table.sourceCurrency} = ${table.baseCurrency} OR abs(${table.baseMinor} - ${table.sourceMinor} * ${table.rate}) <= 1 + abs(${table.sourceMinor} * ${table.rate}) / 1000000000000`
     ),
     check(
       "transactions_fee_currency_check",
@@ -714,6 +751,7 @@ export const ExchangeRates = sqliteTable(
       table.quoteCurrency,
     ]),
     ...integerChecks("exchange_rates", [table.fetchedAt]),
+    ...dateOnlyChecks("exchange_rates", [table.asOf]),
     check("exchange_rates_rate_check", finiteRateCheck(table.rate)),
   ]
 );
@@ -766,6 +804,7 @@ export const Holdings = sqliteTable(
       table.quantityMicros,
       table.updatedAt,
     ]),
+    ...dateOnlyChecks("holdings", [table.openedOn]),
     check(
       "holdings_asset_type_check",
       sql`${table.assetType} IN ('stock', 'etf', 'fund', 'crypto', 'cash')`
@@ -843,6 +882,10 @@ export const Subscriptions = sqliteTable(
       table.typicalMinor,
       table.updatedAt,
     ]),
+    ...dateOnlyChecks("subscriptions", [
+      table.lastChargedOn,
+      table.nextExpectedOn,
+    ]),
     check(
       "subscriptions_frequency_check",
       sql`${table.frequency} IN ('weekly', 'monthly', 'quarterly', 'annual')`
@@ -854,6 +897,14 @@ export const Subscriptions = sqliteTable(
     check(
       "subscriptions_base_amount_check",
       sql`${table.typicalCurrency} <> ${table.baseCurrency} OR ${table.typicalMinor} = ${table.typicalBaseMinor}`
+    ),
+    check(
+      "subscriptions_confidence_check",
+      sql`typeof(${table.confidence}) = 'real' AND ${table.confidence} >= 0 AND ${table.confidence} <= 1`
+    ),
+    check(
+      "subscriptions_amount_cv_check",
+      sql`typeof(${table.amountCv}) = 'real' AND ${table.amountCv} >= 0 AND ${table.amountCv} < 1e300`
     ),
   ]
 );
@@ -932,6 +983,7 @@ export const InvoiceSources = sqliteTable(
       table.retrievalPortal,
       table.retrievalTwoFactor,
     ]),
+    ...notBlankChecks("invoice_sources", [table.pattern]),
   ]
 );
 
@@ -940,6 +992,7 @@ export const InvoiceDocuments = sqliteTable(
   {
     amountCurrency: text("amount_currency"),
     amountMinor: integer("amount_minor"),
+    archiveFailureReason: text("archive_failure_reason"),
     archiveFileId: text("archive_file_id"),
     archiveState: text("archive_state").notNull().default("unarchived"),
     archiveTargetId: text("archive_target_id"),
@@ -994,6 +1047,7 @@ export const InvoiceDocuments = sqliteTable(
       table.createdAt,
       table.sizeBytes,
     ]),
+    ...dateOnlyChecks("invoice_documents", [table.documentDate]),
     check(
       "invoice_documents_type_check",
       sql`${table.documentType} IN ('invoice', 'receipt', 'statement', 'credit_note', 'other')`
@@ -1011,12 +1065,24 @@ export const InvoiceDocuments = sqliteTable(
       sql`(${table.amountMinor} IS NULL) = (${table.amountCurrency} IS NULL)`
     ),
     check(
+      "invoice_documents_sha256_check",
+      sql`typeof(${table.sha256}) = 'text' AND length(${table.sha256}) = 64 AND ${table.sha256} NOT GLOB '*[^0-9a-f]*'`
+    ),
+    check(
+      "invoice_documents_unarchived_check",
+      sql`${table.archiveState} <> 'unarchived' OR (${table.archiveFileId} IS NULL AND ${table.archiveTargetId} IS NULL AND ${table.archivedAt} IS NULL AND ${table.archiveFailureReason} IS NULL)`
+    ),
+    check(
       "invoice_documents_reserved_check",
-      sql`${table.archiveState} <> 'reserved' OR ${table.archiveFileId} IS NOT NULL`
+      sql`${table.archiveState} <> 'reserved' OR (${table.archiveFileId} IS NOT NULL AND ${table.archiveTargetId} IS NOT NULL AND ${table.archivedAt} IS NULL AND ${table.archiveFailureReason} IS NULL)`
     ),
     check(
       "invoice_documents_archived_check",
-      sql`${table.archiveState} <> 'archived' OR (${table.archiveFileId} IS NOT NULL AND ${table.archiveTargetId} IS NOT NULL AND ${table.archivedAt} IS NOT NULL)`
+      sql`${table.archiveState} <> 'archived' OR (${table.archiveFileId} IS NOT NULL AND ${table.archiveTargetId} IS NOT NULL AND ${table.archivedAt} IS NOT NULL AND ${table.archiveFailureReason} IS NULL)`
+    ),
+    check(
+      "invoice_documents_failed_check",
+      sql`${table.archiveState} <> 'failed' OR (${table.archiveFailureReason} IS NOT NULL AND length(trim(${table.archiveFailureReason})) > 0 AND ${table.archiveFileId} IS NULL AND ${table.archiveTargetId} IS NULL AND ${table.archivedAt} IS NULL)`
     ),
   ]
 );
@@ -1102,6 +1168,7 @@ export const TaxObligations = sqliteTable(
     status: text("status").notNull(),
     syncedAt: integer("synced_at").notNull(),
     taxProfileId: text("tax_profile_id").notNull(),
+    writeOffReason: text("write_off_reason"),
   },
   (table) => [
     primaryKey({ columns: [table.id] }),
@@ -1130,6 +1197,7 @@ export const TaxObligations = sqliteTable(
       table.createdAt,
       table.syncedAt,
     ]),
+    ...dateOnlyChecks("tax_obligations", [table.dueOn, table.periodEndsOn]),
     check(
       "tax_obligations_status_check",
       sql`${table.status} IN ('estimated', 'paid', 'written_off')`
@@ -1141,6 +1209,10 @@ export const TaxObligations = sqliteTable(
     check(
       "tax_obligations_estimated_check",
       sql`${table.status} <> 'estimated' OR ${table.settledTransactionId} IS NULL`
+    ),
+    check(
+      "tax_obligations_write_off_check",
+      sql`(${table.status} = 'written_off' AND ${table.writeOffReason} IS NOT NULL AND length(trim(${table.writeOffReason})) > 0 AND ${table.settledTransactionId} IS NULL) OR (${table.status} <> 'written_off' AND ${table.writeOffReason} IS NULL)`
     ),
   ]
 );
@@ -1166,6 +1238,10 @@ export const Reports = sqliteTable(
     check(
       "reports_kind_check",
       sql`${table.kind} IN ('report', 'exploration')`
+    ),
+    check(
+      "reports_slug_check",
+      sql`length(${table.slug}) > 0 AND ${table.slug} NOT GLOB '*[^a-z0-9-]*' AND substr(${table.slug}, 1, 1) GLOB '[a-z0-9]' AND substr(${table.slug}, -1) GLOB '[a-z0-9]' AND instr(${table.slug}, '--') = 0`
     ),
   ]
 );

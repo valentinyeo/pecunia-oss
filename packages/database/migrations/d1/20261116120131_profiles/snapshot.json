@@ -1,7 +1,7 @@
 {
   "version": "7",
   "dialect": "sqlite",
-  "id": "59f7935d-cc79-44d1-a101-eceed151d8f1",
+  "id": "0cb9cc36-8464-4304-b3dd-bb0d7d2d947a",
   "prevIds": ["f7737ae2-cd0b-4504-bf9e-a80b383ca461"],
   "ddl": [
     {
@@ -392,6 +392,12 @@
       "table": "members",
       "name": "members_created_at_integer_check",
       "value": "typeof(\"created_at\") = 'integer' AND \"created_at\" BETWEEN -9007199254740991 AND 9007199254740991",
+      "entityType": "checks"
+    },
+    {
+      "table": "members",
+      "name": "members_email_check",
+      "value": "typeof(\"email\") = 'text' AND length(trim(\"email\")) > 0",
       "entityType": "checks"
     },
     {

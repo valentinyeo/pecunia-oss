@@ -17,6 +17,7 @@ CREATE TABLE `members` (
 	`role` text NOT NULL,
 	CONSTRAINT `fk_members_profile_id_profiles_id_fk` FOREIGN KEY (`profile_id`) REFERENCES `profiles`(`id`),
 	CONSTRAINT "members_created_at_integer_check" CHECK(typeof("created_at") = 'integer' AND "created_at" BETWEEN -9007199254740991 AND 9007199254740991),
+	CONSTRAINT "members_email_check" CHECK(typeof("email") = 'text' AND length(trim("email")) > 0),
 	CONSTRAINT "members_role_check" CHECK("role" IN ('owner', 'viewer'))
 );
 --> statement-breakpoint

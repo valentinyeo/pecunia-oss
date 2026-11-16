@@ -25,6 +25,7 @@ CREATE TABLE `provider_accounts` (
 	CONSTRAINT "provider_accounts_archived_at_integer_check" CHECK("archived_at" IS NULL OR (typeof("archived_at") = 'integer' AND "archived_at" BETWEEN -9007199254740991 AND 9007199254740991)),
 	CONSTRAINT "provider_accounts_created_at_integer_check" CHECK(typeof("created_at") = 'integer' AND "created_at" BETWEEN -9007199254740991 AND 9007199254740991),
 	CONSTRAINT "provider_accounts_last_synced_at_integer_check" CHECK("last_synced_at" IS NULL OR (typeof("last_synced_at") = 'integer' AND "last_synced_at" BETWEEN -9007199254740991 AND 9007199254740991)),
+	CONSTRAINT "provider_accounts_sync_start_date_date_check" CHECK("sync_start_date" IS NULL OR (typeof("sync_start_date") = 'text' AND length("sync_start_date") = 10 AND "sync_start_date" GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]')),
 	CONSTRAINT "provider_accounts_kind_check" CHECK("kind" IN ('bank', 'investment', 'books', 'csv', 'manual'))
 );
 --> statement-breakpoint
@@ -40,7 +41,8 @@ CREATE TABLE `providers` (
 --> statement-breakpoint
 CREATE UNIQUE INDEX `provider_accounts_account_idx` ON `provider_accounts` (`profile_id`,`provider_id`,`external_id`);--> statement-breakpoint
 CREATE UNIQUE INDEX `provider_accounts_profile_id_idx` ON `provider_accounts` (`profile_id`,`id`);--> statement-breakpoint
-CREATE INDEX `provider_accounts_profile_idx` ON `provider_accounts` (`profile_id`);--> statement-breakpoint
+CREATE INDEX `provider_accounts_profile_idx` ON `provider_accounts` (`profile_id`);
+--> statement-breakpoint
 INSERT INTO `providers` (`id`, `kind`, `label`, `enabled`) VALUES
 	('wise', 'bank', 'Wise', 1),
 	('trading212', 'investment', 'Trading 212', 1),

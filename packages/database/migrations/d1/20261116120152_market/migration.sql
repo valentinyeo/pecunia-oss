@@ -8,6 +8,7 @@ CREATE TABLE `exchange_rates` (
 	CONSTRAINT "exchange_rates_base_currency_code_check" CHECK(typeof("base_currency") = 'text' AND length("base_currency") = 3 AND instr("base_currency", char(0)) = 0 AND "base_currency" GLOB '[A-Z][A-Z][A-Z]'),
 	CONSTRAINT "exchange_rates_quote_currency_code_check" CHECK(typeof("quote_currency") = 'text' AND length("quote_currency") = 3 AND instr("quote_currency", char(0)) = 0 AND "quote_currency" GLOB '[A-Z][A-Z][A-Z]'),
 	CONSTRAINT "exchange_rates_fetched_at_integer_check" CHECK(typeof("fetched_at") = 'integer' AND "fetched_at" BETWEEN -9007199254740991 AND 9007199254740991),
+	CONSTRAINT "exchange_rates_as_of_date_check" CHECK(typeof("as_of") = 'text' AND length("as_of") = 10 AND "as_of" GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'),
 	CONSTRAINT "exchange_rates_rate_check" CHECK(typeof("rate") = 'real' AND "rate" > 0 AND "rate" < 1e300)
 );
 --> statement-breakpoint
@@ -41,6 +42,7 @@ CREATE TABLE `holdings` (
 	CONSTRAINT "holdings_priced_at_integer_check" CHECK("priced_at" IS NULL OR (typeof("priced_at") = 'integer' AND "priced_at" BETWEEN -9007199254740991 AND 9007199254740991)),
 	CONSTRAINT "holdings_quantity_micros_integer_check" CHECK(typeof("quantity_micros") = 'integer' AND "quantity_micros" BETWEEN -9007199254740991 AND 9007199254740991),
 	CONSTRAINT "holdings_updated_at_integer_check" CHECK(typeof("updated_at") = 'integer' AND "updated_at" BETWEEN -9007199254740991 AND 9007199254740991),
+	CONSTRAINT "holdings_opened_on_date_check" CHECK(typeof("opened_on") = 'text' AND length("opened_on") = 10 AND "opened_on" GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'),
 	CONSTRAINT "holdings_asset_type_check" CHECK("asset_type" IN ('stock', 'etf', 'fund', 'crypto', 'cash')),
 	CONSTRAINT "holdings_state_check" CHECK("state" IN ('active', 'pending', 'closed')),
 	CONSTRAINT "holdings_quantity_check" CHECK("quantity_micros" >= 0),

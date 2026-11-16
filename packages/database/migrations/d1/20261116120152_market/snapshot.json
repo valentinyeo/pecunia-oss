@@ -1,8 +1,8 @@
 {
   "version": "7",
   "dialect": "sqlite",
-  "id": "6e819a8a-27ce-43f4-82b6-09e87248d3bf",
-  "prevIds": ["d965b37d-e43e-4ae7-8d02-8aee7e55a55f"],
+  "id": "1e15060f-53b3-4586-a08c-9278254a992f",
+  "prevIds": ["179f1425-853d-4fc3-b1fc-e299d661a8c5"],
   "ddl": [
     {
       "name": "app_setting",
@@ -10,6 +10,14 @@
     },
     {
       "name": "categories",
+      "entityType": "tables"
+    },
+    {
+      "name": "exchange_rates",
+      "entityType": "tables"
+    },
+    {
+      "name": "holdings",
       "entityType": "tables"
     },
     {
@@ -176,6 +184,236 @@
       "table": "categories",
       "name": "spending_type",
       "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "exchange_rates",
+      "name": "as_of",
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "exchange_rates",
+      "name": "base_currency",
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "exchange_rates",
+      "name": "fetched_at",
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "exchange_rates",
+      "name": "quote_currency",
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "exchange_rates",
+      "name": "rate",
+      "type": "real",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "holdings",
+      "name": "asset_type",
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "holdings",
+      "name": "cost_basis_currency",
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "holdings",
+      "name": "cost_basis_minor",
+      "type": "integer",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "holdings",
+      "name": "created_at",
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "holdings",
+      "name": "currency",
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "holdings",
+      "name": "id",
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "holdings",
+      "name": "last_price_currency",
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "holdings",
+      "name": "last_price_minor",
+      "type": "integer",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "holdings",
+      "name": "name",
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "holdings",
+      "name": "notes",
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": "''",
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "holdings",
+      "name": "opened_on",
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "holdings",
+      "name": "platform_id",
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "holdings",
+      "name": "priced_at",
+      "type": "integer",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "holdings",
+      "name": "profile_id",
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "holdings",
+      "name": "quantity_micros",
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "holdings",
+      "name": "state",
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "holdings",
+      "name": "symbol",
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "holdings",
+      "name": "updated_at",
+      "type": "integer",
       "notNull": true,
       "autoincrement": false,
       "default": null,
@@ -1237,6 +1475,82 @@
       "entityType": "indexes"
     },
     {
+      "table": "exchange_rates",
+      "name": "exchange_rates_quote_as_of_idx",
+      "columns": [
+        {
+          "value": "quote_currency",
+          "isExpression": false
+        },
+        {
+          "value": "\"as_of\" DESC",
+          "isExpression": true
+        }
+      ],
+      "isUnique": false,
+      "where": null,
+      "origin": "manual",
+      "entityType": "indexes"
+    },
+    {
+      "table": "holdings",
+      "name": "holdings_symbol_idx",
+      "columns": [
+        {
+          "value": "profile_id",
+          "isExpression": false
+        },
+        {
+          "value": "platform_id",
+          "isExpression": false
+        },
+        {
+          "value": "symbol",
+          "isExpression": false
+        }
+      ],
+      "isUnique": true,
+      "where": null,
+      "origin": "manual",
+      "entityType": "indexes"
+    },
+    {
+      "table": "holdings",
+      "name": "holdings_profile_id_idx",
+      "columns": [
+        {
+          "value": "profile_id",
+          "isExpression": false
+        },
+        {
+          "value": "id",
+          "isExpression": false
+        }
+      ],
+      "isUnique": true,
+      "where": null,
+      "origin": "manual",
+      "entityType": "indexes"
+    },
+    {
+      "table": "holdings",
+      "name": "holdings_profile_state_idx",
+      "columns": [
+        {
+          "value": "profile_id",
+          "isExpression": false
+        },
+        {
+          "value": "state",
+          "isExpression": false
+        }
+      ],
+      "isUnique": false,
+      "where": null,
+      "origin": "manual",
+      "entityType": "indexes"
+    },
+    {
       "table": "members",
       "name": "members_profile_email_idx",
       "columns": [
@@ -1750,6 +2064,28 @@
       "entityType": "fks"
     },
     {
+      "table": "holdings",
+      "name": "fk_holdings_platform_id_investment_platforms_id_fk",
+      "columns": ["platform_id"],
+      "tableTo": "investment_platforms",
+      "columnsTo": ["id"],
+      "onUpdate": "NO ACTION",
+      "onDelete": "NO ACTION",
+      "nameExplicit": false,
+      "entityType": "fks"
+    },
+    {
+      "table": "holdings",
+      "name": "fk_holdings_profile_id_profiles_id_fk",
+      "columns": ["profile_id"],
+      "tableTo": "profiles",
+      "columnsTo": ["id"],
+      "onUpdate": "NO ACTION",
+      "onDelete": "NO ACTION",
+      "nameExplicit": false,
+      "entityType": "fks"
+    },
+    {
       "table": "members",
       "name": "fk_members_profile_id_profiles_id_fk",
       "columns": ["profile_id"],
@@ -1988,6 +2324,20 @@
       "entityType": "pks"
     },
     {
+      "table": "exchange_rates",
+      "name": "exchange_rates_pk",
+      "columns": ["base_currency", "quote_currency", "as_of"],
+      "nameExplicit": false,
+      "entityType": "pks"
+    },
+    {
+      "table": "holdings",
+      "name": "holdings_pk",
+      "columns": ["id"],
+      "nameExplicit": false,
+      "entityType": "pks"
+    },
+    {
       "table": "investment_platforms",
       "name": "investment_platforms_pk",
       "columns": ["id"],
@@ -2101,6 +2451,132 @@
       "entityType": "checks"
     },
     {
+      "table": "exchange_rates",
+      "name": "exchange_rates_base_currency_code_check",
+      "value": "typeof(\"base_currency\") = 'text' AND length(\"base_currency\") = 3 AND instr(\"base_currency\", char(0)) = 0 AND \"base_currency\" GLOB '[A-Z][A-Z][A-Z]'",
+      "entityType": "checks"
+    },
+    {
+      "table": "exchange_rates",
+      "name": "exchange_rates_quote_currency_code_check",
+      "value": "typeof(\"quote_currency\") = 'text' AND length(\"quote_currency\") = 3 AND instr(\"quote_currency\", char(0)) = 0 AND \"quote_currency\" GLOB '[A-Z][A-Z][A-Z]'",
+      "entityType": "checks"
+    },
+    {
+      "table": "exchange_rates",
+      "name": "exchange_rates_fetched_at_integer_check",
+      "value": "typeof(\"fetched_at\") = 'integer' AND \"fetched_at\" BETWEEN -9007199254740991 AND 9007199254740991",
+      "entityType": "checks"
+    },
+    {
+      "table": "exchange_rates",
+      "name": "exchange_rates_as_of_date_check",
+      "value": "typeof(\"as_of\") = 'text' AND length(\"as_of\") = 10 AND \"as_of\" GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'",
+      "entityType": "checks"
+    },
+    {
+      "table": "exchange_rates",
+      "name": "exchange_rates_rate_check",
+      "value": "typeof(\"rate\") = 'real' AND \"rate\" > 0 AND \"rate\" < 1e300",
+      "entityType": "checks"
+    },
+    {
+      "table": "holdings",
+      "name": "holdings_currency_code_check",
+      "value": "typeof(\"currency\") = 'text' AND length(\"currency\") = 3 AND instr(\"currency\", char(0)) = 0 AND \"currency\" GLOB '[A-Z][A-Z][A-Z]'",
+      "entityType": "checks"
+    },
+    {
+      "table": "holdings",
+      "name": "holdings_cost_basis_currency_code_check",
+      "value": "\"cost_basis_currency\" IS NULL OR (typeof(\"cost_basis_currency\") = 'text' AND length(\"cost_basis_currency\") = 3 AND instr(\"cost_basis_currency\", char(0)) = 0 AND \"cost_basis_currency\" GLOB '[A-Z][A-Z][A-Z]')",
+      "entityType": "checks"
+    },
+    {
+      "table": "holdings",
+      "name": "holdings_last_price_currency_code_check",
+      "value": "\"last_price_currency\" IS NULL OR (typeof(\"last_price_currency\") = 'text' AND length(\"last_price_currency\") = 3 AND instr(\"last_price_currency\", char(0)) = 0 AND \"last_price_currency\" GLOB '[A-Z][A-Z][A-Z]')",
+      "entityType": "checks"
+    },
+    {
+      "table": "holdings",
+      "name": "holdings_cost_basis_minor_integer_check",
+      "value": "\"cost_basis_minor\" IS NULL OR (typeof(\"cost_basis_minor\") = 'integer' AND \"cost_basis_minor\" BETWEEN -9007199254740991 AND 9007199254740991)",
+      "entityType": "checks"
+    },
+    {
+      "table": "holdings",
+      "name": "holdings_created_at_integer_check",
+      "value": "typeof(\"created_at\") = 'integer' AND \"created_at\" BETWEEN -9007199254740991 AND 9007199254740991",
+      "entityType": "checks"
+    },
+    {
+      "table": "holdings",
+      "name": "holdings_last_price_minor_integer_check",
+      "value": "\"last_price_minor\" IS NULL OR (typeof(\"last_price_minor\") = 'integer' AND \"last_price_minor\" BETWEEN -9007199254740991 AND 9007199254740991)",
+      "entityType": "checks"
+    },
+    {
+      "table": "holdings",
+      "name": "holdings_priced_at_integer_check",
+      "value": "\"priced_at\" IS NULL OR (typeof(\"priced_at\") = 'integer' AND \"priced_at\" BETWEEN -9007199254740991 AND 9007199254740991)",
+      "entityType": "checks"
+    },
+    {
+      "table": "holdings",
+      "name": "holdings_quantity_micros_integer_check",
+      "value": "typeof(\"quantity_micros\") = 'integer' AND \"quantity_micros\" BETWEEN -9007199254740991 AND 9007199254740991",
+      "entityType": "checks"
+    },
+    {
+      "table": "holdings",
+      "name": "holdings_updated_at_integer_check",
+      "value": "typeof(\"updated_at\") = 'integer' AND \"updated_at\" BETWEEN -9007199254740991 AND 9007199254740991",
+      "entityType": "checks"
+    },
+    {
+      "table": "holdings",
+      "name": "holdings_opened_on_date_check",
+      "value": "typeof(\"opened_on\") = 'text' AND length(\"opened_on\") = 10 AND \"opened_on\" GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'",
+      "entityType": "checks"
+    },
+    {
+      "table": "holdings",
+      "name": "holdings_asset_type_check",
+      "value": "\"asset_type\" IN ('stock', 'etf', 'fund', 'crypto', 'cash')",
+      "entityType": "checks"
+    },
+    {
+      "table": "holdings",
+      "name": "holdings_state_check",
+      "value": "\"state\" IN ('active', 'pending', 'closed')",
+      "entityType": "checks"
+    },
+    {
+      "table": "holdings",
+      "name": "holdings_quantity_check",
+      "value": "\"quantity_micros\" >= 0",
+      "entityType": "checks"
+    },
+    {
+      "table": "holdings",
+      "name": "holdings_cost_basis_pair_check",
+      "value": "(\"cost_basis_minor\" IS NULL) = (\"cost_basis_currency\" IS NULL)",
+      "entityType": "checks"
+    },
+    {
+      "table": "holdings",
+      "name": "holdings_last_price_pair_check",
+      "value": "(\"last_price_minor\" IS NULL) = (\"last_price_currency\" IS NULL)",
+      "entityType": "checks"
+    },
+    {
+      "table": "holdings",
+      "name": "holdings_pending_price_check",
+      "value": "\"state\" <> 'pending' OR \"last_price_minor\" IS NULL",
+      "entityType": "checks"
+    },
+    {
       "table": "investment_platforms",
       "name": "investment_platforms_enabled_integer_check",
       "value": "typeof(\"enabled\") = 'integer' AND \"enabled\" BETWEEN -9007199254740991 AND 9007199254740991",
@@ -2126,6 +2602,12 @@
     },
     {
       "table": "members",
+      "name": "members_email_check",
+      "value": "typeof(\"email\") = 'text' AND length(trim(\"email\")) > 0",
+      "entityType": "checks"
+    },
+    {
+      "table": "members",
       "name": "members_role_check",
       "value": "\"role\" IN ('owner', 'viewer')",
       "entityType": "checks"
@@ -2134,6 +2616,12 @@
       "table": "merchant_aliases",
       "name": "merchant_aliases_created_at_integer_check",
       "value": "typeof(\"created_at\") = 'integer' AND \"created_at\" BETWEEN -9007199254740991 AND 9007199254740991",
+      "entityType": "checks"
+    },
+    {
+      "table": "merchant_aliases",
+      "name": "merchant_aliases_pattern_check",
+      "value": "typeof(\"pattern\") = 'text' AND length(trim(\"pattern\")) > 0",
       "entityType": "checks"
     },
     {
@@ -2204,6 +2692,12 @@
     },
     {
       "table": "provider_accounts",
+      "name": "provider_accounts_sync_start_date_date_check",
+      "value": "\"sync_start_date\" IS NULL OR (typeof(\"sync_start_date\") = 'text' AND length(\"sync_start_date\") = 10 AND \"sync_start_date\" GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]')",
+      "entityType": "checks"
+    },
+    {
+      "table": "provider_accounts",
       "name": "provider_accounts_kind_check",
       "value": "\"kind\" IN ('bank', 'investment', 'books', 'csv', 'manual')",
       "entityType": "checks"
@@ -2266,6 +2760,12 @@
       "table": "rules",
       "name": "rules_enabled_boolean_check",
       "value": "\"enabled\" IN (0, 1)",
+      "entityType": "checks"
+    },
+    {
+      "table": "rules",
+      "name": "rules_pattern_check",
+      "value": "typeof(\"pattern\") = 'text' AND length(trim(\"pattern\")) > 0",
       "entityType": "checks"
     },
     {
@@ -2384,6 +2884,18 @@
     },
     {
       "table": "transactions",
+      "name": "transactions_rate_as_of_date_check",
+      "value": "\"rate_as_of\" IS NULL OR (typeof(\"rate_as_of\") = 'text' AND length(\"rate_as_of\") = 10 AND \"rate_as_of\" GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]')",
+      "entityType": "checks"
+    },
+    {
+      "table": "transactions",
+      "name": "transactions_value_date_date_check",
+      "value": "typeof(\"value_date\") = 'text' AND length(\"value_date\") = 10 AND \"value_date\" GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'",
+      "entityType": "checks"
+    },
+    {
+      "table": "transactions",
       "name": "transactions_status_check",
       "value": "\"status\" IN ('posted', 'pending', 'reversed')",
       "entityType": "checks"
@@ -2415,7 +2927,7 @@
     {
       "table": "transactions",
       "name": "transactions_suggested_check",
-      "value": "(\"categorization\" = 'suggested') = (\"suggestion_model\" IS NOT NULL AND \"suggested_at\" IS NOT NULL)",
+      "value": "(\"categorization\" = 'suggested' AND \"suggestion_model\" IS NOT NULL AND \"suggested_at\" IS NOT NULL) OR (\"categorization\" <> 'suggested' AND \"suggestion_model\" IS NULL AND \"suggested_at\" IS NULL)",
       "entityType": "checks"
     },
     {
@@ -2452,6 +2964,12 @@
       "table": "transactions",
       "name": "transactions_rate_check",
       "value": "(\"source_currency\" = \"base_currency\" AND \"rate\" IS NULL AND \"rate_as_of\" IS NULL) OR (\"source_currency\" <> \"base_currency\" AND typeof(\"rate\") = 'real' AND \"rate\" > 0 AND \"rate\" < 1e300 AND \"rate_as_of\" IS NOT NULL)",
+      "entityType": "checks"
+    },
+    {
+      "table": "transactions",
+      "name": "transactions_rate_amount_check",
+      "value": "\"source_currency\" = \"base_currency\" OR abs(\"base_minor\" - \"source_minor\" * \"rate\") <= 1 + abs(\"source_minor\" * \"rate\") / 1000000000000",
       "entityType": "checks"
     },
     {

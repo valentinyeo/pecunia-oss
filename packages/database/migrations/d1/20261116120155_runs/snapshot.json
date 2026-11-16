@@ -1,8 +1,8 @@
 {
   "version": "7",
   "dialect": "sqlite",
-  "id": "d7b2d1cb-304c-4324-b860-266fd4947b4d",
-  "prevIds": ["6e819a8a-27ce-43f4-82b6-09e87248d3bf"],
+  "id": "04f97ad3-259a-4b8d-aa24-c03b9dfc9923",
+  "prevIds": ["45267005-24ff-49eb-9578-f997c778b6f5"],
   "ddl": [
     {
       "name": "app_setting",
@@ -54,6 +54,18 @@
     },
     {
       "name": "run_logs",
+      "entityType": "tables"
+    },
+    {
+      "name": "subscriptions",
+      "entityType": "tables"
+    },
+    {
+      "name": "sync_run_rejections",
+      "entityType": "tables"
+    },
+    {
+      "name": "sync_runs",
       "entityType": "tables"
     },
     {
@@ -1091,6 +1103,436 @@
       "entityType": "columns"
     },
     {
+      "table": "subscriptions",
+      "name": "amount_cv",
+      "type": "real",
+      "notNull": true,
+      "autoincrement": false,
+      "default": "0",
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "subscriptions",
+      "name": "base_currency",
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "subscriptions",
+      "name": "category_id",
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "subscriptions",
+      "name": "confidence",
+      "type": "real",
+      "notNull": true,
+      "autoincrement": false,
+      "default": "0",
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "subscriptions",
+      "name": "created_at",
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "subscriptions",
+      "name": "frequency",
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "subscriptions",
+      "name": "id",
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "subscriptions",
+      "name": "last_charged_on",
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "subscriptions",
+      "name": "next_expected_on",
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "subscriptions",
+      "name": "notes",
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": "''",
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "subscriptions",
+      "name": "occurrence_count",
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": "0",
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "subscriptions",
+      "name": "payee_id",
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "subscriptions",
+      "name": "profile_id",
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "subscriptions",
+      "name": "status",
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "subscriptions",
+      "name": "status_changed_at",
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "subscriptions",
+      "name": "typical_base_minor",
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "subscriptions",
+      "name": "typical_currency",
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "subscriptions",
+      "name": "typical_minor",
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "subscriptions",
+      "name": "updated_at",
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "sync_run_rejections",
+      "name": "created_at",
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "sync_run_rejections",
+      "name": "detail",
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "sync_run_rejections",
+      "name": "external_id",
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "sync_run_rejections",
+      "name": "id",
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "sync_run_rejections",
+      "name": "reason",
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "sync_run_rejections",
+      "name": "run_id",
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "sync_runs",
+      "name": "chunk_index",
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": "0",
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "sync_runs",
+      "name": "failure_message",
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "sync_runs",
+      "name": "failure_tag",
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "sync_runs",
+      "name": "finished_at",
+      "type": "integer",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "sync_runs",
+      "name": "id",
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "sync_runs",
+      "name": "imported",
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": "0",
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "sync_runs",
+      "name": "kind",
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "sync_runs",
+      "name": "lease_expires_at",
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "sync_runs",
+      "name": "lease_owner",
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "sync_runs",
+      "name": "profile_id",
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "sync_runs",
+      "name": "provider_account_id",
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "sync_runs",
+      "name": "rejected",
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": "0",
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "sync_runs",
+      "name": "skipped",
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": "0",
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "sync_runs",
+      "name": "started_at",
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "sync_runs",
+      "name": "state",
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "sync_runs",
+      "name": "updated_at",
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "sync_runs",
+      "name": "window_from",
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "sync_runs",
+      "name": "window_to",
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
       "table": "transactions",
       "name": "applied_rule_id",
       "type": "text",
@@ -1867,6 +2309,142 @@
       "entityType": "indexes"
     },
     {
+      "table": "subscriptions",
+      "name": "subscriptions_payee_idx",
+      "columns": [
+        {
+          "value": "profile_id",
+          "isExpression": false
+        },
+        {
+          "value": "payee_id",
+          "isExpression": false
+        }
+      ],
+      "isUnique": true,
+      "where": null,
+      "origin": "manual",
+      "entityType": "indexes"
+    },
+    {
+      "table": "subscriptions",
+      "name": "subscriptions_profile_status_idx",
+      "columns": [
+        {
+          "value": "profile_id",
+          "isExpression": false
+        },
+        {
+          "value": "status",
+          "isExpression": false
+        }
+      ],
+      "isUnique": false,
+      "where": null,
+      "origin": "manual",
+      "entityType": "indexes"
+    },
+    {
+      "table": "sync_run_rejections",
+      "name": "sync_run_rejections_run_idx",
+      "columns": [
+        {
+          "value": "run_id",
+          "isExpression": false
+        }
+      ],
+      "isUnique": false,
+      "where": null,
+      "origin": "manual",
+      "entityType": "indexes"
+    },
+    {
+      "table": "sync_runs",
+      "name": "sync_runs_one_open_per_account",
+      "columns": [
+        {
+          "value": "provider_account_id",
+          "isExpression": false
+        }
+      ],
+      "isUnique": true,
+      "where": "\"sync_runs\".\"state\" IN ('running', 'chunk_done', 'categorizing')",
+      "origin": "manual",
+      "entityType": "indexes"
+    },
+    {
+      "table": "sync_runs",
+      "name": "sync_runs_one_open_without_account",
+      "columns": [
+        {
+          "value": "profile_id",
+          "isExpression": false
+        },
+        {
+          "value": "kind",
+          "isExpression": false
+        }
+      ],
+      "isUnique": true,
+      "where": "\"sync_runs\".\"provider_account_id\" IS NULL AND \"sync_runs\".\"state\" IN ('running', 'chunk_done', 'categorizing')",
+      "origin": "manual",
+      "entityType": "indexes"
+    },
+    {
+      "table": "sync_runs",
+      "name": "sync_runs_profile_id_idx",
+      "columns": [
+        {
+          "value": "profile_id",
+          "isExpression": false
+        },
+        {
+          "value": "id",
+          "isExpression": false
+        }
+      ],
+      "isUnique": true,
+      "where": null,
+      "origin": "manual",
+      "entityType": "indexes"
+    },
+    {
+      "table": "sync_runs",
+      "name": "sync_runs_profile_started_idx",
+      "columns": [
+        {
+          "value": "profile_id",
+          "isExpression": false
+        },
+        {
+          "value": "\"started_at\" DESC",
+          "isExpression": true
+        }
+      ],
+      "isUnique": false,
+      "where": null,
+      "origin": "manual",
+      "entityType": "indexes"
+    },
+    {
+      "table": "sync_runs",
+      "name": "sync_runs_state_lease_idx",
+      "columns": [
+        {
+          "value": "state",
+          "isExpression": false
+        },
+        {
+          "value": "lease_expires_at",
+          "isExpression": false
+        }
+      ],
+      "isUnique": false,
+      "where": null,
+      "origin": "manual",
+      "entityType": "indexes"
+    },
+    {
       "table": "transactions",
       "name": "transactions_account_external_idx",
       "columns": [
@@ -2207,6 +2785,83 @@
       "entityType": "fks"
     },
     {
+      "table": "subscriptions",
+      "name": "fk_subscriptions_profile_id_profiles_id_fk",
+      "columns": ["profile_id"],
+      "tableTo": "profiles",
+      "columnsTo": ["id"],
+      "onUpdate": "NO ACTION",
+      "onDelete": "NO ACTION",
+      "nameExplicit": false,
+      "entityType": "fks"
+    },
+    {
+      "table": "subscriptions",
+      "name": "fk_subscriptions_profile_id_payee_id_payees_profile_id_id_fk",
+      "columns": ["profile_id", "payee_id"],
+      "tableTo": "payees",
+      "columnsTo": ["profile_id", "id"],
+      "onUpdate": "NO ACTION",
+      "onDelete": "NO ACTION",
+      "nameExplicit": false,
+      "entityType": "fks"
+    },
+    {
+      "table": "subscriptions",
+      "name": "fk_subscriptions_profile_id_category_id_categories_profile_id_id_fk",
+      "columns": ["profile_id", "category_id"],
+      "tableTo": "categories",
+      "columnsTo": ["profile_id", "id"],
+      "onUpdate": "NO ACTION",
+      "onDelete": "NO ACTION",
+      "nameExplicit": false,
+      "entityType": "fks"
+    },
+    {
+      "table": "subscriptions",
+      "name": "fk_subscriptions_profile_id_base_currency_profiles_id_base_currency_fk",
+      "columns": ["profile_id", "base_currency"],
+      "tableTo": "profiles",
+      "columnsTo": ["id", "base_currency"],
+      "onUpdate": "NO ACTION",
+      "onDelete": "NO ACTION",
+      "nameExplicit": false,
+      "entityType": "fks"
+    },
+    {
+      "table": "sync_run_rejections",
+      "name": "fk_sync_run_rejections_run_id_sync_runs_id_fk",
+      "columns": ["run_id"],
+      "tableTo": "sync_runs",
+      "columnsTo": ["id"],
+      "onUpdate": "NO ACTION",
+      "onDelete": "NO ACTION",
+      "nameExplicit": false,
+      "entityType": "fks"
+    },
+    {
+      "table": "sync_runs",
+      "name": "fk_sync_runs_profile_id_profiles_id_fk",
+      "columns": ["profile_id"],
+      "tableTo": "profiles",
+      "columnsTo": ["id"],
+      "onUpdate": "NO ACTION",
+      "onDelete": "NO ACTION",
+      "nameExplicit": false,
+      "entityType": "fks"
+    },
+    {
+      "table": "sync_runs",
+      "name": "fk_sync_runs_profile_id_provider_account_id_provider_accounts_profile_id_id_fk",
+      "columns": ["profile_id", "provider_account_id"],
+      "tableTo": "provider_accounts",
+      "columnsTo": ["profile_id", "id"],
+      "onUpdate": "NO ACTION",
+      "onDelete": "NO ACTION",
+      "nameExplicit": false,
+      "entityType": "fks"
+    },
+    {
       "table": "transactions",
       "name": "fk_transactions_counterpart_profile_id_profiles_id_fk",
       "columns": ["counterpart_profile_id"],
@@ -2401,6 +3056,27 @@
       "entityType": "pks"
     },
     {
+      "table": "subscriptions",
+      "name": "subscriptions_pk",
+      "columns": ["id"],
+      "nameExplicit": false,
+      "entityType": "pks"
+    },
+    {
+      "table": "sync_run_rejections",
+      "name": "sync_run_rejections_pk",
+      "columns": ["id"],
+      "nameExplicit": false,
+      "entityType": "pks"
+    },
+    {
+      "table": "sync_runs",
+      "name": "sync_runs_pk",
+      "columns": ["id"],
+      "nameExplicit": false,
+      "entityType": "pks"
+    },
+    {
       "table": "transactions",
       "name": "transactions_pk",
       "columns": ["id"],
@@ -2470,6 +3146,12 @@
     },
     {
       "table": "exchange_rates",
+      "name": "exchange_rates_as_of_date_check",
+      "value": "typeof(\"as_of\") = 'text' AND length(\"as_of\") = 10 AND \"as_of\" GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'",
+      "entityType": "checks"
+    },
+    {
+      "table": "exchange_rates",
       "name": "exchange_rates_rate_check",
       "value": "typeof(\"rate\") = 'real' AND \"rate\" > 0 AND \"rate\" < 1e300",
       "entityType": "checks"
@@ -2526,6 +3208,12 @@
       "table": "holdings",
       "name": "holdings_updated_at_integer_check",
       "value": "typeof(\"updated_at\") = 'integer' AND \"updated_at\" BETWEEN -9007199254740991 AND 9007199254740991",
+      "entityType": "checks"
+    },
+    {
+      "table": "holdings",
+      "name": "holdings_opened_on_date_check",
+      "value": "typeof(\"opened_on\") = 'text' AND length(\"opened_on\") = 10 AND \"opened_on\" GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'",
       "entityType": "checks"
     },
     {
@@ -2590,6 +3278,12 @@
     },
     {
       "table": "members",
+      "name": "members_email_check",
+      "value": "typeof(\"email\") = 'text' AND length(trim(\"email\")) > 0",
+      "entityType": "checks"
+    },
+    {
+      "table": "members",
       "name": "members_role_check",
       "value": "\"role\" IN ('owner', 'viewer')",
       "entityType": "checks"
@@ -2598,6 +3292,12 @@
       "table": "merchant_aliases",
       "name": "merchant_aliases_created_at_integer_check",
       "value": "typeof(\"created_at\") = 'integer' AND \"created_at\" BETWEEN -9007199254740991 AND 9007199254740991",
+      "entityType": "checks"
+    },
+    {
+      "table": "merchant_aliases",
+      "name": "merchant_aliases_pattern_check",
+      "value": "typeof(\"pattern\") = 'text' AND length(trim(\"pattern\")) > 0",
       "entityType": "checks"
     },
     {
@@ -2668,6 +3368,12 @@
     },
     {
       "table": "provider_accounts",
+      "name": "provider_accounts_sync_start_date_date_check",
+      "value": "\"sync_start_date\" IS NULL OR (typeof(\"sync_start_date\") = 'text' AND length(\"sync_start_date\") = 10 AND \"sync_start_date\" GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]')",
+      "entityType": "checks"
+    },
+    {
+      "table": "provider_accounts",
       "name": "provider_accounts_kind_check",
       "value": "\"kind\" IN ('bank', 'investment', 'books', 'csv', 'manual')",
       "entityType": "checks"
@@ -2734,6 +3440,12 @@
     },
     {
       "table": "rules",
+      "name": "rules_pattern_check",
+      "value": "typeof(\"pattern\") = 'text' AND length(trim(\"pattern\")) > 0",
+      "entityType": "checks"
+    },
+    {
+      "table": "rules",
       "name": "rules_kind_check",
       "value": "\"kind\" IN ('categorize', 'self_transfer', 'refund', 'internal_transfer', 'exclude', 'income_client', 'tax_payment')",
       "entityType": "checks"
@@ -2784,6 +3496,186 @@
       "table": "run_logs",
       "name": "run_logs_failure_tag_check",
       "value": "(\"outcome\" = 'Succeeded' AND \"failure_tag\" IS NULL) OR (\"outcome\" = 'Failed' AND \"failure_tag\" IS NOT NULL)",
+      "entityType": "checks"
+    },
+    {
+      "table": "subscriptions",
+      "name": "subscriptions_base_currency_code_check",
+      "value": "typeof(\"base_currency\") = 'text' AND length(\"base_currency\") = 3 AND instr(\"base_currency\", char(0)) = 0 AND \"base_currency\" GLOB '[A-Z][A-Z][A-Z]'",
+      "entityType": "checks"
+    },
+    {
+      "table": "subscriptions",
+      "name": "subscriptions_typical_currency_code_check",
+      "value": "typeof(\"typical_currency\") = 'text' AND length(\"typical_currency\") = 3 AND instr(\"typical_currency\", char(0)) = 0 AND \"typical_currency\" GLOB '[A-Z][A-Z][A-Z]'",
+      "entityType": "checks"
+    },
+    {
+      "table": "subscriptions",
+      "name": "subscriptions_created_at_integer_check",
+      "value": "typeof(\"created_at\") = 'integer' AND \"created_at\" BETWEEN -9007199254740991 AND 9007199254740991",
+      "entityType": "checks"
+    },
+    {
+      "table": "subscriptions",
+      "name": "subscriptions_occurrence_count_integer_check",
+      "value": "typeof(\"occurrence_count\") = 'integer' AND \"occurrence_count\" BETWEEN -9007199254740991 AND 9007199254740991",
+      "entityType": "checks"
+    },
+    {
+      "table": "subscriptions",
+      "name": "subscriptions_status_changed_at_integer_check",
+      "value": "typeof(\"status_changed_at\") = 'integer' AND \"status_changed_at\" BETWEEN -9007199254740991 AND 9007199254740991",
+      "entityType": "checks"
+    },
+    {
+      "table": "subscriptions",
+      "name": "subscriptions_typical_base_minor_integer_check",
+      "value": "typeof(\"typical_base_minor\") = 'integer' AND \"typical_base_minor\" BETWEEN -9007199254740991 AND 9007199254740991",
+      "entityType": "checks"
+    },
+    {
+      "table": "subscriptions",
+      "name": "subscriptions_typical_minor_integer_check",
+      "value": "typeof(\"typical_minor\") = 'integer' AND \"typical_minor\" BETWEEN -9007199254740991 AND 9007199254740991",
+      "entityType": "checks"
+    },
+    {
+      "table": "subscriptions",
+      "name": "subscriptions_updated_at_integer_check",
+      "value": "typeof(\"updated_at\") = 'integer' AND \"updated_at\" BETWEEN -9007199254740991 AND 9007199254740991",
+      "entityType": "checks"
+    },
+    {
+      "table": "subscriptions",
+      "name": "subscriptions_last_charged_on_date_check",
+      "value": "typeof(\"last_charged_on\") = 'text' AND length(\"last_charged_on\") = 10 AND \"last_charged_on\" GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'",
+      "entityType": "checks"
+    },
+    {
+      "table": "subscriptions",
+      "name": "subscriptions_next_expected_on_date_check",
+      "value": "typeof(\"next_expected_on\") = 'text' AND length(\"next_expected_on\") = 10 AND \"next_expected_on\" GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'",
+      "entityType": "checks"
+    },
+    {
+      "table": "subscriptions",
+      "name": "subscriptions_frequency_check",
+      "value": "\"frequency\" IN ('weekly', 'monthly', 'quarterly', 'annual')",
+      "entityType": "checks"
+    },
+    {
+      "table": "subscriptions",
+      "name": "subscriptions_status_check",
+      "value": "\"status\" IN ('detected', 'confirmed', 'dismissed', 'not_recurring', 'cancelled')",
+      "entityType": "checks"
+    },
+    {
+      "table": "subscriptions",
+      "name": "subscriptions_base_amount_check",
+      "value": "\"typical_currency\" <> \"base_currency\" OR \"typical_minor\" = \"typical_base_minor\"",
+      "entityType": "checks"
+    },
+    {
+      "table": "subscriptions",
+      "name": "subscriptions_confidence_check",
+      "value": "typeof(\"confidence\") = 'real' AND \"confidence\" >= 0 AND \"confidence\" <= 1",
+      "entityType": "checks"
+    },
+    {
+      "table": "subscriptions",
+      "name": "subscriptions_amount_cv_check",
+      "value": "typeof(\"amount_cv\") = 'real' AND \"amount_cv\" >= 0 AND \"amount_cv\" < 1e300",
+      "entityType": "checks"
+    },
+    {
+      "table": "sync_run_rejections",
+      "name": "sync_run_rejections_created_at_integer_check",
+      "value": "typeof(\"created_at\") = 'integer' AND \"created_at\" BETWEEN -9007199254740991 AND 9007199254740991",
+      "entityType": "checks"
+    },
+    {
+      "table": "sync_runs",
+      "name": "sync_runs_chunk_index_integer_check",
+      "value": "typeof(\"chunk_index\") = 'integer' AND \"chunk_index\" BETWEEN -9007199254740991 AND 9007199254740991",
+      "entityType": "checks"
+    },
+    {
+      "table": "sync_runs",
+      "name": "sync_runs_finished_at_integer_check",
+      "value": "\"finished_at\" IS NULL OR (typeof(\"finished_at\") = 'integer' AND \"finished_at\" BETWEEN -9007199254740991 AND 9007199254740991)",
+      "entityType": "checks"
+    },
+    {
+      "table": "sync_runs",
+      "name": "sync_runs_imported_integer_check",
+      "value": "typeof(\"imported\") = 'integer' AND \"imported\" BETWEEN -9007199254740991 AND 9007199254740991",
+      "entityType": "checks"
+    },
+    {
+      "table": "sync_runs",
+      "name": "sync_runs_lease_expires_at_integer_check",
+      "value": "typeof(\"lease_expires_at\") = 'integer' AND \"lease_expires_at\" BETWEEN -9007199254740991 AND 9007199254740991",
+      "entityType": "checks"
+    },
+    {
+      "table": "sync_runs",
+      "name": "sync_runs_rejected_integer_check",
+      "value": "typeof(\"rejected\") = 'integer' AND \"rejected\" BETWEEN -9007199254740991 AND 9007199254740991",
+      "entityType": "checks"
+    },
+    {
+      "table": "sync_runs",
+      "name": "sync_runs_skipped_integer_check",
+      "value": "typeof(\"skipped\") = 'integer' AND \"skipped\" BETWEEN -9007199254740991 AND 9007199254740991",
+      "entityType": "checks"
+    },
+    {
+      "table": "sync_runs",
+      "name": "sync_runs_started_at_integer_check",
+      "value": "typeof(\"started_at\") = 'integer' AND \"started_at\" BETWEEN -9007199254740991 AND 9007199254740991",
+      "entityType": "checks"
+    },
+    {
+      "table": "sync_runs",
+      "name": "sync_runs_updated_at_integer_check",
+      "value": "typeof(\"updated_at\") = 'integer' AND \"updated_at\" BETWEEN -9007199254740991 AND 9007199254740991",
+      "entityType": "checks"
+    },
+    {
+      "table": "sync_runs",
+      "name": "sync_runs_window_from_date_check",
+      "value": "\"window_from\" IS NULL OR (typeof(\"window_from\") = 'text' AND length(\"window_from\") = 10 AND \"window_from\" GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]')",
+      "entityType": "checks"
+    },
+    {
+      "table": "sync_runs",
+      "name": "sync_runs_window_to_date_check",
+      "value": "\"window_to\" IS NULL OR (typeof(\"window_to\") = 'text' AND length(\"window_to\") = 10 AND \"window_to\" GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]')",
+      "entityType": "checks"
+    },
+    {
+      "table": "sync_runs",
+      "name": "sync_runs_kind_check",
+      "value": "\"kind\" IN ('bank_sync', 'categorization')",
+      "entityType": "checks"
+    },
+    {
+      "table": "sync_runs",
+      "name": "sync_runs_state_check",
+      "value": "\"state\" IN ('running', 'chunk_done', 'categorizing', 'succeeded', 'failed', 'cancelled')",
+      "entityType": "checks"
+    },
+    {
+      "table": "sync_runs",
+      "name": "sync_runs_finished_check",
+      "value": "(\"state\" IN ('succeeded', 'failed', 'cancelled')) = (\"finished_at\" IS NOT NULL)",
+      "entityType": "checks"
+    },
+    {
+      "table": "sync_runs",
+      "name": "sync_runs_failure_check",
+      "value": "\"state\" <> 'failed' OR \"failure_tag\" IS NOT NULL",
       "entityType": "checks"
     },
     {
@@ -2848,6 +3740,18 @@
     },
     {
       "table": "transactions",
+      "name": "transactions_rate_as_of_date_check",
+      "value": "\"rate_as_of\" IS NULL OR (typeof(\"rate_as_of\") = 'text' AND length(\"rate_as_of\") = 10 AND \"rate_as_of\" GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]')",
+      "entityType": "checks"
+    },
+    {
+      "table": "transactions",
+      "name": "transactions_value_date_date_check",
+      "value": "typeof(\"value_date\") = 'text' AND length(\"value_date\") = 10 AND \"value_date\" GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'",
+      "entityType": "checks"
+    },
+    {
+      "table": "transactions",
       "name": "transactions_status_check",
       "value": "\"status\" IN ('posted', 'pending', 'reversed')",
       "entityType": "checks"
@@ -2879,7 +3783,7 @@
     {
       "table": "transactions",
       "name": "transactions_suggested_check",
-      "value": "(\"categorization\" = 'suggested') = (\"suggestion_model\" IS NOT NULL AND \"suggested_at\" IS NOT NULL)",
+      "value": "(\"categorization\" = 'suggested' AND \"suggestion_model\" IS NOT NULL AND \"suggested_at\" IS NOT NULL) OR (\"categorization\" <> 'suggested' AND \"suggestion_model\" IS NULL AND \"suggested_at\" IS NULL)",
       "entityType": "checks"
     },
     {
@@ -2916,6 +3820,12 @@
       "table": "transactions",
       "name": "transactions_rate_check",
       "value": "(\"source_currency\" = \"base_currency\" AND \"rate\" IS NULL AND \"rate_as_of\" IS NULL) OR (\"source_currency\" <> \"base_currency\" AND typeof(\"rate\") = 'real' AND \"rate\" > 0 AND \"rate\" < 1e300 AND \"rate_as_of\" IS NOT NULL)",
+      "entityType": "checks"
+    },
+    {
+      "table": "transactions",
+      "name": "transactions_rate_amount_check",
+      "value": "\"source_currency\" = \"base_currency\" OR abs(\"base_minor\" - \"source_minor\" * \"rate\") <= 1 + abs(\"source_minor\" * \"rate\") / 1000000000000",
       "entityType": "checks"
     },
     {

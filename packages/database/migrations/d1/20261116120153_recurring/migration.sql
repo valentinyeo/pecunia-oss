@@ -30,9 +30,13 @@ CREATE TABLE `subscriptions` (
 	CONSTRAINT "subscriptions_typical_base_minor_integer_check" CHECK(typeof("typical_base_minor") = 'integer' AND "typical_base_minor" BETWEEN -9007199254740991 AND 9007199254740991),
 	CONSTRAINT "subscriptions_typical_minor_integer_check" CHECK(typeof("typical_minor") = 'integer' AND "typical_minor" BETWEEN -9007199254740991 AND 9007199254740991),
 	CONSTRAINT "subscriptions_updated_at_integer_check" CHECK(typeof("updated_at") = 'integer' AND "updated_at" BETWEEN -9007199254740991 AND 9007199254740991),
+	CONSTRAINT "subscriptions_last_charged_on_date_check" CHECK(typeof("last_charged_on") = 'text' AND length("last_charged_on") = 10 AND "last_charged_on" GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'),
+	CONSTRAINT "subscriptions_next_expected_on_date_check" CHECK(typeof("next_expected_on") = 'text' AND length("next_expected_on") = 10 AND "next_expected_on" GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'),
 	CONSTRAINT "subscriptions_frequency_check" CHECK("frequency" IN ('weekly', 'monthly', 'quarterly', 'annual')),
 	CONSTRAINT "subscriptions_status_check" CHECK("status" IN ('detected', 'confirmed', 'dismissed', 'not_recurring', 'cancelled')),
-	CONSTRAINT "subscriptions_base_amount_check" CHECK("typical_currency" <> "base_currency" OR "typical_minor" = "typical_base_minor")
+	CONSTRAINT "subscriptions_base_amount_check" CHECK("typical_currency" <> "base_currency" OR "typical_minor" = "typical_base_minor"),
+	CONSTRAINT "subscriptions_confidence_check" CHECK(typeof("confidence") = 'real' AND "confidence" >= 0 AND "confidence" <= 1),
+	CONSTRAINT "subscriptions_amount_cv_check" CHECK(typeof("amount_cv") = 'real' AND "amount_cv" >= 0 AND "amount_cv" < 1e300)
 );
 --> statement-breakpoint
 CREATE UNIQUE INDEX `subscriptions_payee_idx` ON `subscriptions` (`profile_id`,`payee_id`);--> statement-breakpoint

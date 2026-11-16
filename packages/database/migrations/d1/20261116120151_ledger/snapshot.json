@@ -1,8 +1,8 @@
 {
   "version": "7",
   "dialect": "sqlite",
-  "id": "b53073e5-dd69-4e47-b97d-09c28d221d7c",
-  "prevIds": ["a5204550-39c8-4969-8c63-38a92b32fe24"],
+  "id": "179f1425-853d-4fc3-b1fc-e299d661a8c5",
+  "prevIds": ["f29cf7bc-e51a-4c7a-9d5d-6d9c77a52308"],
   "ddl": [
     {
       "name": "app_setting",
@@ -10,14 +10,6 @@
     },
     {
       "name": "categories",
-      "entityType": "tables"
-    },
-    {
-      "name": "exchange_rates",
-      "entityType": "tables"
-    },
-    {
-      "name": "holdings",
       "entityType": "tables"
     },
     {
@@ -54,18 +46,6 @@
     },
     {
       "name": "run_logs",
-      "entityType": "tables"
-    },
-    {
-      "name": "subscriptions",
-      "entityType": "tables"
-    },
-    {
-      "name": "sync_run_rejections",
-      "entityType": "tables"
-    },
-    {
-      "name": "sync_runs",
       "entityType": "tables"
     },
     {
@@ -196,236 +176,6 @@
       "table": "categories",
       "name": "spending_type",
       "type": "text",
-      "notNull": true,
-      "autoincrement": false,
-      "default": null,
-      "generated": null,
-      "entityType": "columns"
-    },
-    {
-      "table": "exchange_rates",
-      "name": "as_of",
-      "type": "text",
-      "notNull": true,
-      "autoincrement": false,
-      "default": null,
-      "generated": null,
-      "entityType": "columns"
-    },
-    {
-      "table": "exchange_rates",
-      "name": "base_currency",
-      "type": "text",
-      "notNull": true,
-      "autoincrement": false,
-      "default": null,
-      "generated": null,
-      "entityType": "columns"
-    },
-    {
-      "table": "exchange_rates",
-      "name": "fetched_at",
-      "type": "integer",
-      "notNull": true,
-      "autoincrement": false,
-      "default": null,
-      "generated": null,
-      "entityType": "columns"
-    },
-    {
-      "table": "exchange_rates",
-      "name": "quote_currency",
-      "type": "text",
-      "notNull": true,
-      "autoincrement": false,
-      "default": null,
-      "generated": null,
-      "entityType": "columns"
-    },
-    {
-      "table": "exchange_rates",
-      "name": "rate",
-      "type": "real",
-      "notNull": true,
-      "autoincrement": false,
-      "default": null,
-      "generated": null,
-      "entityType": "columns"
-    },
-    {
-      "table": "holdings",
-      "name": "asset_type",
-      "type": "text",
-      "notNull": true,
-      "autoincrement": false,
-      "default": null,
-      "generated": null,
-      "entityType": "columns"
-    },
-    {
-      "table": "holdings",
-      "name": "cost_basis_currency",
-      "type": "text",
-      "notNull": false,
-      "autoincrement": false,
-      "default": null,
-      "generated": null,
-      "entityType": "columns"
-    },
-    {
-      "table": "holdings",
-      "name": "cost_basis_minor",
-      "type": "integer",
-      "notNull": false,
-      "autoincrement": false,
-      "default": null,
-      "generated": null,
-      "entityType": "columns"
-    },
-    {
-      "table": "holdings",
-      "name": "created_at",
-      "type": "integer",
-      "notNull": true,
-      "autoincrement": false,
-      "default": null,
-      "generated": null,
-      "entityType": "columns"
-    },
-    {
-      "table": "holdings",
-      "name": "currency",
-      "type": "text",
-      "notNull": true,
-      "autoincrement": false,
-      "default": null,
-      "generated": null,
-      "entityType": "columns"
-    },
-    {
-      "table": "holdings",
-      "name": "id",
-      "type": "text",
-      "notNull": true,
-      "autoincrement": false,
-      "default": null,
-      "generated": null,
-      "entityType": "columns"
-    },
-    {
-      "table": "holdings",
-      "name": "last_price_currency",
-      "type": "text",
-      "notNull": false,
-      "autoincrement": false,
-      "default": null,
-      "generated": null,
-      "entityType": "columns"
-    },
-    {
-      "table": "holdings",
-      "name": "last_price_minor",
-      "type": "integer",
-      "notNull": false,
-      "autoincrement": false,
-      "default": null,
-      "generated": null,
-      "entityType": "columns"
-    },
-    {
-      "table": "holdings",
-      "name": "name",
-      "type": "text",
-      "notNull": true,
-      "autoincrement": false,
-      "default": null,
-      "generated": null,
-      "entityType": "columns"
-    },
-    {
-      "table": "holdings",
-      "name": "notes",
-      "type": "text",
-      "notNull": true,
-      "autoincrement": false,
-      "default": "''",
-      "generated": null,
-      "entityType": "columns"
-    },
-    {
-      "table": "holdings",
-      "name": "opened_on",
-      "type": "text",
-      "notNull": true,
-      "autoincrement": false,
-      "default": null,
-      "generated": null,
-      "entityType": "columns"
-    },
-    {
-      "table": "holdings",
-      "name": "platform_id",
-      "type": "text",
-      "notNull": true,
-      "autoincrement": false,
-      "default": null,
-      "generated": null,
-      "entityType": "columns"
-    },
-    {
-      "table": "holdings",
-      "name": "priced_at",
-      "type": "integer",
-      "notNull": false,
-      "autoincrement": false,
-      "default": null,
-      "generated": null,
-      "entityType": "columns"
-    },
-    {
-      "table": "holdings",
-      "name": "profile_id",
-      "type": "text",
-      "notNull": true,
-      "autoincrement": false,
-      "default": null,
-      "generated": null,
-      "entityType": "columns"
-    },
-    {
-      "table": "holdings",
-      "name": "quantity_micros",
-      "type": "integer",
-      "notNull": true,
-      "autoincrement": false,
-      "default": null,
-      "generated": null,
-      "entityType": "columns"
-    },
-    {
-      "table": "holdings",
-      "name": "state",
-      "type": "text",
-      "notNull": true,
-      "autoincrement": false,
-      "default": null,
-      "generated": null,
-      "entityType": "columns"
-    },
-    {
-      "table": "holdings",
-      "name": "symbol",
-      "type": "text",
-      "notNull": true,
-      "autoincrement": false,
-      "default": null,
-      "generated": null,
-      "entityType": "columns"
-    },
-    {
-      "table": "holdings",
-      "name": "updated_at",
-      "type": "integer",
       "notNull": true,
       "autoincrement": false,
       "default": null,
@@ -1103,436 +853,6 @@
       "entityType": "columns"
     },
     {
-      "table": "subscriptions",
-      "name": "amount_cv",
-      "type": "real",
-      "notNull": true,
-      "autoincrement": false,
-      "default": "0",
-      "generated": null,
-      "entityType": "columns"
-    },
-    {
-      "table": "subscriptions",
-      "name": "base_currency",
-      "type": "text",
-      "notNull": true,
-      "autoincrement": false,
-      "default": null,
-      "generated": null,
-      "entityType": "columns"
-    },
-    {
-      "table": "subscriptions",
-      "name": "category_id",
-      "type": "text",
-      "notNull": false,
-      "autoincrement": false,
-      "default": null,
-      "generated": null,
-      "entityType": "columns"
-    },
-    {
-      "table": "subscriptions",
-      "name": "confidence",
-      "type": "real",
-      "notNull": true,
-      "autoincrement": false,
-      "default": "0",
-      "generated": null,
-      "entityType": "columns"
-    },
-    {
-      "table": "subscriptions",
-      "name": "created_at",
-      "type": "integer",
-      "notNull": true,
-      "autoincrement": false,
-      "default": null,
-      "generated": null,
-      "entityType": "columns"
-    },
-    {
-      "table": "subscriptions",
-      "name": "frequency",
-      "type": "text",
-      "notNull": true,
-      "autoincrement": false,
-      "default": null,
-      "generated": null,
-      "entityType": "columns"
-    },
-    {
-      "table": "subscriptions",
-      "name": "id",
-      "type": "text",
-      "notNull": true,
-      "autoincrement": false,
-      "default": null,
-      "generated": null,
-      "entityType": "columns"
-    },
-    {
-      "table": "subscriptions",
-      "name": "last_charged_on",
-      "type": "text",
-      "notNull": true,
-      "autoincrement": false,
-      "default": null,
-      "generated": null,
-      "entityType": "columns"
-    },
-    {
-      "table": "subscriptions",
-      "name": "next_expected_on",
-      "type": "text",
-      "notNull": true,
-      "autoincrement": false,
-      "default": null,
-      "generated": null,
-      "entityType": "columns"
-    },
-    {
-      "table": "subscriptions",
-      "name": "notes",
-      "type": "text",
-      "notNull": true,
-      "autoincrement": false,
-      "default": "''",
-      "generated": null,
-      "entityType": "columns"
-    },
-    {
-      "table": "subscriptions",
-      "name": "occurrence_count",
-      "type": "integer",
-      "notNull": true,
-      "autoincrement": false,
-      "default": "0",
-      "generated": null,
-      "entityType": "columns"
-    },
-    {
-      "table": "subscriptions",
-      "name": "payee_id",
-      "type": "text",
-      "notNull": true,
-      "autoincrement": false,
-      "default": null,
-      "generated": null,
-      "entityType": "columns"
-    },
-    {
-      "table": "subscriptions",
-      "name": "profile_id",
-      "type": "text",
-      "notNull": true,
-      "autoincrement": false,
-      "default": null,
-      "generated": null,
-      "entityType": "columns"
-    },
-    {
-      "table": "subscriptions",
-      "name": "status",
-      "type": "text",
-      "notNull": true,
-      "autoincrement": false,
-      "default": null,
-      "generated": null,
-      "entityType": "columns"
-    },
-    {
-      "table": "subscriptions",
-      "name": "status_changed_at",
-      "type": "integer",
-      "notNull": true,
-      "autoincrement": false,
-      "default": null,
-      "generated": null,
-      "entityType": "columns"
-    },
-    {
-      "table": "subscriptions",
-      "name": "typical_base_minor",
-      "type": "integer",
-      "notNull": true,
-      "autoincrement": false,
-      "default": null,
-      "generated": null,
-      "entityType": "columns"
-    },
-    {
-      "table": "subscriptions",
-      "name": "typical_currency",
-      "type": "text",
-      "notNull": true,
-      "autoincrement": false,
-      "default": null,
-      "generated": null,
-      "entityType": "columns"
-    },
-    {
-      "table": "subscriptions",
-      "name": "typical_minor",
-      "type": "integer",
-      "notNull": true,
-      "autoincrement": false,
-      "default": null,
-      "generated": null,
-      "entityType": "columns"
-    },
-    {
-      "table": "subscriptions",
-      "name": "updated_at",
-      "type": "integer",
-      "notNull": true,
-      "autoincrement": false,
-      "default": null,
-      "generated": null,
-      "entityType": "columns"
-    },
-    {
-      "table": "sync_run_rejections",
-      "name": "created_at",
-      "type": "integer",
-      "notNull": true,
-      "autoincrement": false,
-      "default": null,
-      "generated": null,
-      "entityType": "columns"
-    },
-    {
-      "table": "sync_run_rejections",
-      "name": "detail",
-      "type": "text",
-      "notNull": true,
-      "autoincrement": false,
-      "default": null,
-      "generated": null,
-      "entityType": "columns"
-    },
-    {
-      "table": "sync_run_rejections",
-      "name": "external_id",
-      "type": "text",
-      "notNull": false,
-      "autoincrement": false,
-      "default": null,
-      "generated": null,
-      "entityType": "columns"
-    },
-    {
-      "table": "sync_run_rejections",
-      "name": "id",
-      "type": "text",
-      "notNull": true,
-      "autoincrement": false,
-      "default": null,
-      "generated": null,
-      "entityType": "columns"
-    },
-    {
-      "table": "sync_run_rejections",
-      "name": "reason",
-      "type": "text",
-      "notNull": true,
-      "autoincrement": false,
-      "default": null,
-      "generated": null,
-      "entityType": "columns"
-    },
-    {
-      "table": "sync_run_rejections",
-      "name": "run_id",
-      "type": "text",
-      "notNull": true,
-      "autoincrement": false,
-      "default": null,
-      "generated": null,
-      "entityType": "columns"
-    },
-    {
-      "table": "sync_runs",
-      "name": "chunk_index",
-      "type": "integer",
-      "notNull": true,
-      "autoincrement": false,
-      "default": "0",
-      "generated": null,
-      "entityType": "columns"
-    },
-    {
-      "table": "sync_runs",
-      "name": "failure_message",
-      "type": "text",
-      "notNull": false,
-      "autoincrement": false,
-      "default": null,
-      "generated": null,
-      "entityType": "columns"
-    },
-    {
-      "table": "sync_runs",
-      "name": "failure_tag",
-      "type": "text",
-      "notNull": false,
-      "autoincrement": false,
-      "default": null,
-      "generated": null,
-      "entityType": "columns"
-    },
-    {
-      "table": "sync_runs",
-      "name": "finished_at",
-      "type": "integer",
-      "notNull": false,
-      "autoincrement": false,
-      "default": null,
-      "generated": null,
-      "entityType": "columns"
-    },
-    {
-      "table": "sync_runs",
-      "name": "id",
-      "type": "text",
-      "notNull": true,
-      "autoincrement": false,
-      "default": null,
-      "generated": null,
-      "entityType": "columns"
-    },
-    {
-      "table": "sync_runs",
-      "name": "imported",
-      "type": "integer",
-      "notNull": true,
-      "autoincrement": false,
-      "default": "0",
-      "generated": null,
-      "entityType": "columns"
-    },
-    {
-      "table": "sync_runs",
-      "name": "kind",
-      "type": "text",
-      "notNull": true,
-      "autoincrement": false,
-      "default": null,
-      "generated": null,
-      "entityType": "columns"
-    },
-    {
-      "table": "sync_runs",
-      "name": "lease_expires_at",
-      "type": "integer",
-      "notNull": true,
-      "autoincrement": false,
-      "default": null,
-      "generated": null,
-      "entityType": "columns"
-    },
-    {
-      "table": "sync_runs",
-      "name": "lease_owner",
-      "type": "text",
-      "notNull": true,
-      "autoincrement": false,
-      "default": null,
-      "generated": null,
-      "entityType": "columns"
-    },
-    {
-      "table": "sync_runs",
-      "name": "profile_id",
-      "type": "text",
-      "notNull": true,
-      "autoincrement": false,
-      "default": null,
-      "generated": null,
-      "entityType": "columns"
-    },
-    {
-      "table": "sync_runs",
-      "name": "provider_account_id",
-      "type": "text",
-      "notNull": false,
-      "autoincrement": false,
-      "default": null,
-      "generated": null,
-      "entityType": "columns"
-    },
-    {
-      "table": "sync_runs",
-      "name": "rejected",
-      "type": "integer",
-      "notNull": true,
-      "autoincrement": false,
-      "default": "0",
-      "generated": null,
-      "entityType": "columns"
-    },
-    {
-      "table": "sync_runs",
-      "name": "skipped",
-      "type": "integer",
-      "notNull": true,
-      "autoincrement": false,
-      "default": "0",
-      "generated": null,
-      "entityType": "columns"
-    },
-    {
-      "table": "sync_runs",
-      "name": "started_at",
-      "type": "integer",
-      "notNull": true,
-      "autoincrement": false,
-      "default": null,
-      "generated": null,
-      "entityType": "columns"
-    },
-    {
-      "table": "sync_runs",
-      "name": "state",
-      "type": "text",
-      "notNull": true,
-      "autoincrement": false,
-      "default": null,
-      "generated": null,
-      "entityType": "columns"
-    },
-    {
-      "table": "sync_runs",
-      "name": "updated_at",
-      "type": "integer",
-      "notNull": true,
-      "autoincrement": false,
-      "default": null,
-      "generated": null,
-      "entityType": "columns"
-    },
-    {
-      "table": "sync_runs",
-      "name": "window_from",
-      "type": "text",
-      "notNull": false,
-      "autoincrement": false,
-      "default": null,
-      "generated": null,
-      "entityType": "columns"
-    },
-    {
-      "table": "sync_runs",
-      "name": "window_to",
-      "type": "text",
-      "notNull": false,
-      "autoincrement": false,
-      "default": null,
-      "generated": null,
-      "entityType": "columns"
-    },
-    {
       "table": "transactions",
       "name": "applied_rule_id",
       "type": "text",
@@ -1917,82 +1237,6 @@
       "entityType": "indexes"
     },
     {
-      "table": "exchange_rates",
-      "name": "exchange_rates_quote_as_of_idx",
-      "columns": [
-        {
-          "value": "quote_currency",
-          "isExpression": false
-        },
-        {
-          "value": "\"as_of\" DESC",
-          "isExpression": true
-        }
-      ],
-      "isUnique": false,
-      "where": null,
-      "origin": "manual",
-      "entityType": "indexes"
-    },
-    {
-      "table": "holdings",
-      "name": "holdings_symbol_idx",
-      "columns": [
-        {
-          "value": "profile_id",
-          "isExpression": false
-        },
-        {
-          "value": "platform_id",
-          "isExpression": false
-        },
-        {
-          "value": "symbol",
-          "isExpression": false
-        }
-      ],
-      "isUnique": true,
-      "where": null,
-      "origin": "manual",
-      "entityType": "indexes"
-    },
-    {
-      "table": "holdings",
-      "name": "holdings_profile_id_idx",
-      "columns": [
-        {
-          "value": "profile_id",
-          "isExpression": false
-        },
-        {
-          "value": "id",
-          "isExpression": false
-        }
-      ],
-      "isUnique": true,
-      "where": null,
-      "origin": "manual",
-      "entityType": "indexes"
-    },
-    {
-      "table": "holdings",
-      "name": "holdings_profile_state_idx",
-      "columns": [
-        {
-          "value": "profile_id",
-          "isExpression": false
-        },
-        {
-          "value": "state",
-          "isExpression": false
-        }
-      ],
-      "isUnique": false,
-      "where": null,
-      "origin": "manual",
-      "entityType": "indexes"
-    },
-    {
       "table": "members",
       "name": "members_profile_email_idx",
       "columns": [
@@ -2309,142 +1553,6 @@
       "entityType": "indexes"
     },
     {
-      "table": "subscriptions",
-      "name": "subscriptions_payee_idx",
-      "columns": [
-        {
-          "value": "profile_id",
-          "isExpression": false
-        },
-        {
-          "value": "payee_id",
-          "isExpression": false
-        }
-      ],
-      "isUnique": true,
-      "where": null,
-      "origin": "manual",
-      "entityType": "indexes"
-    },
-    {
-      "table": "subscriptions",
-      "name": "subscriptions_profile_status_idx",
-      "columns": [
-        {
-          "value": "profile_id",
-          "isExpression": false
-        },
-        {
-          "value": "status",
-          "isExpression": false
-        }
-      ],
-      "isUnique": false,
-      "where": null,
-      "origin": "manual",
-      "entityType": "indexes"
-    },
-    {
-      "table": "sync_run_rejections",
-      "name": "sync_run_rejections_run_idx",
-      "columns": [
-        {
-          "value": "run_id",
-          "isExpression": false
-        }
-      ],
-      "isUnique": false,
-      "where": null,
-      "origin": "manual",
-      "entityType": "indexes"
-    },
-    {
-      "table": "sync_runs",
-      "name": "sync_runs_one_open_per_account",
-      "columns": [
-        {
-          "value": "provider_account_id",
-          "isExpression": false
-        }
-      ],
-      "isUnique": true,
-      "where": "\"sync_runs\".\"state\" IN ('running', 'chunk_done', 'categorizing')",
-      "origin": "manual",
-      "entityType": "indexes"
-    },
-    {
-      "table": "sync_runs",
-      "name": "sync_runs_one_open_without_account",
-      "columns": [
-        {
-          "value": "profile_id",
-          "isExpression": false
-        },
-        {
-          "value": "kind",
-          "isExpression": false
-        }
-      ],
-      "isUnique": true,
-      "where": "\"sync_runs\".\"provider_account_id\" IS NULL AND \"sync_runs\".\"state\" IN ('running', 'chunk_done', 'categorizing')",
-      "origin": "manual",
-      "entityType": "indexes"
-    },
-    {
-      "table": "sync_runs",
-      "name": "sync_runs_profile_id_idx",
-      "columns": [
-        {
-          "value": "profile_id",
-          "isExpression": false
-        },
-        {
-          "value": "id",
-          "isExpression": false
-        }
-      ],
-      "isUnique": true,
-      "where": null,
-      "origin": "manual",
-      "entityType": "indexes"
-    },
-    {
-      "table": "sync_runs",
-      "name": "sync_runs_profile_started_idx",
-      "columns": [
-        {
-          "value": "profile_id",
-          "isExpression": false
-        },
-        {
-          "value": "\"started_at\" DESC",
-          "isExpression": true
-        }
-      ],
-      "isUnique": false,
-      "where": null,
-      "origin": "manual",
-      "entityType": "indexes"
-    },
-    {
-      "table": "sync_runs",
-      "name": "sync_runs_state_lease_idx",
-      "columns": [
-        {
-          "value": "state",
-          "isExpression": false
-        },
-        {
-          "value": "lease_expires_at",
-          "isExpression": false
-        }
-      ],
-      "isUnique": false,
-      "where": null,
-      "origin": "manual",
-      "entityType": "indexes"
-    },
-    {
       "table": "transactions",
       "name": "transactions_account_external_idx",
       "columns": [
@@ -2642,28 +1750,6 @@
       "entityType": "fks"
     },
     {
-      "table": "holdings",
-      "name": "fk_holdings_platform_id_investment_platforms_id_fk",
-      "columns": ["platform_id"],
-      "tableTo": "investment_platforms",
-      "columnsTo": ["id"],
-      "onUpdate": "NO ACTION",
-      "onDelete": "NO ACTION",
-      "nameExplicit": false,
-      "entityType": "fks"
-    },
-    {
-      "table": "holdings",
-      "name": "fk_holdings_profile_id_profiles_id_fk",
-      "columns": ["profile_id"],
-      "tableTo": "profiles",
-      "columnsTo": ["id"],
-      "onUpdate": "NO ACTION",
-      "onDelete": "NO ACTION",
-      "nameExplicit": false,
-      "entityType": "fks"
-    },
-    {
       "table": "members",
       "name": "fk_members_profile_id_profiles_id_fk",
       "columns": ["profile_id"],
@@ -2778,83 +1864,6 @@
       "name": "fk_rules_profile_id_client_payee_id_payees_profile_id_id_fk",
       "columns": ["profile_id", "client_payee_id"],
       "tableTo": "payees",
-      "columnsTo": ["profile_id", "id"],
-      "onUpdate": "NO ACTION",
-      "onDelete": "NO ACTION",
-      "nameExplicit": false,
-      "entityType": "fks"
-    },
-    {
-      "table": "subscriptions",
-      "name": "fk_subscriptions_profile_id_profiles_id_fk",
-      "columns": ["profile_id"],
-      "tableTo": "profiles",
-      "columnsTo": ["id"],
-      "onUpdate": "NO ACTION",
-      "onDelete": "NO ACTION",
-      "nameExplicit": false,
-      "entityType": "fks"
-    },
-    {
-      "table": "subscriptions",
-      "name": "fk_subscriptions_profile_id_payee_id_payees_profile_id_id_fk",
-      "columns": ["profile_id", "payee_id"],
-      "tableTo": "payees",
-      "columnsTo": ["profile_id", "id"],
-      "onUpdate": "NO ACTION",
-      "onDelete": "NO ACTION",
-      "nameExplicit": false,
-      "entityType": "fks"
-    },
-    {
-      "table": "subscriptions",
-      "name": "fk_subscriptions_profile_id_category_id_categories_profile_id_id_fk",
-      "columns": ["profile_id", "category_id"],
-      "tableTo": "categories",
-      "columnsTo": ["profile_id", "id"],
-      "onUpdate": "NO ACTION",
-      "onDelete": "NO ACTION",
-      "nameExplicit": false,
-      "entityType": "fks"
-    },
-    {
-      "table": "subscriptions",
-      "name": "fk_subscriptions_profile_id_base_currency_profiles_id_base_currency_fk",
-      "columns": ["profile_id", "base_currency"],
-      "tableTo": "profiles",
-      "columnsTo": ["id", "base_currency"],
-      "onUpdate": "NO ACTION",
-      "onDelete": "NO ACTION",
-      "nameExplicit": false,
-      "entityType": "fks"
-    },
-    {
-      "table": "sync_run_rejections",
-      "name": "fk_sync_run_rejections_run_id_sync_runs_id_fk",
-      "columns": ["run_id"],
-      "tableTo": "sync_runs",
-      "columnsTo": ["id"],
-      "onUpdate": "NO ACTION",
-      "onDelete": "NO ACTION",
-      "nameExplicit": false,
-      "entityType": "fks"
-    },
-    {
-      "table": "sync_runs",
-      "name": "fk_sync_runs_profile_id_profiles_id_fk",
-      "columns": ["profile_id"],
-      "tableTo": "profiles",
-      "columnsTo": ["id"],
-      "onUpdate": "NO ACTION",
-      "onDelete": "NO ACTION",
-      "nameExplicit": false,
-      "entityType": "fks"
-    },
-    {
-      "table": "sync_runs",
-      "name": "fk_sync_runs_profile_id_provider_account_id_provider_accounts_profile_id_id_fk",
-      "columns": ["profile_id", "provider_account_id"],
-      "tableTo": "provider_accounts",
       "columnsTo": ["profile_id", "id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
@@ -2979,20 +1988,6 @@
       "entityType": "pks"
     },
     {
-      "table": "exchange_rates",
-      "name": "exchange_rates_pk",
-      "columns": ["base_currency", "quote_currency", "as_of"],
-      "nameExplicit": false,
-      "entityType": "pks"
-    },
-    {
-      "table": "holdings",
-      "name": "holdings_pk",
-      "columns": ["id"],
-      "nameExplicit": false,
-      "entityType": "pks"
-    },
-    {
       "table": "investment_platforms",
       "name": "investment_platforms_pk",
       "columns": ["id"],
@@ -3056,27 +2051,6 @@
       "entityType": "pks"
     },
     {
-      "table": "subscriptions",
-      "name": "subscriptions_pk",
-      "columns": ["id"],
-      "nameExplicit": false,
-      "entityType": "pks"
-    },
-    {
-      "table": "sync_run_rejections",
-      "name": "sync_run_rejections_pk",
-      "columns": ["id"],
-      "nameExplicit": false,
-      "entityType": "pks"
-    },
-    {
-      "table": "sync_runs",
-      "name": "sync_runs_pk",
-      "columns": ["id"],
-      "nameExplicit": false,
-      "entityType": "pks"
-    },
-    {
       "table": "transactions",
       "name": "transactions_pk",
       "columns": ["id"],
@@ -3127,120 +2101,6 @@
       "entityType": "checks"
     },
     {
-      "table": "exchange_rates",
-      "name": "exchange_rates_base_currency_code_check",
-      "value": "typeof(\"base_currency\") = 'text' AND length(\"base_currency\") = 3 AND instr(\"base_currency\", char(0)) = 0 AND \"base_currency\" GLOB '[A-Z][A-Z][A-Z]'",
-      "entityType": "checks"
-    },
-    {
-      "table": "exchange_rates",
-      "name": "exchange_rates_quote_currency_code_check",
-      "value": "typeof(\"quote_currency\") = 'text' AND length(\"quote_currency\") = 3 AND instr(\"quote_currency\", char(0)) = 0 AND \"quote_currency\" GLOB '[A-Z][A-Z][A-Z]'",
-      "entityType": "checks"
-    },
-    {
-      "table": "exchange_rates",
-      "name": "exchange_rates_fetched_at_integer_check",
-      "value": "typeof(\"fetched_at\") = 'integer' AND \"fetched_at\" BETWEEN -9007199254740991 AND 9007199254740991",
-      "entityType": "checks"
-    },
-    {
-      "table": "exchange_rates",
-      "name": "exchange_rates_rate_check",
-      "value": "typeof(\"rate\") = 'real' AND \"rate\" > 0 AND \"rate\" < 1e300",
-      "entityType": "checks"
-    },
-    {
-      "table": "holdings",
-      "name": "holdings_currency_code_check",
-      "value": "typeof(\"currency\") = 'text' AND length(\"currency\") = 3 AND instr(\"currency\", char(0)) = 0 AND \"currency\" GLOB '[A-Z][A-Z][A-Z]'",
-      "entityType": "checks"
-    },
-    {
-      "table": "holdings",
-      "name": "holdings_cost_basis_currency_code_check",
-      "value": "\"cost_basis_currency\" IS NULL OR (typeof(\"cost_basis_currency\") = 'text' AND length(\"cost_basis_currency\") = 3 AND instr(\"cost_basis_currency\", char(0)) = 0 AND \"cost_basis_currency\" GLOB '[A-Z][A-Z][A-Z]')",
-      "entityType": "checks"
-    },
-    {
-      "table": "holdings",
-      "name": "holdings_last_price_currency_code_check",
-      "value": "\"last_price_currency\" IS NULL OR (typeof(\"last_price_currency\") = 'text' AND length(\"last_price_currency\") = 3 AND instr(\"last_price_currency\", char(0)) = 0 AND \"last_price_currency\" GLOB '[A-Z][A-Z][A-Z]')",
-      "entityType": "checks"
-    },
-    {
-      "table": "holdings",
-      "name": "holdings_cost_basis_minor_integer_check",
-      "value": "\"cost_basis_minor\" IS NULL OR (typeof(\"cost_basis_minor\") = 'integer' AND \"cost_basis_minor\" BETWEEN -9007199254740991 AND 9007199254740991)",
-      "entityType": "checks"
-    },
-    {
-      "table": "holdings",
-      "name": "holdings_created_at_integer_check",
-      "value": "typeof(\"created_at\") = 'integer' AND \"created_at\" BETWEEN -9007199254740991 AND 9007199254740991",
-      "entityType": "checks"
-    },
-    {
-      "table": "holdings",
-      "name": "holdings_last_price_minor_integer_check",
-      "value": "\"last_price_minor\" IS NULL OR (typeof(\"last_price_minor\") = 'integer' AND \"last_price_minor\" BETWEEN -9007199254740991 AND 9007199254740991)",
-      "entityType": "checks"
-    },
-    {
-      "table": "holdings",
-      "name": "holdings_priced_at_integer_check",
-      "value": "\"priced_at\" IS NULL OR (typeof(\"priced_at\") = 'integer' AND \"priced_at\" BETWEEN -9007199254740991 AND 9007199254740991)",
-      "entityType": "checks"
-    },
-    {
-      "table": "holdings",
-      "name": "holdings_quantity_micros_integer_check",
-      "value": "typeof(\"quantity_micros\") = 'integer' AND \"quantity_micros\" BETWEEN -9007199254740991 AND 9007199254740991",
-      "entityType": "checks"
-    },
-    {
-      "table": "holdings",
-      "name": "holdings_updated_at_integer_check",
-      "value": "typeof(\"updated_at\") = 'integer' AND \"updated_at\" BETWEEN -9007199254740991 AND 9007199254740991",
-      "entityType": "checks"
-    },
-    {
-      "table": "holdings",
-      "name": "holdings_asset_type_check",
-      "value": "\"asset_type\" IN ('stock', 'etf', 'fund', 'crypto', 'cash')",
-      "entityType": "checks"
-    },
-    {
-      "table": "holdings",
-      "name": "holdings_state_check",
-      "value": "\"state\" IN ('active', 'pending', 'closed')",
-      "entityType": "checks"
-    },
-    {
-      "table": "holdings",
-      "name": "holdings_quantity_check",
-      "value": "\"quantity_micros\" >= 0",
-      "entityType": "checks"
-    },
-    {
-      "table": "holdings",
-      "name": "holdings_cost_basis_pair_check",
-      "value": "(\"cost_basis_minor\" IS NULL) = (\"cost_basis_currency\" IS NULL)",
-      "entityType": "checks"
-    },
-    {
-      "table": "holdings",
-      "name": "holdings_last_price_pair_check",
-      "value": "(\"last_price_minor\" IS NULL) = (\"last_price_currency\" IS NULL)",
-      "entityType": "checks"
-    },
-    {
-      "table": "holdings",
-      "name": "holdings_pending_price_check",
-      "value": "\"state\" <> 'pending' OR \"last_price_minor\" IS NULL",
-      "entityType": "checks"
-    },
-    {
       "table": "investment_platforms",
       "name": "investment_platforms_enabled_integer_check",
       "value": "typeof(\"enabled\") = 'integer' AND \"enabled\" BETWEEN -9007199254740991 AND 9007199254740991",
@@ -3266,6 +2126,12 @@
     },
     {
       "table": "members",
+      "name": "members_email_check",
+      "value": "typeof(\"email\") = 'text' AND length(trim(\"email\")) > 0",
+      "entityType": "checks"
+    },
+    {
+      "table": "members",
       "name": "members_role_check",
       "value": "\"role\" IN ('owner', 'viewer')",
       "entityType": "checks"
@@ -3274,6 +2140,12 @@
       "table": "merchant_aliases",
       "name": "merchant_aliases_created_at_integer_check",
       "value": "typeof(\"created_at\") = 'integer' AND \"created_at\" BETWEEN -9007199254740991 AND 9007199254740991",
+      "entityType": "checks"
+    },
+    {
+      "table": "merchant_aliases",
+      "name": "merchant_aliases_pattern_check",
+      "value": "typeof(\"pattern\") = 'text' AND length(trim(\"pattern\")) > 0",
       "entityType": "checks"
     },
     {
@@ -3344,6 +2216,12 @@
     },
     {
       "table": "provider_accounts",
+      "name": "provider_accounts_sync_start_date_date_check",
+      "value": "\"sync_start_date\" IS NULL OR (typeof(\"sync_start_date\") = 'text' AND length(\"sync_start_date\") = 10 AND \"sync_start_date\" GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]')",
+      "entityType": "checks"
+    },
+    {
+      "table": "provider_accounts",
       "name": "provider_accounts_kind_check",
       "value": "\"kind\" IN ('bank', 'investment', 'books', 'csv', 'manual')",
       "entityType": "checks"
@@ -3410,6 +2288,12 @@
     },
     {
       "table": "rules",
+      "name": "rules_pattern_check",
+      "value": "typeof(\"pattern\") = 'text' AND length(trim(\"pattern\")) > 0",
+      "entityType": "checks"
+    },
+    {
+      "table": "rules",
       "name": "rules_kind_check",
       "value": "\"kind\" IN ('categorize', 'self_transfer', 'refund', 'internal_transfer', 'exclude', 'income_client', 'tax_payment')",
       "entityType": "checks"
@@ -3460,150 +2344,6 @@
       "table": "run_logs",
       "name": "run_logs_failure_tag_check",
       "value": "(\"outcome\" = 'Succeeded' AND \"failure_tag\" IS NULL) OR (\"outcome\" = 'Failed' AND \"failure_tag\" IS NOT NULL)",
-      "entityType": "checks"
-    },
-    {
-      "table": "subscriptions",
-      "name": "subscriptions_base_currency_code_check",
-      "value": "typeof(\"base_currency\") = 'text' AND length(\"base_currency\") = 3 AND instr(\"base_currency\", char(0)) = 0 AND \"base_currency\" GLOB '[A-Z][A-Z][A-Z]'",
-      "entityType": "checks"
-    },
-    {
-      "table": "subscriptions",
-      "name": "subscriptions_typical_currency_code_check",
-      "value": "typeof(\"typical_currency\") = 'text' AND length(\"typical_currency\") = 3 AND instr(\"typical_currency\", char(0)) = 0 AND \"typical_currency\" GLOB '[A-Z][A-Z][A-Z]'",
-      "entityType": "checks"
-    },
-    {
-      "table": "subscriptions",
-      "name": "subscriptions_created_at_integer_check",
-      "value": "typeof(\"created_at\") = 'integer' AND \"created_at\" BETWEEN -9007199254740991 AND 9007199254740991",
-      "entityType": "checks"
-    },
-    {
-      "table": "subscriptions",
-      "name": "subscriptions_occurrence_count_integer_check",
-      "value": "typeof(\"occurrence_count\") = 'integer' AND \"occurrence_count\" BETWEEN -9007199254740991 AND 9007199254740991",
-      "entityType": "checks"
-    },
-    {
-      "table": "subscriptions",
-      "name": "subscriptions_status_changed_at_integer_check",
-      "value": "typeof(\"status_changed_at\") = 'integer' AND \"status_changed_at\" BETWEEN -9007199254740991 AND 9007199254740991",
-      "entityType": "checks"
-    },
-    {
-      "table": "subscriptions",
-      "name": "subscriptions_typical_base_minor_integer_check",
-      "value": "typeof(\"typical_base_minor\") = 'integer' AND \"typical_base_minor\" BETWEEN -9007199254740991 AND 9007199254740991",
-      "entityType": "checks"
-    },
-    {
-      "table": "subscriptions",
-      "name": "subscriptions_typical_minor_integer_check",
-      "value": "typeof(\"typical_minor\") = 'integer' AND \"typical_minor\" BETWEEN -9007199254740991 AND 9007199254740991",
-      "entityType": "checks"
-    },
-    {
-      "table": "subscriptions",
-      "name": "subscriptions_updated_at_integer_check",
-      "value": "typeof(\"updated_at\") = 'integer' AND \"updated_at\" BETWEEN -9007199254740991 AND 9007199254740991",
-      "entityType": "checks"
-    },
-    {
-      "table": "subscriptions",
-      "name": "subscriptions_frequency_check",
-      "value": "\"frequency\" IN ('weekly', 'monthly', 'quarterly', 'annual')",
-      "entityType": "checks"
-    },
-    {
-      "table": "subscriptions",
-      "name": "subscriptions_status_check",
-      "value": "\"status\" IN ('detected', 'confirmed', 'dismissed', 'not_recurring', 'cancelled')",
-      "entityType": "checks"
-    },
-    {
-      "table": "subscriptions",
-      "name": "subscriptions_base_amount_check",
-      "value": "\"typical_currency\" <> \"base_currency\" OR \"typical_minor\" = \"typical_base_minor\"",
-      "entityType": "checks"
-    },
-    {
-      "table": "sync_run_rejections",
-      "name": "sync_run_rejections_created_at_integer_check",
-      "value": "typeof(\"created_at\") = 'integer' AND \"created_at\" BETWEEN -9007199254740991 AND 9007199254740991",
-      "entityType": "checks"
-    },
-    {
-      "table": "sync_runs",
-      "name": "sync_runs_chunk_index_integer_check",
-      "value": "typeof(\"chunk_index\") = 'integer' AND \"chunk_index\" BETWEEN -9007199254740991 AND 9007199254740991",
-      "entityType": "checks"
-    },
-    {
-      "table": "sync_runs",
-      "name": "sync_runs_finished_at_integer_check",
-      "value": "\"finished_at\" IS NULL OR (typeof(\"finished_at\") = 'integer' AND \"finished_at\" BETWEEN -9007199254740991 AND 9007199254740991)",
-      "entityType": "checks"
-    },
-    {
-      "table": "sync_runs",
-      "name": "sync_runs_imported_integer_check",
-      "value": "typeof(\"imported\") = 'integer' AND \"imported\" BETWEEN -9007199254740991 AND 9007199254740991",
-      "entityType": "checks"
-    },
-    {
-      "table": "sync_runs",
-      "name": "sync_runs_lease_expires_at_integer_check",
-      "value": "typeof(\"lease_expires_at\") = 'integer' AND \"lease_expires_at\" BETWEEN -9007199254740991 AND 9007199254740991",
-      "entityType": "checks"
-    },
-    {
-      "table": "sync_runs",
-      "name": "sync_runs_rejected_integer_check",
-      "value": "typeof(\"rejected\") = 'integer' AND \"rejected\" BETWEEN -9007199254740991 AND 9007199254740991",
-      "entityType": "checks"
-    },
-    {
-      "table": "sync_runs",
-      "name": "sync_runs_skipped_integer_check",
-      "value": "typeof(\"skipped\") = 'integer' AND \"skipped\" BETWEEN -9007199254740991 AND 9007199254740991",
-      "entityType": "checks"
-    },
-    {
-      "table": "sync_runs",
-      "name": "sync_runs_started_at_integer_check",
-      "value": "typeof(\"started_at\") = 'integer' AND \"started_at\" BETWEEN -9007199254740991 AND 9007199254740991",
-      "entityType": "checks"
-    },
-    {
-      "table": "sync_runs",
-      "name": "sync_runs_updated_at_integer_check",
-      "value": "typeof(\"updated_at\") = 'integer' AND \"updated_at\" BETWEEN -9007199254740991 AND 9007199254740991",
-      "entityType": "checks"
-    },
-    {
-      "table": "sync_runs",
-      "name": "sync_runs_kind_check",
-      "value": "\"kind\" IN ('bank_sync', 'categorization')",
-      "entityType": "checks"
-    },
-    {
-      "table": "sync_runs",
-      "name": "sync_runs_state_check",
-      "value": "\"state\" IN ('running', 'chunk_done', 'categorizing', 'succeeded', 'failed', 'cancelled')",
-      "entityType": "checks"
-    },
-    {
-      "table": "sync_runs",
-      "name": "sync_runs_finished_check",
-      "value": "(\"state\" IN ('succeeded', 'failed', 'cancelled')) = (\"finished_at\" IS NOT NULL)",
-      "entityType": "checks"
-    },
-    {
-      "table": "sync_runs",
-      "name": "sync_runs_failure_check",
-      "value": "\"state\" <> 'failed' OR \"failure_tag\" IS NOT NULL",
       "entityType": "checks"
     },
     {
@@ -3668,6 +2408,18 @@
     },
     {
       "table": "transactions",
+      "name": "transactions_rate_as_of_date_check",
+      "value": "\"rate_as_of\" IS NULL OR (typeof(\"rate_as_of\") = 'text' AND length(\"rate_as_of\") = 10 AND \"rate_as_of\" GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]')",
+      "entityType": "checks"
+    },
+    {
+      "table": "transactions",
+      "name": "transactions_value_date_date_check",
+      "value": "typeof(\"value_date\") = 'text' AND length(\"value_date\") = 10 AND \"value_date\" GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'",
+      "entityType": "checks"
+    },
+    {
+      "table": "transactions",
       "name": "transactions_status_check",
       "value": "\"status\" IN ('posted', 'pending', 'reversed')",
       "entityType": "checks"
@@ -3699,7 +2451,7 @@
     {
       "table": "transactions",
       "name": "transactions_suggested_check",
-      "value": "(\"categorization\" = 'suggested') = (\"suggestion_model\" IS NOT NULL AND \"suggested_at\" IS NOT NULL)",
+      "value": "(\"categorization\" = 'suggested' AND \"suggestion_model\" IS NOT NULL AND \"suggested_at\" IS NOT NULL) OR (\"categorization\" <> 'suggested' AND \"suggestion_model\" IS NULL AND \"suggested_at\" IS NULL)",
       "entityType": "checks"
     },
     {
@@ -3736,6 +2488,12 @@
       "table": "transactions",
       "name": "transactions_rate_check",
       "value": "(\"source_currency\" = \"base_currency\" AND \"rate\" IS NULL AND \"rate_as_of\" IS NULL) OR (\"source_currency\" <> \"base_currency\" AND typeof(\"rate\") = 'real' AND \"rate\" > 0 AND \"rate\" < 1e300 AND \"rate_as_of\" IS NOT NULL)",
+      "entityType": "checks"
+    },
+    {
+      "table": "transactions",
+      "name": "transactions_rate_amount_check",
+      "value": "\"source_currency\" = \"base_currency\" OR abs(\"base_minor\" - \"source_minor\" * \"rate\") <= 1 + abs(\"source_minor\" * \"rate\") / 1000000000000",
       "entityType": "checks"
     },
     {

@@ -9,7 +9,9 @@ import {
   archiveTargetRow,
   booleanCases,
   checkHoldingRow,
+  checkMemberRow,
   checkPayeeRow,
+  checkRuleRow,
   checkTransactionRow,
   currencyCases,
   exchangeRateRow,
@@ -113,6 +115,7 @@ const constraintCases: readonly ConstraintCase[] = [
       insertStep("transactions", {
         ...transactionRow,
         base_currency: "EUR",
+        base_minor: 12_960,
         external_id: "transaction-external-legal",
         id: "transaction-legal",
         rate: 1.08,
@@ -467,6 +470,626 @@ const constraintCases: readonly ConstraintCase[] = [
       }),
     ],
   },
+  {
+    constraint: "transactions_rate_amount_check",
+    legal: [
+      insertStep("transactions", {
+        ...transactionRow,
+        base_minor: 11_000,
+        external_id: "transaction-external-conversion-legal",
+        id: "transaction-conversion-legal",
+        rate: 1.1,
+        rate_as_of: "2026-01-01",
+        source_currency: "USD",
+        source_minor: 10_000,
+      }),
+    ],
+    name: "a foreign-currency transaction whose base amount contradicts its stored rate",
+    rejected: [
+      insertStep("transactions", {
+        ...transactionRow,
+        base_minor: 1,
+        external_id: "transaction-external-conversion-rejected",
+        id: "transaction-conversion-rejected",
+        rate: 1.1,
+        rate_as_of: "2026-01-01",
+        source_currency: "USD",
+        source_minor: 10_000,
+      }),
+    ],
+  },
+  {
+    constraint: "transactions_suggested_check",
+    legal: [
+      insertStep("transactions", {
+        ...transactionRow,
+        categorization: "confirmed",
+        category_id: "category-demo",
+        external_id: "transaction-external-model-only-legal",
+        id: "transaction-model-only-legal",
+      }),
+    ],
+    name: "a confirmed transaction that keeps only a suggestion model",
+    rejected: [
+      insertStep("transactions", {
+        ...transactionRow,
+        categorization: "confirmed",
+        category_id: "category-demo",
+        external_id: "transaction-external-model-only-rejected",
+        id: "transaction-model-only-rejected",
+        suggestion_model: "demo-model",
+      }),
+    ],
+  },
+  {
+    constraint: "transactions_suggested_check",
+    legal: [
+      insertStep("transactions", {
+        ...transactionRow,
+        categorization: "confirmed",
+        category_id: "category-demo",
+        external_id: "transaction-external-time-only-legal",
+        id: "transaction-time-only-legal",
+      }),
+    ],
+    name: "a confirmed transaction that keeps only a suggestion timestamp",
+    rejected: [
+      insertStep("transactions", {
+        ...transactionRow,
+        categorization: "confirmed",
+        category_id: "category-demo",
+        external_id: "transaction-external-time-only-rejected",
+        id: "transaction-time-only-rejected",
+        suggested_at: 1_767_225_900_000,
+      }),
+    ],
+  },
+  {
+    constraint: "transactions_rate_as_of_date_check",
+    legal: [
+      insertStep("transactions", {
+        ...transactionRow,
+        base_minor: 11_000,
+        external_id: "transaction-external-rate-date-legal",
+        id: "transaction-rate-date-legal",
+        rate: 1.1,
+        rate_as_of: "2026-01-01",
+        source_currency: "USD",
+        source_minor: 10_000,
+      }),
+    ],
+    name: "a foreign-currency transaction whose rate date is not an ISO date",
+    rejected: [
+      insertStep("transactions", {
+        ...transactionRow,
+        base_minor: 11_000,
+        external_id: "transaction-external-rate-date-rejected",
+        id: "transaction-rate-date-rejected",
+        rate: 1.1,
+        rate_as_of: "yesterday",
+        source_currency: "USD",
+        source_minor: 10_000,
+      }),
+    ],
+  },
+  {
+    constraint: "transactions_rate_as_of_date_check",
+    legal: [
+      insertStep("transactions", {
+        ...transactionRow,
+        base_minor: 11_000,
+        external_id: "transaction-external-rate-blank-legal",
+        id: "transaction-rate-blank-legal",
+        rate: 1.1,
+        rate_as_of: "2026-01-01",
+        source_currency: "USD",
+        source_minor: 10_000,
+      }),
+    ],
+    name: "a foreign-currency transaction whose rate date is blank",
+    rejected: [
+      insertStep("transactions", {
+        ...transactionRow,
+        base_minor: 11_000,
+        external_id: "transaction-external-rate-blank-rejected",
+        id: "transaction-rate-blank-rejected",
+        rate: 1.1,
+        rate_as_of: "",
+        source_currency: "USD",
+        source_minor: 10_000,
+      }),
+    ],
+  },
+  {
+    constraint: "transactions_value_date_date_check",
+    legal: [
+      insertStep("transactions", {
+        ...transactionRow,
+        external_id: "transaction-external-value-date-legal",
+        id: "transaction-value-date-legal",
+        value_date: "2026-01-01",
+      }),
+    ],
+    name: "a transaction whose value date is not an ISO date",
+    rejected: [
+      insertStep("transactions", {
+        ...transactionRow,
+        external_id: "transaction-external-value-date-rejected",
+        id: "transaction-value-date-rejected",
+        value_date: "yesterday",
+      }),
+    ],
+  },
+  {
+    constraint: "transactions_value_date_date_check",
+    legal: [
+      insertStep("transactions", {
+        ...transactionRow,
+        external_id: "transaction-external-value-blank-legal",
+        id: "transaction-value-blank-legal",
+        value_date: "2026-01-01",
+      }),
+    ],
+    name: "a transaction whose value date is blank",
+    rejected: [
+      insertStep("transactions", {
+        ...transactionRow,
+        external_id: "transaction-external-value-blank-rejected",
+        id: "transaction-value-blank-rejected",
+        value_date: "",
+      }),
+    ],
+  },
+  {
+    constraint: "invoice_documents_reserved_check",
+    legal: [
+      insertStep("archive_targets", archiveTargetRow),
+      insertStep("invoice_documents", {
+        ...invoiceDocumentRow,
+        archive_file_id: "demo-file-reserved-legal",
+        archive_state: "reserved",
+        archive_target_id: "archive-target-demo",
+        id: "document-reserved-legal",
+      }),
+    ],
+    name: "a reserved document with no archive target",
+    rejected: [
+      insertStep("invoice_documents", {
+        ...invoiceDocumentRow,
+        archive_file_id: "demo-file-reserved-rejected",
+        archive_state: "reserved",
+        id: "document-reserved-rejected",
+      }),
+    ],
+  },
+  {
+    constraint: "invoice_documents_unarchived_check",
+    legal: [
+      insertStep("invoice_documents", {
+        ...invoiceDocumentRow,
+        archive_state: "unarchived",
+        id: "document-unarchived-legal",
+      }),
+    ],
+    name: "an unarchived document that still holds an archive file id",
+    rejected: [
+      insertStep("invoice_documents", {
+        ...invoiceDocumentRow,
+        archive_file_id: "demo-file-unarchived-rejected",
+        archive_state: "unarchived",
+        id: "document-unarchived-rejected",
+      }),
+    ],
+  },
+  {
+    constraint: "invoice_documents_unarchived_check",
+    legal: [
+      insertStep("invoice_documents", {
+        ...invoiceDocumentRow,
+        archive_state: "unarchived",
+        id: "document-unarchived-target-legal",
+      }),
+    ],
+    name: "an unarchived document that still holds an archive target",
+    rejected: [
+      insertStep("archive_targets", archiveTargetRow),
+      insertStep("invoice_documents", {
+        ...invoiceDocumentRow,
+        archive_state: "unarchived",
+        archive_target_id: "archive-target-demo",
+        id: "document-unarchived-target-rejected",
+      }),
+    ],
+  },
+  {
+    constraint: "invoice_documents_failed_check",
+    legal: [
+      insertStep("invoice_documents", {
+        ...invoiceDocumentRow,
+        archive_failure_reason: "The demo archive refused the upload.",
+        archive_state: "failed",
+        id: "document-failed-legal",
+      }),
+    ],
+    name: "a failed document with no archive failure reason",
+    rejected: [
+      insertStep("invoice_documents", {
+        ...invoiceDocumentRow,
+        archive_state: "failed",
+        id: "document-failed-rejected",
+      }),
+    ],
+  },
+  {
+    constraint: "invoice_documents_failed_check",
+    legal: [
+      insertStep("invoice_documents", {
+        ...invoiceDocumentRow,
+        archive_failure_reason: "The demo archive refused the upload.",
+        archive_state: "failed",
+        id: "document-failed-blank-legal",
+      }),
+    ],
+    name: "a failed document whose archive failure reason is blank",
+    rejected: [
+      insertStep("invoice_documents", {
+        ...invoiceDocumentRow,
+        archive_failure_reason: "   ",
+        archive_state: "failed",
+        id: "document-failed-blank-rejected",
+      }),
+    ],
+  },
+  {
+    constraint: "invoice_documents_sha256_check",
+    legal: [
+      insertStep("invoice_documents", {
+        ...invoiceDocumentRow,
+        id: "document-sha-legal",
+        sha256: "c".repeat(64),
+      }),
+    ],
+    name: "a document fingerprint that is not 64 lowercase hex characters",
+    rejected: [
+      insertStep("invoice_documents", {
+        ...invoiceDocumentRow,
+        id: "document-sha-rejected",
+        sha256: "not-a-hash",
+      }),
+    ],
+  },
+  {
+    constraint: "invoice_documents_sha256_check",
+    legal: [
+      insertStep("invoice_documents", {
+        ...invoiceDocumentRow,
+        id: "document-sha-case-legal",
+        sha256: "c".repeat(64),
+      }),
+    ],
+    name: "a document fingerprint written in uppercase hex",
+    rejected: [
+      insertStep("invoice_documents", {
+        ...invoiceDocumentRow,
+        id: "document-sha-case-rejected",
+        sha256: "C".repeat(64),
+      }),
+    ],
+  },
+  {
+    constraint: "invoice_documents_sha256_check",
+    legal: [
+      insertStep("invoice_documents", {
+        ...invoiceDocumentRow,
+        id: "document-sha-length-legal",
+        sha256: "c".repeat(64),
+      }),
+    ],
+    name: "a document fingerprint one character short",
+    rejected: [
+      insertStep("invoice_documents", {
+        ...invoiceDocumentRow,
+        id: "document-sha-length-rejected",
+        sha256: "c".repeat(63),
+      }),
+    ],
+  },
+  {
+    constraint: "tax_obligations_write_off_check",
+    legal: [
+      insertStep("tax_obligations", {
+        ...taxObligationRow,
+        id: "obligation-written-off-legal",
+        status: "written_off",
+        write_off_reason: "The demo company closed before the demo due date.",
+      }),
+    ],
+    name: "a written-off tax obligation without a reason",
+    rejected: [
+      insertStep("tax_obligations", {
+        ...taxObligationRow,
+        id: "obligation-written-off-rejected",
+        status: "written_off",
+      }),
+    ],
+  },
+  {
+    constraint: "tax_obligations_write_off_check",
+    legal: [
+      insertStep("tax_obligations", {
+        ...taxObligationRow,
+        id: "obligation-written-off-blank-legal",
+        status: "written_off",
+        write_off_reason: "The demo company closed before the demo due date.",
+      }),
+    ],
+    name: "a written-off tax obligation whose reason is blank",
+    rejected: [
+      insertStep("tax_obligations", {
+        ...taxObligationRow,
+        id: "obligation-written-off-blank-rejected",
+        status: "written_off",
+        write_off_reason: "   ",
+      }),
+    ],
+  },
+  {
+    constraint: "tax_obligations_write_off_check",
+    legal: [
+      insertStep("tax_obligations", {
+        ...taxObligationRow,
+        id: "obligation-estimated-legal",
+      }),
+    ],
+    name: "an unpaid tax obligation that carries a write-off reason",
+    rejected: [
+      insertStep("tax_obligations", {
+        ...taxObligationRow,
+        id: "obligation-estimated-rejected",
+        write_off_reason: "The demo company closed before the demo due date.",
+      }),
+    ],
+  },
+  {
+    constraint: "subscriptions_confidence_check",
+    legal: [
+      insertStep("subscriptions", {
+        ...subscriptionRow,
+        confidence: 0.96,
+      }),
+    ],
+    name: "a confidence stored as text",
+    rejected: [
+      insertStep("subscriptions", {
+        ...subscriptionRow,
+        confidence: "high",
+      }),
+    ],
+  },
+  {
+    constraint: "subscriptions_confidence_check",
+    legal: [
+      insertStep("subscriptions", {
+        ...subscriptionRow,
+        confidence: 0.96,
+      }),
+    ],
+    name: "a confidence above one",
+    rejected: [
+      insertStep("subscriptions", {
+        ...subscriptionRow,
+        confidence: 1.5,
+      }),
+    ],
+  },
+  {
+    constraint: "subscriptions_confidence_check",
+    legal: [
+      insertStep("subscriptions", {
+        ...subscriptionRow,
+        confidence: 0.96,
+      }),
+    ],
+    name: "a negative confidence",
+    rejected: [
+      insertStep("subscriptions", {
+        ...subscriptionRow,
+        confidence: -0.1,
+      }),
+    ],
+  },
+  {
+    constraint: "subscriptions_confidence_check",
+    legal: [
+      insertStep("subscriptions", {
+        ...subscriptionRow,
+        confidence: 0.96,
+      }),
+    ],
+    name: "an infinite confidence",
+    rejected: [
+      insertStep("subscriptions", {
+        ...subscriptionRow,
+        confidence: Number.POSITIVE_INFINITY,
+      }),
+    ],
+  },
+  {
+    constraint: "subscriptions_amount_cv_check",
+    legal: [
+      insertStep("subscriptions", {
+        ...subscriptionRow,
+        amount_cv: 0.18,
+      }),
+    ],
+    name: "an amount spread stored as text",
+    rejected: [
+      insertStep("subscriptions", {
+        ...subscriptionRow,
+        amount_cv: "high",
+      }),
+    ],
+  },
+  {
+    constraint: "subscriptions_amount_cv_check",
+    legal: [
+      insertStep("subscriptions", {
+        ...subscriptionRow,
+        amount_cv: 0.18,
+      }),
+    ],
+    name: "a negative amount spread",
+    rejected: [
+      insertStep("subscriptions", {
+        ...subscriptionRow,
+        amount_cv: -0.18,
+      }),
+    ],
+  },
+  {
+    constraint: "reports_slug_check",
+    legal: [
+      insertStep("reports", {
+        ...reportRow,
+        id: "report-slug-legal",
+        slug: "demo-report-2025",
+      }),
+    ],
+    name: "a report slug that climbs out of its directory",
+    rejected: [
+      insertStep("reports", {
+        ...reportRow,
+        id: "report-slug-traversal-rejected",
+        slug: "../other-profile",
+      }),
+    ],
+  },
+  {
+    constraint: "reports_slug_check",
+    legal: [
+      insertStep("reports", {
+        ...reportRow,
+        id: "report-slug-case-legal",
+        slug: "demo-report-2025",
+      }),
+    ],
+    name: "a report slug with uppercase letters",
+    rejected: [
+      insertStep("reports", {
+        ...reportRow,
+        id: "report-slug-case-rejected",
+        slug: "Demo-Report",
+      }),
+    ],
+  },
+  {
+    constraint: "reports_slug_check",
+    legal: [
+      insertStep("reports", {
+        ...reportRow,
+        id: "report-slug-dots-legal",
+        slug: "demo-report-2025",
+      }),
+    ],
+    name: "a report slug with two hyphens in a row",
+    rejected: [
+      insertStep("reports", {
+        ...reportRow,
+        id: "report-slug-dots-rejected",
+        slug: "demo--report",
+      }),
+    ],
+  },
+  {
+    constraint: "reports_slug_check",
+    legal: [
+      insertStep("reports", {
+        ...reportRow,
+        id: "report-slug-dot-legal",
+        slug: "demo-report-2025",
+      }),
+    ],
+    name: "a report slug ending in a hyphen",
+    rejected: [
+      insertStep("reports", {
+        ...reportRow,
+        id: "report-slug-dot-rejected",
+        slug: "demo-report-",
+      }),
+    ],
+  },
+  {
+    constraint: "members_email_check",
+    legal: [insertStep("members", checkMemberRow)],
+    name: "a member email that is blank",
+    rejected: [
+      insertStep("members", {
+        ...checkMemberRow,
+        email: "   ",
+        id: "member-blank-email-rejected",
+      }),
+    ],
+  },
+  {
+    constraint: "members_email_check",
+    legal: [insertStep("members", checkMemberRow)],
+    name: "a member email that is empty",
+    rejected: [
+      insertStep("members", {
+        ...checkMemberRow,
+        email: "",
+        id: "member-empty-email-rejected",
+      }),
+    ],
+  },
+  {
+    constraint: "rules_pattern_check",
+    legal: [insertStep("rules", checkRuleRow)],
+    name: "a rule pattern that is blank",
+    rejected: [
+      insertStep("rules", {
+        ...checkRuleRow,
+        id: "rule-blank-pattern-rejected",
+        pattern: "   ",
+      }),
+    ],
+  },
+  {
+    constraint: "rules_pattern_check",
+    legal: [insertStep("rules", checkRuleRow)],
+    name: "a rule pattern that is empty",
+    rejected: [
+      insertStep("rules", {
+        ...checkRuleRow,
+        id: "rule-empty-pattern-rejected",
+        pattern: "",
+      }),
+    ],
+  },
+  {
+    constraint: "merchant_aliases_pattern_check",
+    legal: [insertStep("merchant_aliases", aliasRow)],
+    name: "a merchant alias pattern that is blank",
+    rejected: [
+      insertStep("merchant_aliases", {
+        ...aliasRow,
+        id: "alias-blank-pattern-rejected",
+        pattern: "   ",
+      }),
+    ],
+  },
+  {
+    constraint: "invoice_sources_pattern_check",
+    legal: [insertStep("invoice_sources", invoiceSourceRow)],
+    name: "an invoice source pattern that is empty",
+    rejected: [
+      insertStep("invoice_sources", {
+        ...invoiceSourceRow,
+        id: "invoice-source-empty-pattern-rejected",
+        pattern: "",
+      }),
+    ],
+  },
 ];
 
 const integerValues = [1.5];
@@ -649,6 +1272,8 @@ const crossProfileCases: readonly CrossProfileCase[] = [
   {
     child: insertStep("invoice_documents", {
       ...invoiceDocumentRow,
+      archive_file_id: "demo-file-cross",
+      archive_state: "reserved",
       archive_target_id: "archive-target-other",
     }),
     name: "an invoice document pointing at another profile's archive target",
@@ -1048,6 +1673,82 @@ it.effect.each(storedRateCases)(
 
       expect(message).toContain("exchange_rates_rate_check");
     })
+);
+
+it.effect(
+  "accepts a converted amount within one minor unit of source times rate",
+  () =>
+    Effect.gen(function* acceptRoundingTolerance() {
+      const database = yield* migratedBook;
+
+      for (const baseMinor of [5, 6]) {
+        runStep(
+          database,
+          insertStep("transactions", {
+            ...transactionRow,
+            base_minor: baseMinor,
+            external_id: `transaction-external-rounding-${baseMinor}`,
+            id: `transaction-rounding-${baseMinor}`,
+            rate: 1.15,
+            rate_as_of: "2026-01-01",
+            source_currency: "USD",
+            source_minor: 5,
+          })
+        );
+      }
+
+      runStep(
+        database,
+        insertStep("transactions", {
+          ...transactionRow,
+          base_minor: 9_900_000_000_000,
+          external_id: "transaction-external-rounding-large",
+          id: "transaction-rounding-large",
+          rate: 1.1,
+          rate_as_of: "2026-01-01",
+          source_currency: "USD",
+          source_minor: 9_000_000_000_000,
+        })
+      );
+
+      const message = rejectedMessage(() => {
+        runStep(
+          database,
+          insertStep("transactions", {
+            ...transactionRow,
+            base_minor: 7,
+            external_id: "transaction-external-rounding-far",
+            id: "transaction-rounding-far",
+            rate: 1.15,
+            rate_as_of: "2026-01-01",
+            source_currency: "USD",
+            source_minor: 5,
+          })
+        );
+      });
+
+      expect(message).toContain("transactions_rate_amount_check");
+    })
+);
+
+it.effect("rejects a confidence that is not a number", () =>
+  Effect.gen(function* rejectUnnumberedConfidence() {
+    const database = yield* migratedBook;
+
+    const message = rejectedMessage(() => {
+      runStep(
+        database,
+        insertStep("subscriptions", {
+          ...subscriptionRow,
+          confidence: Number.NaN,
+        })
+      );
+    });
+
+    expect(message).toContain(
+      "NOT NULL constraint failed: subscriptions.confidence"
+    );
+  })
 );
 
 it.effect("rejects a base currency that differs from the profile's", () =>

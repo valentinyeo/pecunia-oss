@@ -38,6 +38,8 @@ CREATE TABLE `sync_runs` (
 	CONSTRAINT "sync_runs_skipped_integer_check" CHECK(typeof("skipped") = 'integer' AND "skipped" BETWEEN -9007199254740991 AND 9007199254740991),
 	CONSTRAINT "sync_runs_started_at_integer_check" CHECK(typeof("started_at") = 'integer' AND "started_at" BETWEEN -9007199254740991 AND 9007199254740991),
 	CONSTRAINT "sync_runs_updated_at_integer_check" CHECK(typeof("updated_at") = 'integer' AND "updated_at" BETWEEN -9007199254740991 AND 9007199254740991),
+	CONSTRAINT "sync_runs_window_from_date_check" CHECK("window_from" IS NULL OR (typeof("window_from") = 'text' AND length("window_from") = 10 AND "window_from" GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]')),
+	CONSTRAINT "sync_runs_window_to_date_check" CHECK("window_to" IS NULL OR (typeof("window_to") = 'text' AND length("window_to") = 10 AND "window_to" GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]')),
 	CONSTRAINT "sync_runs_kind_check" CHECK("kind" IN ('bank_sync', 'categorization')),
 	CONSTRAINT "sync_runs_state_check" CHECK("state" IN ('running', 'chunk_done', 'categorizing', 'succeeded', 'failed', 'cancelled')),
 	CONSTRAINT "sync_runs_finished_check" CHECK(("state" IN ('succeeded', 'failed', 'cancelled')) = ("finished_at" IS NOT NULL)),

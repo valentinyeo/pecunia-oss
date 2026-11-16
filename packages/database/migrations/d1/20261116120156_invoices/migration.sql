@@ -13,6 +13,7 @@ CREATE TABLE `archive_targets` (
 CREATE TABLE `invoice_documents` (
 	`amount_currency` text,
 	`amount_minor` integer,
+	`archive_failure_reason` text,
 	`archive_file_id` text,
 	`archive_state` text DEFAULT 'unarchived' NOT NULL,
 	`archive_target_id` text,
@@ -40,12 +41,16 @@ CREATE TABLE `invoice_documents` (
 	CONSTRAINT "invoice_documents_archived_at_integer_check" CHECK("archived_at" IS NULL OR (typeof("archived_at") = 'integer' AND "archived_at" BETWEEN -9007199254740991 AND 9007199254740991)),
 	CONSTRAINT "invoice_documents_created_at_integer_check" CHECK(typeof("created_at") = 'integer' AND "created_at" BETWEEN -9007199254740991 AND 9007199254740991),
 	CONSTRAINT "invoice_documents_size_bytes_integer_check" CHECK(typeof("size_bytes") = 'integer' AND "size_bytes" BETWEEN -9007199254740991 AND 9007199254740991),
+	CONSTRAINT "invoice_documents_document_date_date_check" CHECK(typeof("document_date") = 'text' AND length("document_date") = 10 AND "document_date" GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'),
 	CONSTRAINT "invoice_documents_type_check" CHECK("document_type" IN ('invoice', 'receipt', 'statement', 'credit_note', 'other')),
 	CONSTRAINT "invoice_documents_source_check" CHECK("source" IN ('upload', 'agent', 'email', 'legacy_upload')),
 	CONSTRAINT "invoice_documents_archive_state_check" CHECK("archive_state" IN ('unarchived', 'reserved', 'archived', 'failed')),
 	CONSTRAINT "invoice_documents_amount_pair_check" CHECK(("amount_minor" IS NULL) = ("amount_currency" IS NULL)),
-	CONSTRAINT "invoice_documents_reserved_check" CHECK("archive_state" <> 'reserved' OR "archive_file_id" IS NOT NULL),
-	CONSTRAINT "invoice_documents_archived_check" CHECK("archive_state" <> 'archived' OR ("archive_file_id" IS NOT NULL AND "archive_target_id" IS NOT NULL AND "archived_at" IS NOT NULL))
+	CONSTRAINT "invoice_documents_sha256_check" CHECK(typeof("sha256") = 'text' AND length("sha256") = 64 AND "sha256" NOT GLOB '*[^0-9a-f]*'),
+	CONSTRAINT "invoice_documents_unarchived_check" CHECK("archive_state" <> 'unarchived' OR ("archive_file_id" IS NULL AND "archive_target_id" IS NULL AND "archived_at" IS NULL AND "archive_failure_reason" IS NULL)),
+	CONSTRAINT "invoice_documents_reserved_check" CHECK("archive_state" <> 'reserved' OR ("archive_file_id" IS NOT NULL AND "archive_target_id" IS NOT NULL AND "archived_at" IS NULL AND "archive_failure_reason" IS NULL)),
+	CONSTRAINT "invoice_documents_archived_check" CHECK("archive_state" <> 'archived' OR ("archive_file_id" IS NOT NULL AND "archive_target_id" IS NOT NULL AND "archived_at" IS NOT NULL AND "archive_failure_reason" IS NULL)),
+	CONSTRAINT "invoice_documents_failed_check" CHECK("archive_state" <> 'failed' OR ("archive_failure_reason" IS NOT NULL AND length(trim("archive_failure_reason")) > 0 AND "archive_file_id" IS NULL AND "archive_target_id" IS NULL AND "archived_at" IS NULL))
 );
 --> statement-breakpoint
 CREATE TABLE `invoice_exceptions` (
@@ -84,7 +89,8 @@ CREATE TABLE `invoice_sources` (
 	CONSTRAINT "invoice_sources_retrieval_bookkeeper_boolean_check" CHECK("retrieval_bookkeeper" IN (0, 1)),
 	CONSTRAINT "invoice_sources_retrieval_email_boolean_check" CHECK("retrieval_email" IN (0, 1)),
 	CONSTRAINT "invoice_sources_retrieval_portal_boolean_check" CHECK("retrieval_portal" IN (0, 1)),
-	CONSTRAINT "invoice_sources_retrieval_two_factor_boolean_check" CHECK("retrieval_two_factor" IN (0, 1))
+	CONSTRAINT "invoice_sources_retrieval_two_factor_boolean_check" CHECK("retrieval_two_factor" IN (0, 1)),
+	CONSTRAINT "invoice_sources_pattern_check" CHECK(typeof("pattern") = 'text' AND length(trim("pattern")) > 0)
 );
 --> statement-breakpoint
 CREATE UNIQUE INDEX `archive_targets_profile_provider_idx` ON `archive_targets` (`profile_id`,`provider`);--> statement-breakpoint

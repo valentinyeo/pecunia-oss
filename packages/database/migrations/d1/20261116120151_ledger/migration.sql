@@ -25,6 +25,7 @@ CREATE TABLE `merchant_aliases` (
 	CONSTRAINT `fk_merchant_aliases_profile_id_profiles_id_fk` FOREIGN KEY (`profile_id`) REFERENCES `profiles`(`id`),
 	CONSTRAINT `fk_merchant_aliases_profile_id_payee_id_payees_profile_id_id_fk` FOREIGN KEY (`profile_id`,`payee_id`) REFERENCES `payees`(`profile_id`,`id`),
 	CONSTRAINT "merchant_aliases_created_at_integer_check" CHECK(typeof("created_at") = 'integer' AND "created_at" BETWEEN -9007199254740991 AND 9007199254740991),
+	CONSTRAINT "merchant_aliases_pattern_check" CHECK(typeof("pattern") = 'text' AND length(trim("pattern")) > 0),
 	CONSTRAINT "merchant_aliases_match_type_check" CHECK("match_type" IN ('exact', 'prefix', 'contains'))
 );
 --> statement-breakpoint
@@ -73,6 +74,7 @@ CREATE TABLE `rules` (
 	CONSTRAINT "rules_priority_integer_check" CHECK(typeof("priority") = 'integer' AND "priority" BETWEEN -9007199254740991 AND 9007199254740991),
 	CONSTRAINT "rules_updated_at_integer_check" CHECK(typeof("updated_at") = 'integer' AND "updated_at" BETWEEN -9007199254740991 AND 9007199254740991),
 	CONSTRAINT "rules_enabled_boolean_check" CHECK("enabled" IN (0, 1)),
+	CONSTRAINT "rules_pattern_check" CHECK(typeof("pattern") = 'text' AND length(trim("pattern")) > 0),
 	CONSTRAINT "rules_kind_check" CHECK("kind" IN ('categorize', 'self_transfer', 'refund', 'internal_transfer', 'exclude', 'income_client', 'tax_payment')),
 	CONSTRAINT "rules_match_field_check" CHECK("match_field" IN ('merchant', 'reference', 'description')),
 	CONSTRAINT "rules_match_type_check" CHECK("match_type" IN ('exact', 'contains', 'prefix', 'digits_only')),
@@ -135,18 +137,21 @@ CREATE TABLE `transactions` (
 	CONSTRAINT "transactions_source_minor_integer_check" CHECK(typeof("source_minor") = 'integer' AND "source_minor" BETWEEN -9007199254740991 AND 9007199254740991),
 	CONSTRAINT "transactions_suggested_at_integer_check" CHECK("suggested_at" IS NULL OR (typeof("suggested_at") = 'integer' AND "suggested_at" BETWEEN -9007199254740991 AND 9007199254740991)),
 	CONSTRAINT "transactions_updated_at_integer_check" CHECK(typeof("updated_at") = 'integer' AND "updated_at" BETWEEN -9007199254740991 AND 9007199254740991),
+	CONSTRAINT "transactions_rate_as_of_date_check" CHECK("rate_as_of" IS NULL OR (typeof("rate_as_of") = 'text' AND length("rate_as_of") = 10 AND "rate_as_of" GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]')),
+	CONSTRAINT "transactions_value_date_date_check" CHECK(typeof("value_date") = 'text' AND length("value_date") = 10 AND "value_date" GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'),
 	CONSTRAINT "transactions_status_check" CHECK("status" IN ('posted', 'pending', 'reversed')),
 	CONSTRAINT "transactions_direction_check" CHECK("direction" IN ('in', 'out', 'neutral')),
 	CONSTRAINT "transactions_categorization_check" CHECK("categorization" IN ('none', 'suggested', 'applied', 'confirmed')),
 	CONSTRAINT "transactions_classification_check" CHECK("classification" IN ('none', 'income', 'refund', 'self_transfer', 'internal_transfer', 'excluded', 'tax_payment')),
 	CONSTRAINT "transactions_categorization_category_check" CHECK(("category_id" IS NULL) = ("categorization" = 'none')),
-	CONSTRAINT "transactions_suggested_check" CHECK(("categorization" = 'suggested') = ("suggestion_model" IS NOT NULL AND "suggested_at" IS NOT NULL)),
+	CONSTRAINT "transactions_suggested_check" CHECK(("categorization" = 'suggested' AND "suggestion_model" IS NOT NULL AND "suggested_at" IS NOT NULL) OR ("categorization" <> 'suggested' AND "suggestion_model" IS NULL AND "suggested_at" IS NULL)),
 	CONSTRAINT "transactions_applied_rule_check" CHECK(("categorization" = 'applied') = ("applied_rule_id" IS NOT NULL)),
 	CONSTRAINT "transactions_income_payee_check" CHECK(("classification" = 'income') = ("client_payee_id" IS NOT NULL)),
 	CONSTRAINT "transactions_classification_rule_check" CHECK(("classification" = 'none') = ("classification_rule_id" IS NULL)),
 	CONSTRAINT "transactions_counterpart_profile_check" CHECK("counterpart_profile_id" IS NULL OR "classification" = 'self_transfer'),
 	CONSTRAINT "transactions_base_amount_check" CHECK("source_currency" <> "base_currency" OR "source_minor" = "base_minor"),
 	CONSTRAINT "transactions_rate_check" CHECK(("source_currency" = "base_currency" AND "rate" IS NULL AND "rate_as_of" IS NULL) OR ("source_currency" <> "base_currency" AND typeof("rate") = 'real' AND "rate" > 0 AND "rate" < 1e300 AND "rate_as_of" IS NOT NULL)),
+	CONSTRAINT "transactions_rate_amount_check" CHECK("source_currency" = "base_currency" OR abs("base_minor" - "source_minor" * "rate") <= 1 + abs("source_minor" * "rate") / 1000000000000),
 	CONSTRAINT "transactions_fee_currency_check" CHECK("fee_currency" IS NULL OR "fee_currency" = "source_currency"),
 	CONSTRAINT "transactions_fee_pair_check" CHECK(("fee_minor" IS NULL) = ("fee_currency" IS NULL))
 );

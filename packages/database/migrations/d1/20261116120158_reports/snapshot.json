@@ -1,8 +1,8 @@
 {
   "version": "7",
   "dialect": "sqlite",
-  "id": "ee8441a3-090a-4065-86a4-5dee4e5976d7",
-  "prevIds": ["02909989-837a-432e-81d2-cd3b39852698"],
+  "id": "1e0725dd-89ca-4dc6-b9fb-bdd0e9ec41ad",
+  "prevIds": ["3ff06390-db69-4372-9e93-7c8f6ea8a61e"],
   "ddl": [
     {
       "name": "app_setting",
@@ -574,6 +574,16 @@
       "table": "invoice_documents",
       "name": "amount_minor",
       "type": "integer",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "invoice_documents",
+      "name": "archive_failure_reason",
+      "type": "text",
       "notNull": false,
       "autoincrement": false,
       "default": null,
@@ -2205,6 +2215,16 @@
       "name": "tax_profile_id",
       "type": "text",
       "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "tax_obligations",
+      "name": "write_off_reason",
+      "type": "text",
+      "notNull": false,
       "autoincrement": false,
       "default": null,
       "generated": null,
@@ -4371,6 +4391,12 @@
     },
     {
       "table": "exchange_rates",
+      "name": "exchange_rates_as_of_date_check",
+      "value": "typeof(\"as_of\") = 'text' AND length(\"as_of\") = 10 AND \"as_of\" GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'",
+      "entityType": "checks"
+    },
+    {
+      "table": "exchange_rates",
       "name": "exchange_rates_rate_check",
       "value": "typeof(\"rate\") = 'real' AND \"rate\" > 0 AND \"rate\" < 1e300",
       "entityType": "checks"
@@ -4427,6 +4453,12 @@
       "table": "holdings",
       "name": "holdings_updated_at_integer_check",
       "value": "typeof(\"updated_at\") = 'integer' AND \"updated_at\" BETWEEN -9007199254740991 AND 9007199254740991",
+      "entityType": "checks"
+    },
+    {
+      "table": "holdings",
+      "name": "holdings_opened_on_date_check",
+      "value": "typeof(\"opened_on\") = 'text' AND length(\"opened_on\") = 10 AND \"opened_on\" GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'",
       "entityType": "checks"
     },
     {
@@ -4515,6 +4547,12 @@
     },
     {
       "table": "invoice_documents",
+      "name": "invoice_documents_document_date_date_check",
+      "value": "typeof(\"document_date\") = 'text' AND length(\"document_date\") = 10 AND \"document_date\" GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'",
+      "entityType": "checks"
+    },
+    {
+      "table": "invoice_documents",
       "name": "invoice_documents_type_check",
       "value": "\"document_type\" IN ('invoice', 'receipt', 'statement', 'credit_note', 'other')",
       "entityType": "checks"
@@ -4539,14 +4577,32 @@
     },
     {
       "table": "invoice_documents",
+      "name": "invoice_documents_sha256_check",
+      "value": "typeof(\"sha256\") = 'text' AND length(\"sha256\") = 64 AND \"sha256\" NOT GLOB '*[^0-9a-f]*'",
+      "entityType": "checks"
+    },
+    {
+      "table": "invoice_documents",
+      "name": "invoice_documents_unarchived_check",
+      "value": "\"archive_state\" <> 'unarchived' OR (\"archive_file_id\" IS NULL AND \"archive_target_id\" IS NULL AND \"archived_at\" IS NULL AND \"archive_failure_reason\" IS NULL)",
+      "entityType": "checks"
+    },
+    {
+      "table": "invoice_documents",
       "name": "invoice_documents_reserved_check",
-      "value": "\"archive_state\" <> 'reserved' OR \"archive_file_id\" IS NOT NULL",
+      "value": "\"archive_state\" <> 'reserved' OR (\"archive_file_id\" IS NOT NULL AND \"archive_target_id\" IS NOT NULL AND \"archived_at\" IS NULL AND \"archive_failure_reason\" IS NULL)",
       "entityType": "checks"
     },
     {
       "table": "invoice_documents",
       "name": "invoice_documents_archived_check",
-      "value": "\"archive_state\" <> 'archived' OR (\"archive_file_id\" IS NOT NULL AND \"archive_target_id\" IS NOT NULL AND \"archived_at\" IS NOT NULL)",
+      "value": "\"archive_state\" <> 'archived' OR (\"archive_file_id\" IS NOT NULL AND \"archive_target_id\" IS NOT NULL AND \"archived_at\" IS NOT NULL AND \"archive_failure_reason\" IS NULL)",
+      "entityType": "checks"
+    },
+    {
+      "table": "invoice_documents",
+      "name": "invoice_documents_failed_check",
+      "value": "\"archive_state\" <> 'failed' OR (\"archive_failure_reason\" IS NOT NULL AND length(trim(\"archive_failure_reason\")) > 0 AND \"archive_file_id\" IS NULL AND \"archive_target_id\" IS NULL AND \"archived_at\" IS NULL)",
       "entityType": "checks"
     },
     {
@@ -4622,9 +4678,21 @@
       "entityType": "checks"
     },
     {
+      "table": "invoice_sources",
+      "name": "invoice_sources_pattern_check",
+      "value": "typeof(\"pattern\") = 'text' AND length(trim(\"pattern\")) > 0",
+      "entityType": "checks"
+    },
+    {
       "table": "members",
       "name": "members_created_at_integer_check",
       "value": "typeof(\"created_at\") = 'integer' AND \"created_at\" BETWEEN -9007199254740991 AND 9007199254740991",
+      "entityType": "checks"
+    },
+    {
+      "table": "members",
+      "name": "members_email_check",
+      "value": "typeof(\"email\") = 'text' AND length(trim(\"email\")) > 0",
       "entityType": "checks"
     },
     {
@@ -4637,6 +4705,12 @@
       "table": "merchant_aliases",
       "name": "merchant_aliases_created_at_integer_check",
       "value": "typeof(\"created_at\") = 'integer' AND \"created_at\" BETWEEN -9007199254740991 AND 9007199254740991",
+      "entityType": "checks"
+    },
+    {
+      "table": "merchant_aliases",
+      "name": "merchant_aliases_pattern_check",
+      "value": "typeof(\"pattern\") = 'text' AND length(trim(\"pattern\")) > 0",
       "entityType": "checks"
     },
     {
@@ -4707,6 +4781,12 @@
     },
     {
       "table": "provider_accounts",
+      "name": "provider_accounts_sync_start_date_date_check",
+      "value": "\"sync_start_date\" IS NULL OR (typeof(\"sync_start_date\") = 'text' AND length(\"sync_start_date\") = 10 AND \"sync_start_date\" GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]')",
+      "entityType": "checks"
+    },
+    {
+      "table": "provider_accounts",
       "name": "provider_accounts_kind_check",
       "value": "\"kind\" IN ('bank', 'investment', 'books', 'csv', 'manual')",
       "entityType": "checks"
@@ -4745,6 +4825,12 @@
       "table": "reports",
       "name": "reports_kind_check",
       "value": "\"kind\" IN ('report', 'exploration')",
+      "entityType": "checks"
+    },
+    {
+      "table": "reports",
+      "name": "reports_slug_check",
+      "value": "length(\"slug\") > 0 AND \"slug\" NOT GLOB '*[^a-z0-9-]*' AND substr(\"slug\", 1, 1) GLOB '[a-z0-9]' AND substr(\"slug\", -1) GLOB '[a-z0-9]' AND instr(\"slug\", '--') = 0",
       "entityType": "checks"
     },
     {
@@ -4787,6 +4873,12 @@
       "table": "rules",
       "name": "rules_enabled_boolean_check",
       "value": "\"enabled\" IN (0, 1)",
+      "entityType": "checks"
+    },
+    {
+      "table": "rules",
+      "name": "rules_pattern_check",
+      "value": "typeof(\"pattern\") = 'text' AND length(trim(\"pattern\")) > 0",
       "entityType": "checks"
     },
     {
@@ -4893,6 +4985,18 @@
     },
     {
       "table": "subscriptions",
+      "name": "subscriptions_last_charged_on_date_check",
+      "value": "typeof(\"last_charged_on\") = 'text' AND length(\"last_charged_on\") = 10 AND \"last_charged_on\" GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'",
+      "entityType": "checks"
+    },
+    {
+      "table": "subscriptions",
+      "name": "subscriptions_next_expected_on_date_check",
+      "value": "typeof(\"next_expected_on\") = 'text' AND length(\"next_expected_on\") = 10 AND \"next_expected_on\" GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'",
+      "entityType": "checks"
+    },
+    {
+      "table": "subscriptions",
       "name": "subscriptions_frequency_check",
       "value": "\"frequency\" IN ('weekly', 'monthly', 'quarterly', 'annual')",
       "entityType": "checks"
@@ -4907,6 +5011,18 @@
       "table": "subscriptions",
       "name": "subscriptions_base_amount_check",
       "value": "\"typical_currency\" <> \"base_currency\" OR \"typical_minor\" = \"typical_base_minor\"",
+      "entityType": "checks"
+    },
+    {
+      "table": "subscriptions",
+      "name": "subscriptions_confidence_check",
+      "value": "typeof(\"confidence\") = 'real' AND \"confidence\" >= 0 AND \"confidence\" <= 1",
+      "entityType": "checks"
+    },
+    {
+      "table": "subscriptions",
+      "name": "subscriptions_amount_cv_check",
+      "value": "typeof(\"amount_cv\") = 'real' AND \"amount_cv\" >= 0 AND \"amount_cv\" < 1e300",
       "entityType": "checks"
     },
     {
@@ -4965,6 +5081,18 @@
     },
     {
       "table": "sync_runs",
+      "name": "sync_runs_window_from_date_check",
+      "value": "\"window_from\" IS NULL OR (typeof(\"window_from\") = 'text' AND length(\"window_from\") = 10 AND \"window_from\" GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]')",
+      "entityType": "checks"
+    },
+    {
+      "table": "sync_runs",
+      "name": "sync_runs_window_to_date_check",
+      "value": "\"window_to\" IS NULL OR (typeof(\"window_to\") = 'text' AND length(\"window_to\") = 10 AND \"window_to\" GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]')",
+      "entityType": "checks"
+    },
+    {
+      "table": "sync_runs",
       "name": "sync_runs_kind_check",
       "value": "\"kind\" IN ('bank_sync', 'categorization')",
       "entityType": "checks"
@@ -5013,6 +5141,18 @@
     },
     {
       "table": "tax_obligations",
+      "name": "tax_obligations_due_on_date_check",
+      "value": "typeof(\"due_on\") = 'text' AND length(\"due_on\") = 10 AND \"due_on\" GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'",
+      "entityType": "checks"
+    },
+    {
+      "table": "tax_obligations",
+      "name": "tax_obligations_period_ends_on_date_check",
+      "value": "typeof(\"period_ends_on\") = 'text' AND length(\"period_ends_on\") = 10 AND \"period_ends_on\" GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'",
+      "entityType": "checks"
+    },
+    {
+      "table": "tax_obligations",
       "name": "tax_obligations_status_check",
       "value": "\"status\" IN ('estimated', 'paid', 'written_off')",
       "entityType": "checks"
@@ -5027,6 +5167,12 @@
       "table": "tax_obligations",
       "name": "tax_obligations_estimated_check",
       "value": "\"status\" <> 'estimated' OR \"settled_transaction_id\" IS NULL",
+      "entityType": "checks"
+    },
+    {
+      "table": "tax_obligations",
+      "name": "tax_obligations_write_off_check",
+      "value": "(\"status\" = 'written_off' AND \"write_off_reason\" IS NOT NULL AND length(trim(\"write_off_reason\")) > 0 AND \"settled_transaction_id\" IS NULL) OR (\"status\" <> 'written_off' AND \"write_off_reason\" IS NULL)",
       "entityType": "checks"
     },
     {
@@ -5133,6 +5279,18 @@
     },
     {
       "table": "transactions",
+      "name": "transactions_rate_as_of_date_check",
+      "value": "\"rate_as_of\" IS NULL OR (typeof(\"rate_as_of\") = 'text' AND length(\"rate_as_of\") = 10 AND \"rate_as_of\" GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]')",
+      "entityType": "checks"
+    },
+    {
+      "table": "transactions",
+      "name": "transactions_value_date_date_check",
+      "value": "typeof(\"value_date\") = 'text' AND length(\"value_date\") = 10 AND \"value_date\" GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'",
+      "entityType": "checks"
+    },
+    {
+      "table": "transactions",
       "name": "transactions_status_check",
       "value": "\"status\" IN ('posted', 'pending', 'reversed')",
       "entityType": "checks"
@@ -5164,7 +5322,7 @@
     {
       "table": "transactions",
       "name": "transactions_suggested_check",
-      "value": "(\"categorization\" = 'suggested') = (\"suggestion_model\" IS NOT NULL AND \"suggested_at\" IS NOT NULL)",
+      "value": "(\"categorization\" = 'suggested' AND \"suggestion_model\" IS NOT NULL AND \"suggested_at\" IS NOT NULL) OR (\"categorization\" <> 'suggested' AND \"suggestion_model\" IS NULL AND \"suggested_at\" IS NULL)",
       "entityType": "checks"
     },
     {
@@ -5201,6 +5359,12 @@
       "table": "transactions",
       "name": "transactions_rate_check",
       "value": "(\"source_currency\" = \"base_currency\" AND \"rate\" IS NULL AND \"rate_as_of\" IS NULL) OR (\"source_currency\" <> \"base_currency\" AND typeof(\"rate\") = 'real' AND \"rate\" > 0 AND \"rate\" < 1e300 AND \"rate_as_of\" IS NOT NULL)",
+      "entityType": "checks"
+    },
+    {
+      "table": "transactions",
+      "name": "transactions_rate_amount_check",
+      "value": "\"source_currency\" = \"base_currency\" OR abs(\"base_minor\" - \"source_minor\" * \"rate\") <= 1 + abs(\"source_minor\" * \"rate\") / 1000000000000",
       "entityType": "checks"
     },
     {
