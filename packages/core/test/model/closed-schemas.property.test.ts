@@ -416,55 +416,238 @@ const table = {
   },
 };
 
-const scalars = [
-  "AliasIdSchema",
-  "ArchiveTargetIdSchema",
-  "AssetTypeSchema",
-  "CategoryIdSchema",
-  "CurrencyCodeSchema",
-  "DateOnlySchema",
-  "DirectionSchema",
-  "DocumentIdSchema",
-  "DocumentSourceSchema",
-  "DocumentTypeSchema",
-  "FrequencySchema",
-  "HoldingIdSchema",
-  "InvoiceSourceIdSchema",
-  "MatchFieldSchema",
-  "MatchTypeSchema",
-  "MemberIdSchema",
-  "MinorUnitsSchema",
-  "PayeeIdSchema",
-  "PayeeKindSchema",
-  "PlatformIdSchema",
-  "ProfileIdSchema",
-  "ProfileKindSchema",
-  "ProviderAccountIdSchema",
-  "ProviderIdSchema",
-  "ProviderKindSchema",
-  "QuantitySchema",
-  "RateSchema",
-  "ReportIdSchema",
-  "RoleSchema",
-  "RuleDirectionSchema",
-  "RuleIdSchema",
-  "SpendingTypeSchema",
-  "SubscriptionIdSchema",
-  "SyncRunIdSchema",
-  "SyncRunKindSchema",
-  "TaxObligationIdSchema",
-  "TaxProfileIdSchema",
-  "TimestampSchema",
-  "TransactionIdSchema",
+const isCodec = (value: unknown): value is Codec => Schema.isSchema(value);
+
+const classSchemas = (): [string, Codec][] => {
+  const out: [string, Codec][] = [];
+
+  for (const [name, value] of Object.entries(model)) {
+    if (isCodec(value) && Predicate.hasProperty(value, "fields")) {
+      out.push([name, value]);
+    }
+  }
+
+  return out;
+};
+
+const schemaExports = (): [string, Codec][] => {
+  const out: [string, Codec][] = [];
+
+  for (const [name, value] of Object.entries(model)) {
+    if (isCodec(value)) {
+      out.push([name, value]);
+    }
+  }
+
+  return out;
+};
+
+const declaresObjects = (ast: SchemaAST.AST): boolean => {
+  if (Predicate.isTagged(ast, "Objects")) {
+    return true;
+  }
+
+  if (Predicate.isTagged(ast, "Union")) {
+    return ast.types.some(declaresObjects);
+  }
+
+  if (Predicate.isTagged(ast, "Declaration")) {
+    return ast.typeParameters.some(declaresObjects);
+  }
+
+  return false;
+};
+
+const carriesFields = (schema: Codec): boolean =>
+  declaresObjects(Schema.toType(schema).ast) ||
+  doorsOf(schema).some((door) =>
+    declaresObjects(Schema.toType(door.schema).ast)
+  );
+
+type Sample =
+  | null
+  | bigint
+  | string
+  | number
+  | boolean
+  | typeof at
+  | { readonly [key: string]: Sample }
+  | readonly Sample[];
+
+interface Fixture {
+  readonly schema: Codec;
+
+  readonly wire: object;
+}
+
+interface Door {
+  readonly label: string;
+
+  readonly schema: Codec;
+}
+
+interface Factory {
+  readonly make: (input: Candidate) => object;
+}
+
+const isFactory = (value: Codec): value is Codec & Factory =>
+  Predicate.isFunction(value);
+
+const pool: readonly Sample[] = [
+  null,
+  "EUR",
+  "USD",
+  "GBP",
+  at,
+  "2024-01-31",
+  "0.85",
+  str(999),
+  1,
+  0,
+  true,
+  "open",
+  "add",
+  "fractional",
+  "demo",
+  "en-GB",
+  "Europe/London",
+  1024,
+  "application/pdf",
+  "a".repeat(64),
+  "",
 ];
 
-const schemaNames = (): string[] =>
-  Object.entries(model)
-    .filter(
-      ([name, value]) => name.endsWith("Schema") && Schema.isSchema(value)
-    )
-    .map(([name]) => name)
-    .toSorted();
+const decodes = (schema: Codec, value: Sample): boolean =>
+  Result.isSuccess(Schema.decodeUnknownResult(schema)(value));
+
+const sampleValue = (ast: SchemaAST.AST, depth: number): Sample | undefined => {
+  if (depth > 8 || Predicate.isTagged(ast, "Never")) {
+    return undefined;
+  }
+
+  if (Predicate.isTagged(ast, "Literal")) {
+    return ast.literal;
+  }
+
+  const schema = Schema.make<Codec>(ast);
+
+  const found = pool.find((candidate) => decodes(schema, candidate));
+
+  if (found !== undefined) {
+    return found;
+  }
+
+  if (Predicate.isTagged(ast, "Objects")) {
+    const built: Record<string, Sample> = {};
+
+    for (const signature of ast.propertySignatures) {
+      if (
+        !Predicate.isString(signature.name) ||
+        Predicate.isTagged(signature.type, "Never")
+      ) {
+        continue;
+      }
+
+      const child = sampleValue(signature.type, depth + 1);
+
+      if (child === undefined) {
+        return undefined;
+      }
+
+      built[signature.name] = child;
+    }
+
+    return decodes(schema, built) ? built : undefined;
+  }
+
+  if (Predicate.isTagged(ast, "Union")) {
+    for (const branch of ast.types) {
+      const child = sampleValue(branch, depth + 1);
+
+      if (child !== undefined && decodes(schema, child)) {
+        return child;
+      }
+    }
+
+    return undefined;
+  }
+
+  if (Predicate.isTagged(ast, "Declaration")) {
+    const [inner] = ast.typeParameters;
+
+    return inner === undefined ? undefined : sampleValue(inner, depth + 1);
+  }
+
+  return undefined;
+};
+
+const asCandidate = (cause: unknown): Candidate | undefined => {
+  const parsed = Schema.decodeUnknownResult(CandidateSchema)(cause);
+
+  return Result.isSuccess(parsed) ? parsed.success : undefined;
+};
+
+const encodedAstOf = (schema: Codec): SchemaAST.AST => {
+  const { ast } = Schema.toEncoded(schema);
+
+  if (!Predicate.isTagged(ast, "Declaration")) {
+    return ast;
+  }
+
+  const [inner] = ast.typeParameters;
+
+  return inner ?? ast;
+};
+
+const skeletonOf = (schema: Codec): Candidate =>
+  asCandidate(sampleValue(encodedAstOf(schema), 0)) ?? {};
+
+const sampleOf = (schema: Codec): readonly object[] => {
+  try {
+    const value = asObject(
+      Schema.decodeUnknownSync(schema)(skeletonOf(schema))
+    );
+
+    return value === undefined ? [] : [value];
+  } catch {
+    return [];
+  }
+};
+
+const asObject = (cause: unknown): object | undefined =>
+  Predicate.isObject(cause) ? cause : undefined;
+
+const knownValues = (): readonly object[] => {
+  const values: object[] = [];
+
+  for (const { schema, wire } of Object.values(table)) {
+    const decoded = Schema.decodeUnknownResult(schema)(wire);
+
+    if (Result.isSuccess(decoded)) {
+      const value = asObject(decoded.success);
+
+      if (value !== undefined) {
+        values.push(value);
+      }
+    }
+  }
+
+  return values;
+};
+
+const fixtures = (): readonly (readonly [string, Fixture])[] => {
+  const all: [string, Fixture][] = [];
+
+  for (const [name, entry] of Object.entries(table)) {
+    all.push([name, entry]);
+  }
+
+  for (const [name, schema] of classSchemas()) {
+    all.push([name, { schema, wire: skeletonOf(schema) }]);
+  }
+
+  return all;
+};
 
 const SEED = 0x5f_3a_91_c7;
 
@@ -604,7 +787,7 @@ const fieldNamesOf = (ast: SchemaAST.AST): string[] => {
 const foreignNames = (): string[] => {
   const names = new Set<string>(["amount", "asOf", "base", "rate", "source"]);
 
-  for (const { schema } of Object.values(table)) {
+  for (const [, { schema }] of fixtures()) {
     for (const name of fieldNamesOf(Schema.toEncoded(schema).ast)) {
       names.add(name);
     }
@@ -625,15 +808,63 @@ const strayValue = (key: string): StrayValue => {
   return integer(0, 9);
 };
 
+const doorsOf = (schema: Codec): Door[] => {
+  const doors: Door[] = [{ label: "", schema }];
+
+  if (
+    Predicate.hasProperty(schema, "cases") &&
+    Predicate.isObject(schema.cases)
+  ) {
+    for (const [tag, member] of Object.entries(schema.cases)) {
+      if (isCodec(member)) {
+        doors.push({ label: `.cases.${tag}`, schema: member });
+      }
+    }
+  }
+
+  if (
+    Predicate.hasProperty(schema, "members") &&
+    Array.isArray(schema.members)
+  ) {
+    for (const [index, member] of schema.members.entries()) {
+      if (isCodec(member)) {
+        doors.push({ label: `.members[${String(index)}]`, schema: member });
+      }
+    }
+  }
+
+  return doors;
+};
+
+const messageOf = (cause: unknown): string => {
+  if (cause instanceof Error) {
+    return [cause.message, messageOf(cause.cause)].join(" | ");
+  }
+
+  return JSON.stringify(cause) ?? "";
+};
+
 describe("every exported model schema rejects foreign fields", () => {
   it("registers every object schema the model exports", () => {
-    const registered = Object.keys(table).toSorted();
+    const exported = schemaExports();
+
+    const registered = fixtures()
+      .map(([name]) => name)
+      .toSorted();
 
     expect(
-      schemaNames().filter((name) => !registered.includes(name))
-    ).toStrictEqual([...scalars].toSorted());
+      exported
+        .filter(
+          ([name, schema]) =>
+            carriesFields(schema) && !registered.includes(name)
+        )
+        .map(([name]) => name)
+    ).toStrictEqual([]);
+
     expect(
-      registered.filter((name) => !schemaNames().includes(name))
+      registered.filter(
+        (name) => !exported.some(([exportedName]) => exportedName === name)
+      )
     ).toStrictEqual(["ConvertedAmountSchema"]);
   });
 
@@ -652,7 +883,7 @@ describe("every exported model schema rejects foreign fields", () => {
   });
 
   it("decodes a valid value for every registered schema and round-trips it", () => {
-    for (const [name, { schema, wire }] of Object.entries(table)) {
+    for (const [name, { schema, wire }] of fixtures()) {
       const decoded = Schema.decodeUnknownResult(schema)(wire);
 
       expect(Result.isSuccess(decoded), `${name} rejects its own fixture`).toBe(
@@ -681,7 +912,7 @@ describe("every exported model schema rejects foreign fields", () => {
     const foreign = foreignNames();
     let cases = 0;
 
-    for (const [name, { schema, wire }] of Object.entries(table)) {
+    for (const [name, { schema, wire }] of fixtures()) {
       const candidate = Schema.decodeUnknownSync(CandidateSchema)(wire);
 
       for (const path of allPaths(candidate)) {
@@ -753,5 +984,87 @@ describe("every exported model schema rejects foreign fields", () => {
     }
 
     expect(cases).toBeGreaterThanOrEqual(600);
+  });
+
+  it("rejects foreign fields through every make, case and member door", () => {
+    const foreign = foreignNames();
+    let cases = 0;
+
+    for (const [name, { schema: exported }] of fixtures()) {
+      for (const door of doorsOf(exported)) {
+        const label = `${name}${door.label}`;
+
+        const declared = new Set(
+          fieldNamesOf(Schema.toEncoded(door.schema).ast)
+        );
+
+        if (declared.size === 0) {
+          continue;
+        }
+
+        const samples: readonly object[] = [
+          ...sampleOf(door.schema),
+          ...knownValues(),
+        ];
+
+        const value = samples.find((sample) =>
+          Result.isSuccess(Schema.encodeUnknownResult(door.schema)(sample))
+        );
+
+        if (value === undefined) {
+          throw new TypeError(`${label} has no sample value`);
+        }
+
+        const key = foreign.find(
+          (candidate) =>
+            !declared.has(candidate) && !Object.hasOwn(value, candidate)
+        );
+
+        if (key === undefined) {
+          throw new TypeError(`${label} has no foreign field to inject`);
+        }
+
+        const typed = asCandidate({ ...value, [key]: strayValue(key) });
+
+        if (typed === undefined) {
+          throw new TypeError(`${label} has no typed sample value`);
+        }
+
+        expect(isFactory(door.schema), `${label} exposes no make`).toBe(true);
+
+        let thrown: Error | undefined;
+
+        try {
+          if (isFactory(door.schema)) {
+            door.schema.make(typed);
+          }
+        } catch (error) {
+          thrown = error instanceof Error ? error : new TypeError(label);
+        }
+
+        expect(thrown, `${label}.make accepted a foreign field`).toBeDefined();
+        expect(messageOf(thrown), `${label}.make error names ${key}`).toContain(
+          key
+        );
+
+        const encoded = Schema.encodeUnknownResult(door.schema)(typed);
+
+        expect(
+          Result.isFailure(encoded),
+          `${label} encoded with a foreign field`
+        ).toBe(true);
+
+        if (Result.isFailure(encoded)) {
+          expect(
+            encoded.failure.message,
+            `${label} encode error names ${key}`
+          ).toContain(key);
+        }
+
+        cases += 2;
+      }
+    }
+
+    expect(cases).toBeGreaterThanOrEqual(100);
   });
 });
