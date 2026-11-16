@@ -54,6 +54,8 @@ type StoredHolding = typeof StoredHoldingSchema.Type;
 
 export const PendingHoldingSchema = Schema.Struct({
   ...HoldingFields,
+  lastPrice: Schema.OptionFromNullishOr(Schema.Never),
+  pricedAt: Schema.OptionFromNullishOr(Schema.Never),
   state: Schema.Literals(["pending"]),
 });
 
@@ -102,20 +104,22 @@ const decodedHolding = (
     return Option.none();
   }
 
-  return Option.some({ ...fields, state: "pending" });
+  return Option.some({
+    ...fields,
+    lastPrice: null,
+    pricedAt: null,
+    state: "pending",
+  });
 };
 
 const encodedHolding = (holding: EncodedHolding): StoredHolding =>
-  Schema.decodeSync(StoredHoldingSchema)(
-    holding.state === "pending"
-      ? { ...holding, lastPrice: null, pricedAt: null, state: "pending" }
-      : {
-          ...holding,
-          lastPrice: holding.lastPrice ?? null,
-          pricedAt: holding.pricedAt ?? null,
-          state: holding.state,
-        }
-  );
+  Schema.decodeSync(StoredHoldingSchema)({
+    ...holding,
+    costBasis: holding.costBasis ?? null,
+    lastPrice: holding.lastPrice ?? null,
+    pricedAt: holding.pricedAt ?? null,
+    state: holding.state,
+  });
 
 export const HoldingSchema = StoredHoldingSchema.pipe(
   Schema.decodeTo(DecodedHoldingSchema, {

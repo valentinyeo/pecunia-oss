@@ -49,10 +49,8 @@ import {
   MemberIdSchema,
   MoneySchema,
   PayeeIdSchema,
-  PlatformIdSchema,
   ProfileIdSchema,
   ProviderAccountIdSchema,
-  QuantitySchema,
   ReportIdSchema,
   RuleIdSchema,
   SubscriptionIdSchema,
@@ -496,7 +494,10 @@ describe("a transaction carries one amount per currency story", () => {
         );
 
         expect(transaction.amounts).toStrictEqual(stored);
-        expect(stored.base).toStrictEqual({ currency: "EUR", minor: 850 });
+        expect([stored.base.currency, stored.base.minor]).toStrictEqual([
+          "EUR",
+          850,
+        ]);
         expect(Option.isNone(transaction.payeeId)).toBe(true);
       })
   );
@@ -568,7 +569,10 @@ describe("a transaction carries one amount per currency story", () => {
     Effect.gen(function* constructorRoundTrips() {
       const stored = yield* storedConversion(1000, "0.85");
 
-      expect(stored.base).toStrictEqual({ currency: "EUR", minor: 850 });
+      expect([stored.base.currency, stored.base.minor]).toStrictEqual([
+        "EUR",
+        850,
+      ]);
       expect(stored.source).toStrictEqual(moneyOf("USD", 1000));
 
       const decoded = yield* Schema.decodeEffect(TransactionSchema)(
@@ -723,27 +727,26 @@ describe("other illegal states the type forbids", () => {
   });
 
   it("rejects a pending holding that already has a market price", () => {
-    const pending = {
-      assetType: "etf",
-      costBasis: Option.none(),
-      currency: currencyOf("EUR"),
-      id: holdingId,
-      name: "Demo World ETF",
-      openedOn: dateOnly("2023-06-01"),
-      platformId: Schema.decodeSync(PlatformIdSchema)("demo-broker"),
-      profileId,
-      quantity: Schema.decodeSync(QuantitySchema)(100_000_000),
-      state: "pending",
-      symbol: "DEMO",
-    } as const;
+    const pending = Schema.decodeSync(HoldingSchema)(holdingWire());
 
-    const priced: Holding = {
+    expect(pending.state).toBe("pending");
+
+    const withPrice = {
       ...pending,
-      // @ts-expect-error -- a pending holding has no market price field
       lastPrice: Option.some(moneyOf("EUR", 500)),
     };
 
+    // @ts-expect-error -- a pending holding can never carry a market price
+    const priced: Holding = withPrice;
+
     expect(priced.state).toBe("pending");
+    expect(() => Schema.encodeUnknownSync(HoldingSchema)(withPrice)).toThrow();
+    expect(() =>
+      Schema.encodeUnknownSync(HoldingSchema)({
+        ...pending,
+        pricedAt: Option.some(at),
+      })
+    ).toThrow();
 
     expect(() =>
       Schema.decodeSync(HoldingSchema)({

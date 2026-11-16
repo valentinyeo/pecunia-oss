@@ -60,7 +60,10 @@ export type { Rate } from "./rate.js";
 
 export {
   AmountsSchema,
+  BaseAmount,
+  ConversionInputInvalid,
   ConversionOverflow,
+  ConvertedAmount,
   CurrencyMismatch,
   MoneyOverflow,
   RateUnavailable,
@@ -75,13 +78,13 @@ export {
   subtractMoney,
 } from "./money.js";
 
+export type { StoredConversion } from "./money.js";
+
 export { RateOnSameCurrency } from "./rate-on-same-currency.js";
 
 export type {
   Amounts,
-  BaseAmount,
   ConversionQuery,
-  ConvertedAmount,
   RateLookup,
   SameCurrencyAmount,
 } from "./money.js";

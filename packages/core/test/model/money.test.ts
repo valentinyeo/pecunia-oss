@@ -2,24 +2,25 @@ import { describe, expect, it } from "@effect/vitest";
 import { Effect, Option, Result, Schema } from "effect";
 import * as Arbitrary from "effect/Arbitrary";
 
+import { ConversionInputInvalid } from "../../src/model/conversion-input-invalid.js";
 import { ConversionOverflow } from "../../src/model/conversion-overflow.js";
 import { MoneyOverflow } from "../../src/model/money-overflow.js";
 import {
   AmountsSchema,
+  BaseAmount,
   CurrencyMismatch,
   RateUnavailable,
   addMoney,
   convert,
   convertMinor,
-  convertedAmounts,
   minorUnitExponent,
   subtractMoney,
 } from "../../src/model/money.js";
-import type { Amounts, BaseAmount, RateLookup } from "../../src/model/money.js";
-import type { CurrencyCode } from "../../src/model/primitives.js";
+import type { RateLookup } from "../../src/model/money.js";
+import type { CurrencyCode, MinorUnits } from "../../src/model/primitives.js";
 import {
   CurrencyCodeSchema,
-  DateOnlySchema,
+  MinorUnitsSchema,
   MoneySchema,
 } from "../../src/model/primitives.js";
 import { RateSchema } from "../../src/model/rate.js";
@@ -54,7 +55,13 @@ const minorOf = (value: number) => euro(value).minor;
 
 const rateOf = (text: string) => Schema.decodeSync(RateSchema)(text);
 
-const dateOnly = (text: string) => Schema.decodeSync(DateOnlySchema)(text);
+const minorUnits = (value: number): MinorUnits =>
+  Schema.decodeSync(MinorUnitsSchema)(value);
+
+const unguardedMinorUnits = Schema.Finite.pipe(Schema.brand("MinorUnits"));
+
+const forgedMinorUnits = (value: number): MinorUnits =>
+  Schema.decodeSync(unguardedMinorUnits)(value);
 
 const rateLookup =
   (text: string): RateLookup =>
@@ -242,7 +249,11 @@ describe("conversion", () => {
           throw new Error("convert read a rate for a same-currency amount");
         });
 
-        expect(base).toStrictEqual(money);
+        expect([base.currency, base.minor]).toStrictEqual([
+          money.currency,
+          money.minor,
+        ]);
+        expect(base).toBeInstanceOf(BaseAmount);
       })
   );
 
@@ -304,9 +315,9 @@ describe("conversion", () => {
       );
 
       expect(
-        Option.getOrThrow(
+        Result.getOrThrow(
           convertMinor(
-            amount,
+            minorUnits(amount),
             currencyOf("USD"),
             currencyOf("GBP"),
             rateOf(text)
@@ -316,6 +327,56 @@ describe("conversion", () => {
     },
     { arbitrary: { runs: 200 } }
   );
+
+  it("fails with ConversionInputInvalid for an unsafe integer instead of losing precision", () => {
+    const unsafe = forgedMinorUnits(Number.MAX_SAFE_INTEGER + 2);
+
+    const outcome = convertMinor(
+      unsafe,
+      currencyOf("USD"),
+      currencyOf("GBP"),
+      rateOf("2")
+    );
+
+    expect(Result.isFailure(outcome) && outcome.failure).toStrictEqual(
+      new ConversionInputInvalid({
+        from: currencyOf("USD"),
+        reason: "unsafe",
+        to: currencyOf("GBP"),
+      })
+    );
+  });
+
+  it("fails with ConversionInputInvalid for a fractional amount instead of throwing", () => {
+    const fractional = forgedMinorUnits(1.5);
+
+    const outcome = convertMinor(
+      fractional,
+      currencyOf("USD"),
+      currencyOf("GBP"),
+      rateOf("2")
+    );
+
+    expect(Result.isFailure(outcome) && outcome.failure).toStrictEqual(
+      new ConversionInputInvalid({
+        from: currencyOf("USD"),
+        reason: "fractional",
+        to: currencyOf("GBP"),
+      })
+    );
+  });
+
+  it("refuses an unsafe integer at the type level", () => {
+    const unsafeInteger = Number.MAX_SAFE_INTEGER + 2;
+
+    // @ts-expect-error -- an unsafe integer is not a number of minor units
+    const unsafe: MinorUnits = unsafeInteger;
+    // @ts-expect-error -- a fractional number is not a number of minor units
+    const fractional: MinorUnits = 1.5;
+
+    expect(unsafe).toBe(unsafeInteger);
+    expect(fractional).toBe(1.5);
+  });
 });
 
 describe("minor unit exponents", () => {
@@ -370,11 +431,49 @@ describe("a base amount exists only as conversion output", () => {
       minor: euro(999_999).minor,
     };
 
-    expect(Object.keys(fabricated).toSorted()).toStrictEqual([
-      "currency",
-      "minor",
-    ]);
+    expect(fabricated).not.toBeInstanceOf(BaseAmount);
+    expect(fabricated.minor).toBe(999_999);
   });
+
+  it.effect("refuses a spread that invents a converted total", () =>
+    Effect.gen(function* spreadIsNotABaseAmount() {
+      const base = yield* convert(
+        euro(1000),
+        currencyOf("GBP"),
+        rateLookup("2")
+      );
+
+      expect(base).toBeInstanceOf(BaseAmount);
+
+      // oxlint-disable-next-line typescript/no-misused-spread -- the spread is the illegal construction this test proves a type error
+      const forged = { ...base, minor: minorOf(999_999) };
+
+      // @ts-expect-error -- a base amount is nominal, so a spread cannot stand in for one
+      const claimed: BaseAmount = forged;
+
+      expect(forged).not.toBeInstanceOf(BaseAmount);
+      expect(claimed.minor).toBe(999_999);
+    })
+  );
+
+  it.effect("refuses a subclass that reuses a conversion", () =>
+    Effect.gen(function* noSubclassPath() {
+      const base = yield* convert(
+        euro(1000),
+        currencyOf("GBP"),
+        rateLookup("2")
+      );
+
+      // @ts-expect-error -- a base amount has a private constructor, so no subclass can extend it
+      class ForgedBaseAmount extends BaseAmount {}
+
+      // @ts-expect-error -- an inherited private constructor is not callable from outside
+      const forged = new ForgedBaseAmount(currencyOf("GBP"), minorOf(999_999));
+
+      expect(forged.minor).toBe(999_999);
+      expect(Object.getPrototypeOf(base)).toBe(BaseAmount.prototype);
+    })
+  );
 
   it("exposes no reachable schema that brands a raw amount as a base amount", () => {
     // @ts-expect-error -- the converted member of the union carries no base field schema
@@ -391,26 +490,4 @@ describe("a base amount exists only as conversion output", () => {
       })
     ).toThrow();
   });
-});
-
-describe("a converted amount keeps one source of truth", () => {
-  it.effect("refuses a spread that retargets the source", () =>
-    Effect.gen(function* spreadCannotLie() {
-      const stored = yield* convertedAmounts(
-        moneyOf("USD", 1000),
-        currencyOf("EUR"),
-        rateOf("0.85"),
-        dateOnly("2024-01-30")
-      );
-
-      // oxlint-disable-next-line typescript/no-misused-spread -- the spread is the illegal construction this test proves a type error
-      const retargeted = { ...stored, source: moneyOf("GBP", 5000) };
-
-      // @ts-expect-error -- a converted amount is nominal, so a spread cannot stand in for one
-      const amounts: Amounts = retargeted;
-
-      expect(stored.base).toStrictEqual({ currency: "EUR", minor: 850 });
-      expect(() => Schema.encodeSync(AmountsSchema)(amounts)).toThrow();
-    })
-  );
 });

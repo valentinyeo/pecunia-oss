@@ -6,7 +6,11 @@ export const CurrencyCodeSchema = Schema.NonEmptyString.check(
 
 export type CurrencyCode = typeof CurrencyCodeSchema.Type;
 
-export const MinorUnitsSchema = Schema.Int.pipe(Schema.brand("MinorUnits"));
+export const MinorUnitsSchema = Schema.Int.check(
+  Schema.makeFilter(Number.isSafeInteger, {
+    expected: "an integer a number holds exactly",
+  })
+).pipe(Schema.brand("MinorUnits"));
 
 export type MinorUnits = typeof MinorUnitsSchema.Type;
 
