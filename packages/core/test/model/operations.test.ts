@@ -563,6 +563,7 @@ describe("no function, class instance or bare prototype reaches a domain argumen
       turn: number
     ): void => {
       const label = `${entry.name} argument ${String(index)} ${probe.label} seed ${String(SEED)} turn ${String(turn)}`;
+
       const message = rejectionOf(
         entry,
         defiledCall(entry, index, probe.value)
@@ -668,6 +669,14 @@ describe("operation metadata hands out names and samples only", () => {
     expect(leaks[0]?.path).toBe("$.nested.0.oops");
     expect(leaks[0]?.label).toBe("a raw schema");
     expect(leaks.length).toBeGreaterThan(0);
+  });
+
+  it("keeps the codec table a set of doors the walker still guards", () => {
+    const money = moneyOf("EUR", 1000);
+    const strayed = { ...money, rate: "0.85" } as never;
+
+    expect(Result.isSuccess(model.codecs.money.decode(money))).toBe(true);
+    expect(Result.isFailure(model.codecs.money.encode(strayed))).toBe(true);
   });
 
   it("keeps every argument spec to a name, a kind and a sample", () => {
