@@ -217,7 +217,7 @@ const EDGE_SEPARATOR = new RegExp(
   "gu"
 );
 
-const WORD_EDGE = /[\p{L}\p{N}_]/u;
+const TOKEN_EDGE = /[\p{L}\p{N}_:+/]/u;
 
 const SORT_CODE = new RegExp(
   `^(?:\\d{6}|\\d{2}[${NUMBER_SEPARATOR}]*\\d{2}[${NUMBER_SEPARATOR}]*\\d{2})$`,
@@ -382,11 +382,11 @@ const numberTokensIn = (text: string): readonly string[] =>
 
     const start = (match.index ?? 0) + match[0].indexOf(run);
 
-    const touchesWord =
-      WORD_EDGE.test(text[start - 1] ?? "") ||
-      WORD_EDGE.test(text[start + run.length] ?? "");
+    const touchesEdge =
+      TOKEN_EDGE.test(text[start - 1] ?? "") ||
+      TOKEN_EDGE.test(text[start + run.length] ?? "");
 
-    return touchesWord ? [] : [run];
+    return touchesEdge ? [] : [run];
   });
 
 const sortCodesIn = (text: string) =>

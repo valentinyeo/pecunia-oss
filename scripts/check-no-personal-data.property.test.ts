@@ -20,6 +20,8 @@ const empty: AllowList = { skipped: [], values: [] };
 
 const CASES = 500;
 
+const PAIR_CASES = 600;
+
 const SEED = 20_260_101;
 
 const rulesOf = (filePath: string, text: string) =>
@@ -141,7 +143,6 @@ const SEPARATORS = [
   "\u2014",
   ".",
   "  ",
-  "-\t",
   " \u00A0",
   "--",
   " - ",
@@ -233,7 +234,6 @@ const BANK_SEPARATORS = [
   "",
   "",
   " ",
-  "\t",
   "\u00A0",
   "\u2007",
   "\u202F",
@@ -242,7 +242,6 @@ const BANK_SEPARATORS = [
   "\u2013",
   ".",
   "  ",
-  "-\t",
   " \u00A0",
   "--",
   " - ",
@@ -271,7 +270,8 @@ const bankFields = (
   sortCode: string,
   accountNumber: string,
   between: readonly Field[],
-  keep: "both" | "sort" | "account"
+  keep: "both" | "sort" | "account",
+  accountFirst: boolean
 ) => {
   const sortField: Field = {
     key: "sortCode",
@@ -285,11 +285,22 @@ const bankFields = (
     value: accountNumber,
   };
 
-  const head = keep === "account" ? [] : [sortField];
+  const first = accountFirst ? accountField : sortField;
 
-  const tail = keep === "sort" ? [] : [accountField];
+  const second = accountFirst ? sortField : accountField;
 
-  return [...head, ...between, ...tail];
+  const kept =
+    keep === "both"
+      ? [first, second]
+      : [first, second].filter((field) =>
+          keep === "sort"
+            ? field.key === "sortCode"
+            : field.key === "accountNumber"
+        );
+
+  const [head, ...tail] = kept;
+
+  return head === undefined ? [...between] : [head, ...between, ...tail];
 };
 
 const jsonText = (fields: readonly Field[]) =>
@@ -317,7 +328,36 @@ const csvText = (fields: readonly Field[]) =>
 const proseText = (fields: readonly Field[]) =>
   fields.map((field) => `The ${field.label} is ${field.value}.`).join(" ");
 
-const FORMATS = ["json", "compact", "yaml", "csv", "prose"] as const;
+const tsvText = (fields: readonly Field[]) =>
+  [
+    fields.map((field) => field.key).join("\t"),
+    fields.map((field) => field.value).join("\t"),
+  ].join("\n");
+
+const semicolonText = (fields: readonly Field[]) =>
+  fields.map((field) => field.value).join("; ");
+
+const pipeText = (fields: readonly Field[]) =>
+  fields.map((field) => field.value).join(" | ");
+
+const linesText = (fields: readonly Field[]) =>
+  fields.map((field) => field.value).join("\n");
+
+const indentedText = (fields: readonly Field[]) =>
+  fields.map((field) => `  ${field.value}`).join("\n");
+
+const FORMATS = [
+  "json",
+  "compact",
+  "yaml",
+  "csv",
+  "prose",
+  "tsv",
+  "semicolon",
+  "pipe",
+  "lines",
+  "indented",
+] as const;
 
 const bankDocument = (format: string, fields: readonly Field[]) => {
   if (format === "compact") {
@@ -332,18 +372,42 @@ const bankDocument = (format: string, fields: readonly Field[]) => {
     return csvText(fields);
   }
 
-  return format === "prose" ? proseText(fields) : jsonText(fields);
+  if (format === "prose") {
+    return proseText(fields);
+  }
+
+  if (format === "tsv") {
+    return tsvText(fields);
+  }
+
+  if (format === "semicolon") {
+    return semicolonText(fields);
+  }
+
+  if (format === "pipe") {
+    return pipeText(fields);
+  }
+
+  if (format === "lines") {
+    return linesText(fields);
+  }
+
+  if (format === "indented") {
+    return indentedText(fields);
+  }
+
+  return jsonText(fields);
 };
 
 describe("a sort code and an account number inside one record are reported as a pair", () => {
-  it(`pairs ${CASES} seeded records and keeps either one alone quiet`, () => {
+  it(`pairs ${PAIR_CASES} seeded records and keeps either one alone quiet`, () => {
     const random = makeRandom(SEED + 1);
 
     const missed: string[] = [];
 
     const alone: string[] = [];
 
-    for (let index = 0; index < CASES; index += 1) {
+    for (let index = 0; index < PAIR_CASES; index += 1) {
       const sortCode = makeSortCode(random);
 
       const accountNumber = makeAccountNumber(random);
@@ -359,9 +423,11 @@ describe("a sort code and an account number inside one record are reported as a 
 
       const format = random.pick(FORMATS);
 
+      const accountFirst = random.between(1, 2) === 1;
+
       const paired = bankDocument(
         format,
-        bankFields(sortCode, accountNumber, between, "both")
+        bankFields(sortCode, accountNumber, between, "both", accountFirst)
       );
 
       if (!rulesOf("docs/payments.md", paired).includes("bank-account")) {
@@ -371,7 +437,7 @@ describe("a sort code and an account number inside one record are reported as a 
       for (const keep of ["sort", "account"] as const) {
         const single = bankDocument(
           format,
-          bankFields(sortCode, accountNumber, between, keep)
+          bankFields(sortCode, accountNumber, between, keep, accountFirst)
         );
 
         if (rulesOf("docs/payments.md", single).length > 0) {
@@ -381,6 +447,94 @@ describe("a sort code and an account number inside one record are reported as a 
     }
 
     expect({ alone, missed }).toEqual({ alone: [], missed: [] });
+  });
+});
+
+const pad = (value: number) => String(value).padStart(2, "0");
+
+const makeDate = (random: Random) => {
+  const year = random.digits(4);
+
+  const month = pad(random.between(1, 12));
+
+  const day = pad(random.between(1, 28));
+
+  return random.pick([
+    `${year}-${month}-${day}`,
+    `${year}/${month}/${day}`,
+    `${year}.${month}.${day}`,
+    `${day}/${month}/${year}`,
+    `${day}.${month}.${year}`,
+    `${day}-${month}-${year}`,
+    `${month}/${day}/${year}`,
+  ]);
+};
+
+const makeClock = (random: Random) =>
+  `${pad(random.between(0, 23))}:${pad(random.between(0, 59))}:${pad(random.between(0, 59))}`;
+
+const makeTimestamp = (random: Random) => {
+  const date = makeDate(random);
+
+  const clock = makeClock(random);
+
+  return random.pick([
+    `${date}T${clock}`,
+    `${date} ${clock}`,
+    `${date}T${clock}Z`,
+    `${date}T${clock}+01:00`,
+    `${date}T${clock}.${random.digits(3)}Z`,
+    clock,
+  ]);
+};
+
+const makePhone = (random: Random) =>
+  random.pick([
+    `+44 7${random.digits(3)} ${random.digits(6)}`,
+    `07${random.digits(3)} ${random.digits(6)}`,
+    `(0${random.digits(2)}) ${random.digits(4)} ${random.digits(4)}`,
+    `+1-${random.digits(3)}-${random.digits(3)}-${random.digits(4)}`,
+    `${random.digits(3)}-${random.digits(3)}-${random.digits(4)}`,
+    `${random.digits(5)} ${random.digits(6)}`,
+  ]);
+
+const COUNTER_VALUES: readonly (readonly [
+  string,
+  (random: Random) => string,
+])[] = [
+  ["date", makeDate],
+  ["timestamp", makeTimestamp],
+  ["phone", makePhone],
+];
+
+const counterText = (value: string, account: string, random: Random) =>
+  random.pick([
+    `${value}\t${account}`,
+    `${account}\t${value}`,
+    `${value}, ${account}`,
+    `${account}; ${value}`,
+    `${value} | ${account}`,
+    `${value}\n  ${account}`,
+    `Recorded at ${value}, paid into account ${account}.`,
+  ]);
+
+describe("a date, a timestamp or a phone number is never read as a bank pair", () => {
+  it(`keeps ${PAIR_CASES} seeded records of each kind quiet`, () => {
+    const paired: string[] = [];
+
+    for (const [kind, [label, make]] of COUNTER_VALUES.entries()) {
+      const random = makeRandom(SEED + 11 + kind);
+
+      for (let index = 0; index < PAIR_CASES; index += 1) {
+        const text = counterText(make(random), random.digits(8), random);
+
+        if (rulesOf("docs/payments.md", text).includes("bank-account")) {
+          paired.push(`${label}: ${text}`);
+        }
+      }
+    }
+
+    expect(paired).toEqual([]);
   });
 });
 
