@@ -802,8 +802,10 @@ const buildMirror = (root: string, directories: readonly string[]): void => {
 };
 
 interface OxlintRun {
+  readonly command: string;
   readonly status: number | null;
-  readonly output: string;
+  readonly stderr: string;
+  readonly stdout: string;
 }
 
 interface PackageRun {
@@ -811,22 +813,88 @@ interface PackageRun {
   readonly run: OxlintRun;
 }
 
+const diagnosticLineLimit = 40;
+
+const firstLines = (text: string, limit: number): string => {
+  const lines = text.split("\n");
+
+  if (lines.length <= limit) {
+    return text;
+  }
+
+  return `${lines.slice(0, limit).join("\n")}\n... ${lines.length - limit} more lines`;
+};
+
+const scratchEntries = (root: string, limit: number): readonly string[] => {
+  const listing: string[] = [];
+  const pending: string[] = [""];
+
+  while (pending.length > 0 && listing.length < limit) {
+    const relative = pending.shift();
+
+    if (relative === undefined) {
+      break;
+    }
+
+    const entries = readdirSync(path.join(root, relative), {
+      withFileTypes: true,
+    }).toSorted((left, right) => left.name.localeCompare(right.name));
+
+    for (const entry of entries) {
+      if (listing.length >= limit) {
+        break;
+      }
+
+      const child = relative === "" ? entry.name : `${relative}/${entry.name}`;
+
+      listing.push(entry.isSymbolicLink() ? `${child} (symlink)` : child);
+
+      if (entry.isDirectory()) {
+        pending.push(child);
+      }
+    }
+  }
+
+  return listing;
+};
+
+const scratchListing = (root: string): string => {
+  const listing = scratchEntries(root, diagnosticLineLimit);
+
+  return listing.length === 0 ? "(no entries)" : listing.join("\n");
+};
+
+const describeRun = (packageRun: PackageRun): string =>
+  [
+    `Command: ${packageRun.run.command}`,
+    `Exit code: ${packageRun.run.status}`,
+    `stdout, first ${diagnosticLineLimit} lines:\n${firstLines(packageRun.run.stdout, diagnosticLineLimit)}`,
+    `stderr, first ${diagnosticLineLimit} lines:\n${firstLines(packageRun.run.stderr, diagnosticLineLimit)}`,
+  ].join("\n\n");
+
 const runOxlint = async (
   cwd: string,
   args: readonly string[]
 ): Promise<OxlintRun> => {
-  const child = spawn(oxlintBinary, [...args], { cwd });
-  let output = "";
+  const argv = ["--format", "agent", ...args];
+  const child = spawn(oxlintBinary, argv, { cwd });
+  let stdout = "";
+  let stderr = "";
 
   child.stdout.on("data", (chunk: Buffer) => {
-    output += chunk.toString();
+    stdout += chunk.toString();
   });
   child.stderr.on("data", (chunk: Buffer) => {
-    output += chunk.toString();
+    stderr += chunk.toString();
   });
   await once(child, "close");
 
-  return { output, status: child.exitCode };
+  return {
+    command: `${oxlintBinary} ${argv.join(" ")} with cwd ${cwd}`,
+    status: child.exitCode,
+    stderr,
+    stdout,
+  };
 };
 
 const runInPackages = (
@@ -847,7 +915,7 @@ const reportedLine = (
   plugin: string,
   rule: string
 ): readonly string[] =>
-  run.output
+  run.stdout
     .split("\n")
     .filter((line) => line.startsWith(`${file}:1:`))
     .filter((line) => line.includes(` error ${plugin}(${rule}):`));
@@ -863,6 +931,29 @@ const missingCanaries = (runs: readonly PackageRun[]): readonly string[] =>
         : []
     )
   );
+
+const canaryFailureReport = (
+  root: string,
+  runs: readonly PackageRun[]
+): string => {
+  const missing = missingCanaries(runs);
+
+  if (missing.length === 0) {
+    return "";
+  }
+
+  const first = runs.find(({ directory }) =>
+    (missing[0] ?? "").startsWith(`${directory}/`)
+  );
+
+  return [
+    `Scratch directory: ${root}`,
+    `Scratch files:\n${scratchListing(root)}`,
+    first === undefined
+      ? "No Oxlint run produced a report for the first missing canary."
+      : describeRun(first),
+  ].join("\n\n");
+};
 
 const stillReported = async (
   root: string,
@@ -1289,16 +1380,17 @@ describe("lint fence", () => {
       ).toBeGreaterThan(10);
 
       const runs = await runInPackages(root, directories, ["."]);
+      const failureReport = canaryFailureReport(root, runs);
 
       expect(
         runs
           .filter(({ run }) => run.status === 0)
           .map(({ directory }) => directory),
-        `Oxlint exits zero in a workspace package that holds a planted violation, so that package's lint script would pass on broken source. Output of the first such run:\n${runs[0]?.run.output ?? ""}`
+        `Oxlint exits zero in a workspace package that holds a planted violation, so that package's lint script would pass on broken source.\n\n${failureReport}`
       ).toEqual([]);
       expect(
         missingCanaries(runs),
-        "A workspace package holds one canary per rule family and the repo's own Oxlint config never reports one of them, so that package's source can break while lint passes. Fix: stop excluding that path in oxlint.config.ts, in .eslintignore, in a nested config, or stop weakening the rule."
+        `A workspace package holds one canary per rule family and the repo's own Oxlint config never reports one of them, so that package's source can break while lint passes. Fix: stop excluding that path in oxlint.config.ts, in .eslintignore, in a nested config, or stop weakening the rule.\n\n${failureReport}`
       ).toEqual([]);
     } finally {
       rmSync(root, { force: true, recursive: true });
