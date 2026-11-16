@@ -43,7 +43,8 @@
     "test": "vitest run",
     "build": "tsc -p tsconfig.build.json",
     "check": "pnpm run typecheck",
-    "pretest": "pnpm run --silent build"
+    "pretest": "pnpm run --silent build",
+    "lint": "oxlint --format agent ."
   },
   "dependencies": {
     "@pecunia/access": "workspace:*",

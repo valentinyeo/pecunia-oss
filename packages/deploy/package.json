@@ -16,7 +16,8 @@
     "typecheck:fast": "tsrs --noEmit -p tsconfig.json",
     "check": "pnpm run typecheck",
     "build": "tsc -p tsconfig.build.json",
-    "test": "vitest run"
+    "test": "vitest run",
+    "lint": "oxlint --format agent ."
   },
   "dependencies": {
     "@distilled.cloud/cloudflare": "1.0.0-rc.20",
