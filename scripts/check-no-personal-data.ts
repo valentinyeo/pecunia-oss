@@ -183,7 +183,7 @@ const SORT_CODE = /\b(?:\d{6}|\d{2}[-.–— ]\d{2}[-.–— ]\d{2})\b/gu;
 
 const ACCOUNT_NUMBER = /\b\d{4}[ -]?\d{4}\b/gu;
 
-const ACCOUNT_WINDOW = 4;
+const ACCOUNT_DISTANCE = 400;
 
 const ACCOUNT_CONTEXT = 3;
 
@@ -299,12 +299,50 @@ const namesAccount = (lines: readonly string[], index: number) =>
     (text) => CLOUDFLARE_ACCOUNT_NAMED.test(text)
   );
 
+interface DenseLine {
+  readonly index: number;
+  readonly text: string;
+}
+
+const textsWithinReach = (
+  dense: readonly DenseLine[],
+  position: number
+): readonly string[] => {
+  const texts: string[] = [];
+
+  let budget = ACCOUNT_DISTANCE;
+
+  for (
+    let cursor = position;
+    cursor < dense.length && budget > 0;
+    cursor += 1
+  ) {
+    const text = dense[cursor]?.text ?? "";
+
+    texts.push(text);
+
+    budget -= text.length;
+  }
+
+  budget = ACCOUNT_DISTANCE;
+
+  for (let cursor = position - 1; cursor >= 0 && budget > 0; cursor -= 1) {
+    const text = dense[cursor]?.text ?? "";
+
+    texts.push(text);
+
+    budget -= text.length;
+  }
+
+  return texts;
+};
+
 const bankAccountFindings = (
   filePath: string,
   lines: readonly string[],
   allow: AllowList
 ): readonly PersonalDataFinding[] => {
-  const dense = denseLines(lines).map((entry) => ({
+  const dense: readonly DenseLine[] = denseLines(lines).map((entry) => ({
     index: entry.index,
     text: spaced(entry.text),
   }));
@@ -316,12 +354,8 @@ const bankAccountFindings = (
       return [];
     }
 
-    const accountNumber = dense
-      .slice(
-        Math.max(position - ACCOUNT_WINDOW, 0),
-        position + ACCOUNT_WINDOW + 1
-      )
-      .flatMap((neighbour) => matchesIn(ACCOUNT_NUMBER, neighbour.text))
+    const accountNumber = textsWithinReach(dense, position)
+      .flatMap((text) => matchesIn(ACCOUNT_NUMBER, text))
       .find((candidate) => !allowsValue(allow, filePath, candidate));
 
     return accountNumber === undefined

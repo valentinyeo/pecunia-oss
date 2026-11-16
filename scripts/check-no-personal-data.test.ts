@@ -377,6 +377,36 @@ describe("a sort code and an account number in any written form fail", () => {
     }
   );
 
+  it.each([4, 6, 10])(
+    "fails on an account export with %i fields between the sort code and the account number",
+    (count) => {
+      const extra = Array.from(
+        { length: Math.max(count - 4, 0) },
+        (_, index) => `  tag${index}: "demo",`
+      );
+
+      const fields = [
+        `  bankName: "Demo Bank",`,
+        `  holder: "Demo Person",`,
+        `  currency: "GBP",`,
+        `  country: "GB",`,
+        ...extra,
+      ].slice(0, count);
+
+      const sample = [
+        "{",
+        `  sortCode: "${glued("20", "-", "45", "-", "67")}",`,
+        ...fields,
+        `  accountNumber: "${glued("1029", "3847")}",`,
+        "}",
+      ];
+
+      expect(ruleOf("apps/site/src/profile.ts", sample.join("\n"))).toEqual([
+        "bank-account",
+      ]);
+    }
+  );
+
   it("fails on a sort code and account number split by non-breaking separators", () => {
     const sample = [
       `sortCode: "${glued("20", "\u00A0", "45", "\u00A0", "67")}",`,
@@ -399,16 +429,29 @@ describe("a sort code and an account number in any written form fail", () => {
     ]);
   });
 
-  it("passes a sort code and account number far apart in one file", () => {
-    const sample = [
+  it("passes a sort code and account number from separate export records", () => {
+    const firstRecord = [
       `sortCode: "${spaced("20", "45", "67")}",`,
+      `bankName: "Demo Bank",`,
+      `holder: "Demo Person",`,
       `currency: "GBP",`,
-      `type: "personal",`,
-      `label: "Everyday",`,
-      `owner: "demo",`,
-      `bank: "example",`,
+      `country: "GB",`,
+      `opened: "2019-04-01",`,
+      `note: "Everyday account for the demo household budget",`,
+      `label: "Demo current account, opened at the demo branch",`,
+      `branch: "Demo Branch, 1 Demo Street, Demotown, DE1 1AA",`,
+      `reference: "demo-reference-for-the-first-export-record",`,
+      `statement: "Demo statement for April, delivered to the demo mailbox",`,
+    ];
+
+    const secondRecord = [
+      `bankName: "Example Bank",`,
+      `holder: "Example Person",`,
+      `currency: "GBP",`,
       `number: "${glued("1029", "3847")}",`,
     ];
+
+    const sample = [...firstRecord, ...secondRecord];
 
     expect(ruleOf("apps/site/src/profile.ts", sample.join("\n"))).toEqual([]);
   });
