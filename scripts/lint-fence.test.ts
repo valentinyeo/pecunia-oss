@@ -1,5 +1,5 @@
-// @effect-diagnostics nodeBuiltinImport:off asyncFunction:off -- This test reads the repository's tracked paths and manifests, writes a scratch mirror under the OS temp dir, and runs the real Oxlint binary against canary files it plants there, in parallel, because one sequential run per workspace package takes longer than the suite may spend.
-import { execFileSync, spawn } from "node:child_process";
+// @effect-diagnostics nodeBuiltinImport:off asyncFunction:off -- This test copies every tracked file into a scratch directory, symlinks the real node_modules, plants canaries, and runs each workspace package's own lint script and pnpm's own package discovery, in parallel, because one sequential run per package takes longer than the suite may spend.
+import { execFileSync, spawn, spawnSync } from "node:child_process";
 import { once } from "node:events";
 import {
   copyFileSync,
@@ -8,6 +8,7 @@ import {
   mkdtempSync,
   readdirSync,
   readFileSync,
+  renameSync,
   rmSync,
   symlinkSync,
   writeFileSync,
@@ -29,9 +30,7 @@ import lintConfig from "../oxlint.config.ts";
 
 const repoRoot = path.resolve(import.meta.dirname, "..");
 
-const oxlintBinary = path.join(repoRoot, "node_modules/.bin/oxlint");
-
-const LINT_COMMAND = "oxlint .";
+const LINT_COMMAND = "oxlint --format agent .";
 
 const configFileNamePattern =
   /^(?:\.oxlintrc(?:\.[\w.-]+)?|oxlint\.config\.[cm]?[jt]s)$/u;
@@ -406,14 +405,6 @@ const weakRuleProblems = (config: OxlintConfig): readonly string[] =>
       `${rule} is set to warn, which lets its findings pass. Fix: set it to error in oxlint.config.ts, or record an explicit off rule with a reason and scope in offRuleAllowlist in scripts/lint-fence.test.ts.`
   );
 
-const ruleFenceProblems = (
-  config: OxlintConfig,
-  allowlist: Allowlist
-): readonly string[] => [
-  ...weakRuleProblems(config),
-  ...offRuleProblems(config, allowlist),
-];
-
 const extendsProblems = (
   entries: NonNullable<OxlintConfig["extends"]>
 ): readonly string[] =>
@@ -508,23 +499,6 @@ const configFileProblems = (files: readonly string[]): readonly string[] =>
     ];
   });
 
-const scriptProblems = (
-  file: string,
-  scripts: Readonly<Record<string, string>>
-): readonly string[] => {
-  const body = scripts.lint;
-
-  if (body === undefined) {
-    return [];
-  }
-
-  return body === LINT_COMMAND
-    ? []
-    : [
-        `${file} script "lint" runs ${JSON.stringify(body)}. Fix: ${JSON.stringify(LINT_COMMAND)} is the only allowed package lint command, compared by equality, so a different body is a different lint run.`,
-      ];
-};
-
 const rootScriptProblems = (
   scripts: Readonly<Record<string, string>>
 ): readonly string[] =>
@@ -606,119 +580,51 @@ const scriptsOf = (file: string): Readonly<Record<string, string>> =>
     readFileSync(path.join(repoRoot, file), "utf-8")
   ).scripts ?? {};
 
-const directoryNames = (relative: string): readonly string[] => {
-  const absolute = path.join(repoRoot, relative === "" ? "." : relative);
-
-  if (!existsSync(absolute)) {
-    return [];
-  }
-
-  return readdirSync(absolute, { withFileTypes: true })
-    .flatMap((entry) => (entry.isDirectory() ? [entry.name] : []))
-    .toSorted();
-};
-
-const workspacePatterns = (): readonly string[] => {
-  const lines = readFileSync(
-    path.join(repoRoot, "pnpm-workspace.yaml"),
-    "utf-8"
-  ).split("\n");
-
-  const start = lines.findIndex((line) => line.trimEnd() === "packages:");
-
-  if (start === -1) {
-    throw new Error(
-      "Fix: pnpm-workspace.yaml must keep its `packages:` list, so the fence finds every workspace package instead of trusting an allowlist."
-    );
-  }
-
-  const patterns = lines
-    .slice(start + 1)
-    .flatMap((line) =>
-      line.startsWith("  - ")
-        ? [line.trim().replace(/^-\s+/u, "").replaceAll(/["']/gu, "")]
-        : []
-    );
-
-  if (patterns.length === 0) {
-    throw new Error(
-      "Fix: pnpm-workspace.yaml must list its workspace globs under `packages:`, so the fence reads the real workspace instead of an empty list."
-    );
-  }
-
-  return patterns;
-};
-
-const expandSegment = (
-  prefixes: readonly string[],
-  segment: string
-): readonly string[] =>
-  prefixes.flatMap((prefix) => {
-    if (!segment.includes("*")) {
-      return [prefix === "" ? segment : `${prefix}/${segment}`];
-    }
-
-    const matcher = new RegExp(`^${segment.replaceAll("*", "[^/]*")}$`, "u");
-
-    return directoryNames(prefix)
-      .filter((name) => matcher.test(name))
-      .map((name) => (prefix === "" ? name : `${prefix}/${name}`));
-  });
-
-const expandWorkspacePattern = (pattern: string): readonly string[] => {
-  let prefixes: readonly string[] = [""];
-
-  for (const segment of pattern.split("/")) {
-    prefixes = expandSegment(prefixes, segment);
-  }
-
-  return prefixes;
-};
-
-const workspaceDirectories = (): readonly string[] =>
-  [
-    ...new Set(
-      workspacePatterns()
-        .flatMap(expandWorkspacePattern)
-        .filter((directory) =>
-          existsSync(path.join(repoRoot, directory, "package.json"))
-        )
-    ),
-  ].toSorted();
-
 interface CanaryFamily {
+  readonly depths: readonly CanaryDepth[];
   readonly name: string;
   readonly plugin: string;
   readonly rule: string;
   readonly source: string;
 }
 
+const canaryDepths = ["", "src", "src/a/b/c"] as const;
+
+type CanaryDepth = (typeof canaryDepths)[number];
+
+const allCanaryDepths: readonly CanaryDepth[] = canaryDepths;
+
 const canaryFamilies: readonly CanaryFamily[] = [
   {
+    depths: allCanaryDepths,
     name: "debugger",
     plugin: "eslint",
     rule: "no-debugger",
     source: "debugger;\n",
   },
   {
+    depths: allCanaryDepths,
     name: "alert",
     plugin: "eslint",
     rule: "no-alert",
     source: 'alert("fence");\n',
   },
   {
+    depths: allCanaryDepths,
     name: "comment",
     plugin: "no-comments",
     rule: "no-comments",
     source: "// a prose comment stands in for a rule family\n",
   },
   {
+    depths: ["src", "src/a/b/c"],
     name: "mutable-state",
     plugin: "rat-stack-patterns",
     rule: "no-module-level-mutable-state",
     source: "export let fenceCounter = 0;\n",
   },
   {
+    depths: allCanaryDepths,
     name: "array-passes",
     plugin: "anti-slop",
     rule: "no-array-filter-map",
@@ -726,6 +632,7 @@ const canaryFamilies: readonly CanaryFamily[] = [
       "export const fenceDoubled = [1, 2, 3].filter((n) => n > 1).map((n) => n * 2);\n",
   },
   {
+    depths: allCanaryDepths,
     name: "floating-promise",
     plugin: "typescript",
     rule: "no-floating-promises",
@@ -733,87 +640,47 @@ const canaryFamilies: readonly CanaryFamily[] = [
   },
 ];
 
-const canaryFile = (family: CanaryFamily): string =>
-  `src/fence-canary-${family.name}.ts`;
+interface WorkspacePackage {
+  readonly directory: string;
+  readonly name: string;
+}
 
-const canaryPath = (directory: string, family: CanaryFamily): string =>
-  `${directory}/${canaryFile(family)}`;
+const PnpmPackageList = Schema.Array(
+  Schema.Struct({ name: Schema.String, path: Schema.String })
+);
 
-const mirroredFiles = [
-  "oxlint.config.ts",
-  ".eslintignore",
-  "package.json",
-  "tsconfig.base.json",
-  "tsconfig.json",
-];
+const ManifestRecord = Schema.fromJsonString(
+  Schema.Record(Schema.String, Schema.Unknown)
+);
 
-const writeFileWithParents = (
-  root: string,
-  relative: string,
-  contents: string
-): void => {
-  mkdirSync(path.dirname(path.join(root, relative)), { recursive: true });
-  writeFileSync(path.join(root, relative), contents);
-};
+const diagnosticLineLimit = 40;
 
-const mirroredPluginFiles = [
-  "scripts/oxlint-plugin-boundaries.ts",
-  "scripts/oxlint-plugin-effect-tests.ts",
-  "scripts/oxlint-plugin-no-comments.ts",
-  "scripts/oxlint-plugin-patterns.ts",
-  "tools/oxlint/anti-slop/index.ts",
-  "tools/oxlint/anti-slop/effect/index.ts",
-];
+const childEnv = { ...process.env, CI: "true", NO_COLOR: "1" };
 
-const buildMirror = (root: string, directories: readonly string[]): void => {
-  for (const entry of mirroredFiles) {
-    if (existsSync(path.join(repoRoot, entry))) {
-      copyFileSync(path.join(repoRoot, entry), path.join(root, entry));
-    }
-  }
+const pnpmConfigArgs = ["--config.verify-deps-before-run=false"];
 
-  symlinkSync(
-    path.join(repoRoot, "node_modules"),
-    path.join(root, "node_modules")
-  );
+const installStateFiles: ReadonlySet<string> = new Set([
+  ".modules.yaml",
+  ".pnpm-workspace-state-v1.json",
+]);
 
-  for (const plugin of mirroredPluginFiles) {
-    mkdirSync(path.dirname(path.join(root, plugin)), { recursive: true });
-    symlinkSync(path.join(repoRoot, plugin), path.join(root, plugin));
-  }
+const allowedUnlistedManifests = new Map([
+  [
+    "examples/tokenmaxx-starter/package.json",
+    "the standalone starter example sits outside the pnpm workspace, never imports @pecunia/*, and is copied into a new project rather than linted here.",
+  ],
+  [
+    "apps/cli/npm/ratstack/package.json",
+    "the published npm shim for the CLI holds a bin launcher and a README, sits inside apps/cli, and the apps/cli lint run walks that directory with everything else.",
+  ],
+]);
 
-  for (const directory of directories) {
-    mkdirSync(path.join(root, directory), { recursive: true });
-    copyFileSync(
-      path.join(repoRoot, directory, "package.json"),
-      path.join(root, directory, "package.json")
-    );
-
-    const modules = path.join(repoRoot, directory, "node_modules");
-
-    if (existsSync(modules)) {
-      symlinkSync(modules, path.join(root, directory, "node_modules"));
-    }
-
-    for (const family of canaryFamilies) {
-      writeFileWithParents(root, canaryPath(directory, family), family.source);
-    }
-  }
-};
-
-interface OxlintRun {
+interface CommandRun {
   readonly command: string;
   readonly status: number | null;
   readonly stderr: string;
   readonly stdout: string;
 }
-
-interface PackageRun {
-  readonly directory: string;
-  readonly run: OxlintRun;
-}
-
-const diagnosticLineLimit = 40;
 
 const firstLines = (text: string, limit: number): string => {
   const lines = text.split("\n");
@@ -824,6 +691,14 @@ const firstLines = (text: string, limit: number): string => {
 
   return `${lines.slice(0, limit).join("\n")}\n... ${lines.length - limit} more lines`;
 };
+
+const describeRun = (run: CommandRun): string =>
+  [
+    `Command: ${run.command}`,
+    `Exit code: ${run.status}`,
+    `stdout, first ${diagnosticLineLimit} lines:\n${firstLines(run.stdout, diagnosticLineLimit)}`,
+    `stderr, first ${diagnosticLineLimit} lines:\n${firstLines(run.stderr, diagnosticLineLimit)}`,
+  ].join("\n\n");
 
 const scratchEntries = (root: string, limit: number): readonly string[] => {
   const listing: string[] = [];
@@ -864,20 +739,41 @@ const scratchListing = (root: string): string => {
   return listing.length === 0 ? "(no entries)" : listing.join("\n");
 };
 
-const describeRun = (packageRun: PackageRun): string =>
-  [
-    `Command: ${packageRun.run.command}`,
-    `Exit code: ${packageRun.run.status}`,
-    `stdout, first ${diagnosticLineLimit} lines:\n${firstLines(packageRun.run.stdout, diagnosticLineLimit)}`,
-    `stderr, first ${diagnosticLineLimit} lines:\n${firstLines(packageRun.run.stderr, diagnosticLineLimit)}`,
-  ].join("\n\n");
+const writeFileWithParents = (
+  root: string,
+  relative: string,
+  contents: string
+): void => {
+  mkdirSync(path.dirname(path.join(root, relative)), { recursive: true });
+  writeFileSync(path.join(root, relative), contents);
+};
 
-const runOxlint = async (
-  cwd: string,
-  args: readonly string[]
-): Promise<OxlintRun> => {
-  const argv = ["--format", "agent", ...args];
-  const child = spawn(oxlintBinary, argv, { cwd });
+const runSync = (
+  command: string,
+  args: readonly string[],
+  cwd: string
+): CommandRun => {
+  const result = spawnSync(command, args, {
+    cwd,
+    encoding: "utf-8",
+    env: childEnv,
+    maxBuffer: 64 * 1024 * 1024,
+  });
+
+  return {
+    command: `${command} ${args.join(" ")} with cwd ${cwd}`,
+    status: result.status,
+    stderr: result.stderr,
+    stdout: result.stdout,
+  };
+};
+
+const runAsync = async (
+  command: string,
+  args: readonly string[],
+  cwd: string
+): Promise<CommandRun> => {
+  const child = spawn(command, args, { cwd, env: childEnv });
   let stdout = "";
   let stderr = "";
 
@@ -890,107 +786,290 @@ const runOxlint = async (
   await once(child, "close");
 
   return {
-    command: `${oxlintBinary} ${argv.join(" ")} with cwd ${cwd}`,
+    command: `${command} ${args.join(" ")} with cwd ${cwd}`,
     status: child.exitCode,
     stderr,
     stdout,
   };
 };
 
-const runInPackages = (
-  root: string,
-  directories: readonly string[],
-  args: readonly string[]
-): Promise<readonly PackageRun[]> =>
-  Promise.all(
-    directories.map(async (directory) => ({
-      directory,
-      run: await runOxlint(path.join(root, directory), args),
-    }))
-  );
+const discoverPackages = (root: string): readonly WorkspacePackage[] => {
+  const run = runSync("pnpm", ["list", "-r", "--depth", "-1", "--json"], root);
 
-const reportedLine = (
-  run: OxlintRun,
-  file: string,
-  plugin: string,
-  rule: string
-): readonly string[] =>
-  run.stdout
-    .split("\n")
-    .filter((line) => line.startsWith(`${file}:1:`))
-    .filter((line) => line.includes(` error ${plugin}(${rule}):`));
-
-const missingCanaries = (runs: readonly PackageRun[]): readonly string[] =>
-  runs.flatMap(({ directory, run }) =>
-    canaryFamilies.flatMap((family) =>
-      reportedLine(run, canaryFile(family), family.plugin, family.rule)
-        .length === 0
-        ? [
-            `${canaryPath(directory, family)} holds a ${family.name} violation and Oxlint never reported ${family.plugin}(${family.rule}) for it.`,
-          ]
-        : []
-    )
-  );
-
-const canaryFailureReport = (
-  root: string,
-  runs: readonly PackageRun[]
-): string => {
-  const missing = missingCanaries(runs);
-
-  if (missing.length === 0) {
-    return "";
+  if (run.status !== 0) {
+    throw new Error(
+      `Fix: the fence lists workspace packages with pnpm itself and never expands workspace globs, so \`pnpm list -r --depth -1 --json\` must succeed.\n\n${describeRun(run)}`
+    );
   }
 
-  const first = runs.find(({ directory }) =>
-    (missing[0] ?? "").startsWith(`${directory}/`)
-  );
+  return Schema.decodeSync(Schema.fromJsonString(PnpmPackageList))(run.stdout)
+    .flatMap((entry) => {
+      const directory = path.relative(root, entry.path);
 
-  return [
-    `Scratch directory: ${root}`,
-    `Scratch files:\n${scratchListing(root)}`,
-    first === undefined
-      ? "No Oxlint run produced a report for the first missing canary."
-      : describeRun(first),
-  ].join("\n\n");
+      return directory === "" ? [] : [{ directory, name: entry.name }];
+    })
+    .toSorted((left, right) => left.directory.localeCompare(right.directory));
 };
 
-const stillReported = async (
+const linkDirectoryEntries = (
+  source: string,
+  target: string,
+  skipped: ReadonlySet<string>
+): void => {
+  mkdirSync(target, { recursive: true });
+
+  for (const entry of readdirSync(source)) {
+    if (!skipped.has(entry)) {
+      symlinkSync(path.join(source, entry), path.join(target, entry));
+    }
+  }
+};
+
+const linkPackageModules = (root: string, directory: string): void => {
+  const source = path.join(repoRoot, directory, "node_modules");
+  const target = path.join(root, directory, "node_modules");
+
+  if (existsSync(source) && !existsSync(target)) {
+    symlinkSync(source, target);
+  }
+};
+
+const buildScratch = (root: string): void => {
+  for (const file of trackedFiles()) {
+    const target = path.join(root, file);
+    mkdirSync(path.dirname(target), { recursive: true });
+    copyFileSync(path.join(repoRoot, file), target);
+  }
+
+  linkDirectoryEntries(
+    path.join(repoRoot, "node_modules"),
+    path.join(root, "node_modules"),
+    installStateFiles
+  );
+
+  for (const workspace of discoverPackages(root)) {
+    linkPackageModules(root, workspace.directory);
+  }
+};
+
+const manifestScripts = (
   root: string,
-  directories: readonly string[],
-  config: string,
-  family: CanaryFamily
-): Promise<readonly string[]> => {
-  const runs = await runInPackages(root, directories, [
-    "--config",
-    config,
-    ".",
-  ]);
+  directory: string
+): Readonly<Record<string, string>> =>
+  Schema.decodeSync(PackageManifest)(
+    readFileSync(path.join(root, directory, "package.json"), "utf-8")
+  ).scripts ?? {};
 
-  return runs.flatMap(({ directory, run }) =>
-    reportedLine(run, canaryFile(family), family.plugin, family.rule).length > 0
-      ? [directory]
-      : []
-  );
+interface CanaryPlanting {
+  readonly family: CanaryFamily;
+  readonly relative: string;
+}
+
+const canaryPlantings: readonly CanaryPlanting[] = canaryFamilies.flatMap(
+  (family) =>
+    family.depths.map((depth) => ({
+      family,
+      relative: `${depth === "" ? "" : `${depth}/`}fence-canary-${family.name}.ts`,
+    }))
+);
+
+const plantCanaries = (root: string, directory: string): void => {
+  for (const planting of canaryPlantings) {
+    writeFileWithParents(
+      root,
+      `${directory}/${planting.relative}`,
+      planting.family.source
+    );
+  }
 };
 
-const mutationConfigSource = (
-  ignorePatterns: readonly string[],
-  offRules: Readonly<Record<string, string>>
+const reportedCanary = (run: CommandRun, planting: CanaryPlanting): boolean =>
+  run.stdout
+    .split("\n")
+    .some(
+      (line) =>
+        line.startsWith(`${planting.relative}:`) &&
+        line.includes(
+          ` error ${planting.family.plugin}(${planting.family.rule}):`
+        )
+    );
+
+const lintRunArgs = [...pnpmConfigArgs, "run", "lint"];
+
+const scriptProblemsIn = (
+  root: string,
+  directory: string
+): readonly string[] => {
+  const manifest = path.join(root, directory, "package.json");
+
+  if (!existsSync(manifest)) {
+    return [
+      `${directory} is a workspace package with no package.json, so the fence has no lint script to run for it.`,
+    ];
+  }
+
+  const body = manifestScripts(root, directory).lint;
+
+  if (body === undefined) {
+    return [
+      `${directory}/package.json declares no "lint" script, so nothing in that package is linted by the package itself. Fix: add "lint": ${JSON.stringify(LINT_COMMAND)} to ${directory}/package.json.`,
+    ];
+  }
+
+  return body === LINT_COMMAND
+    ? []
+    : [
+        `${directory}/package.json "lint" runs ${JSON.stringify(body)}, and the fence only runs ${JSON.stringify(LINT_COMMAND)}. Fix: use that string exactly, because a different button is a different lint run.`,
+      ];
+};
+
+interface PackageProof {
+  readonly directory: string;
+  readonly name: string;
+  readonly problems: readonly string[];
+  readonly run?: CommandRun;
+}
+
+const provePackage = async (
+  root: string,
+  workspace: WorkspacePackage
+): Promise<PackageProof> => {
+  const problems = scriptProblemsIn(root, workspace.directory);
+
+  if (problems.length > 0) {
+    return { directory: workspace.directory, name: workspace.name, problems };
+  }
+
+  plantCanaries(root, workspace.directory);
+
+  const run = await runAsync(
+    "pnpm",
+    lintRunArgs,
+    path.join(root, workspace.directory)
+  );
+
+  const missing = canaryPlantings.flatMap((planting) =>
+    reportedCanary(run, planting)
+      ? []
+      : [
+          `${workspace.directory}/${planting.relative} holds a ${planting.family.name} violation and ${workspace.name} never reported ${planting.family.plugin}(${planting.family.rule}) for it when its own lint script ran.`,
+        ]
+  );
+
+  const silentPass =
+    missing.length === 0 && run.status === 0
+      ? [
+          `${workspace.name} reported every canary and still exited zero, so a caller reading only the exit code sees a clean run. Fix: keep the lint script failing on findings.`,
+        ]
+      : [];
+
+  return {
+    directory: workspace.directory,
+    name: workspace.name,
+    problems: [...missing, ...silentPass],
+    run,
+  };
+};
+
+const mapWithLimit = async <Item, Result>(
+  items: readonly Item[],
+  limit: number,
+  run: (item: Item) => Promise<Result>
+): Promise<readonly Result[]> => {
+  const step = async (start: number): Promise<readonly Result[]> => {
+    if (start >= items.length) {
+      return [];
+    }
+
+    const chunk = await Promise.all(items.slice(start, start + limit).map(run));
+
+    return [...chunk, ...(await step(start + limit))];
+  };
+
+  return await step(0);
+};
+
+const unlistedManifestProblems = (
+  packages: readonly WorkspacePackage[]
+): readonly string[] => {
+  const listed = new Set(
+    packages.map((workspace) => `${workspace.directory}/package.json`)
+  );
+
+  return trackedFiles()
+    .filter((file) => path.basename(file) === "package.json")
+    .filter((file) => file !== "package.json")
+    .filter((file) => !listed.has(file))
+    .filter((file) => !allowedUnlistedManifests.has(file))
+    .map(
+      (file) =>
+        `${file} is tracked but pnpm does not list its directory as a workspace package, so no package lint run covers it. Fix: keep the directory inside a pnpm-workspace.yaml glob, delete it, or list it in allowedUnlistedManifests in scripts/lint-fence.test.ts with a reason.`
+    );
+};
+
+interface WorkspaceProof {
+  readonly packages: readonly WorkspacePackage[];
+  readonly proofs: readonly PackageProof[];
+  readonly problems: readonly string[];
+}
+
+const proveWorkspace = async (
+  root: string,
+  directories?: readonly string[],
+  known?: readonly WorkspacePackage[]
+): Promise<WorkspaceProof> => {
+  const packages = known ?? discoverPackages(root);
+
+  const unpreached =
+    directories === undefined
+      ? []
+      : directories.flatMap((directory) =>
+          packages.some((workspace) => workspace.directory === directory)
+            ? []
+            : [
+                `${directory} is tracked but pnpm does not list it as a workspace package, so its source can break while lint passes.`,
+              ]
+        );
+
+  const chosen =
+    directories === undefined
+      ? packages
+      : packages.filter((workspace) =>
+          directories.includes(workspace.directory)
+        );
+
+  const proofs = await mapWithLimit(chosen, 8, (workspace) =>
+    provePackage(root, workspace)
+  );
+
+  return {
+    packages,
+    proofs,
+    problems: [
+      ...unpreached,
+      ...unlistedManifestProblems(packages),
+      ...proofs.flatMap((proof) => proof.problems),
+    ],
+  };
+};
+
+const proofDiagnostics = (
+  root: string,
+  proofs: readonly PackageProof[]
 ): string =>
   [
-    'import config from "./oxlint.config.ts";',
-    "",
-    `const extraIgnorePatterns = ${JSON.stringify(ignorePatterns)};`,
-    `const extraRules = ${JSON.stringify(offRules)};`,
-    "",
-    "export default {",
-    "  ...config,",
-    "  ignorePatterns: [...(config.ignorePatterns ?? []), ...extraIgnorePatterns],",
-    "  rules: { ...config.rules, ...extraRules },",
-    "};",
-    "",
-  ].join("\n");
+    `Scratch directory: ${root}`,
+    `Scratch files:\n${scratchListing(root)}`,
+    ...proofs
+      .filter((proof) => proof.problems.length > 0)
+      .slice(0, 3)
+      .flatMap((proof) => [
+        `${proof.directory} (${proof.name}):`,
+        proof.run === undefined
+          ? "its lint script never ran"
+          : describeRun(proof.run),
+      ]),
+  ].join("\n\n");
 
 const seededRandom = (seed: number): (() => number) => {
   const modulus = 2_147_483_647;
@@ -1015,211 +1094,380 @@ const pick = <Item>(random: () => number, items: readonly Item[]): Item => {
   return item;
 };
 
-const commandMutations: readonly string[] = [
-  "oxlint -Aall .",
-  "oxlint --allow all .",
-  'oxlint --allow "all" .',
-  "oxlint -A all .",
-  "oxlint --allow=off .",
-  "oxlint -W all .",
-  "oxlint test",
-  "oxlint src",
-  "oxlint",
-  "oxlint . --quiet",
-  "oxlint . --silent",
-  "oxlint . --max-warnings=5",
-  "oxlint . --disable-nested-config",
-  "oxlint . --disable-oxlint-rules",
-  "oxlint --config .oxlintrc.json .",
-  "oxlint . && true",
-  "ultracite check",
-  "pnpm format:check",
-  "pnpm run lint",
-  "npm run format:check",
-  "npx oxlint .",
-  "pnpm dlx oxlint .",
-  "echo lint passed",
-  " oxlint .",
-  "oxlint  .",
-  "OXLINT .",
-  "oxlint ./",
-  "oxlint *",
-  "oxlint . .",
-  "oxlint --fix .",
+const packageIgnorePatterns = [
+  "src",
+  "src/",
+  "src/**",
+  "src/*",
+  "src/a/**",
+  "src/a/b/**",
+  "src/a/b/c/**",
+  "**/fence-canary-*.ts",
+  "*.ts",
+] as const;
+
+const rootIgnorePatternsFor = (directory: string): readonly string[] => [
+  `${directory}/src`,
+  `${directory}/src/`,
+  `${directory}/src/**`,
+  `${directory}/src/*`,
+  `${directory}/src/a/**`,
+  `${directory}/src/a/b/c/**`,
+  `${directory}/**/fence-canary-*.ts`,
+  `${directory}/fence-canary-debugger.ts`,
+  `**/fence-canary-*.ts`,
 ];
 
-const configOffRules: readonly string[] = [
+const packageOffRules = [
   "no-debugger",
   "no-alert",
   "no-comments/no-comments",
   "rat-stack-patterns/no-module-level-mutable-state",
   "anti-slop/no-array-filter-map",
   "typescript/no-floating-promises",
-  "promise/prefer-await-to-then",
-  "eslint/no-console",
-];
+] as const;
 
-const configIgnorePatterns: readonly string[] = [
-  "packages/**",
-  "packages/*/src/**",
-  "**/*.test.ts",
-  "apps/**",
-  "**/fence-canary-*.ts",
-  "packages/*",
-  "**/*.ts",
-];
+const replacedScripts = [
+  "echo lint passed",
+  "true",
+  "oxlint",
+  "oxlint test",
+  "oxlint src",
+  "oxlint src/a",
+  "oxlint --format agent src",
+  "pnpm format:check",
+  "oxfmt --check .",
+  "pnpm run format:check",
+  "ultracite check",
+] as const;
 
-const configFileNames: readonly string[] = [
-  ".oxlintrc.json",
-  ".oxlintrc",
-  ".oxlintrc.jsonc",
-  "oxlint.config.ts",
-  "oxlint.config.js",
-  "oxlint.config.mjs",
-  "oxlint.config.cjs",
-];
-
-const configDirectories: readonly string[] = [
-  "packages/core",
-  "packages/settings/src",
-  "apps/web",
-  "examples/tokenmaxx-starter",
-  "scripts",
-  ".",
-];
-
-interface Mutation {
-  readonly kind: string;
+interface AppliedMutation {
   readonly label: string;
-  readonly reject: () => readonly string[];
+  readonly rediscovers: boolean;
+  readonly targets: readonly string[];
+  readonly undo: () => void;
 }
 
-const scriptMutation = (body: string): Mutation => ({
-  kind: "package-lint-script",
-  label: `package lint script ${JSON.stringify(body)}`,
-  reject: () => scriptProblems("packages/core/package.json", { lint: body }),
-});
+interface MutationContext {
+  readonly root: string;
+  readonly packages: readonly WorkspacePackage[];
+}
 
-const rootScriptMutation = (name: string): Mutation => ({
-  kind: "root-script",
-  label: `root script "${name}" replaced`,
-  reject: () =>
-    rootScriptProblems({ ...Object.fromEntries(rootScripts), [name]: "true" }),
-});
+const backupFile = (root: string, relative: string): (() => void) => {
+  const file = path.join(root, relative);
+  const before = existsSync(file) ? readFileSync(file, "utf-8") : undefined;
 
-const ignoreMutation = (pattern: string): Mutation => ({
-  kind: "ignore-pattern",
-  label: `oxlint.config.ts ignorePatterns gains ${pattern}`,
-  reject: () =>
-    ignorePatternProblems([
-      ...(core.ignorePatterns ?? []),
-      ...repoIgnorePatterns,
-      pattern,
-    ]),
-});
+  return () => {
+    if (before === undefined) {
+      rmSync(file, { force: true });
 
-const offRuleMutation = (
-  rule: string,
-  placement: "off" | "warn"
-): Mutation => ({
-  kind: "weakened-rule",
-  label: `${rule} set to ${placement} for **/*.ts`,
-  reject: () =>
-    ruleFenceProblems(
-      placement === "off"
-        ? { overrides: [{ files: ["**/*.ts"], rules: { [rule]: "off" } }] }
-        : { rules: { [rule]: "warn" } },
-      offRuleAllowlist
-    ),
-});
+      return;
+    }
 
-const configFileMutation = (file: string): Mutation => ({
-  kind: "second-config",
-  label: `${file} as a second Oxlint config`,
-  reject: () =>
-    configFileProblems([
-      "oxlint.config.ts",
-      "examples/tokenmaxx-starter/.oxlintrc.json",
-      file,
-    ]),
-});
-
-const extraExtends: OxlintConfig = {
-  ignorePatterns: ["packages/**"],
-  rules: { "no-alert": "off" },
+    writeFileSync(file, before);
+  };
 };
 
-const extendsMutation = (index: number): Mutation => ({
-  kind: "extends",
-  label: `extends entry added at index ${index}`,
-  reject: () =>
-    extendsProblems(index === 0 ? [extraExtends, core] : [core, extraExtends]),
-});
+const rewriteFile = (
+  root: string,
+  relative: string,
+  rewrite: (before: string) => string
+): (() => void) => {
+  const file = path.join(root, relative);
+  const before = readFileSync(file, "utf-8");
 
-const secondConfigPaths: readonly string[] = configDirectories.flatMap(
-  (directory) => {
-    const prefix = directory === "." ? "" : `${directory}/`;
+  writeFileSync(file, rewrite(before));
 
-    return configFileNames.flatMap((name) =>
-      `${prefix}${name}` === "oxlint.config.ts" ||
-      `${prefix}${name}` === "examples/tokenmaxx-starter/.oxlintrc.json"
-        ? []
-        : [`${prefix}${name}`]
+  return () => {
+    writeFileSync(file, before);
+  };
+};
+
+const rewriteScripts = (
+  before: string,
+  rewrite: (
+    scripts: Readonly<Record<string, string>>
+  ) => Readonly<Record<string, string>>
+): string =>
+  `${JSON.stringify(
+    {
+      ...Schema.decodeSync(ManifestRecord)(before),
+      scripts: rewrite(
+        Schema.decodeSync(PackageManifest)(before).scripts ?? {}
+      ),
+    },
+    null,
+    2
+  )}\n`;
+
+const mutationBuilders: readonly ((
+  context: MutationContext,
+  random: () => number
+) => AppliedMutation)[] = [
+  (context, random) => {
+    const workspace = pick(random, context.packages);
+    const pattern = pick(random, packageIgnorePatterns);
+    const file = path.join(context.root, workspace.directory, ".eslintignore");
+
+    writeFileSync(file, `${pattern}\n`);
+
+    return {
+      label: `${workspace.directory}/.eslintignore holding ${JSON.stringify(pattern)}`,
+      rediscovers: false,
+      targets: [workspace.directory],
+      undo: () => {
+        rmSync(file, { force: true });
+      },
+    };
+  },
+  (context, random) => {
+    const workspace = pick(random, context.packages);
+    const pattern = pick(random, rootIgnorePatternsFor(workspace.directory));
+    const restore = backupFile(context.root, ".eslintignore");
+
+    writeFileWithParents(context.root, ".eslintignore", `${pattern}\n`);
+
+    return {
+      label: `root .eslintignore holding ${JSON.stringify(pattern)}`,
+      rediscovers: false,
+      targets: [workspace.directory],
+      undo: restore,
+    };
+  },
+  (context, random) => {
+    const workspace = pick(random, context.packages);
+    const pattern = pick(random, rootIgnorePatternsFor(workspace.directory));
+
+    const undo = rewriteFile(context.root, "oxlint.config.ts", (before) =>
+      before.replace(
+        "  ignorePatterns: [",
+        `  ignorePatterns: [\n    ${JSON.stringify(pattern)},`
+      )
     );
+
+    return {
+      label: `oxlint.config.ts ignorePatterns gaining ${JSON.stringify(pattern)}`,
+      rediscovers: false,
+      targets: [workspace.directory],
+      undo,
+    };
+  },
+  (context, random) => {
+    const workspace = pick(random, context.packages);
+    const rule = pick(random, packageOffRules);
+    const file = path.join(context.root, workspace.directory, ".oxlintrc.json");
+
+    writeFileSync(file, `${JSON.stringify({ rules: { [rule]: "off" } })}\n`);
+
+    return {
+      label: `${workspace.directory}/.oxlintrc.json turning ${rule} off`,
+      rediscovers: false,
+      targets: [workspace.directory],
+      undo: () => {
+        rmSync(file, { force: true });
+      },
+    };
+  },
+  (context, random) => {
+    const workspace = pick(random, context.packages);
+    const body = pick(random, replacedScripts);
+
+    const undo = rewriteFile(
+      context.root,
+      `${workspace.directory}/package.json`,
+      (before) =>
+        rewriteScripts(before, (scripts) => ({ ...scripts, lint: body }))
+    );
+
+    return {
+      label: `${workspace.directory} lint script replaced by ${JSON.stringify(body)}`,
+      rediscovers: false,
+      targets: [workspace.directory],
+      undo,
+    };
+  },
+  (context, random) => {
+    const workspace = pick(random, context.packages);
+
+    const undo = rewriteFile(
+      context.root,
+      `${workspace.directory}/package.json`,
+      (before) =>
+        rewriteScripts(before, (scripts) => {
+          const remaining = { ...scripts };
+          delete remaining.lint;
+
+          return remaining;
+        })
+    );
+
+    return {
+      label: `${workspace.directory} losing its lint script`,
+      rediscovers: false,
+      targets: [workspace.directory],
+      undo,
+    };
+  },
+  (context, random) => {
+    const depth = pick(random, [1, 2, 3] as const);
+
+    const segments = Array.from(
+      { length: depth },
+      (_, index) => `group${index}`
+    );
+
+    const directory = ["modules", ...segments, "fence-demo"].join("/");
+    const body = pick(random, replacedScripts);
+
+    const undoWorkspace = rewriteFile(
+      context.root,
+      "pnpm-workspace.yaml",
+      (before) =>
+        before.replace('  - "packages/*"', `  - "packages/*"\n  - "modules/**"`)
+    );
+
+    writeFileWithParents(
+      context.root,
+      `${directory}/package.json`,
+      `${JSON.stringify(
+        {
+          name: "@pecunia/fence-demo",
+          private: true,
+          version: "0.1.0",
+          scripts: { lint: body },
+        },
+        null,
+        2
+      )}\n`
+    );
+
+    return {
+      label: `new package ${directory} with lint script ${JSON.stringify(body)}`,
+      rediscovers: true,
+      targets: [directory],
+      undo: () => {
+        undoWorkspace();
+        rmSync(path.join(context.root, "modules"), {
+          force: true,
+          recursive: true,
+        });
+      },
+    };
+  },
+  (context, random) => {
+    const workspace = pick(
+      random,
+      context.packages.filter((candidate) =>
+        candidate.directory.startsWith("packages/")
+      )
+    );
+
+    const moved = `modules/${path.basename(workspace.directory)}`;
+
+    mkdirSync(path.join(context.root, "modules"), { recursive: true });
+    renameSync(
+      path.join(context.root, workspace.directory),
+      path.join(context.root, moved)
+    );
+
+    return {
+      label: `${workspace.directory} moved to ${moved}, outside every workspace glob`,
+      rediscovers: true,
+      targets: [workspace.directory],
+      undo: () => {
+        renameSync(
+          path.join(context.root, moved),
+          path.join(context.root, workspace.directory)
+        );
+        rmSync(path.join(context.root, "modules"), {
+          force: true,
+          recursive: true,
+        });
+      },
+    };
+  },
+];
+
+const mutationCaseCount = 300;
+
+const mutationWorkerCount = 12;
+
+const mutationSeed = 20_260_216;
+
+const baselinePackage = "packages/core";
+
+const freshScratch = (label: string): string =>
+  mkdtempSync(path.join(tmpdir(), `pecunia-lint-fence-${label}-`));
+
+const namesTarget = (
+  targets: readonly string[],
+  problems: readonly string[]
+): boolean =>
+  targets.some((target) =>
+    problems.some((problem) => problem.includes(target))
+  );
+
+const runMutationCase = async (
+  root: string,
+  packages: readonly WorkspacePackage[],
+  seed: number
+): Promise<readonly string[]> => {
+  const random = seededRandom(seed);
+  const mutation = pick(random, mutationBuilders)({ root, packages }, random);
+
+  try {
+    const proof = await proveWorkspace(
+      root,
+      mutation.targets,
+      mutation.rediscovers ? undefined : packages
+    );
+
+    return namesTarget(mutation.targets, proof.problems)
+      ? []
+      : [
+          `${mutation.label} (seed ${seed}) left the fence passing: ${proof.problems.length === 0 ? "no problem at all" : proof.problems.join(" ")}`,
+        ];
+  } finally {
+    mutation.undo();
   }
-);
+};
 
-const mutationBuilders: readonly ((random: () => number) => Mutation)[] = [
-  (random) => scriptMutation(pick(random, commandMutations)),
-  (random) => rootScriptMutation(pick(random, [...rootScripts.keys()])),
-  (random) => ignoreMutation(pick(random, configIgnorePatterns)),
-  (random) =>
-    offRuleMutation(
-      pick(random, configOffRules),
-      pick(random, ["off", "warn"] as const)
-    ),
-  (random) => configFileMutation(pick(random, secondConfigPaths)),
-  (random) => extendsMutation(pick(random, [0, 1])),
-];
+const runMutationWorker = async (
+  workerIndex: number,
+  cases: number
+): Promise<readonly string[]> => {
+  const root = freshScratch(`case-${workerIndex}`);
+  const failures: string[] = [];
 
-const baselineMutations: readonly Mutation[] = [
-  {
-    kind: "baseline",
-    label: "the real package lint command on its own",
-    reject: () =>
-      scriptProblems("packages/core/package.json", { lint: LINT_COMMAND }),
-  },
-  {
-    kind: "baseline",
-    label: "a package with no lint script",
-    reject: () =>
-      scriptProblems("packages/core/package.json", { test: "vitest" }),
-  },
-  {
-    kind: "baseline",
-    label: "the real root scripts",
-    reject: () => rootScriptProblems(Object.fromEntries(rootScripts)),
-  },
-  {
-    kind: "baseline",
-    label: "the real ignorePatterns",
-    reject: () =>
-      ignorePatternProblems([
-        ...(core.ignorePatterns ?? []),
-        ...repoIgnorePatterns,
-      ]),
-  },
-  {
-    kind: "baseline",
-    label: "the real extends",
-    reject: () => extendsProblems(lintConfig.extends ?? []),
-  },
-  {
-    kind: "baseline",
-    label: "the real tracked config paths",
-    reject: () => configFileProblems(repoConfigFiles()),
-  },
-];
+  try {
+    buildScratch(root);
+
+    const baseline = await proveWorkspace(root, [baselinePackage]);
+
+    if (baseline.problems.length > 0) {
+      failures.push(
+        `The unmutated scratch copy failed its own baseline: ${baseline.problems.join(" ")}\n\n${proofDiagnostics(root, baseline.proofs)}`
+      );
+    }
+
+    for (let index = 0; index < cases; index += 1) {
+      const caseIndex = workerIndex * cases + index;
+
+      // oxlint-disable-next-line no-await-in-loop, anti-slop/no-await-in-loop -- every case mutates the same scratch directory, so they run one at a time.
+      const caseFailures = await runMutationCase(
+        root,
+        baseline.packages,
+        mutationSeed + caseIndex
+      );
+
+      failures.push(...caseFailures);
+    }
+  } finally {
+    rmSync(root, { force: true, recursive: true });
+  }
+
+  return failures;
+};
 
 describe("lint fence", () => {
   const declaredOff = new Set(offScopes(lintConfig).keys());
@@ -1309,20 +1557,21 @@ describe("lint fence", () => {
   });
 
   it("pins every package lint script and the root scripts to one exact string", () => {
-    const packageProblems = workspaceDirectories().flatMap((directory) =>
-      scriptProblems(
-        `${directory}/package.json`,
-        scriptsOf(`${directory}/package.json`)
-      )
-    );
+    const packages = discoverPackages(repoRoot);
 
     expect(
-      workspaceDirectories(),
-      "The fence read the workspace from pnpm-workspace.yaml and found no packages. Fix: keep the `packages:` globs in pnpm-workspace.yaml, so the fence checks the real workspace instead of an empty list."
+      packages.map((workspace) => workspace.directory),
+      "pnpm listed no workspace packages, so the fence would check nothing. Fix: keep pnpm-workspace.yaml readable and node_modules installed before running the guards."
     ).toContain("packages/core");
     expect(
-      packageProblems,
-      `A package lint script is not ${JSON.stringify(LINT_COMMAND)}. Fix: use that string exactly, because the fence compares by equality and never parses flags.`
+      packages.flatMap((workspace) =>
+        scriptProblemsIn(repoRoot, workspace.directory)
+      ),
+      `A package lint script is not ${JSON.stringify(LINT_COMMAND)}. Fix: use that string exactly, because the fence runs that script and reads Oxlint's agent format, and it never parses flags.`
+    ).toEqual([]);
+    expect(
+      unlistedManifestProblems(packages),
+      "A tracked package.json is not a workspace package, so nothing lints its directory. Fix: keep it inside a pnpm-workspace.yaml glob, delete it, or list it in allowedUnlistedManifests in scripts/lint-fence.test.ts with a reason."
     ).toEqual([]);
     expect(
       rootScriptProblems(scriptsOf("package.json")),
@@ -1367,168 +1616,57 @@ describe("lint fence", () => {
     ).toEqual([]);
   });
 
-  it("reports every rule family canary in every workspace package", async () => {
-    const directories = workspaceDirectories();
-    const root = mkdtempSync(path.join(tmpdir(), "pecunia-lint-fence-"));
+  it(
+    "reports every rule family canary at three depths in every workspace package",
+    { timeout: 900_000 },
+    async () => {
+      const root = freshScratch("workspace");
 
-    try {
-      buildMirror(root, directories);
+      try {
+        buildScratch(root);
 
-      expect(
-        directories.length,
-        "The canary run needs every workspace package. Fix: keep the workspace globs in pnpm-workspace.yaml readable."
-      ).toBeGreaterThan(10);
+        const proof = await proveWorkspace(root);
 
-      const runs = await runInPackages(root, directories, ["."]);
-      const failureReport = canaryFailureReport(root, runs);
-
-      expect(
-        runs
-          .filter(({ run }) => run.status === 0)
-          .map(({ directory }) => directory),
-        `Oxlint exits zero in a workspace package that holds a planted violation, so that package's lint script would pass on broken source.\n\n${failureReport}`
-      ).toEqual([]);
-      expect(
-        missingCanaries(runs),
-        `A workspace package holds one canary per rule family and the repo's own Oxlint config never reports one of them, so that package's source can break while lint passes. Fix: stop excluding that path in oxlint.config.ts, in .eslintignore, in a nested config, or stop weakening the rule.\n\n${failureReport}`
-      ).toEqual([]);
-    } finally {
-      rmSync(root, { force: true, recursive: true });
+        expect(
+          proof.packages.map((workspace) => workspace.directory),
+          "pnpm listed no workspace packages in the scratch copy, so the canary run proves nothing. Fix: keep pnpm-workspace.yaml readable."
+        ).toContain("packages/core");
+        expect(
+          proof.packages.length,
+          "The canary run needs every workspace package. Fix: keep the workspace globs in pnpm-workspace.yaml readable."
+        ).toBeGreaterThan(10);
+        expect(
+          proof.problems,
+          `A workspace package holds one canary per rule family at three depths and its own lint script never reported one of them, or pnpm does not list a tracked package at all, so that source can break while lint passes. Fix: stop excluding that path in oxlint.config.ts, in .eslintignore, in a nested config, or stop weakening the rule.\n\n${proofDiagnostics(root, proof.proofs)}`
+        ).toEqual([]);
+      } finally {
+        rmSync(root, { force: true, recursive: true });
+      }
     }
-  });
+  );
 
-  it("catches a weakened config by name in a real Oxlint run", async () => {
-    const directories = workspaceDirectories()
-      .filter((directory) => directory.startsWith("packages/"))
-      .slice(0, 2);
+  it(
+    "catches every configuration, script and discovery mutation by package name",
+    { timeout: 1_800_000 },
+    async () => {
+      const casesPerWorker = Math.ceil(mutationCaseCount / mutationWorkerCount);
 
-    const root = mkdtempSync(
-      path.join(tmpdir(), "pecunia-lint-fence-mutations-")
-    );
-
-    try {
-      buildMirror(root, directories);
-
-      const controls = [
-        {
-          name: "ignorePatterns of packages/**",
-          patterns: ["packages/**"],
-          rules: {},
-          hiddenFamily: "debugger",
-        },
-        {
-          name: "no-debugger off",
-          patterns: [],
-          rules: { "no-debugger": "off" },
-          hiddenFamily: "debugger",
-        },
-        {
-          name: "no-alert off",
-          patterns: [],
-          rules: { "no-alert": "off" },
-          hiddenFamily: "alert",
-        },
-      ];
-
-      const prepared = controls.flatMap((control, index) => {
-        const family = canaryFamilies.find(
-          (candidate) => candidate.name === control.hiddenFamily
-        );
-
-        if (family === undefined) {
-          return [];
-        }
-
-        const file = path.join(root, `fence-mutation-${index}.config.ts`);
-
-        writeFileSync(
-          file,
-          mutationConfigSource(control.patterns, control.rules)
-        );
-
-        return [{ control, family, file }];
-      });
-
-      expect(
-        prepared.length,
-        "Fix: every control must name a canary family that exists."
-      ).toBe(controls.length);
-
-      const verdicts = await Promise.all(
-        prepared.map(async (item) => ({
-          ...item,
-          hidden: await stillReported(
-            root,
-            directories,
-            item.file,
-            item.family
-          ),
-        }))
+      const workerFailures = await Promise.all(
+        Array.from({ length: mutationWorkerCount }, (_, workerIndex) =>
+          runMutationWorker(workerIndex, casesPerWorker)
+        )
       );
 
-      for (const { control, family, hidden } of verdicts) {
-        expect(
-          hidden,
-          `A config that adds ${control.name} must hide the ${family.name} canary from the real Oxlint, or this control proves nothing. Fix: keep the canary inside the paths the mutation covers.`
-        ).toEqual([]);
-      }
-    } finally {
-      rmSync(root, { force: true, recursive: true });
-    }
-  });
-
-  it("rejects every script, config and path mutation the fence must catch", () => {
-    const random = seededRandom(20_260_216);
-
-    const rejected = new Map<string, number>();
-    const accepted: string[] = [];
-    let cases = 0;
-
-    for (let index = 0; index < 640; index += 1) {
-      const mutation = pick(random, mutationBuilders)(random);
-      const problems = mutation.reject();
+      const failures = workerFailures.flat();
 
       expect(
-        problems.length,
-        `The fence accepted ${mutation.label}. A mutation the fence accepts is a bypass, so the mutation itself fails this test by name. Fix: make the fence reject ${mutation.label}.`
-      ).toBeGreaterThan(0);
-      rejected.set(mutation.kind, (rejected.get(mutation.kind) ?? 0) + 1);
-      cases += 1;
-    }
-
-    for (const baseline of baselineMutations) {
-      const problems = baseline.reject();
-
+        mutationCaseCount,
+        "The property test must keep at least 300 cases, so shrinking the set is visible."
+      ).toBeGreaterThanOrEqual(300);
       expect(
-        problems,
-        `The fence rejected ${baseline.label}, which is allowed. Fix: keep the fence from rejecting a real baseline.`
+        failures,
+        `The fence accepted a mutation it must catch, so that mutation is a live bypass. Seed: ${mutationSeed}. Fix: make the real lint run fail for that mutation, naming the package or the file.\n\n${failures.join("\n\n")}`
       ).toEqual([]);
-      accepted.push(baseline.label);
-      cases += 1;
     }
-
-    expect(
-      cases,
-      "The property test must keep at least 600 cases, so shrinking any set is visible."
-    ).toBeGreaterThanOrEqual(600);
-    expect(
-      [...rejected.keys()].toSorted(),
-      "Every mutation kind must appear in the generated cases, so no fence layer goes unproven. Fix: keep every mutation builder reachable."
-    ).toEqual([
-      "extends",
-      "ignore-pattern",
-      "package-lint-script",
-      "root-script",
-      "second-config",
-      "weakened-rule",
-    ]);
-    expect(
-      accepted.length,
-      "The property test must accept the real baselines, so a fence that rejects everything fails here."
-    ).toBeGreaterThanOrEqual(3);
-    expect(
-      [...rejected.values()].reduce((total, count) => total + count, 0),
-      "The property test must reject the mutations, so a fence that accepts everything fails here."
-    ).toBeGreaterThanOrEqual(500);
-  });
+  );
 });

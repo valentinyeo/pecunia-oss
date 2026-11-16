@@ -15,7 +15,8 @@
     "cli": "pnpm run --silent build && node dist/cli.js",
     "check": "pnpm run typecheck",
     "pretest": "pnpm run --silent build",
-    "prepublishOnly": "pnpm run build"
+    "prepublishOnly": "pnpm run build",
+    "lint": "oxlint --format agent ."
   },
   "dependencies": {
     "@effect/platform-node": "4.1.4",
