@@ -14,7 +14,8 @@
     "destroy": "alchemy destroy",
     "predev": "pnpm --filter @pecunia/site generate",
     "dev": "alchemy dev",
-    "logs": "alchemy logs"
+    "logs": "alchemy logs",
+    "lint": "oxlint --format agent ."
   },
   "dependencies": {
     "@alchemy.run/cloudflare": "2.0.0-beta.87",
