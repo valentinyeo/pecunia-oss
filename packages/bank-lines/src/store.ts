@@ -1,8 +1,14 @@
 import { Context } from "effect";
-import type { Effect } from "effect";
+import type { Effect, Option } from "effect";
 
 import type { BankLineStoreError } from "./bank-line-store-error.js";
-import type { BankLine, CategoryId, ProfileId } from "./model.js";
+import type {
+  BankLine,
+  BankLineId,
+  CategoryId,
+  LinePatch,
+  ProfileId,
+} from "./model.js";
 
 export class BankLineStore extends Context.Service<
   BankLineStore,
@@ -13,8 +19,10 @@ export class BankLineStore extends Context.Service<
     readonly lines: (
       profileId: ProfileId
     ) => Effect.Effect<readonly BankLine[], BankLineStoreError>;
-    readonly save: (
-      line: BankLine
-    ) => Effect.Effect<BankLine, BankLineStoreError>;
+    readonly patch: (
+      profileId: ProfileId,
+      lineId: BankLineId,
+      patch: LinePatch
+    ) => Effect.Effect<Option.Option<BankLine>, BankLineStoreError>;
   }
 >()("@pecunia/bank-lines/BankLineStore") {}

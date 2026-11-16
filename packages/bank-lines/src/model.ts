@@ -108,7 +108,17 @@ export const PositionSchema = Schema.Struct({
 
 export type Position = typeof PositionSchema.Type;
 
-export const BankLineCursorSchema = PositionSchema;
+export const CursorFingerprintSchema = Schema.String.check(
+  Schema.isPattern(/^[0-9a-z]{1,6}$/u)
+);
+
+export type CursorFingerprint = typeof CursorFingerprintSchema.Type;
+
+export const BankLineCursorSchema = Schema.Struct({
+  fingerprint: CursorFingerprintSchema,
+  id: BankLineIdSchema,
+  occurredAt: TimestampMillisSchema,
+});
 
 export type BankLineCursor = typeof BankLineCursorSchema.Type;
 
@@ -227,6 +237,21 @@ export const LineEditSchema = Schema.Struct({
 });
 
 export type LineEdit = typeof LineEditSchema.Type;
+
+export const ReviewChangeSchema = Schema.TaggedUnion({
+  Mark: { at: TimestampMillisSchema },
+  Unchanged: {},
+});
+
+export type ReviewChange = typeof ReviewChangeSchema.Type;
+
+export const LinePatchSchema = Schema.Struct({
+  category: CategoryChangeSchema,
+  note: NoteChangeSchema,
+  review: ReviewChangeSchema,
+});
+
+export type LinePatch = typeof LinePatchSchema.Type;
 
 export const EditBankLineRequestSchema = Schema.Struct({
   ...LineEditSchema.fields,

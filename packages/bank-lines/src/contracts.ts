@@ -3,6 +3,7 @@ import { defineContract } from "@pecunia/capability/contract";
 import { Schema } from "effect";
 
 import { BankLineStoreError } from "./bank-line-store-error.js";
+import { CursorFilterMismatch } from "./cursor-filter-mismatch.js";
 import {
   BankLinePageSchema,
   BankLineSchema,
@@ -16,8 +17,8 @@ import { UnknownCategory } from "./unknown-category.js";
 export const listBankLinesContract = defineContract("listBankLines", {
   annotations: { idempotent: true, readOnly: true },
   description:
-    "List a profile's bank lines newest first, with a keyset cursor. Filters cover account, direction, amount in one currency, category, review state and the occurred range. Search matches merchant, description, reference and note text, ignoring case. Amounts are integer minor units.",
-  failure: Schema.Union([BankLineStoreError, Forbidden]),
+    "List a profile's bank lines newest first, with a keyset cursor. Filters cover account, direction, amount in one currency, category, review state and the occurred range. Search matches merchant, description, reference and note text, ignoring case. A cursor carries a fingerprint of the filter and search that made it, so it is refused by name under a different one. Amounts are integer minor units.",
+  failure: Schema.Union([BankLineStoreError, CursorFilterMismatch, Forbidden]),
   input: ListBankLinesRequestSchema,
   output: BankLinePageSchema,
 });
@@ -25,7 +26,7 @@ export const listBankLinesContract = defineContract("listBankLines", {
 export const editBankLineContract = defineContract("editBankLine", {
   annotations: { idempotent: true },
   description:
-    "Edit one bank line's category and note. Category and note are explicit changes, so an absent edit is impossible. A cleared category removes it, and an assigned category must be live in the same profile.",
+    "Edit one bank line's category and note. Category and note are explicit changes, so an absent edit is impossible. A cleared category removes it, and an assigned category must be live in the same profile. The store applies the change to the line as it stands, so a concurrent edit to another field survives.",
   failure: Schema.Union([
     BankLineStoreError,
     Forbidden,

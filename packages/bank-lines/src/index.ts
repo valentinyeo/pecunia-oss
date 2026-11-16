@@ -1,5 +1,7 @@
 export { BankLineStoreError } from "./bank-line-store-error.js";
 
+export { CursorFilterMismatch } from "./cursor-filter-mismatch.js";
+
 export {
   editBankLine,
   bankLineCapabilities,
@@ -15,6 +17,7 @@ export {
 } from "./contracts.js";
 
 export {
+  filterFingerprint,
   matchesFilter,
   matchesSearch,
   orderBankLines,
@@ -22,18 +25,23 @@ export {
   selectBankLines,
 } from "./query.js";
 
+export { applyLinePatch } from "./patch.js";
+
 export {
   BankLineFilterSchema,
   BankLinePageSchema,
   BankLineQuerySchema,
   BankLineSchema,
   CategoryChangeSchema,
+  CursorFingerprintSchema,
   EditBankLineRequestSchema,
   LineEditSchema,
+  LinePatchSchema,
   LineReviewSchema,
   ListBankLinesRequestSchema,
   NoteChangeSchema,
   ReviewBankLineRequestSchema,
+  ReviewChangeSchema,
   ReviewSchema,
   SEARCH_LIMIT_MAX,
   SEARCH_MAX_LENGTH,
@@ -51,10 +59,12 @@ export type {
   CategoryChange,
   CategoryFilter,
   CategoryId,
+  CursorFingerprint,
   DateOnly,
   Direction,
   EditBankLineRequest,
   LineEdit,
+  LinePatch,
   LineReview,
   ListBankLinesRequest,
   NoteChange,
@@ -64,6 +74,7 @@ export type {
   ProviderAccountId,
   Review,
   ReviewBankLineRequest,
+  ReviewChange,
   Status,
   TimestampMillis,
 } from "./model.js";

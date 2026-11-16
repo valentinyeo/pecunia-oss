@@ -1,6 +1,7 @@
-import { Effect, Layer, Ref } from "effect";
+import { Effect, Layer, Option, Ref } from "effect";
 
-import type { BankLine, CategoryId, ProfileId } from "./model.js";
+import type { BankLine, CategoryId, LinePatch, ProfileId } from "./model.js";
+import { applyLinePatch } from "./patch.js";
 import { BankLineStore } from "./store.js";
 
 export interface MemoryCategory {
@@ -19,16 +20,11 @@ interface MemoryBook {
 }
 
 const replaceLine = (lines: readonly BankLine[], line: BankLine) =>
-  lines.some(
-    (candidate) =>
-      candidate.id === line.id && candidate.profileId === line.profileId
-  )
-    ? lines.map((candidate) =>
-        candidate.id === line.id && candidate.profileId === line.profileId
-          ? line
-          : candidate
-      )
-    : [...lines, line];
+  lines.map((candidate) =>
+    candidate.id === line.id && candidate.profileId === line.profileId
+      ? line
+      : candidate
+  );
 
 export const memoryBankLineStoreLayer = (seed: MemoryBankLineSeed) =>
   Layer.effect(
@@ -57,17 +53,30 @@ export const memoryBankLineStoreLayer = (seed: MemoryBankLineSeed) =>
         return book.lines.filter((line) => line.profileId === profileId);
       });
 
-      const save = Effect.fn("MemoryBankLineStore.save")(function* save(
-        line: BankLine
+      const patch = Effect.fn("MemoryBankLineStore.patch")(function* patch(
+        profileId: ProfileId,
+        lineId: BankLine["id"],
+        change: LinePatch
       ) {
-        yield* Ref.update(state, (book) => ({
-          ...book,
-          lines: replaceLine(book.lines, line),
-        }));
+        return yield* Ref.modify(state, (book) => {
+          const current = book.lines.find(
+            (candidate) =>
+              candidate.id === lineId && candidate.profileId === profileId
+          );
 
-        return line;
+          if (current === undefined) {
+            return [Option.none<BankLine>(), book];
+          }
+
+          const next = applyLinePatch(current, change);
+
+          return [
+            Option.some(next),
+            { ...book, lines: replaceLine(book.lines, next) },
+          ];
+        });
       });
 
-      return { categories, lines, save } as const;
+      return { categories, lines, patch } as const;
     })
   );

@@ -1,11 +1,13 @@
-import { Match, Option, Predicate } from "effect";
+import { Effect, Match, Option, Predicate } from "effect";
 
+import { CursorFilterMismatch } from "./cursor-filter-mismatch.js";
 import type {
   AmountRange,
   BankLine,
   BankLineCursor,
   BankLineFilter,
   BankLinePage,
+  CursorFingerprint,
   ListBankLinesRequest,
   OccurredRange,
   Position,
@@ -117,7 +119,11 @@ export const orderBankLines = (
   lines: readonly BankLine[]
 ): readonly BankLine[] => lines.toSorted(comparePositions);
 
-const positionOf = (line: BankLine): BankLineCursor => ({
+const positionOf = (
+  line: BankLine,
+  fingerprint: CursorFingerprint
+): BankLineCursor => ({
+  fingerprint,
   id: line.id,
   occurredAt: line.occurredAt,
 });
@@ -128,30 +134,104 @@ const afterCursor = (cursor: Option.Option<BankLineCursor>, line: BankLine) =>
     onSome: (value) => comparePositions(line, value) > 0,
   });
 
+const amountKey = (amount: Option.Option<AmountRange>) =>
+  Option.match(amount, {
+    onNone: () => "*",
+    onSome: (range) => `${range.currency}:${range.min}:${range.max}`,
+  });
+
+const occurredKey = (occurred: Option.Option<OccurredRange>) =>
+  Option.match(occurred, {
+    onNone: () => "*",
+    onSome: (range) => `${range.from}:${range.to}`,
+  });
+
+const categoryKey = (category: BankLineFilter["category"]) =>
+  Match.value(category).pipe(
+    Match.tag("Any", () => "*"),
+    Match.tag("Uncategorised", () => "none"),
+    Match.tag("Of", (chosen) => String(chosen.categoryId)),
+    Match.exhaustive
+  );
+
+const reviewKey = (review: BankLineFilter["review"]) =>
+  Match.value(review).pipe(
+    Match.tag("Any", () => "*"),
+    Match.tag("Awaiting", () => "awaiting"),
+    Match.tag("Reviewed", () => "reviewed"),
+    Match.exhaustive
+  );
+
+const filterText = (filter: BankLineFilter, search: string) =>
+  [
+    `account=${Option.getOrElse(filter.account, () => "*")}`,
+    `amount=${amountKey(filter.amount)}`,
+    `category=${categoryKey(filter.category)}`,
+    `direction=${Option.getOrElse(filter.direction, () => "*")}`,
+    `occurred=${occurredKey(filter.occurred)}`,
+    `review=${reviewKey(filter.review)}`,
+    `search=${search.trim().toLowerCase()}`,
+  ].join("&");
+
+const FINGERPRINT_MODULUS = 2_176_782_189;
+
+const foldText = (text: string) => {
+  let hash = 5381;
+
+  for (let index = 0; index < text.length; index += 1) {
+    hash = (hash * 33 + (text.codePointAt(index) ?? 0)) % FINGERPRINT_MODULUS;
+  }
+
+  return hash;
+};
+
+export const filterFingerprint = (
+  filter: BankLineFilter,
+  search: string
+): CursorFingerprint => foldText(filterText(filter, search)).toString(36);
+
 export const selectBankLines = (
   lines: readonly BankLine[],
   request: ListBankLinesRequest
-): BankLinePage => {
-  const ordered = orderBankLines(
-    lines.filter(
-      (line) =>
-        line.profileId === request.profileId &&
-        matchesFilter(request.filter, line) &&
-        matchesSearch(request.search, line)
-    )
-  );
+): Effect.Effect<BankLinePage, CursorFilterMismatch> =>
+  Effect.gen(function* selectBankLinesForRequest() {
+    const fingerprint = filterFingerprint(request.filter, request.search);
 
-  const remaining = ordered.filter((line) => afterCursor(request.cursor, line));
+    const { cursor } = request;
 
-  const page = remaining.slice(0, request.limit);
+    if (Option.isSome(cursor) && cursor.value.fingerprint !== fingerprint) {
+      return yield* new CursorFilterMismatch({
+        cursorFingerprint: cursor.value.fingerprint,
+        filterFingerprint: fingerprint,
+        message:
+          "This cursor was made under a different filter or search, so it does not name a position in this list.",
+        repair:
+          "Drop the cursor when you change the filter or the search, and start the new list from its first page.",
+      });
+    }
 
-  const last = page.at(-1);
+    const ordered = orderBankLines(
+      lines.filter(
+        (line) =>
+          line.profileId === request.profileId &&
+          matchesFilter(request.filter, line) &&
+          matchesSearch(request.search, line)
+      )
+    );
 
-  const hasMore = last !== undefined && remaining.length > page.length;
+    const remaining = ordered.filter((line) => afterCursor(cursor, line));
 
-  return {
-    lines: page,
-    next: hasMore ? Option.some(positionOf(last)) : Option.none(),
-    total: ordered.length,
-  };
-};
+    const page = remaining.slice(0, request.limit);
+
+    const last = page.at(-1);
+
+    const hasMore = last !== undefined && remaining.length > page.length;
+
+    return {
+      lines: page,
+      next: hasMore
+        ? Option.some(positionOf(last, fingerprint))
+        : Option.none(),
+      total: ordered.length,
+    };
+  });
