@@ -1,0 +1,96 @@
+{
+  "feature": "invoices",
+  "branch": "verify-skill",
+  "commit": "a395bd9e",
+  "node": "v24.18.0",
+  "ranAt": "2026-11-16T15:42:33Z",
+  "seed": {
+    "command": "pnpm --filter @pecunia/database db:seed:demo /tmp/pecunia-verify-fMspd9/demo.sqlite"
+  },
+  "demoBookSha256": "527991d3898ec8fdce1029ee97f92a7c25f955c54e2375b38566f95f32537191",
+  "passed": true,
+  "failed": 0,
+  "total": 10,
+  "checks": [
+    {
+      "id": "money-is-integer-minor-units",
+      "title": "Money is an integer of minor units",
+      "feature": "all",
+      "passed": true,
+      "expected": "0 wrong declarations, 0 wrong rows, 11 columns",
+      "actual": "0 wrong declarations, 0 wrong rows, 11 columns"
+    },
+    {
+      "id": "currency-is-an-iso-code",
+      "title": "Every amount carries an ISO currency code",
+      "feature": "all",
+      "passed": true,
+      "expected": "0 wrong currencies, 13 columns",
+      "actual": "0 wrong currencies, 13 columns"
+    },
+    {
+      "id": "every-row-belongs-to-a-profile",
+      "title": "Every row belongs to a profile and every reference resolves",
+      "feature": "all",
+      "passed": true,
+      "expected": "ok, 0 foreign key violations, 0 tables with orphan rows, 17 scoped tables",
+      "actual": "ok, 0 foreign key violations, 0 tables with orphan rows, 17 scoped tables"
+    },
+    {
+      "id": "demo-book-holds-made-up-identities",
+      "title": "The demo book holds made-up identities only",
+      "feature": "all",
+      "passed": true,
+      "expected": "0 non-placeholder emails, Demo Person,Example Ltd",
+      "actual": "0 non-placeholder emails, Demo Person,Example Ltd"
+    },
+    {
+      "id": "invoice-matches-its-line",
+      "title": "A linked invoice matches its transaction exactly",
+      "feature": "invoices",
+      "passed": true,
+      "expected": "0",
+      "actual": "0"
+    },
+    {
+      "id": "invoice-exception-has-no-document",
+      "title": "An exception names a transaction with no document",
+      "feature": "invoices",
+      "passed": true,
+      "expected": "4250 documents=0",
+      "actual": "4250 documents=0"
+    },
+    {
+      "id": "invoice-unarchived",
+      "title": "An unarchived document names no archive",
+      "feature": "invoices",
+      "passed": true,
+      "expected": "0",
+      "actual": "0"
+    },
+    {
+      "id": "invoice-archived",
+      "title": "An archived document names a target",
+      "feature": "invoices",
+      "passed": true,
+      "expected": "0",
+      "actual": "0"
+    },
+    {
+      "id": "invoice-vendors",
+      "title": "Every invoice vendor belongs to the profile",
+      "feature": "invoices",
+      "passed": true,
+      "expected": "0",
+      "actual": "0"
+    },
+    {
+      "id": "invoice-archive-states",
+      "title": "Every archive state carries the columns it promises",
+      "feature": "invoices",
+      "passed": true,
+      "expected": "0",
+      "actual": "0"
+    }
+  ]
+}

@@ -6,7 +6,7 @@ REPO_ROOT=$(cd -- "$SCRIPT_DIR/../../.." && pwd)
 EVIDENCE_ROOT="$REPO_ROOT/skills/verify-pecunia/evidence"
 FEATURES=(accounts-and-bank-lines categories-and-rules dashboard-sums subscriptions investments fx-conversion tax invoices)
 FEATURE=all
-LABEL=
+LABEL_ARG=
 
 fence_failure() {
   printf '%s. Fix: %s.\n' "$1" "$2" >&2
@@ -22,7 +22,7 @@ while [ "$#" -gt 0 ]; do
       ;;
     --label)
       [ "$#" -ge 2 ] || fence_failure "The flag --label needs a value" "pass a short name for this run, for example \`--label all-after-fx-fix\`"
-      LABEL=$2
+      LABEL_ARG=$2
       shift 2
       ;;
     --help)
@@ -43,7 +43,12 @@ if [ "$FEATURE" != all ]; then
   [ "$known" -eq 1 ] || fence_failure "The feature $FEATURE has no page in the feature map" "pass one of all ${FEATURES[*]}"
 fi
 
-LABEL=${LABEL:-$FEATURE}
+LABEL=${LABEL_ARG:-$FEATURE}
+if [ -n "$LABEL_ARG" ]; then
+  LABEL_FLAG=" --label $LABEL_ARG"
+else
+  LABEL_FLAG=""
+fi
 RUN_DATE=$(date -u +%Y-%m-%d)
 EVIDENCE_DIR="$EVIDENCE_ROOT/$RUN_DATE-$LABEL"
 PROOF_PATH="$EVIDENCE_DIR/PROOF.md"
@@ -313,7 +318,7 @@ mkdir -p "$EVIDENCE_DIR"
   printf -- '- The scratch database is deleted after the run; `proof.json` holds every observation.\n\n' "$DEMO_SHA"
   printf '## Commands\n\n```sh\n'
   printf '%s\n' "$SEED_COMMAND"
-  printf 'bash skills/verify-pecunia/scripts/prove-demo-book.sh --feature %s\n' "$FEATURE"
+  printf 'bash skills/verify-pecunia/scripts/prove-demo-book.sh --feature %s%s\n' "$FEATURE" "$LABEL_FLAG"
   printf '```\n\n'
   printf '## Seeded tables\n\n```text\n%s\n```\n\n' "$SEED_ROWS"
   printf '## Checks\n\n| Check | Result | Expected | Observed |\n| --- | --- | --- | --- |\n'
