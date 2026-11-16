@@ -14,6 +14,7 @@ import { DatabaseSync } from "node:sqlite";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 
+import { observe } from "./lib/observation.mjs";
 import { canonicalRecords } from "./lib/records.mjs";
 import {
   evaluate,
@@ -184,7 +185,7 @@ const corruptRecords = (text, field) => {
 };
 
 const mutate = (records, random) => {
-  const kind = Math.floor(random() * 25);
+  const kind = Math.floor(random() * 26);
   const withObservations = observedRecords(records);
   const record = pick(random, withObservations);
   const observation = pick(random, record.observations);
@@ -602,6 +603,38 @@ const mutate = (records, random) => {
     };
   }
 
+  if (kind === 25) {
+    const eligible = records.filter((entry) =>
+      readbacksOf(stepsById.get(entry.step)).some(
+        (readback) => readbackFields[entry.step] !== undefined
+      )
+    );
+    const target = pick(random, eligible);
+    const readback = pick(
+      random,
+      readbacksOf(stepsById.get(target.step)).filter(
+        (entry) => readbackFields[target.step] !== undefined
+      )
+    );
+    const next = mutated(records);
+    const observation = next
+      .find((entry) => entry.step === target.step)
+      .observations.find((entry) => entry.id === readback.id);
+    const rows = JSON.parse(observation.value);
+
+    observation.value = canonicalRecords([
+      ...rows,
+      structuredClone(rows.at(-1)),
+    ]);
+
+    return {
+      cause: readback.id,
+      records: next,
+      table,
+      pages: pageExpectations,
+    };
+  }
+
   assert.fail(`the mutation kind ${kind} has no case`);
 };
 
@@ -991,6 +1024,302 @@ test("a delayed-write adapter fails through the first-import readback", () => {
     rmSync(path, { force: true });
     rmSync(bookPath, { force: true });
   }
+});
+
+test("an observation holds a snapshot taken when it is emitted", () => {
+  const rows = [{ id: "row-1", note: "before" }];
+  const observation = observe({ id: "probe-snapshot", value: { rows } });
+
+  rows.push({ id: "row-2", note: "late" });
+  rows[0].note = "after";
+
+  assert.deepEqual(observation.value, {
+    rows: [{ id: "row-1", note: "before" }],
+  });
+
+  const text = observe({ id: "probe-text", value: "[]" });
+
+  assert.deepEqual(text, { id: "probe-text", value: "[]" });
+});
+
+const demoBookPath = (label) => {
+  const path = join(tmpdir(), `pecunia-check-${label}-${process.pid}.sqlite`);
+  const book = new DatabaseSync(path);
+
+  book.exec(
+    [
+      "CREATE TABLE profiles (id TEXT PRIMARY KEY, base_currency TEXT NOT NULL)",
+      "CREATE TABLE providers (id TEXT PRIMARY KEY, label TEXT NOT NULL)",
+      "CREATE TABLE provider_accounts (id TEXT PRIMARY KEY, profile_id TEXT NOT NULL, label TEXT NOT NULL, kind TEXT NOT NULL, provider_id TEXT NOT NULL, archived_at TEXT)",
+      "INSERT INTO profiles VALUES ('profile-demo', 'EUR')",
+      "INSERT INTO providers VALUES ('provider-wise', 'Wise')",
+      "INSERT INTO provider_accounts VALUES ('account-demo', 'profile-demo', 'Demo Bank', 'bank', 'provider-wise', NULL)",
+    ].join(";")
+  );
+  book.close();
+
+  return path;
+};
+
+test("a shared readback array filled on replay fails the first-import readback", () => {
+  const source = readFileSync(
+    join(SCRIPT_DIR, "drive-bank-import.mjs"),
+    "utf8"
+  );
+  const layer = [
+    "const recorder = mutationRecorder();",
+    "const layer = Layer.mergeAll(",
+    "  countingLayer({",
+    "    layer: memoryImportLedgerLayer(targets),",
+  ].join("\n");
+  const shared = [
+    "const recorder = mutationRecorder();",
+    "const heldLineSets = [];",
+    "const sharedReadbackLayer = Layer.effect(",
+    "  ImportLedger,",
+    "  Effect.gen(function* makeSharedReadbackLedger() {",
+    "    const inner = yield* ImportLedger;",
+    "    let held;",
+    "",
+    "    return {",
+    "      ...inner,",
+    "      storedLines: (ledgerProfile, ledgerAccount) => {",
+    "        if (held === undefined) {",
+    "          held = heldLineSets;",
+    "",
+    "          return Effect.succeed(held);",
+    "        }",
+    "",
+    "        return Effect.map(",
+    "          inner.storedLines(ledgerProfile, ledgerAccount),",
+    "          (lines) => {",
+    "            held.length = 0;",
+    "            held.push(...lines);",
+    "",
+    "            return held;",
+    "          }",
+    "        );",
+    "      },",
+    "    };",
+    "  })",
+    ").pipe(Layer.provide(memoryImportLedgerLayer(targets)));",
+    "const layer = Layer.mergeAll(",
+    "  countingLayer({",
+    "    layer: sharedReadbackLayer,",
+  ].join("\n");
+  const path = join(
+    SCRIPT_DIR,
+    `.check-mutant-${process.pid}-shared-import.mjs`
+  );
+  const bookPath = demoBookPath("shared-import");
+
+  assert.ok(source.includes(layer), "the import ledger layer is missing");
+
+  try {
+    writeFileSync(path, source.replace(layer, shared));
+
+    const drive = spawnSync("node", [path, "--database", bookPath], {
+      cwd: REPO_ROOT,
+      encoding: "utf8",
+    });
+
+    assert.equal(drive.status, 0, drive.stderr);
+
+    const { observations } = JSON.parse(drive.stdout);
+    const firstImport = observations.find(
+      (entry) => entry.id === "import-stores-every-line"
+    );
+
+    assert.deepEqual(firstImport?.value, [], JSON.stringify(observations));
+
+    const driveIds = new Set(observations.map((entry) => entry.id));
+    const records = passingRecords().map((record) =>
+      record.step === "accounts-and-bank-lines"
+        ? {
+            ...record,
+            observations: [
+              ...record.observations.filter((entry) => !driveIds.has(entry.id)),
+              ...observations,
+            ],
+          }
+        : record
+    );
+    const result = judgeRecords(records);
+    const text = result.failures.join("\n");
+    const readback = result.expectations.find(
+      (expectation) => expectation.id === "import-stores-every-line"
+    );
+    const reply = result.expectations.find(
+      (expectation) => expectation.id === "import-writes-every-line"
+    );
+
+    assert.equal(reply?.passed, true, text);
+    assert.equal(readback?.passed, false, text);
+    assert.equal(result.passed, false, text);
+    assert.match(text, /import-stores-every-line/u);
+  } finally {
+    rmSync(path, { force: true });
+    rmSync(bookPath, { force: true });
+  }
+});
+
+const sharedReadbackStore = (source) => {
+  const layer = [
+    "const layerFor = (person) =>",
+    "  Layer.mergeAll(",
+    "    BankLineService.layer.pipe(",
+    "      Layer.provide(",
+    "        countingLayer({",
+    "          layer: memoryBankLineStoreLayer({",
+    "            categories: demoCategories,",
+    "            lines: demoBankLines,",
+    "          }),",
+    '          mutations: ["patch"],',
+  ].join("\n");
+  const shared = [
+    "const heldLines = [];",
+    "const sharedReadbackServiceLayer = Layer.effect(",
+    "  BankLineService,",
+    "  Effect.gen(function* makeSharedReadbackService() {",
+    "    const inner = yield* BankLineService;",
+    "    let held;",
+    "",
+    "    return {",
+    "      ...inner,",
+    "      list: (scope, query) => {",
+    "        if (held === undefined) {",
+    "          held = heldLines;",
+    "",
+    "          return Effect.succeed({ lines: held, next: Option.none() });",
+    "        }",
+    "",
+    "        return Effect.map(inner.list(scope, query), (page) => {",
+    "          held.length = 0;",
+    "          held.push(...page.lines);",
+    "",
+    "          return { ...page, lines: held };",
+    "        });",
+    "      },",
+    "    };",
+    "  })",
+    ").pipe(",
+    "  Layer.provide(",
+    "    BankLineService.layer.pipe(",
+    "      Layer.provide(",
+    "        countingLayer({",
+    "          layer: memoryBankLineStoreLayer({",
+    "            categories: demoCategories,",
+    "            lines: demoBankLines,",
+    "          }),",
+    '          mutations: ["patch"],',
+    "          recorder,",
+    "          service: BankLineStore,",
+    "        })",
+    "      )",
+    "    )",
+    "  )",
+    ");",
+    "",
+    "const layerFor = (person) =>",
+    "  Layer.mergeAll(sharedReadbackServiceLayer, Layer.succeed(CurrentPerson, person));",
+    "",
+    "const ignoredLayerFor = (person) =>",
+    "  Layer.mergeAll(",
+    "    BankLineService.layer.pipe(",
+    "      Layer.provide(",
+    "        countingLayer({",
+    "          layer: memoryBankLineStoreLayer({",
+    "            categories: demoCategories,",
+    "            lines: demoBankLines,",
+    "          }),",
+    '          mutations: ["patch"],',
+  ].join("\n");
+
+  assert.ok(source.includes(layer), "the bank line store layer is missing");
+
+  return source.replace(layer, shared);
+};
+
+const runSharedReadbackDrive = (label, capability) => {
+  const source = readFileSync(join(SCRIPT_DIR, "drive-bank-lines.mjs"), "utf8");
+  const path = join(SCRIPT_DIR, `.check-mutant-${process.pid}-${label}.mjs`);
+
+  try {
+    writeFileSync(path, sharedReadbackStore(source));
+
+    const drive = spawnSync("node", [path, "--capability", capability], {
+      cwd: REPO_ROOT,
+      encoding: "utf8",
+    });
+
+    assert.equal(drive.status, 0, drive.stderr);
+
+    return JSON.parse(drive.stdout).observations;
+  } finally {
+    rmSync(path, { force: true });
+  }
+};
+
+test("a shared readback array filled after an edit fails the edit readback", () => {
+  const observations = runSharedReadbackDrive("shared-edit", "edit");
+  const readback = observations.find(
+    (entry) => entry.id === "bank-line-edit-stores-category-and-note"
+  );
+
+  assert.deepEqual(readback?.value, [], JSON.stringify(observations));
+
+  const driveIds = new Set(observations.map((entry) => entry.id));
+  const records = passingRecords().map((record) =>
+    record.step === "bank-line-edit"
+      ? {
+          ...record,
+          observations: [
+            ...record.observations.filter((entry) => !driveIds.has(entry.id)),
+            ...observations,
+          ],
+        }
+      : record
+  );
+  const result = judgeRecords(records);
+  const text = result.failures.join("\n");
+  const reply = result.expectations.find(
+    (expectation) => expectation.id === "bank-line-edit-sets-category-and-note"
+  );
+
+  assert.equal(reply?.passed, true, text);
+  assert.equal(result.passed, false, text);
+  assert.match(text, /bank-line-edit-stores-category-and-note/u);
+});
+
+test("a shared readback array filled after a review fails the review readback", () => {
+  const observations = runSharedReadbackDrive("shared-review", "review");
+  const readback = observations.find(
+    (entry) => entry.id === "bank-line-review-shows-in-the-list"
+  );
+
+  assert.deepEqual(readback?.value, [], JSON.stringify(observations));
+
+  const driveIds = new Set(observations.map((entry) => entry.id));
+  const records = passingRecords().map((record) =>
+    record.step === "bank-line-review"
+      ? {
+          ...record,
+          observations: [
+            ...record.observations.filter((entry) => !driveIds.has(entry.id)),
+            ...observations,
+          ],
+        }
+      : record
+  );
+  const result = judgeRecords(records);
+  const text = result.failures.join("\n");
+  const reply = result.expectations.find(
+    (expectation) => expectation.id === "bank-line-review-marks-the-line"
+  );
+
+  assert.equal(reply?.passed, true, text);
+  assert.equal(result.passed, false, text);
+  assert.match(text, /bank-line-review-shows-in-the-list/u);
 });
 
 test("the verdict never passes a mutated record file and names the cause", () => {
