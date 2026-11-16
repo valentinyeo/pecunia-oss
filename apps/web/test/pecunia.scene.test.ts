@@ -72,6 +72,16 @@ describe("pecunia shell", () => {
     }
   });
 
+  it("opens the screen a menu address names whatever follows the path", () => {
+    for (const item of menuLinks) {
+      for (const suffix of ["", "/", "?from=mail", "#top"]) {
+        expect(parseRoute(url(`${item.path}${suffix}`))).toStrictEqual(
+          item.screen
+        );
+      }
+    }
+  });
+
   it("a click on a menu link routes to that address", () => {
     const routed = update(
       initialModel,
