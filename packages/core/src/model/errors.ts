@@ -1,209 +1,200 @@
-// oxlint-disable eslint/max-classes-per-file -- the six tagged errors share one strict factory pair so each has exactly one door
-import { Schema } from "effect";
+// oxlint-disable anti-slop/require-safety-comment-for-type-assertion, typescript/no-unsafe-type-assertion -- the one error factory copies exactly the declared primitive field names into the table's field type
+// oxlint-disable anti-slop/no-object-parameters, anti-slop/no-reflect-get -- an error owner is any verified error instance, and its declared field names are read by the table that defines them
+import { Schema, SchemaGetter } from "effect";
 
-import type { Exact, ModelCodec } from "./codec.js";
-import { codec, verified } from "./codec.js";
+import type { Exact, Handle, ModelCodec } from "./codec.js";
+import { assertNoForeignKeys, codec, parse } from "./codec.js";
 import { CurrencyCodeSchema, MinorUnitsSchema } from "./primitives.js";
-import { RateSchema, rateText } from "./rate.js";
 
 declare const errorBrand: unique symbol;
 
-const conversionInputInvalidFields = {
-  from: CurrencyCodeSchema,
-  reason: Schema.Literals(["fractional", "not-finite", "unsafe"]),
-  to: CurrencyCodeSchema,
-};
-
-const ConversionInputInvalidSchema = Schema.Struct(
-  conversionInputInvalidFields
-);
-
-export type ConversionInputInvalidFields = Exact<
-  typeof ConversionInputInvalidSchema.Type
->;
-
-class ConversionInputInvalidError extends Schema.TaggedError<
-  ConversionInputInvalidError,
-  { readonly brand: unique symbol }
->()("ConversionInputInvalid", conversionInputInvalidFields) {
-  declare readonly [errorBrand]: true;
-
-  static of(input: ConversionInputInvalidFields): ConversionInputInvalidError {
-    return new ConversionInputInvalidError(
-      verified(ConversionInputInvalidSchema, input)
-    );
-  }
-
-  override get message(): string {
-    return `Converting ${this.from} into ${this.to} needs whole minor units that a number holds exactly, but this amount is ${this.reason}. Fix: pass a safe integer number of minor units.`;
-  }
-}
-
-export type ConversionInputInvalid = ConversionInputInvalidError;
-
-export const conversionInputInvalid = (
-  input: ConversionInputInvalidFields
-): ConversionInputInvalid => ConversionInputInvalidError.of(input);
-
-const conversionOverflowFields = {
-  baseCurrency: CurrencyCodeSchema,
+const kindSchemas = {
   currency: CurrencyCodeSchema,
   minor: MinorUnitsSchema,
-  rate: RateSchema,
+  operation: Schema.Literals(["add", "subtract"]),
+  reason: Schema.Literals(["fractional", "not-finite", "unsafe"]),
+  text: Schema.String,
+} as const;
+
+const kindValues: readonly Schema.Top[] = Object.values(kindSchemas);
+
+type FieldSchemas = Record<string, Schema.Top>;
+
+type FieldsOf<F extends FieldSchemas> = {
+  readonly [K in keyof F]: F[K]["Type"];
 };
 
-const ConversionOverflowSchema = Schema.Struct(conversionOverflowFields);
+type ErrorOf<F extends FieldSchemas> = Error & {
+  readonly _tag: string;
+  readonly [errorBrand]: true;
+} & FieldsOf<F>;
+
+interface ErrorSpec<Tag extends string, F extends FieldSchemas> {
+  readonly fields: F;
+  readonly message: (fields: FieldsOf<F>) => string;
+  readonly tag: Tag;
+}
+
+const declaredFields = <F extends FieldSchemas>(
+  fields: F,
+  source: object
+): FieldsOf<F> =>
+  Object.fromEntries(
+    Object.keys(fields).map((name) => [name, Reflect.get(source, name)])
+  ) as FieldsOf<F>;
+
+const defineError = <const Tag extends string, const F extends FieldSchemas>(
+  spec: ErrorSpec<Tag, F>
+) => {
+  const { fields, tag } = spec;
+
+  for (const schema of Object.values(fields)) {
+    if (!kindValues.includes(schema)) {
+      throw new Error(`${tag} declares a field that is not a primitive kind.`);
+    }
+  }
+
+  const wire = Schema.TaggedStruct(tag, fields);
+
+  const ErrorClass = class extends Error {
+    declare readonly [errorBrand]: true;
+    declare readonly _tag: Tag;
+  };
+
+  const instance = Schema.declare<ErrorOf<F>>(
+    (value): value is ErrorOf<F> => value instanceof ErrorClass
+  );
+
+  const build = (
+    input: object
+  ): InstanceType<typeof ErrorClass> & FieldsOf<F> =>
+    Object.assign(new ErrorClass(), declaredFields(fields, input));
+
+  const schema = wire.pipe(
+    Schema.decodeTo(instance, {
+      decode: SchemaGetter.transform(build),
+      encode: SchemaGetter.transform((value: object) => ({
+        ...declaredFields(fields, value),
+        _tag: tag,
+      })),
+    })
+  );
+
+  Object.defineProperties(ErrorClass.prototype, {
+    constructor: { value: undefined },
+    message: {
+      get(this: object): string {
+        return spec.message(declaredFields(fields, this));
+      },
+    },
+    name: { value: tag },
+    _tag: { value: tag },
+  });
+
+  return { fields, schema, tag };
+};
+
+const conversionInputInvalidError = defineError({
+  fields: {
+    from: kindSchemas.currency,
+    reason: kindSchemas.reason,
+    to: kindSchemas.currency,
+  },
+  message: ({ from, reason, to }) =>
+    `Converting ${from} into ${to} needs whole minor units that a number holds exactly, but this amount is ${reason}. Fix: pass a safe integer number of minor units.`,
+  tag: "ConversionInputInvalid",
+});
+
+export type ConversionInputInvalidFields = Exact<
+  FieldsOf<typeof conversionInputInvalidError.fields>
+>;
+
+export type ConversionInputInvalid = ErrorOf<
+  typeof conversionInputInvalidError.fields
+>;
+
+const conversionOverflowError = defineError({
+  fields: {
+    baseCurrency: kindSchemas.currency,
+    currency: kindSchemas.currency,
+    minor: kindSchemas.minor,
+    rate: kindSchemas.text,
+  },
+  message: ({ baseCurrency, currency, minor, rate }) =>
+    `Converting ${minor} ${currency} at ${rate} into ${baseCurrency} leaves the safe integer range. Fix: convert a smaller amount, or store the amount in ${currency}.`,
+  tag: "ConversionOverflow",
+});
 
 export type ConversionOverflowFields = Exact<
-  typeof ConversionOverflowSchema.Type
+  FieldsOf<typeof conversionOverflowError.fields>
 >;
 
-class ConversionOverflowError extends Schema.TaggedError<
-  ConversionOverflowError,
-  { readonly brand: unique symbol }
->()("ConversionOverflow", conversionOverflowFields) {
-  declare readonly [errorBrand]: true;
+export type ConversionOverflow = ErrorOf<typeof conversionOverflowError.fields>;
 
-  static of(input: ConversionOverflowFields): ConversionOverflowError {
-    return new ConversionOverflowError(
-      verified(ConversionOverflowSchema, input)
-    );
-  }
+const currencyMismatchError = defineError({
+  fields: {
+    left: kindSchemas.currency,
+    right: kindSchemas.currency,
+  },
+  message: ({ left, right }) =>
+    `Cannot combine ${left} with ${right}. Fix: convert both amounts into one currency with convert().`,
+  tag: "CurrencyMismatch",
+});
 
-  override get message(): string {
-    return `Converting ${this.minor} ${this.currency} at ${rateText(this.rate)} into ${this.baseCurrency} leaves the safe integer range. Fix: convert a smaller amount, or store the amount in ${this.currency}.`;
-  }
-}
+export type CurrencyMismatchFields = Exact<
+  FieldsOf<typeof currencyMismatchError.fields>
+>;
 
-export type ConversionOverflow = ConversionOverflowError;
+export type CurrencyMismatch = ErrorOf<typeof currencyMismatchError.fields>;
 
-export const conversionOverflow = (
-  input: ConversionOverflowFields
-): ConversionOverflow => ConversionOverflowError.of(input);
+const moneyOverflowError = defineError({
+  fields: {
+    currency: kindSchemas.currency,
+    left: kindSchemas.minor,
+    operation: kindSchemas.operation,
+    right: kindSchemas.minor,
+  },
+  message: ({ currency, left, operation, right }) =>
+    `${left} ${operation === "add" ? "+" : "-"} ${right} in ${currency} leaves the safe integer range. Fix: split the amount across two rows, or add the parts in another order that stays in range.`,
+  tag: "MoneyOverflow",
+});
 
-const currencyMismatchFields = {
-  left: CurrencyCodeSchema,
-  right: CurrencyCodeSchema,
-};
+export type MoneyOverflowFields = Exact<
+  FieldsOf<typeof moneyOverflowError.fields>
+>;
 
-const CurrencyMismatchSchema = Schema.Struct(currencyMismatchFields);
+export type MoneyOverflow = ErrorOf<typeof moneyOverflowError.fields>;
 
-export type CurrencyMismatchFields = Exact<typeof CurrencyMismatchSchema.Type>;
-
-class CurrencyMismatchError extends Schema.TaggedError<
-  CurrencyMismatchError,
-  { readonly brand: unique symbol }
->()("CurrencyMismatch", currencyMismatchFields) {
-  declare readonly [errorBrand]: true;
-
-  static of(input: CurrencyMismatchFields): CurrencyMismatchError {
-    return new CurrencyMismatchError(verified(CurrencyMismatchSchema, input));
-  }
-
-  override get message(): string {
-    return `Cannot combine ${this.left} with ${this.right}. Fix: convert both amounts into one currency with convert().`;
-  }
-}
-
-export type CurrencyMismatch = CurrencyMismatchError;
-
-export const currencyMismatch = (
-  input: CurrencyMismatchFields
-): CurrencyMismatch => CurrencyMismatchError.of(input);
-
-const moneyOverflowFields = {
-  currency: CurrencyCodeSchema,
-  left: MinorUnitsSchema,
-  operation: Schema.Literals(["add", "subtract"]),
-  right: MinorUnitsSchema,
-};
-
-const MoneyOverflowSchema = Schema.Struct(moneyOverflowFields);
-
-export type MoneyOverflowFields = Exact<typeof MoneyOverflowSchema.Type>;
-
-class MoneyOverflowError extends Schema.TaggedError<
-  MoneyOverflowError,
-  { readonly brand: unique symbol }
->()("MoneyOverflow", moneyOverflowFields) {
-  declare readonly [errorBrand]: true;
-
-  static of(input: MoneyOverflowFields): MoneyOverflowError {
-    return new MoneyOverflowError(verified(MoneyOverflowSchema, input));
-  }
-
-  override get message(): string {
-    return `${this.left} ${this.operation === "add" ? "+" : "-"} ${this.right} in ${this.currency} leaves the safe integer range. Fix: split the amount across two rows, or add the parts in another order that stays in range.`;
-  }
-}
-
-export type MoneyOverflow = MoneyOverflowError;
-
-export const moneyOverflow = (input: MoneyOverflowFields): MoneyOverflow =>
-  MoneyOverflowError.of(input);
-
-const rateOnSameCurrencyFields = {
-  currency: CurrencyCodeSchema,
-};
-
-const RateOnSameCurrencySchema = Schema.Struct(rateOnSameCurrencyFields);
+const rateOnSameCurrencyError = defineError({
+  fields: {
+    currency: kindSchemas.currency,
+  },
+  message: ({ currency }) =>
+    `A ${currency} amount cannot be converted into ${currency} with a rate. Fix: store it with SameCurrency and no rate.`,
+  tag: "RateOnSameCurrency",
+});
 
 export type RateOnSameCurrencyFields = Exact<
-  typeof RateOnSameCurrencySchema.Type
+  FieldsOf<typeof rateOnSameCurrencyError.fields>
 >;
 
-class RateOnSameCurrencyError extends Schema.TaggedError<
-  RateOnSameCurrencyError,
-  { readonly brand: unique symbol }
->()("RateOnSameCurrency", rateOnSameCurrencyFields) {
-  declare readonly [errorBrand]: true;
+export type RateOnSameCurrency = ErrorOf<typeof rateOnSameCurrencyError.fields>;
 
-  static of(input: RateOnSameCurrencyFields): RateOnSameCurrencyError {
-    return new RateOnSameCurrencyError(
-      verified(RateOnSameCurrencySchema, input)
-    );
-  }
+const rateUnavailableError = defineError({
+  fields: {
+    from: kindSchemas.currency,
+    to: kindSchemas.currency,
+  },
+  message: ({ from, to }) =>
+    `No ${from} to ${to} rate is known. Fix: store the rate before converting, or keep the amount in ${from}.`,
+  tag: "RateUnavailable",
+});
 
-  override get message(): string {
-    return `A ${this.currency} amount cannot be converted into ${this.currency} with a rate. Fix: store it with SameCurrency and no rate.`;
-  }
-}
+export type RateUnavailableFields = Exact<
+  FieldsOf<typeof rateUnavailableError.fields>
+>;
 
-export type RateOnSameCurrency = RateOnSameCurrencyError;
-
-export const rateOnSameCurrency = (
-  input: RateOnSameCurrencyFields
-): RateOnSameCurrency => RateOnSameCurrencyError.of(input);
-
-const rateUnavailableFields = {
-  from: CurrencyCodeSchema,
-  to: CurrencyCodeSchema,
-};
-
-const RateUnavailableSchema = Schema.Struct(rateUnavailableFields);
-
-export type RateUnavailableFields = Exact<typeof RateUnavailableSchema.Type>;
-
-class RateUnavailableError extends Schema.TaggedError<
-  RateUnavailableError,
-  { readonly brand: unique symbol }
->()("RateUnavailable", rateUnavailableFields) {
-  declare readonly [errorBrand]: true;
-
-  static of(input: RateUnavailableFields): RateUnavailableError {
-    return new RateUnavailableError(verified(RateUnavailableSchema, input));
-  }
-
-  override get message(): string {
-    return `No ${this.from} to ${this.to} rate is known. Fix: store the rate before converting, or keep the amount in ${this.from}.`;
-  }
-}
-
-export type RateUnavailable = RateUnavailableError;
-
-export const rateUnavailable = (
-  input: RateUnavailableFields
-): RateUnavailable => RateUnavailableError.of(input);
+export type RateUnavailable = ErrorOf<typeof rateUnavailableError.fields>;
 
 export interface ErrorCodecs {
   readonly conversionInputInvalid: ModelCodec<ConversionInputInvalid, unknown>;
@@ -217,11 +208,59 @@ export interface ErrorCodecs {
 export const errorCodecs: ErrorCodecs = {
   conversionInputInvalid: codec(
     "ConversionInputInvalid",
-    ConversionInputInvalidError
+    conversionInputInvalidError.schema
   ),
-  conversionOverflow: codec("ConversionOverflow", ConversionOverflowError),
-  currencyMismatch: codec("CurrencyMismatch", CurrencyMismatchError),
-  moneyOverflow: codec("MoneyOverflow", MoneyOverflowError),
-  rateOnSameCurrency: codec("RateOnSameCurrency", RateOnSameCurrencyError),
-  rateUnavailable: codec("RateUnavailable", RateUnavailableError),
+  conversionOverflow: codec(
+    "ConversionOverflow",
+    conversionOverflowError.schema
+  ),
+  currencyMismatch: codec("CurrencyMismatch", currencyMismatchError.schema),
+  moneyOverflow: codec("MoneyOverflow", moneyOverflowError.schema),
+  rateOnSameCurrency: codec(
+    "RateOnSameCurrency",
+    rateOnSameCurrencyError.schema
+  ),
+  rateUnavailable: codec("RateUnavailable", rateUnavailableError.schema),
 };
+
+const make = <T>(
+  handle: ModelCodec<T, unknown>,
+  tag: string,
+  input: object
+): T => {
+  const failure = assertNoForeignKeys(input, handle as Handle);
+
+  if (failure !== undefined) {
+    throw failure;
+  }
+
+  return parse(handle, { _tag: tag, ...input });
+};
+
+export const conversionInputInvalid = (
+  input: ConversionInputInvalidFields
+): ConversionInputInvalid =>
+  make(errorCodecs.conversionInputInvalid, "ConversionInputInvalid", input);
+
+export const conversionOverflow = (
+  input: ConversionOverflowFields
+): ConversionOverflow =>
+  make(errorCodecs.conversionOverflow, "ConversionOverflow", input);
+
+export const currencyMismatch = (
+  input: CurrencyMismatchFields
+): CurrencyMismatch =>
+  make(errorCodecs.currencyMismatch, "CurrencyMismatch", input);
+
+export const moneyOverflow = (input: MoneyOverflowFields): MoneyOverflow =>
+  make(errorCodecs.moneyOverflow, "MoneyOverflow", input);
+
+export const rateOnSameCurrency = (
+  input: RateOnSameCurrencyFields
+): RateOnSameCurrency =>
+  make(errorCodecs.rateOnSameCurrency, "RateOnSameCurrency", input);
+
+export const rateUnavailable = (
+  input: RateUnavailableFields
+): RateUnavailable =>
+  make(errorCodecs.rateUnavailable, "RateUnavailable", input);

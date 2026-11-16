@@ -411,14 +411,7 @@ const dateTimeAdmits = (context: ShapeContext, key: Key): boolean => {
   );
 };
 
-class ShapeProbeError extends Schema.TaggedError<
-  ShapeProbeError,
-  { readonly brand: unique symbol }
->()("ShapeProbeError", {}) {}
-
-const errorKeys: ReadonlySet<Key> = new Set<Key>(
-  Reflect.ownKeys(new ShapeProbeError())
-);
+const errorInfrastructureKeys: ReadonlySet<Key> = new Set<Key>(["stack"]);
 
 const someKeys: ReadonlySet<Key> = new Set<Key>(
   Reflect.ownKeys(Option.some(null))
@@ -547,9 +540,19 @@ const optionSomeChildren = (context: ShapeContext): readonly ShapeNode[] =>
 const errorAllowed = (context: ShapeContext): ReadonlySet<Key> | undefined => {
   const fields = structAllowed(context);
 
-  return fields === undefined
-    ? undefined
-    : new Set<Key>([...fields, ...errorKeys]);
+  if (fields === undefined) {
+    return undefined;
+  }
+
+  const allowed = new Set<Key>(errorInfrastructureKeys);
+
+  for (const key of fields) {
+    if (key !== "_tag") {
+      allowed.add(key);
+    }
+  }
+
+  return allowed;
 };
 
 const shapeTable: Readonly<Record<ShapeKind, ShapeRule>> = {

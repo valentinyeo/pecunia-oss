@@ -1325,7 +1325,7 @@ describe("the sixth verdict reproductions stay rejected", () => {
         baseCurrency: currencyOf("EUR"),
         currency: currencyOf("USD"),
         minor: parse(model.codecs.minorUnits, 1000),
-        rate: rateOf("0.85"),
+        rate: "0.85",
       }).message
     ).toContain("0.85");
 
@@ -2135,7 +2135,7 @@ describe("every node rejects a foreign own key attached any way", () => {
           baseCurrency: "EUR",
           currency: "USD",
           minor: 1,
-          rate: rateOf("0.85"),
+          rate: "0.85",
         },
       },
       {
@@ -2712,4 +2712,319 @@ describe("the money operations refuse a money that carries a foreign key", () =>
         expect(cases).toBeGreaterThanOrEqual(10);
       })
   );
+});
+
+const plainArgsKey = Symbol.for("effect/Data/Error/plainArgs");
+
+const errorDoorFields = (wire: Wire): Readonly<Record<string, unknown>> => {
+  const { _tag: tag, ...fields } = wire;
+
+  void tag;
+
+  return fields;
+};
+
+const errorDoors = (): readonly {
+  readonly handle: Handle;
+  readonly make: (fields: never) => Error;
+  readonly wire: Wire;
+}[] => [
+  {
+    handle: codecs.conversionInputInvalid,
+    make: model.conversionInputInvalid,
+    wire: {
+      _tag: "ConversionInputInvalid",
+      from: "USD",
+      reason: "fractional",
+      to: "EUR",
+    },
+  },
+  {
+    handle: codecs.conversionOverflow,
+    make: model.conversionOverflow,
+    wire: {
+      _tag: "ConversionOverflow",
+      baseCurrency: "EUR",
+      currency: "USD",
+      minor: 1,
+      rate: "0.85",
+    },
+  },
+  {
+    handle: codecs.currencyMismatch,
+    make: model.currencyMismatch,
+    wire: { _tag: "CurrencyMismatch", left: "USD", right: "EUR" },
+  },
+  {
+    handle: codecs.moneyOverflow,
+    make: model.moneyOverflow,
+    wire: {
+      _tag: "MoneyOverflow",
+      currency: "EUR",
+      left: 1,
+      operation: "add",
+      right: 2,
+    },
+  },
+  {
+    handle: codecs.rateOnSameCurrency,
+    make: model.rateOnSameCurrency,
+    wire: { _tag: "RateOnSameCurrency", currency: "EUR" },
+  },
+  {
+    handle: codecs.rateUnavailable,
+    make: model.rateUnavailable,
+    wire: { _tag: "RateUnavailable", from: "USD", to: "EUR" },
+  },
+];
+
+const leakOf = (value: unknown): string | undefined => {
+  if (Schema.isSchema(value)) {
+    return "a schema";
+  }
+
+  if (
+    (typeof value === "object" && value !== null) ||
+    typeof value === "function"
+  ) {
+    return typeof Reflect.get(value as object, "make") === "function"
+      ? "a .make constructor"
+      : undefined;
+  }
+
+  return undefined;
+};
+
+const readKey = (node: object, key: ForeignKey): unknown => {
+  try {
+    return Reflect.get(node, key);
+  } catch {
+    return undefined;
+  }
+};
+
+const leaksWithin = (root: unknown, label: string): readonly string[] => {
+  const leaks: string[] = [];
+  const seen = new WeakSet<object>();
+
+  const walk = (value: unknown, path: string, depth: number): void => {
+    const leak = leakOf(value);
+
+    if (leak !== undefined) {
+      leaks.push(`${label}${path} reaches ${leak}`);
+
+      return;
+    }
+
+    if (
+      depth > 8 ||
+      value === null ||
+      (typeof value !== "object" && typeof value !== "function")
+    ) {
+      return;
+    }
+
+    const node = value as object;
+
+    if (seen.has(node)) {
+      return;
+    }
+
+    seen.add(node);
+
+    for (const key of Reflect.ownKeys(node)) {
+      walk(readKey(node, key), `${path}.${String(key)}`, depth + 1);
+    }
+
+    const prototype: unknown = Object.getPrototypeOf(node);
+
+    if (prototype !== null) {
+      walk(prototype, `${path}.<prototype>`, depth + 1);
+    }
+  };
+
+  walk(root, "", 0);
+
+  return leaks;
+};
+
+const DOOR_SEED = 672_390;
+
+describe("the sixty-seventh verdict doors stay shut", () => {
+  it("keeps exactly the six tagged errors on the public codec table", () => {
+    const doors = errorDoors();
+
+    expect(doors.map(({ handle }) => handle.name).toSorted()).toStrictEqual(
+      [
+        "ConversionInputInvalid",
+        "ConversionOverflow",
+        "CurrencyMismatch",
+        "MoneyOverflow",
+        "RateOnSameCurrency",
+        "RateUnavailable",
+      ].toSorted()
+    );
+  });
+
+  it("keeps every valid error encoding back to its wire", () => {
+    for (const { handle, make, wire } of errorDoors()) {
+      const instance = make(errorDoorFields(wire) as never);
+      const decoded = handle.decode(wire);
+
+      expect(
+        Result.isSuccess(decoded),
+        `${handle.name} decodes its own wire`
+      ).toBe(true);
+      expect(
+        render(handle as ModelCodec<never, unknown>, instance as never)
+      ).toStrictEqual(wire);
+    }
+  });
+
+  it("exposes no constructor that rebuilds an error", () => {
+    for (const { handle, make, wire } of errorDoors()) {
+      const instance = make(errorDoorFields(wire) as never);
+      const constructor: unknown = Reflect.get(instance, "constructor");
+
+      expect(
+        constructor,
+        `${handle.name} exposes a constructor`
+      ).toBeUndefined();
+
+      expect(
+        () => Reflect.construct(constructor as never, []),
+        `${handle.name} constructor is usable`
+      ).toThrow();
+    }
+  });
+
+  it("reaches no schema, encoder or .make from an error within eight steps", () => {
+    const leaks = errorDoors().flatMap(({ handle, make, wire }) =>
+      leaksWithin(make(errorDoorFields(wire) as never), handle.name)
+    );
+
+    expect(leaks).toStrictEqual([]);
+  });
+
+  it("reaches no schema, encoder or .make from a public export within eight steps", () => {
+    const leaks = Object.entries(model).flatMap(([name, value]) =>
+      leaksWithin(value, name)
+    );
+
+    expect(leaks).toStrictEqual([]);
+  });
+
+  it("names a foreign rate instead of dropping it, as the first door did", () => {
+    for (const { handle, make, wire } of errorDoors()) {
+      const forged = { ...errorDoorFields(wire), note: "forged" };
+
+      expect(
+        () => make(forged as never),
+        `${handle.name} dropped a foreign note`
+      ).toThrow(/note/u);
+    }
+
+    expect(() =>
+      construct((fields: never) => model.conversionInputInvalid(fields), {
+        from: currencyOf("EUR"),
+        rate: rateOf("0.85"),
+        to: currencyOf("USD"),
+      })
+    ).toThrow(/rate/u);
+  });
+
+  it("keeps the plainArgs slot out of every error, as the second door did", () => {
+    for (const { handle, make, wire } of errorDoors()) {
+      const instance = make(errorDoorFields(wire) as never);
+
+      expect(
+        Object.hasOwn(instance, plainArgsKey),
+        `${handle.name} carries the plainArgs slot`
+      ).toBe(false);
+
+      Object.defineProperty(instance, plainArgsKey, {
+        configurable: true,
+        value: { rate: rateOf("0.85") },
+      });
+
+      expect(
+        () => render(handle as ModelCodec<never, unknown>, instance as never),
+        `${handle.name} render dropped a rate in plainArgs`
+      ).toThrow(/effect\/Data\/Error\/plainArgs/u);
+
+      expect(() =>
+        verified(
+          handle as ModelCodec<never, unknown>,
+          make(errorDoorFields(wire) as never) as never
+        )
+      ).not.toThrow();
+    }
+  });
+
+  it("rejects a foreign string, symbol or nested money on every error, seeded", () => {
+    let state = DOOR_SEED;
+
+    const next = (): number => {
+      state = (state * 1_664_525 + 1_013_904_223) % 4_294_967_296;
+
+      return state / 4_294_967_296;
+    };
+
+    const draw = <T>(values: readonly T[]): T =>
+      values[Math.floor(next() * values.length)] as T;
+
+    const keys: readonly ForeignKey[] = [
+      plainArgsKey,
+      Symbol("rate"),
+      Symbol.for("effect/Data/Error/plainArgs"),
+      "amount",
+      "base",
+      "fee",
+      "note",
+      "rate",
+      "total",
+    ];
+
+    const strays: readonly unknown[] = [
+      { currency: "EUR", minor: 1 },
+      { denominator: 100, numerator: 85 },
+      rateOf("0.85"),
+      7,
+    ];
+
+    const methods = ["assign", "define", "define-hidden"] as const;
+
+    let cases = 0;
+
+    for (const { handle, make, wire } of errorDoors()) {
+      for (let step = 0; step < 150; step += 1) {
+        const method = draw([...methods]);
+        const key = draw(keys);
+        const value = draw(strays);
+        const name = String(key);
+        const label = `seed ${DOOR_SEED} ${handle.name} step ${step} ${method} ${name}`;
+        const instance = make(errorDoorFields(wire) as never);
+
+        if (Object.hasOwn(instance, key)) {
+          continue;
+        }
+
+        if (method === "assign") {
+          Object.assign(instance, { [key]: value });
+        } else {
+          Object.defineProperty(instance, key, {
+            configurable: true,
+            enumerable: method === "define",
+            value,
+          });
+        }
+
+        expectEveryDoorRejects(handle, instance, name, label);
+
+        cases += 1;
+      }
+    }
+
+    expect(cases).toBeGreaterThanOrEqual(700);
+  });
 });

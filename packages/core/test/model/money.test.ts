@@ -294,7 +294,7 @@ describe("conversion", () => {
           baseCurrency: currencyOf("GBP"),
           currency: currencyOf("USD"),
           minor: large.minor,
-          rate: rateOf("2"),
+          rate: "2",
         })
       );
     })

@@ -15,7 +15,12 @@ import {
 import type { Operation } from "./operation.js";
 import type { CurrencyCode, MinorUnits } from "./primitives.js";
 import { MinorUnitsSchema } from "./primitives.js";
-import { RATE_SCALE_FACTOR, rateArgument, rateSample } from "./rate.js";
+import {
+  RATE_SCALE_FACTOR,
+  rateArgument,
+  rateSample,
+  rateText,
+} from "./rate.js";
 import type { Rate } from "./rate.js";
 
 const minorUnitExponents = new Map([
@@ -117,7 +122,7 @@ const convertMinorRun = (
           baseCurrency: to,
           currency: from,
           minor,
-          rate,
+          rate: rateText(rate),
         })
       ),
     onSome: (value) => Result.succeed(value),
