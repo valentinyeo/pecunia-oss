@@ -1,6 +1,8 @@
 import { DateTime, Result, Schema } from "effect";
 import { describe, expect, it } from "vitest";
 
+import type { BaseAmount } from "../../src/model/base-amount.js";
+import { ConvertedAmount } from "../../src/model/converted-amount.js";
 import {
   AmountsSchema,
   ArchiveStateSchema,
@@ -24,6 +26,8 @@ import type {
 } from "../../src/model/index.js";
 import {
   CategoryIdSchema,
+  CurrencyCodeSchema,
+  DateOnlySchema,
   MoneySchema,
   PayeeIdSchema,
   ProfileIdSchema,
@@ -31,6 +35,7 @@ import {
   TimestampSchema,
   TransactionIdSchema,
 } from "../../src/model/primitives.js";
+import { RateSchema } from "../../src/model/rate.js";
 
 const timestampOf = (text: string) =>
   Schema.decodeSync(TimestampSchema)(DateTime.makeUnsafe(text));
@@ -253,6 +258,44 @@ const cancelledSyncWire = Schema.encodeSync(SyncRunStateSchema.cases.Cancelled)(
 
 const extraField = "demoExtraField";
 
+const convertedOf = (): ConvertedAmount =>
+  Result.getOrThrow(
+    ConvertedAmount.converting(
+      moneyOf("USD", 1000),
+      Schema.decodeSync(CurrencyCodeSchema)("EUR"),
+      Schema.decodeSync(RateSchema)("0.85"),
+      Schema.decodeSync(DateOnlySchema)("2024-01-30")
+    )
+  );
+
+const convertedCarryingAmount = () => {
+  const converted = convertedOf();
+  Object.assign(converted, { amount: moneyOf("USD", 1000) });
+
+  return converted;
+};
+
+const convertedCarryingStrayField = () => {
+  const converted = convertedOf();
+  Object.assign(converted, { demoExtraField: "demo" });
+
+  return converted;
+};
+
+const convertedWhoseBaseCarriesAConversion = () => {
+  const converted = convertedOf();
+  Object.assign(converted.base, { rate: converted.rate });
+
+  return converted;
+};
+
+const convertedWithAForeignBase = () => {
+  const converted = convertedOf();
+  Object.assign(converted, { base: moneyOf("EUR", 850) });
+
+  return converted;
+};
+
 const unionsDecodedWithOneExtraField = {
   amounts: () =>
     decodeAmounts({
@@ -432,6 +475,50 @@ describe("an amount holds exactly one currency story", () => {
     expect(
       rejectionMessage(Schema.encodeUnknownResult(AmountsSchema)(forgedAmounts))
     ).toContain("base");
+  });
+});
+
+describe("a class-backed amount never carries a sibling field", () => {
+  it("rejects encoding a converted amount with a same-currency amount", () => {
+    expect(
+      rejectionMessage(encodeAmounts(convertedCarryingAmount()))
+    ).toContain("amount");
+  });
+
+  it("declares no same-currency amount on a converted amount", () => {
+    const absent: ConvertedAmount["amount"] = undefined;
+
+    // @ts-expect-error -- a converted amount never carries a same-currency amount
+    const forged: ConvertedAmount["amount"] = moneyOf("USD", 1000);
+
+    expect([absent, forged]).toStrictEqual([undefined, moneyOf("USD", 1000)]);
+  });
+
+  it("rejects encoding a converted amount with a stray field", () => {
+    expect(
+      rejectionMessage(encodeAmounts(convertedCarryingStrayField()))
+    ).toContain(extraField);
+  });
+
+  it("rejects encoding a base amount with a conversion rate", () => {
+    expect(
+      rejectionMessage(encodeAmounts(convertedWhoseBaseCarriesAConversion()))
+    ).toContain("rate");
+  });
+
+  it("rejects encoding a converted amount whose base is a plain money", () => {
+    expect(
+      rejectionMessage(encodeAmounts(convertedWithAForeignBase()))
+    ).toContain("base");
+  });
+
+  it("declares no conversion rate on a base amount", () => {
+    const absent: BaseAmount["rate"] = undefined;
+
+    // @ts-expect-error -- a base amount never carries a conversion rate
+    const forged: BaseAmount["rate"] = convertedOf().rate;
+
+    expect([absent, forged]).toStrictEqual([undefined, convertedOf().rate]);
   });
 });
 

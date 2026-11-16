@@ -1,6 +1,14 @@
-import { Option, Result, Schema, SchemaGetter } from "effect";
+import {
+  Effect,
+  Option,
+  Result,
+  Schema,
+  SchemaGetter,
+  SchemaIssue,
+} from "effect";
+import type { SchemaAST } from "effect";
 
-import { BaseAmount } from "./base-amount.js";
+import { BaseAmount, baseAmountFields } from "./base-amount.js";
 import type { ConversionInputInvalid } from "./conversion-input-invalid.js";
 import type { ConversionOverflow } from "./conversion-overflow.js";
 import type {
@@ -41,6 +49,7 @@ export interface StoredConversion {
 
 export class ConvertedAmount {
   readonly _tag = "Converted";
+  declare readonly amount?: never;
   readonly asOf: DateOnly;
   readonly base: BaseAmount;
   readonly rate: Rate;
@@ -143,6 +152,52 @@ const encodedConvertedAmount = (amount: ConvertedAmount): StoredConversion =>
     source: amount.source,
   });
 
+const convertedAmountFields = ["_tag", "asOf", "base", "rate", "source"];
+
+const strayField = (
+  value: BaseAmount | ConvertedAmount,
+  allowed: readonly string[]
+): string | undefined =>
+  Object.keys(value).find((key) => !allowed.includes(key));
+
+const unexpectedField = (
+  field: string,
+  input: BaseAmount | ConvertedAmount,
+  options: SchemaAST.ParseOptions
+): SchemaIssue.Issue =>
+  new SchemaIssue.InvalidValue(
+    { message: `unexpected field "${field}"` },
+    input,
+    options
+  );
+
+const convertedAmountEncode = SchemaGetter.transformEffect<
+  StoredConversion,
+  ConvertedAmount
+>((amount, options) => {
+  const stray = strayField(amount, convertedAmountFields);
+
+  if (stray !== undefined) {
+    return Effect.fail(unexpectedField(stray, amount, options));
+  }
+
+  if (!BaseAmount.isBaseAmount(amount.base)) {
+    return Effect.fail(
+      new SchemaIssue.InvalidValue(
+        { message: "base must be a converted base amount" },
+        amount,
+        options
+      )
+    );
+  }
+
+  const baseStray = strayField(amount.base, baseAmountFields);
+
+  return baseStray === undefined
+    ? Effect.succeed(encodedConvertedAmount(amount))
+    : Effect.fail(unexpectedField(baseStray, amount.base, options));
+});
+
 export const ConvertedAmountSchema = StoredConvertedAmountSchema.pipe(
   Schema.decodeTo(
     Schema.declare((value: unknown): value is ConvertedAmount =>
@@ -156,7 +211,7 @@ export const ConvertedAmountSchema = StoredConvertedAmountSchema.pipe(
       decode: SchemaGetter.transformOptional((stored) =>
         stored.pipe(Option.flatMap(decodedConvertedAmount))
       ),
-      encode: SchemaGetter.transform(encodedConvertedAmount),
+      encode: convertedAmountEncode,
     }
   )
 );

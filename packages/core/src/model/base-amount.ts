@@ -16,9 +16,15 @@ export type RateLookup = (query: ConversionQuery) => Option.Option<Rate>;
 
 const conversionProof: unique symbol = Symbol("Converted");
 
+export const baseAmountFields = ["currency", "minor"];
+
 export class BaseAmount {
+  declare readonly amount?: never;
+  declare readonly asOf?: never;
   readonly currency: CurrencyCode;
   readonly minor: MinorUnits;
+  declare readonly rate?: never;
+  declare readonly source?: never;
   readonly #proof: typeof conversionProof;
 
   private constructor(currency: CurrencyCode, minor: MinorUnits) {
