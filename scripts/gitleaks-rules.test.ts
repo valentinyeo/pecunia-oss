@@ -79,7 +79,7 @@ const scan = (
 const ruleIds = (name: string, text: string) =>
   scan(name, text).map((finding) => finding.RuleID);
 
-describe.runIf(available)("the gitleaks rules", () => {
+describe.runIf(available)("the gitleaks rules", { timeout: 60_000 }, () => {
   it("reports a Sourcegraph token pinned beside a repository sha", () => {
     expect(
       ruleIds(

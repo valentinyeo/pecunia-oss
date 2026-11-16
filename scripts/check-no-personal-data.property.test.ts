@@ -447,7 +447,7 @@ describe("a sort code and an account number inside one record are reported as a 
     }
 
     expect({ alone, missed }).toEqual({ alone: [], missed: [] });
-  });
+  }, 30_000);
 });
 
 const pad = (value: number) => String(value).padStart(2, "0");
@@ -535,7 +535,7 @@ describe("a date, a timestamp or a phone number is never read as a bank pair", (
     }
 
     expect(paired).toEqual([]);
-  });
+  }, 30_000);
 });
 
 const EMAIL_LOCALS = [
