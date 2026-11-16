@@ -6,7 +6,8 @@ import { DateTime, Option, Predicate, Result, Schema } from "effect";
 import type { SchemaAST } from "effect";
 import { describe, expect, it } from "vitest";
 
-import { parse, schemaOf } from "../../src/model/codec.js";
+import { parse, render, schemaOf, verified } from "../../src/model/codec.js";
+import type { ModelCodec } from "../../src/model/codec.js";
 import { codecs } from "../../src/model/codecs.js";
 import { ConvertedAmount } from "../../src/model/converted-amount.js";
 import * as model from "../../src/model/index.js";
@@ -1535,5 +1536,315 @@ describe("the public surface stays strict about own keys", () => {
     expect(forgedTransaction).toBeDefined();
     expect(forgedMoney).toBeDefined();
     expect(forgedStored).toBeDefined();
+  });
+});
+
+const optionPathsOf = (value: unknown): readonly (readonly string[])[] => {
+  const out: string[][] = [];
+
+  const walk = (node: unknown, path: readonly string[]): void => {
+    if (Option.isOption(node)) {
+      out.push([...path]);
+
+      return;
+    }
+
+    if (Array.isArray(node)) {
+      for (const [index, child] of node.entries()) {
+        walk(child, [...path, String(index)]);
+      }
+
+      return;
+    }
+
+    if (!isPlainObject(node)) {
+      return;
+    }
+
+    for (const [key, child] of Object.entries(node)) {
+      walk(child, [...path, key]);
+    }
+  };
+
+  walk(value, []);
+
+  return out;
+};
+
+const someInnerOf = (node: unknown): Record<string, unknown> | undefined =>
+  Option.isOption(node) && Option.isSome(node) && isPlainObject(node.value)
+    ? { ...node.value }
+    : undefined;
+
+const pick = (root: unknown, path: readonly string[]): unknown => {
+  let node: unknown = root;
+
+  for (const key of path) {
+    node = isPlainObject(node) ? node[key] : undefined;
+  }
+
+  return node;
+};
+
+const rebuildAt = (
+  root: unknown,
+  path: readonly string[],
+  replace: (node: unknown) => unknown
+): unknown => {
+  const [head, ...rest] = path;
+
+  if (head === undefined) {
+    return replace(root);
+  }
+
+  if (Array.isArray(root)) {
+    const copy: unknown[] = [...(root as readonly unknown[])];
+
+    copy[Number(head)] = rebuildAt(copy[Number(head)], rest, replace);
+
+    return copy;
+  }
+
+  if (!isPlainObject(root)) {
+    return root;
+  }
+
+  return { ...root, [head]: rebuildAt(root[head], rest, replace) };
+};
+
+const wrappedMoney = (): Record<string, unknown> => ({
+  currency: "EUR",
+  minor: 250,
+});
+
+const freshNone = (): object =>
+  Object.create(Object.getPrototypeOf(Option.none()) as object) as object;
+
+describe("every model door rejects a forged Option wrapper", () => {
+  it("rejects forged wrappers on decode, encode, render and verified", () => {
+    const handles: readonly {
+      readonly handle: Handle;
+      readonly name: string;
+      readonly value: unknown;
+    }[] = [
+      {
+        handle: codecs.invoiceDocument,
+        name: "InvoiceDocument",
+        value: parse(codecs.invoiceDocument, invoiceWire(true)),
+      },
+      {
+        handle: codecs.transaction,
+        name: "Transaction",
+        value: parse(codecs.transaction, transactionWire(true)),
+      },
+    ];
+
+    const pool = foreignPool();
+    let cases = 0;
+
+    for (const { handle, name, value } of handles) {
+      const wire = render(
+        handle as ModelCodec<never, unknown>,
+        value as never
+      ) as Record<string, unknown>;
+
+      for (const path of optionPathsOf(value)) {
+        const label = `${name}[${path.join(".")}]`;
+        const key = pool[integer(0, pool.length - 1)] ?? "rate";
+        const inner = someInnerOf(pick(value, path));
+
+        const attacks: { field: string; wrapper: unknown }[] = [
+          {
+            field: key,
+            wrapper: Object.assign(Option.some(inner ?? wrappedMoney()), {
+              [key]: strayValue(key),
+            }),
+          },
+          {
+            field: "value",
+            wrapper: Object.assign(freshNone(), {
+              value: inner ?? wrappedMoney(),
+            }),
+          },
+          {
+            field: key,
+            wrapper: Object.assign(freshNone(), {
+              [key]: strayValue(key),
+            }),
+          },
+        ];
+
+        if (inner !== undefined) {
+          attacks.push({
+            field: key,
+            wrapper: Option.some({ ...inner, [key]: strayValue(key) }),
+          });
+        }
+
+        for (const { field, wrapper } of attacks) {
+          const forged = rebuildAt(value, path, () => wrapper);
+          const encoded = handle.encode(forged as never);
+
+          expect(Result.isFailure(encoded), `${label} encoded ${field}`).toBe(
+            true
+          );
+
+          if (Result.isFailure(encoded)) {
+            expect(
+              encoded.failure.message,
+              `${label} encode names ${field}`
+            ).toContain(field);
+          }
+
+          expect(
+            () => render(handle as ModelCodec<never, unknown>, forged as never),
+            label
+          ).toThrow(new RegExp(field, "u"));
+
+          expect(
+            () => verified(handle as ModelCodec<never, unknown>, forged),
+            label
+          ).toThrow(new RegExp(field, "u"));
+
+          cases += 1;
+        }
+
+        const wireNode = pick(wire, path);
+
+        if (!isPlainObject(wireNode)) {
+          continue;
+        }
+
+        const wireAttacks: {
+          field: string;
+          inject: (target: Record<string, unknown>) => Record<string, unknown>;
+        }[] = [
+          {
+            field: key,
+            inject: (target: Record<string, unknown>) => ({
+              ...target,
+              [key]: strayValue(key),
+            }),
+          },
+          {
+            field: "value",
+            inject: () => ({
+              _id: "Option",
+              _tag: "None",
+              value: wrappedMoney(),
+            }),
+          },
+          {
+            field: key,
+            inject: () => ({
+              _id: "Option",
+              _tag: "None",
+              [key]: strayValue(key),
+            }),
+          },
+        ];
+
+        if (isPlainObject(wireNode.value)) {
+          wireAttacks.push({
+            field: key,
+            inject: (target: Record<string, unknown>) => {
+              const nested = target.value;
+
+              return isPlainObject(nested)
+                ? { ...target, value: { ...nested, [key]: strayValue(key) } }
+                : { ...target, [key]: strayValue(key) };
+            },
+          });
+        }
+
+        for (const { field, inject } of wireAttacks) {
+          const forgedWire = rebuildAt(wire, path, (target) =>
+            inject(isPlainObject(target) ? target : {})
+          );
+
+          const decoded = handle.decode(forgedWire);
+
+          expect(Result.isFailure(decoded), `${label} decoded ${field}`).toBe(
+            true
+          );
+
+          if (Result.isFailure(decoded)) {
+            expect(
+              decoded.failure.message,
+              `${label} decode names ${field}`
+            ).toContain(field);
+          }
+
+          cases += 1;
+        }
+      }
+    }
+
+    expect(cases).toBeGreaterThanOrEqual(16);
+  });
+
+  it("keeps the ninth verdict reproductions rejected", () => {
+    const invoice = parse(codecs.invoiceDocument, invoiceWire(true));
+    const some = Option.some(moneyOf("EUR", 250));
+
+    Object.assign(some, { rate: rateOf("0.85") });
+
+    expect(() =>
+      render(codecs.invoiceDocument, { ...invoice, amount: some } as never)
+    ).toThrow(/rate/u);
+
+    expect(
+      Result.isFailure(
+        codecs.invoiceDocument.encode({ ...invoice, amount: some } as never)
+      )
+    ).toBe(true);
+
+    const transaction = parse(codecs.transaction, transactionWire(true));
+    const none = Option.none();
+
+    Object.assign(none, { value: moneyOf("EUR", 250) });
+
+    try {
+      expect(
+        Result.isFailure(
+          codecs.transaction.encode({ ...transaction, fee: none } as never)
+        )
+      ).toBe(true);
+
+      expect(() =>
+        verified(codecs.transaction, { ...transaction, fee: none })
+      ).toThrow(/value/u);
+    } finally {
+      Reflect.deleteProperty(none, "value");
+    }
+  });
+
+  it("rejects a forged Option wrapper at every exported error factory", () => {
+    const factories = [
+      model.rateUnavailable,
+      model.rateOnSameCurrency,
+      model.currencyMismatch,
+      model.moneyOverflow,
+      model.conversionInputInvalid,
+      model.conversionOverflow,
+    ] as const;
+
+    for (const factory of factories) {
+      expect(
+        () =>
+          construct(factory as (input: never) => unknown, {
+            amount: Object.assign(Option.none(), { value: wrappedMoney() }),
+          }),
+        `${factory.name} accepted a None that carries a value`
+      ).toThrow(/amount/u);
+
+      expect(
+        () =>
+          construct(factory as (input: never) => unknown, {
+            fee: Object.assign(Option.some(wrappedMoney()), { rate: "0.85" }),
+          }),
+        `${factory.name} accepted a Some that carries a rate`
+      ).toThrow(/fee/u);
+    }
   });
 });
