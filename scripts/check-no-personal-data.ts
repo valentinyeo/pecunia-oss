@@ -77,6 +77,8 @@ const SEPARATOR = String.raw`\t\v\f \u00A0\u1680\u2000-\u200A\u202F\u205F\u3000\
 
 const SEPARATOR_ANY = `[${SEPARATOR}]*`;
 
+const IBAN_BODY = `(?:[A-Z0-9]${SEPARATOR_ANY})`;
+
 const IBAN_LENGTHS = {
   AD: 24,
   AE: 23,
@@ -168,24 +170,31 @@ const IBAN_LENGTHS = {
   YE: 30,
 };
 
-const ibanGroupSizes = (length: number) => {
-  const sizes = Array.from({ length: Math.floor(length / 4) }, () => 4);
+const ibanBranch = ([country, length]: readonly [string, number]) =>
+  `${country}${SEPARATOR_ANY}(?:\\d${SEPARATOR_ANY}){2}${IBAN_BODY.repeat(length - 4)}`;
 
-  const tail = length % 4;
+const IBAN_GROUP = new RegExp(`[${SEPARATOR}]+`, "u");
 
-  return tail > 0 ? [...sizes, tail] : sizes;
-};
+const NON_LETTER = /[^\p{L}]/gu;
 
-const ibanBranch = ([country, length]: readonly [string, number]) => {
-  const [, ...groups] = ibanGroupSizes(length).map(
-    (size) => `[A-Z0-9]{${size}}`
-  );
+const NON_DIGIT = /[^\p{N}]/gu;
 
-  return `${country}${SEPARATOR_ANY}\\d{2}${SEPARATOR_ANY}${groups.join(SEPARATOR_ANY)}`;
+const readsAsIban = (value: string) => {
+  const letters = value.replaceAll(NON_LETTER, "");
+
+  if (letters === letters.toUpperCase()) {
+    return true;
+  }
+
+  if (value.split(IBAN_GROUP).filter((group) => group.length > 0).length <= 1) {
+    return true;
+  }
+
+  return value.replaceAll(NON_DIGIT, "").length >= letters.length;
 };
 
 const IBAN = new RegExp(
-  `(?<![\\p{L}\\p{N}])(?:${Object.entries(IBAN_LENGTHS).map(ibanBranch).join("|")})(?![A-Z0-9])`,
+  `(?<![\\p{L}\\p{N}_])(?:${Object.entries(IBAN_LENGTHS).map(ibanBranch).join("|")})(?![\\p{L}\\p{N}_])`,
   "giu"
 );
 
@@ -397,6 +406,7 @@ export const findPersonalData = (
     (line, index): readonly PersonalDataFinding[] => {
       const found: readonly RuleId[] = [
         ...matchesIn(IBAN, line)
+          .filter(readsAsIban)
           .filter((value) => !allowsValue(allow, filePath, value))
           .map(() => "iban" as const),
         ...matchesIn(EMAIL, unescaped(line))

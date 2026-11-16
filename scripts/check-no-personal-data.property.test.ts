@@ -132,13 +132,20 @@ const SEPARATORS = [
   "\u00A0",
   "\u2007",
   "\u202F",
+  "\u3000",
+  "\uFEFF",
   "-",
+  "\u2010",
   "\u2011",
+  "\u2013",
+  "\u2014",
+  ".",
   "  ",
   "-\t",
   " \u00A0",
   "--",
   " - ",
+  "  \u00A0",
 ];
 
 const separated = (values: readonly string[], random: Random) => {
@@ -149,16 +156,6 @@ const separated = (values: readonly string[], random: Random) => {
   }
 
   return text;
-};
-
-const groups = (iban: string) => {
-  const parts: string[] = [];
-
-  for (let index = 0; index < iban.length; index += 4) {
-    parts.push(iban.slice(index, index + 4));
-  }
-
-  return parts;
 };
 
 const IBAN_COUNTRIES: readonly (readonly [string, number])[] = [
@@ -182,18 +179,27 @@ const IBAN_COUNTRIES: readonly (readonly [string, number])[] = [
 const makeIban = (random: Random) => {
   const [country, length] = random.pick(IBAN_COUNTRIES);
 
-  return `${country}${random.digits(2)}${random.alphanumeric(length - 4)}`;
+  return `${country}${random.digits(2)}${random.alphanumeric(4)}${random.digits(length - 8)}`;
 };
 
 const renderIban = (iban: string, random: Random) => {
-  const [head = "", ...rest] = groups(iban);
+  if (random.between(1, 4) === 1) {
+    return iban;
+  }
 
-  const parts =
-    random.between(1, 4) === 1
-      ? [head.slice(0, 2), head.slice(2), ...rest]
-      : [head, ...rest];
+  const parts = [iban.slice(0, 2)];
 
-  return separated(parts, random);
+  for (let index = 2; index < iban.length;) {
+    const size = random.between(1, 4);
+
+    parts.push(iban.slice(index, index + size));
+
+    index += size;
+  }
+
+  const text = separated(parts, random);
+
+  return random.between(1, 3) === 1 ? text.toLowerCase() : text;
 };
 
 const surroundings = (rendered: string, random: Random) =>
@@ -225,14 +231,21 @@ describe("every valid-length IBAN is reported however its groups are separated",
 
 const BANK_SEPARATORS = [
   "",
+  "",
   " ",
-  "-",
   "\t",
   "\u00A0",
   "\u2007",
+  "\u202F",
+  "-",
+  "\u2011",
+  "\u2013",
+  ".",
   "  ",
-  " - ",
   "-\t",
+  " \u00A0",
+  "--",
+  " - ",
 ];
 
 const makeSortCode = (random: Random) => {
