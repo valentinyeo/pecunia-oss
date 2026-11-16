@@ -1,5 +1,6 @@
-// @effect-diagnostics nodeBuiltinImport:off -- This test reads the repository's lint config, package manifests and tracked source files, writes scratch mirrors of them under the OS temp dir, and runs the real Oxlint binary against a debugger canary.
-import { execFileSync, spawnSync } from "node:child_process";
+// @effect-diagnostics nodeBuiltinImport:off asyncFunction:off -- This test reads the repository's tracked paths and manifests, writes a scratch mirror under the OS temp dir, and runs the real Oxlint binary against canary files it plants there, in parallel, because one sequential run per workspace package takes longer than the suite may spend.
+import { execFileSync, spawn } from "node:child_process";
+import { once } from "node:events";
 import {
   copyFileSync,
   existsSync,
@@ -21,11 +22,55 @@ import type {
   OxlintConfig,
   OxlintOverride,
 } from "oxlint";
+import core from "ultracite/oxlint/core";
 import { describe, expect, it } from "vitest";
 
 import lintConfig from "../oxlint.config.ts";
 
 const repoRoot = path.resolve(import.meta.dirname, "..");
+
+const oxlintBinary = path.join(repoRoot, "node_modules/.bin/oxlint");
+
+const LINT_COMMAND = "oxlint .";
+
+const configFileNamePattern =
+  /^(?:\.oxlintrc(?:\.[\w.-]+)?|oxlint\.config\.[cm]?[jt]s)$/u;
+
+const allowedConfigFiles = new Map([
+  ["oxlint.config.ts", "the one root Oxlint config"],
+]);
+
+const allowedOtherConfigFiles = new Map([
+  [
+    "examples/tokenmaxx-starter/.oxlintrc.json",
+    "the standalone starter example sits outside the pnpm workspace, never imports @pecunia/*, and is copied into a new project rather than linted here.",
+  ],
+]);
+
+const repoIgnorePatterns = [
+  ".agent_sources/**",
+  ".agent-sources/**",
+  "**/dist/**",
+  "node_modules/**",
+  ".pi/**",
+  ".cursor/**",
+  ".claude/**",
+  "scripts/hooks/**",
+  "tools/oxlint/anti-slop/**",
+  "skills/security-audit/**",
+] as const;
+
+const allowedExtends: NonNullable<OxlintConfig["extends"]> = [core];
+
+const rootScripts = new Map([
+  ["lint", "ultracite check && oxfmt --check ."],
+  [
+    "check",
+    "pnpm run lockfile:check && varlock load && turbo run typecheck typecheck-scripts && ultracite check && oxfmt --check .",
+  ],
+  ["test", "pnpm test:security-audit && pnpm test:guards && turbo run test"],
+  ["test:guards", "vitest run scripts/*.test.ts"],
+]);
 
 type Severity = "off" | "warn" | "error";
 
@@ -69,12 +114,12 @@ const sourceExtensions = [
 
 const sourceExtensionSet: ReadonlySet<string> = new Set(sourceExtensions);
 
+const isSourceExtension = (file: string): boolean =>
+  sourceExtensionSet.has(path.extname(file));
+
 const extensionAlternatives = sourceExtensions
   .map((extension) => extension.slice(1))
   .join(",");
-
-const isSourceExtension = (file: string): boolean =>
-  sourceExtensionSet.has(path.extname(file));
 
 const testFileGlobs: readonly string[] = [
   `**/*.{test,spec,test-d,spec-d}.{${extensionAlternatives}}`,
@@ -83,11 +128,9 @@ const testFileGlobs: readonly string[] = [
 
 const testFilesScope: RuleScope = { kind: "files", files: testFileGlobs };
 
-const foldkitProgramReason =
-  "Foldkit program rules describe runtime UI construction, and a test file builds no program or view.";
-
 const foldkitTestOnly: AllowlistEntry = {
-  reason: foldkitProgramReason,
+  reason:
+    "Foldkit program rules describe runtime UI construction, and a test file builds no program or view.",
   scopes: [foldkitTestScope],
 };
 
@@ -371,6 +414,128 @@ const ruleFenceProblems = (
   ...offRuleProblems(config, allowlist),
 ];
 
+const extendsProblems = (
+  entries: NonNullable<OxlintConfig["extends"]>
+): readonly string[] =>
+  entries.flatMap((entry, index) =>
+    allowedExtends.some((allowed) => allowed === entry)
+      ? []
+      : [
+          `oxlint.config.ts extends a config at index ${index} that the fixed table in scripts/lint-fence.test.ts does not allow. Fix: keep extends to the imported ultracite/oxlint/core object alone, so no second config can turn rules off behind the allowlist.`,
+        ]
+  );
+
+const ignorePatternProblems = (
+  patterns: readonly string[]
+): readonly string[] => {
+  const expected = [...(core.ignorePatterns ?? []), ...repoIgnorePatterns];
+  const extra = patterns.filter((pattern) => !expected.includes(pattern));
+  const missing = expected.filter((pattern) => !patterns.includes(pattern));
+
+  if (extra.length === 0 && missing.length === 0) {
+    return patterns.length === expected.length &&
+      patterns.every((pattern, index) => pattern === expected[index])
+      ? []
+      : [
+          `oxlint.config.ts ignorePatterns holds the right entries in a different order or with a duplicate. Fix: keep it as [...core.ignorePatterns, ...repoIgnorePatterns], exactly as the fence reads it.`,
+        ];
+  }
+
+  return [
+    ...extra.map(
+      (pattern) =>
+        `oxlint.config.ts ignores ${pattern}, which the fixed table in scripts/lint-fence.test.ts does not list, so Oxlint may skip files this fence never sees. Fix: remove the pattern, or list it in repoIgnorePatterns with a reason.`
+    ),
+    ...missing.map(
+      (pattern) =>
+        `oxlint.config.ts stopped ignoring ${pattern}, which the fixed table still lists. Fix: restore the pattern, or delete it from repoIgnorePatterns in scripts/lint-fence.test.ts.`
+    ),
+  ];
+};
+
+const isConfigFileName = (file: string): boolean =>
+  configFileNamePattern.test(path.basename(file));
+
+const unsearchedDirectories: ReadonlySet<string> = new Set([
+  ".git",
+  ".next",
+  ".turbo",
+  "build",
+  "dist",
+  "node_modules",
+]);
+
+const repoConfigFiles = (): readonly string[] => {
+  const found: string[] = [];
+
+  const walk = (relative: string): void => {
+    for (const entry of readdirSync(path.join(repoRoot, relative), {
+      withFileTypes: true,
+    })) {
+      const next = relative === "" ? entry.name : `${relative}/${entry.name}`;
+
+      if (entry.isDirectory()) {
+        if (!unsearchedDirectories.has(entry.name)) {
+          walk(next);
+        }
+
+        continue;
+      }
+
+      if (isConfigFileName(entry.name)) {
+        found.push(next);
+      }
+    }
+  };
+
+  walk("");
+
+  return found.toSorted();
+};
+
+const configFileProblems = (files: readonly string[]): readonly string[] =>
+  files.flatMap((file) => {
+    if (!isConfigFileName(file) || allowedConfigFiles.has(file)) {
+      return [];
+    }
+
+    if (allowedOtherConfigFiles.has(file)) {
+      return [];
+    }
+
+    return [
+      `${file} is a second Oxlint config. Fix: keep oxlint.config.ts as the only Oxlint config in the repo, or list the path in allowedOtherConfigFiles in scripts/lint-fence.test.ts with a reason, because a nested or extended config turns rules off where the root config cannot see it.`,
+    ];
+  });
+
+const scriptProblems = (
+  file: string,
+  scripts: Readonly<Record<string, string>>
+): readonly string[] => {
+  const body = scripts.lint;
+
+  if (body === undefined) {
+    return [];
+  }
+
+  return body === LINT_COMMAND
+    ? []
+    : [
+        `${file} script "lint" runs ${JSON.stringify(body)}. Fix: ${JSON.stringify(LINT_COMMAND)} is the only allowed package lint command, compared by equality, so a different body is a different lint run.`,
+      ];
+};
+
+const rootScriptProblems = (
+  scripts: Readonly<Record<string, string>>
+): readonly string[] =>
+  [...rootScripts].flatMap(([name, expected]) =>
+    scripts[name] === expected
+      ? []
+      : [
+          `package.json script "${name}" is ${JSON.stringify(scripts[name])}, and the fixed table pins ${JSON.stringify(expected)}. Fix: restore it, or change the table in scripts/lint-fence.test.ts in the same commit, so the fence keeps running from \`pnpm test\` and CI.`,
+        ]
+  );
+
 const blockCommentText = (comment: string): string =>
   comment
     .slice(2, -2)
@@ -425,14 +590,6 @@ const isScannedSource = (file: string): boolean =>
   !quotedDirectiveFixtures.has(file) &&
   !ignoredScanPrefixes.some((prefix) => file.startsWith(prefix));
 
-const trackedSourceFiles = (): readonly string[] =>
-  trackedFiles().filter(isScannedSource);
-
-const scriptsOf = (file: string): Readonly<Record<string, string>> =>
-  Schema.decodeSync(PackageManifest)(
-    readFileSync(path.join(repoRoot, file), "utf-8")
-  ).scripts ?? {};
-
 const trackedFiles = (): readonly string[] =>
   execFileSync("git", ["ls-files", "-z"], {
     cwd: repoRoot,
@@ -441,12 +598,13 @@ const trackedFiles = (): readonly string[] =>
     .split("\0")
     .filter((file) => file !== "");
 
-interface ResolvedRun {
-  readonly owner: string;
-  readonly command: string;
-}
+const trackedSourceFiles = (): readonly string[] =>
+  trackedFiles().filter(isScannedSource);
 
-type ManifestScripts = ReadonlyMap<string, Readonly<Record<string, string>>>;
+const scriptsOf = (file: string): Readonly<Record<string, string>> =>
+  Schema.decodeSync(PackageManifest)(
+    readFileSync(path.join(repoRoot, file), "utf-8")
+  ).scripts ?? {};
 
 const directoryNames = (relative: string): readonly string[] => {
   const absolute = path.join(repoRoot, relative === "" ? "." : relative);
@@ -470,7 +628,7 @@ const workspacePatterns = (): readonly string[] => {
 
   if (start === -1) {
     throw new Error(
-      "Fix: pnpm-workspace.yaml must keep its `packages:` list, so the fence can find every workspace package instead of trusting an allowlist."
+      "Fix: pnpm-workspace.yaml must keep its `packages:` list, so the fence finds every workspace package instead of trusting an allowlist."
     );
   }
 
@@ -528,306 +686,66 @@ const workspaceDirectories = (): readonly string[] =>
     ),
   ].toSorted();
 
-const workspaceManifests = (): readonly string[] =>
-  workspaceDirectories().map((directory) => `${directory}/package.json`);
-
-const manifestScriptsOf = (files: readonly string[]): ManifestScripts =>
-  new Map(files.map((file) => [file, scriptsOf(file)]));
-
-const scriptsAt = (
-  scripts: ManifestScripts,
-  file: string
-): Readonly<Record<string, string>> => scripts.get(file) ?? {};
-
-const runnerFlagsWithValues: ReadonlySet<string> = new Set([
-  "--config",
-  "--dir",
-  "-C",
-  "--filter",
-  "-F",
-  "--reporter",
-  "--workspace",
-]);
-
-const wordsOf = (command: string): readonly string[] =>
-  command
-    .replaceAll(/["']/gu, " ")
-    .split(/\s+/u)
-    .filter((word) => word !== "");
-
-const segmentsOf = (command: string): readonly string[] =>
-  command
-    .split(/&&|;/u)
-    .map((segment) => segment.trim())
-    .filter((segment) => segment !== "");
-
-const argumentsAfterRunner = (words: readonly string[]): readonly string[] => {
-  const rest: string[] = [];
-  let index = 1;
-
-  while (index < words.length) {
-    const word = words[index] ?? "";
-
-    if (word.startsWith("-")) {
-      index += runnerFlagsWithValues.has(word) ? 2 : 1;
-      continue;
-    }
-
-    rest.push(word);
-    index += 1;
-  }
-
-  return rest;
-};
-
-const taskNamesIn = (args: readonly string[]): readonly string[] =>
-  args.flatMap((word) => (word.startsWith("-") ? [] : [word]));
-
-const expandScript = (
-  file: string,
-  name: string,
-  scripts: ManifestScripts,
-  visited: ReadonlySet<string>
-): readonly ResolvedRun[] => {
-  const key = `${file}\u0000${name}`;
-
-  if (visited.has(key)) {
-    return [];
-  }
-
-  const body = scriptsAt(scripts, file)[name];
-
-  if (body === undefined) {
-    return [{ owner: file, command: `-- missing ${name} script --` }];
-  }
-
-  return resolveCommand(file, body, scripts, new Set([...visited, key]));
-};
-
-const resolveTurbo = (
-  owner: string,
-  args: readonly string[],
-  scripts: ManifestScripts,
-  visited: ReadonlySet<string>
-): readonly ResolvedRun[] => {
-  const tasks = taskNamesIn(args);
-
-  const expanded = tasks.flatMap((task) => [
-    ...(scriptsAt(scripts, owner)[task] === undefined
-      ? []
-      : expandScript(owner, task, scripts, visited)),
-    ...workspaceManifests().flatMap((file) =>
-      scriptsAt(scripts, file)[task] === undefined
-        ? []
-        : expandScript(file, task, scripts, visited)
-    ),
-  ]);
-
-  return expanded;
-};
-
-const resolveSegment = (
-  owner: string,
-  segment: string,
-  scripts: ManifestScripts,
-  visited: ReadonlySet<string>
-): readonly ResolvedRun[] => {
-  const words = wordsOf(segment);
-  const program = words[0] ?? "";
-  const args = argumentsAfterRunner(words);
-
-  if (program === "pnpm" || program === "npm") {
-    const name = args[0] === "run" ? args[1] : args[0];
-
-    if (name !== undefined && scriptsAt(scripts, owner)[name] !== undefined) {
-      return expandScript(owner, name, scripts, visited);
-    }
-  }
-
-  if (program === "turbo" && args[0] === "run") {
-    const expanded = resolveTurbo(owner, args.slice(1), scripts, visited);
-
-    if (expanded.length > 0) {
-      return expanded;
-    }
-  }
-
-  return segment === "" ? [] : [{ owner, command: segment }];
-};
-
-const resolveCommand = (
-  owner: string,
-  command: string,
-  scripts: ManifestScripts,
-  visited: ReadonlySet<string>
-): readonly ResolvedRun[] =>
-  segmentsOf(command).flatMap((segment) =>
-    resolveSegment(owner, segment, scripts, visited)
-  );
-
-const runsOxlint = (command: string): boolean =>
-  wordsOf(command).some(
-    (word) => word === "oxlint" || word.endsWith("/oxlint")
-  ) || /\bultracite\s+check\b/u.test(command);
-
-const unsafeOxlintSpellings: readonly string[] = [
-  "-A all",
-  "-W all",
-  "-D all",
-  "-AW all",
-  "-WA all",
-  "-Dq all",
-  "-q",
-  "--quiet",
-  "--quiet=true",
-  "--allow all",
-  "--warn all",
-  "--deny all",
-  "--allow=all",
-  "--warn=all",
-  "--deny=off",
-  "--allow=off",
-  "--max-warnings=5",
-  "--max-warnings 5",
-  "--max-warnings=1",
-  "--disable-nested-config",
-  "--disable-oxlint-rules",
-  "--disable-all-rules",
-  "--disable-oxlint-rules=true",
-  "--report-unused-disable-directives-severity=off",
-];
-
-const weakeningSpellingsIn = (text: string): readonly string[] =>
-  unsafeOxlintSpellings.filter((spelling) => text.includes(spelling));
-
-const formatRuns = (runs: readonly ResolvedRun[]): string =>
-  runs.map((run) => `\`${run.command}\``).join(", ");
-
-const entryProblems = (
-  file: string,
-  script: string,
-  scripts: ManifestScripts
-): readonly string[] => {
-  const body = scriptsAt(scripts, file)[script];
-
-  if (body === undefined) {
-    return [
-      `${file} has no "${script}" script. Fix: keep a real "${script}" script, so the fence has an entry that has to run the linter.`,
-    ];
-  }
-
-  const runs = resolveCommand(
-    file,
-    body,
-    scripts,
-    new Set([`${file}\u0000${script}`])
-  );
-
-  if (runs.length === 0) {
-    return [
-      `${file} script "${script}" runs \`${body}\`, which resolves to no command at all. Fix: make the "${script}" script run a real command that lints.`,
-    ];
-  }
-
-  const linting = runs.filter((run) => runsOxlint(run.command));
-
-  if (linting.length === 0) {
-    return [
-      `${file} script "${script}" runs \`${body}\`, which resolves to ${formatRuns(runs)}, and none of those runs Oxlint. Fix: run Oxlint from "${script}", directly, through \`ultracite check\`, or through another script that does, so the files it covers are really linted.`,
-    ];
-  }
-
-  return linting.flatMap((run) =>
-    weakeningSpellingsIn(run.command).map(
-      (spelling) =>
-        `${file} script "${script}" reaches \`${run.command}\`, which passes \`${spelling}\` and turns findings off. Fix: remove the flag from the command the "${script}" script finally runs.`
-    )
-  );
-};
-
-const lintEntries = (
-  scripts: ManifestScripts
-): readonly (readonly [string, string])[] => {
-  const entries: (readonly [string, string])[] = [
-    ["package.json", "lint"],
-    ["package.json", "check"],
-  ];
-
-  for (const file of workspaceManifests()) {
-    if (scriptsAt(scripts, file).lint !== undefined) {
-      entries.push([file, "lint"]);
-    }
-  }
-
-  return entries;
-};
-
-interface ConfigLine {
-  readonly file: string;
-  readonly line: number;
-  readonly command: string;
+interface CanaryFamily {
+  readonly name: string;
+  readonly plugin: string;
+  readonly rule: string;
+  readonly source: string;
 }
 
-const hookConfigFiles = ["lefthook.yml", "lefthook.yaml"];
+const canaryFamilies: readonly CanaryFamily[] = [
+  {
+    name: "debugger",
+    plugin: "eslint",
+    rule: "no-debugger",
+    source: "debugger;\n",
+  },
+  {
+    name: "alert",
+    plugin: "eslint",
+    rule: "no-alert",
+    source: 'alert("fence");\n',
+  },
+  {
+    name: "comment",
+    plugin: "no-comments",
+    rule: "no-comments",
+    source: "// a prose comment stands in for a rule family\n",
+  },
+  {
+    name: "mutable-state",
+    plugin: "rat-stack-patterns",
+    rule: "no-module-level-mutable-state",
+    source: "export let fenceCounter = 0;\n",
+  },
+  {
+    name: "array-passes",
+    plugin: "anti-slop",
+    rule: "no-array-filter-map",
+    source:
+      "export const fenceDoubled = [1, 2, 3].filter((n) => n > 1).map((n) => n * 2);\n",
+  },
+  {
+    name: "floating-promise",
+    plugin: "typescript",
+    rule: "no-floating-promises",
+    source: "Promise.resolve();\n",
+  },
+];
 
-const configFiles = (tracked: readonly string[]): readonly string[] =>
-  [
-    ...hookConfigFiles,
-    ...tracked.filter(
-      (file) => file.startsWith(".github/workflows/") && /\.ya?ml$/u.test(file)
-    ),
-  ].filter((file) => tracked.includes(file));
+const canaryFile = (family: CanaryFamily): string =>
+  `src/fence-canary-${family.name}.ts`;
 
-const yamlCommandLines = (file: string): readonly ConfigLine[] =>
-  readFileSync(path.join(repoRoot, file), "utf-8")
-    .split("\n")
-    .flatMap((text, index) => {
-      const trimmed = text.trim();
-      const indented = text.startsWith(" ") || text.startsWith("\t");
+const canaryPath = (directory: string, family: CanaryFamily): string =>
+  `${directory}/${canaryFile(family)}`;
 
-      if (!indented || trimmed === "" || trimmed.startsWith("#")) {
-        return [];
-      }
-
-      const command = trimmed
-        .replace(/^-\s+/u, "")
-        .replace(/^[A-Za-z0-9_.-]+:\s*/u, "")
-        .replaceAll(/^["']|["']$/gu, "")
-        .trim();
-
-      return command === "" ? [] : [{ file, line: index + 1, command }];
-    });
-
-const configLineProblems = (scripts: ManifestScripts): readonly string[] =>
-  configFiles(trackedFiles()).flatMap((file) =>
-    yamlCommandLines(file).flatMap(({ line, command }) =>
-      resolveCommand("package.json", command, scripts, new Set()).flatMap(
-        (run) =>
-          runsOxlint(run.command)
-            ? weakeningSpellingsIn(run.command).map(
-                (spelling) =>
-                  `${file}:${line} runs \`${command}\`, which reaches \`${run.command}\` and passes \`${spelling}\`, turning findings off. Fix: remove the flag, so the hook and CI keep the whole Oxlint run.`
-              )
-            : []
-      )
-    )
-  );
-
-const oxlintBinary = path.join(repoRoot, "node_modules/.bin/oxlint");
-
-const canarySource = "debugger;\n";
-
-const mirroredEntries = [
+const mirroredFiles = [
   "oxlint.config.ts",
+  ".eslintignore",
   "package.json",
   "tsconfig.base.json",
   "tsconfig.json",
 ];
-
-const canaryPathOf = (directory: string): string =>
-  directory === ""
-    ? "fence-canary-root.ts"
-    : `${directory}/src/fence-canary.ts`;
 
 const writeFileWithParents = (
   root: string,
@@ -838,71 +756,131 @@ const writeFileWithParents = (
   writeFileSync(path.join(root, relative), contents);
 };
 
+const mirroredPluginFiles = [
+  "scripts/oxlint-plugin-boundaries.ts",
+  "scripts/oxlint-plugin-effect-tests.ts",
+  "scripts/oxlint-plugin-no-comments.ts",
+  "scripts/oxlint-plugin-patterns.ts",
+  "tools/oxlint/anti-slop/index.ts",
+  "tools/oxlint/anti-slop/effect/index.ts",
+];
+
 const buildMirror = (root: string, directories: readonly string[]): void => {
-  for (const entry of mirroredEntries) {
-    copyFileSync(path.join(repoRoot, entry), path.join(root, entry));
+  for (const entry of mirroredFiles) {
+    if (existsSync(path.join(repoRoot, entry))) {
+      copyFileSync(path.join(repoRoot, entry), path.join(root, entry));
+    }
   }
 
-  for (const entry of ["node_modules", "scripts", "tools"]) {
-    symlinkSync(path.join(repoRoot, entry), path.join(root, entry));
+  symlinkSync(
+    path.join(repoRoot, "node_modules"),
+    path.join(root, "node_modules")
+  );
+
+  for (const plugin of mirroredPluginFiles) {
+    mkdirSync(path.dirname(path.join(root, plugin)), { recursive: true });
+    symlinkSync(path.join(repoRoot, plugin), path.join(root, plugin));
   }
 
   for (const directory of directories) {
-    if (directory !== "") {
-      mkdirSync(path.join(root, directory), { recursive: true });
-      copyFileSync(
-        path.join(repoRoot, directory, "package.json"),
-        path.join(root, directory, "package.json")
-      );
+    mkdirSync(path.join(root, directory), { recursive: true });
+    copyFileSync(
+      path.join(repoRoot, directory, "package.json"),
+      path.join(root, directory, "package.json")
+    );
 
-      const modules = path.join(repoRoot, directory, "node_modules");
+    const modules = path.join(repoRoot, directory, "node_modules");
 
-      if (existsSync(modules)) {
-        symlinkSync(modules, path.join(root, directory, "node_modules"));
-      }
+    if (existsSync(modules)) {
+      symlinkSync(modules, path.join(root, directory, "node_modules"));
     }
 
-    writeFileWithParents(root, canaryPathOf(directory), canarySource);
+    for (const family of canaryFamilies) {
+      writeFileWithParents(root, canaryPath(directory, family), family.source);
+    }
   }
 };
 
-const canaryBatchSize = 100;
+interface OxlintRun {
+  readonly status: number | null;
+  readonly output: string;
+}
 
-const reportedBatch = (
-  root: string,
-  canaries: readonly string[],
-  config: string | undefined
-): ReadonlySet<string> => {
-  const args = [...(config === undefined ? [] : ["-c", config]), ...canaries];
+interface PackageRun {
+  readonly directory: string;
+  readonly run: OxlintRun;
+}
 
-  const result = spawnSync(oxlintBinary, args, {
-    cwd: root,
-    encoding: "utf-8",
+const runOxlint = async (
+  cwd: string,
+  args: readonly string[]
+): Promise<OxlintRun> => {
+  const child = spawn(oxlintBinary, [...args], { cwd });
+  let output = "";
+
+  child.stdout.on("data", (chunk: Buffer) => {
+    output += chunk.toString();
   });
+  child.stderr.on("data", (chunk: Buffer) => {
+    output += chunk.toString();
+  });
+  await once(child, "close");
 
-  const output = `${result.stdout}${result.stderr}`;
-
-  return new Set(canaries.filter((canary) => output.includes(`${canary}:1:1`)));
+  return { output, status: child.exitCode };
 };
 
-const unreportedCanaries = (
+const runInPackages = (
   root: string,
-  canaries: readonly string[],
-  config?: string
-): readonly string[] => {
-  const reported = new Set<string>();
+  directories: readonly string[],
+  args: readonly string[]
+): Promise<readonly PackageRun[]> =>
+  Promise.all(
+    directories.map(async (directory) => ({
+      directory,
+      run: await runOxlint(path.join(root, directory), args),
+    }))
+  );
 
-  for (let start = 0; start < canaries.length; start += canaryBatchSize) {
-    for (const canary of reportedBatch(
-      root,
-      canaries.slice(start, start + canaryBatchSize),
-      config
-    )) {
-      reported.add(canary);
-    }
-  }
+const reportedLine = (
+  run: OxlintRun,
+  file: string,
+  plugin: string,
+  rule: string
+): readonly string[] =>
+  run.output
+    .split("\n")
+    .filter((line) => line.startsWith(`${file}:1:`))
+    .filter((line) => line.includes(` error ${plugin}(${rule}):`));
 
-  return canaries.filter((canary) => !reported.has(canary));
+const missingCanaries = (runs: readonly PackageRun[]): readonly string[] =>
+  runs.flatMap(({ directory, run }) =>
+    canaryFamilies.flatMap((family) =>
+      reportedLine(run, canaryFile(family), family.plugin, family.rule)
+        .length === 0
+        ? [
+            `${canaryPath(directory, family)} holds a ${family.name} violation and Oxlint never reported ${family.plugin}(${family.rule}) for it.`,
+          ]
+        : []
+    )
+  );
+
+const stillReported = async (
+  root: string,
+  directories: readonly string[],
+  config: string,
+  family: CanaryFamily
+): Promise<readonly string[]> => {
+  const runs = await runInPackages(root, directories, [
+    "--config",
+    config,
+    ".",
+  ]);
+
+  return runs.flatMap(({ directory, run }) =>
+    reportedLine(run, canaryFile(family), family.plugin, family.rule).length > 0
+      ? [directory]
+      : []
+  );
 };
 
 const mutationConfigSource = (
@@ -922,47 +900,6 @@ const mutationConfigSource = (
     "};",
     "",
   ].join("\n");
-
-const canaryConfig = (ignorePatterns: readonly string[]): string =>
-  JSON.stringify({
-    ignorePatterns: [...ignorePatterns],
-    rules: { "no-debugger": "error" },
-  });
-
-const severitySpellings: readonly {
-  readonly spelling: AllowWarnDeny;
-  readonly severity: Severity;
-}[] = [
-  { spelling: 0, severity: "off" },
-  { spelling: 1, severity: "warn" },
-  { spelling: 2, severity: "error" },
-  { spelling: "off", severity: "off" },
-  { spelling: "allow", severity: "off" },
-  { spelling: "warn", severity: "warn" },
-  { spelling: "error", severity: "error" },
-  { spelling: "deny", severity: "error" },
-];
-
-const ruleForms: readonly ((spelling: AllowWarnDeny) => DummyRule)[] = [
-  (spelling) => spelling,
-  (spelling) => [spelling],
-  (spelling) => [spelling, { ignore: ["then"] }],
-  (spelling) => [spelling, { ignore: ["then"] }, { allow: true }],
-];
-
-const generatedRules = [
-  "generated/no-debugger",
-  "generated/no-empty-function",
-  "generated/prefer-await-to-then",
-] as const;
-
-const directiveMarker = ["//", "oxlint-disable-next-line", "no-debugger"].join(
-  " "
-);
-
-const bareDirective = `${directiveMarker}\nvoid 0;\n`;
-
-const reasonedDirective = `${directiveMarker} -- the fixture holds no debugger\nvoid 0;\n`;
 
 const seededRandom = (seed: number): (() => number) => {
   const modulus = 2_147_483_647;
@@ -987,17 +924,211 @@ const pick = <Item>(random: () => number, items: readonly Item[]): Item => {
   return item;
 };
 
-const configWith = (
-  placement: "global" | "files",
+const commandMutations: readonly string[] = [
+  "oxlint -Aall .",
+  "oxlint --allow all .",
+  'oxlint --allow "all" .',
+  "oxlint -A all .",
+  "oxlint --allow=off .",
+  "oxlint -W all .",
+  "oxlint test",
+  "oxlint src",
+  "oxlint",
+  "oxlint . --quiet",
+  "oxlint . --silent",
+  "oxlint . --max-warnings=5",
+  "oxlint . --disable-nested-config",
+  "oxlint . --disable-oxlint-rules",
+  "oxlint --config .oxlintrc.json .",
+  "oxlint . && true",
+  "ultracite check",
+  "pnpm format:check",
+  "pnpm run lint",
+  "npm run format:check",
+  "npx oxlint .",
+  "pnpm dlx oxlint .",
+  "echo lint passed",
+  " oxlint .",
+  "oxlint  .",
+  "OXLINT .",
+  "oxlint ./",
+  "oxlint *",
+  "oxlint . .",
+  "oxlint --fix .",
+];
+
+const configOffRules: readonly string[] = [
+  "no-debugger",
+  "no-alert",
+  "no-comments/no-comments",
+  "rat-stack-patterns/no-module-level-mutable-state",
+  "anti-slop/no-array-filter-map",
+  "typescript/no-floating-promises",
+  "promise/prefer-await-to-then",
+  "eslint/no-console",
+];
+
+const configIgnorePatterns: readonly string[] = [
+  "packages/**",
+  "packages/*/src/**",
+  "**/*.test.ts",
+  "apps/**",
+  "**/fence-canary-*.ts",
+  "packages/*",
+  "**/*.ts",
+];
+
+const configFileNames: readonly string[] = [
+  ".oxlintrc.json",
+  ".oxlintrc",
+  ".oxlintrc.jsonc",
+  "oxlint.config.ts",
+  "oxlint.config.js",
+  "oxlint.config.mjs",
+  "oxlint.config.cjs",
+];
+
+const configDirectories: readonly string[] = [
+  "packages/core",
+  "packages/settings/src",
+  "apps/web",
+  "examples/tokenmaxx-starter",
+  "scripts",
+  ".",
+];
+
+interface Mutation {
+  readonly kind: string;
+  readonly label: string;
+  readonly reject: () => readonly string[];
+}
+
+const scriptMutation = (body: string): Mutation => ({
+  kind: "package-lint-script",
+  label: `package lint script ${JSON.stringify(body)}`,
+  reject: () => scriptProblems("packages/core/package.json", { lint: body }),
+});
+
+const rootScriptMutation = (name: string): Mutation => ({
+  kind: "root-script",
+  label: `root script "${name}" replaced`,
+  reject: () =>
+    rootScriptProblems({ ...Object.fromEntries(rootScripts), [name]: "true" }),
+});
+
+const ignoreMutation = (pattern: string): Mutation => ({
+  kind: "ignore-pattern",
+  label: `oxlint.config.ts ignorePatterns gains ${pattern}`,
+  reject: () =>
+    ignorePatternProblems([
+      ...(core.ignorePatterns ?? []),
+      ...repoIgnorePatterns,
+      pattern,
+    ]),
+});
+
+const offRuleMutation = (
   rule: string,
-  setting: DummyRule,
-  files: readonly string[] = ["**/*.ts"]
-): OxlintConfig =>
-  placement === "global"
-    ? { rules: { [rule]: setting } }
-    : {
-        overrides: [{ files: [...files], rules: { [rule]: setting } }],
-      };
+  placement: "off" | "warn"
+): Mutation => ({
+  kind: "weakened-rule",
+  label: `${rule} set to ${placement} for **/*.ts`,
+  reject: () =>
+    ruleFenceProblems(
+      placement === "off"
+        ? { overrides: [{ files: ["**/*.ts"], rules: { [rule]: "off" } }] }
+        : { rules: { [rule]: "warn" } },
+      offRuleAllowlist
+    ),
+});
+
+const configFileMutation = (file: string): Mutation => ({
+  kind: "second-config",
+  label: `${file} as a second Oxlint config`,
+  reject: () =>
+    configFileProblems([
+      "oxlint.config.ts",
+      "examples/tokenmaxx-starter/.oxlintrc.json",
+      file,
+    ]),
+});
+
+const extraExtends: OxlintConfig = {
+  ignorePatterns: ["packages/**"],
+  rules: { "no-alert": "off" },
+};
+
+const extendsMutation = (index: number): Mutation => ({
+  kind: "extends",
+  label: `extends entry added at index ${index}`,
+  reject: () =>
+    extendsProblems(index === 0 ? [extraExtends, core] : [core, extraExtends]),
+});
+
+const secondConfigPaths: readonly string[] = configDirectories.flatMap(
+  (directory) => {
+    const prefix = directory === "." ? "" : `${directory}/`;
+
+    return configFileNames.flatMap((name) =>
+      `${prefix}${name}` === "oxlint.config.ts" ||
+      `${prefix}${name}` === "examples/tokenmaxx-starter/.oxlintrc.json"
+        ? []
+        : [`${prefix}${name}`]
+    );
+  }
+);
+
+const mutationBuilders: readonly ((random: () => number) => Mutation)[] = [
+  (random) => scriptMutation(pick(random, commandMutations)),
+  (random) => rootScriptMutation(pick(random, [...rootScripts.keys()])),
+  (random) => ignoreMutation(pick(random, configIgnorePatterns)),
+  (random) =>
+    offRuleMutation(
+      pick(random, configOffRules),
+      pick(random, ["off", "warn"] as const)
+    ),
+  (random) => configFileMutation(pick(random, secondConfigPaths)),
+  (random) => extendsMutation(pick(random, [0, 1])),
+];
+
+const baselineMutations: readonly Mutation[] = [
+  {
+    kind: "baseline",
+    label: "the real package lint command on its own",
+    reject: () =>
+      scriptProblems("packages/core/package.json", { lint: LINT_COMMAND }),
+  },
+  {
+    kind: "baseline",
+    label: "a package with no lint script",
+    reject: () =>
+      scriptProblems("packages/core/package.json", { test: "vitest" }),
+  },
+  {
+    kind: "baseline",
+    label: "the real root scripts",
+    reject: () => rootScriptProblems(Object.fromEntries(rootScripts)),
+  },
+  {
+    kind: "baseline",
+    label: "the real ignorePatterns",
+    reject: () =>
+      ignorePatternProblems([
+        ...(core.ignorePatterns ?? []),
+        ...repoIgnorePatterns,
+      ]),
+  },
+  {
+    kind: "baseline",
+    label: "the real extends",
+    reject: () => extendsProblems(lintConfig.extends ?? []),
+  },
+  {
+    kind: "baseline",
+    label: "the real tracked config paths",
+    reject: () => configFileProblems(repoConfigFiles()),
+  },
+];
 
 describe("lint fence", () => {
   const declaredOff = new Set(offScopes(lintConfig).keys());
@@ -1050,11 +1181,19 @@ describe("lint fence", () => {
     }
   });
 
-  it("keeps the Oxlint config at full strength", () => {
+  it("keeps the Oxlint config at full strength and nothing else extends it", () => {
     expect(
       readFileSync(path.join(repoRoot, "oxlint.config.ts"), "utf-8"),
-      "Ultracite check only counts as the real linter while oxlint.config.ts extends the Ultracite Oxlint config. Fix: restore the `ultracite/oxlint/core` import in oxlint.config.ts, or stop counting `ultracite check` as an Oxlint run."
+      "Ultracite check only counts as the real linter while oxlint.config.ts extends the Ultracite Oxlint config. Fix: restore the `ultracite/oxlint/core` import in oxlint.config.ts."
     ).toContain("ultracite/oxlint");
+    expect(
+      extendsProblems(lintConfig.extends ?? []),
+      "oxlint.config.ts extends configs the fixed table does not allow. Fix: keep extends to the imported ultracite/oxlint/core object alone."
+    ).toEqual([]);
+    expect(
+      ignorePatternProblems(lintConfig.ignorePatterns ?? []),
+      "oxlint.config.ts ignores paths the fixed table does not list, or stopped ignoring a listed one. Fix: list every ignore pattern in repoIgnorePatterns in scripts/lint-fence.test.ts, so hiding files needs a written reason."
+    ).toEqual([]);
     expect(
       lintOptions.typeAware,
       "Oxlint must keep type-aware linting on. Fix: restore `options: { typeAware: true }` in oxlint.config.ts."
@@ -1065,10 +1204,54 @@ describe("lint fence", () => {
     ).toBe(0);
   });
 
+  it("allows one Oxlint config file and one listed example config", () => {
+    const configFiles = repoConfigFiles();
+
+    expect(
+      configFiles,
+      "The fence found no Oxlint config at all. Fix: keep oxlint.config.ts tracked, so the behavioural check runs a config instead of nothing."
+    ).toContain("oxlint.config.ts");
+    expect(
+      configFileProblems(configFiles),
+      "A second Oxlint config exists, so a package or an example can turn rules off where the root config cannot see it. Fix: delete it, or list the path in allowedOtherConfigFiles in scripts/lint-fence.test.ts with a reason."
+    ).toEqual([]);
+  });
+
+  it("pins every package lint script and the root scripts to one exact string", () => {
+    const packageProblems = workspaceDirectories().flatMap((directory) =>
+      scriptProblems(
+        `${directory}/package.json`,
+        scriptsOf(`${directory}/package.json`)
+      )
+    );
+
+    expect(
+      workspaceDirectories(),
+      "The fence read the workspace from pnpm-workspace.yaml and found no packages. Fix: keep the `packages:` globs in pnpm-workspace.yaml, so the fence checks the real workspace instead of an empty list."
+    ).toContain("packages/core");
+    expect(
+      packageProblems,
+      `A package lint script is not ${JSON.stringify(LINT_COMMAND)}. Fix: use that string exactly, because the fence compares by equality and never parses flags.`
+    ).toEqual([]);
+    expect(
+      rootScriptProblems(scriptsOf("package.json")),
+      "A root script the fence depends on changed. Fix: restore it, or change rootScripts in scripts/lint-fence.test.ts in the same commit."
+    ).toEqual([]);
+  });
+
   it("requires a reason on every disable directive", () => {
     const violations = trackedSourceFiles().flatMap((file) =>
       unreasonedDirectives(file)
     );
+
+    const directiveMarker = [
+      "//",
+      "oxlint-disable-next-line",
+      "no-debugger",
+    ].join(" ");
+
+    const bareDirective = `${directiveMarker}\nvoid 0;\n`;
+    const reasonedDirective = `${directiveMarker} -- the fixture holds no debugger\nvoid 0;\n`;
 
     for (const extension of sourceExtensions) {
       const file = `src/example${extension}`;
@@ -1093,45 +1276,8 @@ describe("lint fence", () => {
     ).toEqual([]);
   });
 
-  it("fails a rule turned off wider than its pin", () => {
-    const globalOff = offRuleProblems(
-      { rules: { "promise/prefer-await-to-then": "off" } },
-      offRuleAllowlist
-    );
-
-    expect(
-      globalOff.length,
-      "Turning promise/prefer-await-to-then off globally must fail, because its reason covers test files only."
-    ).toBe(1);
-    expect(globalOff[0]).toContain("promise/prefer-await-to-then");
-    expect(globalOff[0]).toContain("every file (global)");
-  });
-
-  it("resolves every lint entry to a real Oxlint run", () => {
-    const scripts = manifestScriptsOf([
-      "package.json",
-      ...workspaceManifests(),
-    ]);
-
-    expect(
-      workspaceDirectories(),
-      "The fence read the workspace from pnpm-workspace.yaml and found no packages. Fix: keep the `packages:` globs in pnpm-workspace.yaml, so the fence checks the real workspace instead of an empty list."
-    ).toContain("packages/core");
-    expect(
-      lintEntries(scripts).flatMap(([file, script]) =>
-        entryProblems(file, script, scripts)
-      ),
-      "A lint entry resolves, through its own scripts, to a command that runs no Oxlint, or to an Oxlint run with a flag that turns findings off. Fix: run Oxlint from the lint script, directly, through `ultracite check`, or through a script that does, so the files it covers are really linted."
-    ).toEqual([]);
-    expect(
-      configLineProblems(scripts),
-      "A hook or CI line reaches an Oxlint run with a flag that turns findings off. Fix: remove the flag from the command that line finally runs, so the pre-commit hook and CI keep the whole lint run."
-    ).toEqual([]);
-  });
-
-  it("reports a debugger canary in every workspace package and the root", () => {
-    const directories = ["", ...workspaceDirectories()];
-    const canaries = directories.map(canaryPathOf);
+  it("reports every rule family canary in every workspace package", async () => {
+    const directories = workspaceDirectories();
     const root = mkdtempSync(path.join(tmpdir(), "pecunia-lint-fence-"));
 
     try {
@@ -1139,299 +1285,158 @@ describe("lint fence", () => {
 
       expect(
         directories.length,
-        "The canary run needs the root and every workspace package. Fix: keep the workspace globs in pnpm-workspace.yaml readable."
+        "The canary run needs every workspace package. Fix: keep the workspace globs in pnpm-workspace.yaml readable."
       ).toBeGreaterThan(10);
+
+      const runs = await runInPackages(root, directories, ["."]);
+
       expect(
-        unreportedCanaries(root, canaries),
-        "A workspace package, or the root, holds a `debugger;` file the repo's own Oxlint config never reports, so its source can be broken while lint passes. Fix: stop excluding that path in oxlint.config.ts, in a nested config, or in a per-package `.oxlintrc.json`, and keep Oxlint at error for it."
+        runs
+          .filter(({ run }) => run.status === 0)
+          .map(({ directory }) => directory),
+        `Oxlint exits zero in a workspace package that holds a planted violation, so that package's lint script would pass on broken source. Output of the first such run:\n${runs[0]?.run.output ?? ""}`
       ).toEqual([]);
-
-      writeFileSync(
-        path.join(root, "fence-hides-every-package.ts"),
-        mutationConfigSource(["apps/**", "packages/**"], {})
-      );
-
-      const workspaceCanaries = directories.flatMap((directory) =>
-        directory === "" ? [] : [`${directory}/src/fence-canary.ts`]
-      );
-
-      const hidden = unreportedCanaries(
-        root,
-        canaries,
-        "fence-hides-every-package.ts"
-      );
-
       expect(
-        [...hidden].toSorted(),
-        "`ignorePatterns` entries of `apps/**` and `packages/**` hide every workspace package, so the fence must report each of them as unreported. Fix: keep the canary check running the real Oxlint with the repo config, so a hidden package fails by name."
-      ).toEqual(workspaceCanaries.toSorted());
-      expect(
-        hidden,
-        "The workspace-wide mutation must leave the root canary reported, so the check proves an ignore pattern hides packages rather than the whole Oxlint run failing."
-      ).not.toContain("fence-canary-root.ts");
+        missingCanaries(runs),
+        "A workspace package holds one canary per rule family and the repo's own Oxlint config never reports one of them, so that package's source can break while lint passes. Fix: stop excluding that path in oxlint.config.ts, in .eslintignore, in a nested config, or stop weakening the rule."
+      ).toEqual([]);
     } finally {
       rmSync(root, { force: true, recursive: true });
     }
   });
 
-  it("fails generated lint entries, weakened configs and hidden packages by name", () => {
-    const rootManifest = "package.json";
-    const packageManifest = "packages/core/package.json";
-    const approvedBody = scriptsOf(rootManifest).lint ?? "";
+  it("catches a weakened config by name in a real Oxlint run", async () => {
+    const directories = workspaceDirectories()
+      .filter((directory) => directory.startsWith("packages/"))
+      .slice(0, 2);
 
-    const generatedScripts = {
-      "format:check": "oxfmt --check",
-      "lint:full": "ultracite check && oxfmt --check .",
-      "lint:indirect": "pnpm format:check",
-    };
-
-    const judgeBody = (body: string): readonly string[] =>
-      entryProblems(
-        packageManifest,
-        "lint",
-        new Map([
-          [rootManifest, scriptsOf(rootManifest)],
-          [packageManifest, { ...generatedScripts, lint: body }],
-        ])
-      );
-
-    const scriptMutations: readonly string[] = [
-      "echo lint passed",
-      "oxfmt --check",
-      "pnpm format:check",
-      "pnpm run lint:indirect",
-      "pnpm run lint:indirect && oxfmt --check .",
-      "pnpm lint:indirect; oxfmt --check .",
-      "oxfmt --check && echo done",
-      "npm run format:check",
-    ];
-
-    const approvedBodies: readonly string[] = [
-      approvedBody,
-      "ultracite check && oxfmt --check .",
-      "oxlint . && oxfmt --check .",
-      "pnpm run lint:full",
-      "pnpm lint:full",
-      "npm run lint:full",
-      "turbo run lint:full",
-      "pnpm run lint:full; oxfmt --check .",
-      "oxfmt . && pnpm run lint:full",
-    ];
-
-    const random = seededRandom(20_260_216);
-
-    const names = workspaceDirectories().map((directory) =>
-      path.basename(directory)
+    const root = mkdtempSync(
+      path.join(tmpdir(), "pecunia-lint-fence-mutations-")
     );
 
-    interface HiddenCase {
-      readonly hidden: string;
-      readonly neighbour: string;
-      readonly pattern: string;
-    }
+    try {
+      buildMirror(root, directories);
 
-    const hiddenCases: HiddenCase[] = [];
+      const controls = [
+        {
+          name: "ignorePatterns of packages/**",
+          patterns: ["packages/**"],
+          rules: {},
+          hiddenFamily: "debugger",
+        },
+        {
+          name: "no-debugger off",
+          patterns: [],
+          rules: { "no-debugger": "off" },
+          hiddenFamily: "debugger",
+        },
+        {
+          name: "no-alert off",
+          patterns: [],
+          rules: { "no-alert": "off" },
+          hiddenFamily: "alert",
+        },
+      ];
 
-    let cases = 0;
-    let rejected = 0;
-    let accepted = 0;
-
-    const checkEntry = (body: string): void => {
-      const problems = judgeBody(body);
-      const label = `\`${body}\` in ${packageManifest} script "lint"`;
-
-      if (approvedBodies.includes(body)) {
-        expect(
-          problems,
-          `${label} is the approved neighbour copy of a real lint body, so it must pass.`
-        ).toEqual([]);
-        accepted += 1;
-      } else {
-        expect(
-          problems.length,
-          `${label} must fail, because that script lints nothing by name.`
-        ).toBeGreaterThan(0);
-        expect(problems[0], `${label} must name the manifest.`).toContain(
-          packageManifest
-        );
-        expect(problems[0], `${label} must name the script.`).toContain(
-          'script "lint"'
-        );
-        rejected += 1;
-      }
-
-      cases += 1;
-    };
-
-    for (let index = 0; index < 620; index += 1) {
-      const roll = random();
-
-      if (roll < 0.4) {
-        checkEntry(pick(random, [...scriptMutations, ...approvedBodies]));
-        continue;
-      }
-
-      if (roll < 0.75) {
-        const { spelling, severity } = pick(random, severitySpellings);
-        const setting = pick(random, ruleForms)(spelling);
-        const rule = pick(random, generatedRules);
-        const placement = random() < 0.5 ? "global" : "files";
-
-        const problems = ruleFenceProblems(
-          configWith(placement, rule, setting),
-          offRuleAllowlist
+      const prepared = controls.flatMap((control, index) => {
+        const family = canaryFamilies.find(
+          (candidate) => candidate.name === control.hiddenFamily
         );
 
-        const label = `${rule} set to ${JSON.stringify(setting)} for ${placement} files`;
-
-        expect(
-          normalizeSeverity(setting),
-          `${label} must normalise to ${severity}.`
-        ).toBe(severity);
-        expect(
-          problems.length > 0,
-          `${label} must fail unless the rule stays at error, since no allowlist entry explains it.`
-        ).toBe(severity !== "error");
-
-        if (problems.length > 0) {
-          expect(
-            problems.every((problem) => problem.includes(rule)),
-            `Every problem for ${label} must name ${rule}.`
-          ).toBe(true);
-          rejected += 1;
-        } else {
-          accepted += 1;
+        if (family === undefined) {
+          return [];
         }
 
-        cases += 1;
-        continue;
-      }
+        const file = path.join(root, `fence-mutation-${index}.config.ts`);
 
-      const hidden = pick(random, names);
+        writeFileSync(
+          file,
+          mutationConfigSource(control.patterns, control.rules)
+        );
 
-      hiddenCases.push({
-        hidden,
-        neighbour: pick(
-          random,
-          names.filter((name) => name !== hidden)
-        ),
-        pattern: pick(random, [
-          `packages/${hidden}/**`,
-          `packages/${hidden}/src/**`,
-          `**/${hidden}/**`,
-        ]),
+        return [{ control, family, file }];
       });
 
+      expect(
+        prepared.length,
+        "Fix: every control must name a canary family that exists."
+      ).toBe(controls.length);
+
+      const verdicts = await Promise.all(
+        prepared.map(async (item) => ({
+          ...item,
+          hidden: await stillReported(
+            root,
+            directories,
+            item.file,
+            item.family
+          ),
+        }))
+      );
+
+      for (const { control, family, hidden } of verdicts) {
+        expect(
+          hidden,
+          `A config that adds ${control.name} must hide the ${family.name} canary from the real Oxlint, or this control proves nothing. Fix: keep the canary inside the paths the mutation covers.`
+        ).toEqual([]);
+      }
+    } finally {
+      rmSync(root, { force: true, recursive: true });
+    }
+  });
+
+  it("rejects every script, config and path mutation the fence must catch", () => {
+    const random = seededRandom(20_260_216);
+
+    const rejected = new Map<string, number>();
+    const accepted: string[] = [];
+    let cases = 0;
+
+    for (let index = 0; index < 640; index += 1) {
+      const mutation = pick(random, mutationBuilders)(random);
+      const problems = mutation.reject();
+
+      expect(
+        problems.length,
+        `The fence accepted ${mutation.label}. A mutation the fence accepts is a bypass, so the mutation itself fails this test by name. Fix: make the fence reject ${mutation.label}.`
+      ).toBeGreaterThan(0);
+      rejected.set(mutation.kind, (rejected.get(mutation.kind) ?? 0) + 1);
       cases += 1;
     }
 
-    expect(
-      hiddenCases.length,
-      "The generated cases must include hidden packages, so the ignorePatterns hole is covered by behaviour."
-    ).toBeGreaterThan(80);
+    for (const baseline of baselineMutations) {
+      const problems = baseline.reject();
+
+      expect(
+        problems,
+        `The fence rejected ${baseline.label}, which is allowed. Fix: keep the fence from rejecting a real baseline.`
+      ).toEqual([]);
+      accepted.push(baseline.label);
+      cases += 1;
+    }
+
     expect(
       cases,
       "The property test must keep at least 600 cases, so shrinking any set is visible."
     ).toBeGreaterThanOrEqual(600);
     expect(
-      rejected,
-      "The property test must reject the mutations, so a fence that accepts everything fails here."
-    ).toBeGreaterThanOrEqual(150);
+      [...rejected.keys()].toSorted(),
+      "Every mutation kind must appear in the generated cases, so no fence layer goes unproven. Fix: keep every mutation builder reachable."
+    ).toEqual([
+      "extends",
+      "ignore-pattern",
+      "package-lint-script",
+      "root-script",
+      "second-config",
+      "weakened-rule",
+    ]);
     expect(
-      accepted,
-      "The property test must accept the approved neighbour copies, so a fence that accepts nothing fails here."
-    ).toBeGreaterThanOrEqual(1);
-
-    const scratch = mkdtempSync(
-      path.join(tmpdir(), "pecunia-lint-fence-cases-")
-    );
-
-    try {
-      const distinct = new Map<string, HiddenCase>();
-
-      for (const item of hiddenCases) {
-        if (!distinct.has(item.pattern)) {
-          distinct.set(item.pattern, item);
-        }
-      }
-
-      const verdicts = new Map<
-        string,
-        { readonly hidden: boolean; readonly neighbour: boolean }
-      >();
-
-      for (const [index, { hidden, neighbour, pattern }] of [
-        ...distinct.values(),
-      ].entries()) {
-        const hiddenCanary = `${index}/packages/${hidden}/src/fence-canary.ts`;
-        const neighbourCanary = `${index}/packages/${neighbour}/src/fence-canary.ts`;
-
-        writeFileWithParents(scratch, hiddenCanary, canarySource);
-        writeFileWithParents(scratch, neighbourCanary, canarySource);
-        writeFileSync(
-          path.join(scratch, index.toString(), ".oxlintrc.json"),
-          canaryConfig([pattern])
-        );
-
-        const unreported = new Set(
-          unreportedCanaries(scratch, [hiddenCanary, neighbourCanary])
-        );
-
-        verdicts.set(pattern, {
-          hidden: unreported.has(hiddenCanary),
-          neighbour: unreported.has(neighbourCanary),
-        });
-      }
-
-      for (const { hidden, neighbour, pattern } of hiddenCases) {
-        const verdict = verdicts.get(pattern);
-        const label = `\`${pattern}\` hiding ${hidden} next to ${neighbour}`;
-
-        expect(
-          verdict?.hidden,
-          `${label} must hide that package's canary from the real Oxlint, so the generated hidden package case really covers the ignorePatterns hole.`
-        ).toBe(true);
-        expect(
-          verdict?.neighbour,
-          `${label} must leave the neighbour reported, so the check separates a hidden package from a broken Oxlint run.`
-        ).toBe(false);
-      }
-    } finally {
-      rmSync(scratch, { force: true, recursive: true });
-    }
-  });
-
-  it("keeps every generated config rule off or warn spelled out at its scope", () => {
-    for (const { spelling, severity } of severitySpellings) {
-      for (const form of ruleForms) {
-        const setting = form(spelling);
-
-        const pinnedConfig = configWith(
-          "files",
-          "promise/prefer-await-to-then",
-          setting,
-          testFileGlobs
-        );
-
-        const widerConfig = configWith(
-          "global",
-          "promise/prefer-await-to-then",
-          setting
-        );
-
-        expect(
-          ruleFenceProblems(pinnedConfig, offRuleAllowlist),
-          `promise/prefer-await-to-then set to ${JSON.stringify(setting)} inside its pinned scope must fail only when it warns.`
-        ).toEqual(
-          severity === "warn"
-            ? [expect.stringContaining("promise/prefer-await-to-then")]
-            : []
-        );
-        expect(
-          offRuleProblems(widerConfig, offRuleAllowlist).length,
-          `promise/prefer-await-to-then set to ${JSON.stringify(setting)} globally must fail whenever it normalises to off.`
-        ).toBe(severity === "off" ? 1 : 0);
-      }
-    }
+      accepted.length,
+      "The property test must accept the real baselines, so a fence that rejects everything fails here."
+    ).toBeGreaterThanOrEqual(3);
+    expect(
+      [...rejected.values()].reduce((total, count) => total + count, 0),
+      "The property test must reject the mutations, so a fence that accepts everything fails here."
+    ).toBeGreaterThanOrEqual(500);
   });
 });
