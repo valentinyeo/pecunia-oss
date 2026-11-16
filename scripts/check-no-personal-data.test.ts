@@ -429,22 +429,25 @@ describe("explicit allowances pass only in the file they name", () => {
     ).toEqual(["iban"]);
   });
 
-  it("does not let an allowed sort code excuse the account number beside it", () => {
+  it("lets an allowed value excuse the pair only in the file it names", () => {
     const sortCodeAllow = withValues([
       {
         path: "scripts/sample.ts",
-        reason: "A branch, not a person.",
+        reason: "A made-up amount in cents, not a branch.",
         value: grouped("00_00_00", " "),
       },
     ]);
 
-    expect(
-      ruleOf(
-        "scripts/sample.ts",
-        bankSample(grouped("00_00_00", " "), grouped("1234_5678", "")),
-        sortCodeAllow
-      )
-    ).toEqual(["bank-account"]);
+    const sample = bankSample(
+      grouped("00_00_00", " "),
+      grouped("1234_5678", "")
+    );
+
+    expect(ruleOf("scripts/sample.ts", sample, sortCodeAllow)).toEqual([]);
+
+    expect(ruleOf("scripts/other.ts", sample, sortCodeAllow)).toEqual([
+      "bank-account",
+    ]);
   });
 
   it("passes on a file the allow list skips, with a reason", () => {

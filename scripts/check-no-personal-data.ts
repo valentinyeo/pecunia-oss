@@ -837,7 +837,12 @@ const bankFindings = (
   const findings = sortCodes.flatMap((sortCode) => {
     if (
       inside(sortCode, ibans) ||
-      readsAsTime(source.rawOf(sortCode.start, sortCode.end))
+      readsAsTime(source.rawOf(sortCode.start, sortCode.end)) ||
+      allowsValue(
+        allow,
+        filePath,
+        source.text.slice(sortCode.start, sortCode.end)
+      )
     ) {
       return [];
     }

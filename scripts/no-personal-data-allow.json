@@ -83,6 +83,21 @@
       "path": "packages/database/demo/seed.sql",
       "value": "12000000",
       "reason": "A holding quantity in the seeded demo database. It is a round made-up number, not an account number, and the sort-code-shaped field beside it is a cost basis in minor units."
+    },
+    {
+      "path": "packages/bank-import/README.md",
+      "value": "480000",
+      "reason": "A made-up amount in cents in the bank-import demo, and the copy of its demo row in the docs. Six digits make it sort-code shaped, and the made-up date-shaped references beside it are account-number shaped."
+    },
+    {
+      "path": "packages/bank-import/fixtures/demo-bank.csv",
+      "value": "480000",
+      "reason": "A made-up amount in cents in the bank-import demo, and the copy of its demo row in the docs. Six digits make it sort-code shaped, and the made-up date-shaped references beside it are account-number shaped."
+    },
+    {
+      "path": "packages/bank-import/test/bank-import.test.ts",
+      "value": "480000",
+      "reason": "A made-up amount in cents in the bank-import demo, and the copy of its demo row in the docs. Six digits make it sort-code shaped, and the made-up date-shaped references beside it are account-number shaped."
     }
   ]
 }
