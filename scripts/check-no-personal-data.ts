@@ -190,7 +190,7 @@ const IBAN = new RegExp(
 );
 
 const EMAIL =
-  /(?:"[^"\\\s]{1,64}"|[\p{L}\p{N}][\p{L}\p{N}._%+'’-]*)@(?:[\p{L}\p{N}](?:[\p{L}\p{N}-]*[\p{L}\p{N}])?\.)+[\p{L}]{2,}/gu;
+  /(?:"[^"\\\s]{1,64}"|[\p{L}\p{N}][\p{L}\p{M}\p{N}._%+'’-]*)@(?:[\p{L}\p{N}\p{M}](?:[\p{L}\p{M}\p{N}-]*[\p{L}\p{M}\p{N}])?\.)+[\p{L}\p{M}]{2,}/gu;
 
 const CLOUDFLARE_ACCOUNT_ID = /\b[0-9a-f]{32}\b/giu;
 

@@ -357,3 +357,93 @@ describe("a sort code and an account number inside one record are reported as a 
     expect({ alone, missed }).toEqual({ alone: [], missed: [] });
   });
 });
+
+const EMAIL_LOCALS = [
+  "owner",
+  "jane.doe",
+  "a+b",
+  "o'brien",
+  "j_doe",
+  "1st",
+  "jos\u00E9",
+  "jose\u0301",
+  "\u03B4\u03BF\u03BA\u03B9\u03BC\u03AE",
+  "\u5C71\u7530",
+  "\u00DFeta",
+  "\u00E9lodie",
+  "j\u00F6rg",
+];
+
+const EMAIL_DOMAINS = [
+  "acme.com",
+  "acme.co.uk",
+  "b\u00FCcher.de",
+  "bu\u0308cher.de",
+  "sub.acme.co.uk",
+  "xn--bcher-kva.de",
+  "\u4F8B\u5B50.\u4E2D\u56FD",
+  "acme.io",
+];
+
+const PLACEHOLDER_DOMAINS = [
+  "example.com",
+  "example.net",
+  "example.org",
+  "demo.example",
+  "demo.invalid",
+  "demo.localhost",
+  "demo.test",
+];
+
+const EMAIL_LEADS = [
+  "",
+  " ",
+  "'",
+  '"',
+  "\\",
+  "(",
+  ")",
+  "[",
+  "]",
+  ",",
+  ":",
+  "\n",
+];
+
+const EMAIL_TAILS = ["", " ", "\n", ")", "'", "."];
+
+describe("every email address is reported after any punctuation, and the placeholders are not", () => {
+  it(`reports ${CASES} seeded addresses and excuses ${CASES} placeholders`, () => {
+    const random = makeRandom(SEED + 2);
+
+    const missed: string[] = [];
+
+    const placeholders: string[] = [];
+
+    for (let index = 0; index < CASES; index += 1) {
+      const local = random.pick(EMAIL_LOCALS);
+
+      const lead = random.pick(EMAIL_LEADS);
+
+      const tail = random.pick(EMAIL_TAILS);
+
+      const address = `${local}@${random.pick(EMAIL_DOMAINS)}`;
+
+      const text = `${random.prose(3)}${lead}${address}${tail} ${random.prose(2)}`;
+
+      if (!rulesOf("apps/site/test/fixture.ts", text).includes("email")) {
+        missed.push(text);
+      }
+
+      const placeholder = `${local}@${random.pick(PLACEHOLDER_DOMAINS)}`;
+
+      const placeholderText = `${random.prose(3)}${lead}${placeholder}${tail} ${random.prose(2)}`;
+
+      if (rulesOf("apps/site/test/fixture.ts", placeholderText).length > 0) {
+        placeholders.push(placeholderText);
+      }
+    }
+
+    expect({ missed, placeholders }).toEqual({ missed: [], placeholders: [] });
+  });
+});
