@@ -146,10 +146,26 @@
       "step": "accounts-and-bank-lines"
     },
     {
+      "actual": "6 records",
+      "expected": "6 records",
+      "feature": "all",
+      "id": "import-rejected-line-stores-once",
+      "passed": true,
+      "step": "accounts-and-bank-lines"
+    },
+    {
       "actual": "ImportAccountNotFound",
       "expected": "ImportAccountNotFound",
       "feature": "all",
       "id": "import-refuses-unknown-account",
+      "passed": true,
+      "step": "accounts-and-bank-lines"
+    },
+    {
+      "actual": "6 records",
+      "expected": "6 records",
+      "feature": "all",
+      "id": "import-unknown-account-stores-nothing",
       "passed": true,
       "step": "accounts-and-bank-lines"
     },
@@ -202,6 +218,22 @@
       "step": "bank-line-edit"
     },
     {
+      "actual": "12 records",
+      "expected": "12 records",
+      "feature": "all",
+      "id": "bank-line-edit-unknown-line-stores-nothing",
+      "passed": true,
+      "step": "bank-line-edit"
+    },
+    {
+      "actual": "12 records",
+      "expected": "12 records",
+      "feature": "all",
+      "id": "bank-line-edit-foreign-category-stores-nothing",
+      "passed": true,
+      "step": "bank-line-edit"
+    },
+    {
       "actual": "lineId=0192f0c1-0027-7c11-8261-2619d29e6868 profileId=0192f0c1-0001-702d-8484-48490b729601",
       "expected": "lineId=0192f0c1-0027-7c11-8261-2619d29e6868 profileId=0192f0c1-0001-702d-8484-48490b729601",
       "feature": "all",
@@ -238,6 +270,14 @@
       "expected": "12 records",
       "feature": "all",
       "id": "bank-line-review-shows-in-the-list",
+      "passed": true,
+      "step": "bank-line-review"
+    },
+    {
+      "actual": "12 records",
+      "expected": "12 records",
+      "feature": "all",
+      "id": "bank-line-review-viewer-stores-nothing",
       "passed": true,
       "step": "bank-line-review"
     },
@@ -546,27 +586,27 @@
       "step": "invoices"
     }
   ],
-  "commit": "5341d8e6",
-  "declared": 68,
+  "commit": "6eef8918",
+  "declared": 73,
   "demoBookSha256": "527991d3898ec8fdce1029ee97f92a7c25f955c54e2375b38566f95f32537191",
-  "evaluated": 68,
+  "evaluated": 73,
   "failed": 0,
   "failedSteps": 0,
   "failures": [],
   "feature": "all",
   "node": "v24.18.0",
   "passed": true,
-  "ranAt": "2026-11-16T21:17:18Z",
+  "ranAt": "2026-11-16T21:45:34Z",
   "seed": {
-    "command": "pnpm --filter @pecunia/database db:seed:demo /tmp/pecunia-verify-d6QKjm/demo.sqlite"
+    "command": "pnpm --filter @pecunia/database db:seed:demo /tmp/pecunia-verify-qLxpIh/demo.sqlite"
   },
   "stepExpectations": {
     "feature-map": 1,
     "generic": 4,
-    "accounts-and-bank-lines": 14,
+    "accounts-and-bank-lines": 16,
     "bank-line-list": 4,
-    "bank-line-edit": 5,
-    "bank-line-review": 3,
+    "bank-line-edit": 7,
+    "bank-line-review": 4,
     "categories-and-rules": 5,
     "dashboard-sums": 8,
     "subscriptions": 4,
@@ -576,5 +616,5 @@
     "invoices": 6
   },
   "steps": 15,
-  "total": 68
+  "total": 73
 }

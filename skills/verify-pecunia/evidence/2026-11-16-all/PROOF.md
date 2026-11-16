@@ -1,10 +1,10 @@
 # Verification proof: all
 
 - Run label: `all`
-- Run at: 2026-11-16T21:17:18Z
-- Branch: `verify-skill` at `5341d8e6`
+- Run at: 2026-11-16T21:45:34Z
+- Branch: `verify-skill` at `6eef8918`
 - Node: `v24.18.0`
-- Demo seed: `pnpm --filter @pecunia/database db:seed:demo /tmp/pecunia-verify-d6QKjm/demo.sqlite`
+- Demo seed: `pnpm --filter @pecunia/database db:seed:demo /tmp/pecunia-verify-qLxpIh/demo.sqlite`
 - Demo book SHA-256: `527991d3898ec8fdce1029ee97f92a7c25f955c54e2375b38566f95f32537191`
 - The scratch database is deleted after the run; `proof.json` holds every observation.
 
@@ -13,7 +13,7 @@
 ```sh
 pnpm turbo run build --filter=@pecunia/bank-import...
 pnpm turbo run build --filter=@pecunia/bank-lines...
-pnpm --filter @pecunia/database db:seed:demo /tmp/pecunia-verify-d6QKjm/demo.sqlite
+pnpm --filter @pecunia/database db:seed:demo /tmp/pecunia-verify-qLxpIh/demo.sqlite
 bash skills/verify-pecunia/scripts/prove-demo-book.sh --feature all --label all
 node skills/verify-pecunia/scripts/replay-proof.mjs --only all
 ```
@@ -26,10 +26,10 @@ node skills/verify-pecunia/scripts/replay-proof.mjs --only all
 | `build` | 0 | `build-import` 0, `build-lines` 0 | 0 |
 | `feature-map` | 0 | `map` 0 | 1 |
 | `generic` | 0 |  | 4 |
-| `accounts-and-bank-lines` | 0 | `bank-import` 0 | 14 |
+| `accounts-and-bank-lines` | 0 | `bank-import` 0 | 16 |
 | `bank-line-list` | 0 | `bank-line-list` 0 | 4 |
-| `bank-line-edit` | 0 | `bank-line-edit` 0 | 5 |
-| `bank-line-review` | 0 | `bank-line-review` 0 | 3 |
+| `bank-line-edit` | 0 | `bank-line-edit` 0 | 7 |
+| `bank-line-review` | 0 | `bank-line-review` 0 | 4 |
 | `categories-and-rules` | 0 |  | 5 |
 | `dashboard-sums` | 0 |  | 8 |
 | `subscriptions` | 0 |  | 4 |
@@ -38,7 +38,7 @@ node skills/verify-pecunia/scripts/replay-proof.mjs --only all
 | `tax` | 0 |  | 5 |
 | `invoices` | 0 |  | 6 |
 
-Total: 68 expectations across 15 steps, 68 declared, 68 evaluated.
+Total: 73 expectations across 15 steps, 73 declared, 73 evaluated.
 
 ## Seeded tables
 
@@ -91,18 +91,23 @@ transactions: 12 rows
 | `import-replay-adds-nothing` | passed | `imported=0 alreadyImported=5` | `imported=0 alreadyImported=5` |
 | `import-replay-stores-nothing` | passed | `5 records` | `5 records` |
 | `import-names-a-rejected-line` | passed | `imported=1 rejected=1 reason=bad-date` | `imported=1 rejected=1 reason=bad-date` |
+| `import-rejected-line-stores-once` | passed | `6 records` | `6 records` |
 | `import-refuses-unknown-account` | passed | `ImportAccountNotFound` | `ImportAccountNotFound` |
+| `import-unknown-account-stores-nothing` | passed | `6 records` | `6 records` |
 | `bank-line-list-returns-the-demo-book` | passed | `total=12 demoLines=12 awaiting=2` | `total=12 demoLines=12 awaiting=2` |
 | `bank-line-list-orders-newest-first` | passed | `true` | `true` |
 | `bank-line-list-filters-by-direction` | passed | `lines=8 allOut=true bookOut=8` | `lines=8 allOut=true bookOut=8` |
 | `bank-line-list-pages-without-repeats` | passed | `first=5 second=5 overlap=0` | `first=5 second=5 overlap=0` |
 | `bank-line-edit-sets-category-and-note` | passed | `category=0192f0c1-000d-75e9-8fd7-fd7e43c901ee note=Demo note written by the verify drive` | `category=0192f0c1-000d-75e9-8fd7-fd7e43c901ee note=Demo note written by the verify drive` |
 | `bank-line-edit-stores-category-and-note` | passed | `12 records` | `12 records` |
+| `bank-line-edit-unknown-line-stores-nothing` | passed | `12 records` | `12 records` |
+| `bank-line-edit-foreign-category-stores-nothing` | passed | `12 records` | `12 records` |
 | `bank-line-edit-keeps-the-line-in-its-profile` | passed | `lineId=0192f0c1-0027-7c11-8261-2619d29e6868 profileId=0192f0c1-0001-702d-8484-48490b729601` | `lineId=0192f0c1-0027-7c11-8261-2619d29e6868 profileId=0192f0c1-0001-702d-8484-48490b729601` |
 | `bank-line-edit-refuses-an-unknown-line` | passed | `UnknownBankLine` | `UnknownBankLine` |
 | `bank-line-edit-refuses-a-foreign-category` | passed | `UnknownCategory` | `UnknownCategory` |
 | `bank-line-review-marks-the-line` | passed | `tag=Reviewed hasTime=true` | `tag=Reviewed hasTime=true` |
 | `bank-line-review-shows-in-the-list` | passed | `12 records` | `12 records` |
+| `bank-line-review-viewer-stores-nothing` | passed | `12 records` | `12 records` |
 | `bank-line-review-refuses-a-viewer` | passed | `Forbidden` | `Forbidden` |
 | `applied-rule-sets-category` | passed | `0` | `0` |
 | `classification-rule-sets-classification` | passed | `0` | `0` |
@@ -151,7 +156,7 @@ transactions: 12 rows
 
 ## Verdict
 
-PASS: 15 steps ran, 68 expectations held against the seeded demo book.
+PASS: 15 steps ran, 73 expectations held against the seeded demo book.
 
 ## What this proves
 
