@@ -430,32 +430,224 @@ const scriptsOf = (file: string): Readonly<Record<string, string>> =>
     readFileSync(path.join(repoRoot, file), "utf-8")
   ).scripts ?? {};
 
-type ScriptAllowlist = Readonly<Record<string, string>>;
+type ScriptRole =
+  | "check"
+  | "content"
+  | "fix"
+  | "format"
+  | "lint"
+  | "test-guard";
+
+const scriptRoles = [
+  "check",
+  "content",
+  "fix",
+  "format",
+  "lint",
+  "test-guard",
+] as const satisfies readonly ScriptRole[];
+
+const scriptNameRoles = {
+  check: "check",
+  "check:*": "check",
+  fix: "fix",
+  "fix:*": "fix",
+  format: "format",
+  "format:*": "format",
+  fmt: "format",
+  generate: "content",
+  "git-snapshot": "content",
+  lint: "lint",
+  "lint:*": "lint",
+  "test:guards": "test-guard",
+} as const satisfies Readonly<Record<string, ScriptRole>>;
+
+const unsafeOxlintSpellings: readonly string[] = [
+  "-A all",
+  "-W all",
+  "-D all",
+  "-AW all",
+  "-WA all",
+  "-Dq all",
+  "-q",
+  "--quiet",
+  "--quiet=true",
+  "--allow all",
+  "--warn all",
+  "--deny all",
+  "--allow=all",
+  "--warn=all",
+  "--deny=off",
+  "--allow=off",
+  "--max-warnings=5",
+  "--max-warnings 5",
+  "--max-warnings=1",
+  "--disable-nested-config",
+  "--disable-oxlint-rules",
+  "--disable-all-rules",
+  "--disable-oxlint-rules=true",
+  "--report-unused-disable-directives-severity=off",
+];
+
+interface RoleDemand {
+  readonly asks: string;
+  readonly pattern: RegExp;
+}
+
+const roleDemands = {
+  check: [
+    {
+      pattern: /(?:\boxlint\b|ultracite check|pnpm(?: run)? lint\b)/u,
+      asks: "runs Oxlint, or calls a lint script that does",
+    },
+  ],
+  content: [
+    {
+      pattern: /generate-content\.ts/u,
+      asks: "runs the content generator",
+    },
+  ],
+  fix: [
+    {
+      pattern: /(?:ultracite fix|\boxfmt\b)/u,
+      asks: "runs Ultracite fix or Oxfmt",
+    },
+  ],
+  format: [
+    {
+      pattern: /\boxfmt\b/u,
+      asks: "runs Oxfmt",
+    },
+  ],
+  lint: [
+    {
+      pattern: /(?:\boxlint\b|ultracite check)/u,
+      asks: "runs Oxlint, or Ultracite check on the Oxlint config",
+    },
+    {
+      pattern: /oxfmt --check/u,
+      asks: "also checks formatting",
+    },
+  ],
+  "test-guard": [
+    {
+      pattern: /vitest run scripts\/\*\.test\.ts/u,
+      asks: "runs the scripts test suite",
+    },
+  ],
+} as const satisfies Readonly<Record<ScriptRole, readonly RoleDemand[]>>;
+
+interface EntryPin {
+  readonly reason: string;
+  readonly role: ScriptRole;
+}
+
+type ScriptAllowlist = Readonly<Record<string, EntryPin>>;
 
 const scriptAllowlist = {
-  oxfmt:
-    "The bare formatter touches only the paths pnpm hands it, with no ignore flag of its own.",
-  "oxfmt --check":
-    "The format check reports every unformatted file and exits non-zero without writing.",
-  "ultracite check && oxfmt --check .":
-    "The lint script runs the whole Ultracite rule set over the tree, then proves formatting.",
-  "ultracite fix && oxfmt .":
-    "The fix script rewrites only what Ultracite and Oxfmt can repair, with every rule still on.",
+  oxfmt: {
+    role: "format",
+    reason:
+      "The bare formatter touches only the paths pnpm hands it, with no ignore flag of its own.",
+  },
+  "oxfmt --check": {
+    role: "format",
+    reason:
+      "The format check reports every unformatted file and exits non-zero without writing.",
+  },
+  "ultracite check && oxfmt --check .": {
+    role: "lint",
+    reason:
+      "The lint script runs the whole Ultracite rule set over the tree, then proves formatting.",
+  },
+  "ultracite fix && oxfmt .": {
+    role: "fix",
+    reason:
+      "The fix script rewrites only what Ultracite and Oxfmt can repair, with every rule still on.",
+  },
   "pnpm run lockfile:check && varlock load && turbo run typecheck typecheck-scripts && ultracite check && oxfmt --check .":
-    "The check script loads env values, typechecks, then lints and format-checks the tree before it reports success.",
+    {
+      role: "check",
+      reason:
+        "The check script loads env values, typechecks, then lints and format-checks the tree before it reports success.",
+    },
   "node apps/site/scripts/generate-content.ts --git-snapshot && oxfmt .brain/data/git-snapshot.json":
-    "The site build refreshes the git snapshot and formats that one generated file.",
+    {
+      role: "content",
+      reason:
+        "The site build refreshes the git snapshot and formats that one generated file.",
+    },
   "oxlint shared scripts exercises vitest.config.ts vitest.exercise.config.ts && oxfmt --check shared scripts exercises vitest.config.ts vitest.exercise.config.ts package.json tsconfig.json .oxlintrc.json .oxfmtrc.json .pi/settings.json README.md AGENTS.md CONTRIBUTING.md PROVENANCE.md":
-    "The starter example lints its own configs and docs, then format-checks the same paths.",
+    {
+      role: "lint",
+      reason:
+        "The starter example lints its own configs and docs, then format-checks the same paths.",
+    },
   "oxfmt shared scripts exercises vitest.config.ts vitest.exercise.config.ts package.json tsconfig.json .oxlintrc.json .oxfmtrc.json .pi/settings.json README.md AGENTS.md CONTRIBUTING.md PROVENANCE.md":
-    "The starter example formats its own configs and docs with no path excluded.",
-  "pnpm typecheck && pnpm lint && pnpm test":
-    "The starter example runs typecheck, its own lint, then its tests, so the sample keeps the full gate.",
-  "node scripts/generate-content.ts":
-    "The site generate script builds content, and the debt-ledger Oxlint run inside it is not the repo lint gate.",
-  "apps/site/scripts/generate-content.ts":
-    "The content build runs Oxlint with the debt-ledger config, which turns every rule but the debt rule off on purpose.",
+    {
+      role: "format",
+      reason:
+        "The starter example formats its own configs and docs with no path excluded.",
+    },
+  "pnpm typecheck && pnpm lint && pnpm test": {
+    role: "check",
+    reason:
+      "The starter example runs typecheck, its own lint, then its tests, so the sample keeps the full gate.",
+  },
+  "node scripts/generate-content.ts": {
+    role: "content",
+    reason:
+      "The site generate script builds content, and the debt-ledger Oxlint run inside it is not the repo lint gate.",
+  },
+  "apps/site/scripts/generate-content.ts": {
+    role: "content",
+    reason:
+      "The content build runs Oxlint with the debt-ledger config, which turns every rule but the debt rule off on purpose.",
+  },
 } satisfies ScriptAllowlist;
+
+const pinOf = (
+  allowlist: ScriptAllowlist,
+  body: string
+): EntryPin | undefined => allowlist[body];
+
+const roleLookup: readonly (readonly [string, ScriptRole])[] =
+  Object.entries(scriptNameRoles);
+
+const roleOfName = (name: string): ScriptRole | undefined =>
+  roleLookup.find(([pattern]) =>
+    pattern.endsWith("*")
+      ? name.startsWith(pattern.slice(0, -1))
+      : pattern === name
+  )?.[1];
+
+const concreteName = (pattern: string): string =>
+  pattern.endsWith("*") ? `${pattern.slice(0, -1)}sample` : pattern;
+
+const weakeningSpellingsIn = (text: string): readonly string[] =>
+  unsafeOxlintSpellings.filter((spelling) => text.includes(spelling));
+
+const roleProblems = (
+  role: ScriptRole,
+  command: string,
+  helpers: readonly string[]
+): readonly string[] => {
+  const text = [command, ...helpers].join(" && ");
+
+  return [
+    ...roleDemands[role].flatMap(({ pattern, asks }) =>
+      pattern.test(text)
+        ? []
+        : [
+            `\`${command}\` runs as role ${role}, which must ${asks}. Fix: keep the role's real tool in the script, or give the script the role it really plays in scriptNameRoles in scripts/lint-fence.test.ts.`,
+          ]
+    ),
+    ...weakeningSpellingsIn(command).map(
+      (spelling) =>
+        `\`${command}\` runs as role ${role} and passes \`${spelling}\`, which turns findings off. Fix: remove the flag from the script, or stop allowlisting the body that carries it.`
+    ),
+  ];
+};
 
 const lintWordPattern = /oxlint|ultracite|oxfmt|lint/iu;
 
@@ -507,10 +699,24 @@ const lintHelpersIn = (
   });
 
 const bodyProblem = (subject: ScriptSubject): string =>
-  `${subject.file} script "${subject.name}" runs \`${subject.body}\`, which names lint, and scriptAllowlist holds no entry for that exact body. Fix: add it to scriptAllowlist in scripts/lint-fence.test.ts with a one-sentence reason for why it cannot hide a finding, or remove the lint words from the script.`;
+  `${subject.file} script "${subject.name}" runs \`${subject.body}\`, which names lint, and scriptAllowlist holds no entry for that exact body. Fix: add it to scriptAllowlist in scripts/lint-fence.test.ts with the role it plays and a one-sentence reason for why it cannot hide a finding, or remove the lint words from the script.`;
+
+const missingRoleProblem = (subject: ScriptSubject): string =>
+  `${subject.file} script "${subject.name}" runs \`${subject.body}\`, which names lint or is a pinned body, and scriptNameRoles in scripts/lint-fence.test.ts gives the name "${subject.name}" no role. Fix: add "${subject.name}" to scriptNameRoles with the role it plays (${scriptRoles.join(", ")}), then allowlist its body in scriptAllowlist with that same role and a one-sentence reason.`;
+
+const roleMismatchProblem = (subject: ScriptSubject): string =>
+  `${subject.file} script "${subject.name}" runs \`${subject.body}\`, which is a pinned body of another role, so the fence cannot tell whether lint still runs. Fix: run a body whose pinned role matches the role scriptNameRoles gives "${subject.name}", or pin this body to that role in scriptAllowlist in scripts/lint-fence.test.ts.`;
 
 const helperProblem = (subject: ScriptSubject, helper: string): string =>
-  `${subject.file} script "${subject.name}" runs ${helper}, which names oxlint, ultracite or oxfmt, and scriptAllowlist holds no entry for that helper. Fix: add "${helper}" to scriptAllowlist in scripts/lint-fence.test.ts with a one-sentence reason, or stop running it from a package.json script.`;
+  `${subject.file} script "${subject.name}" runs ${helper}, which names oxlint, ultracite or oxfmt, and scriptAllowlist holds no entry for that helper. Fix: add "${helper}" to scriptAllowlist in scripts/lint-fence.test.ts with a role and a one-sentence reason, or stop running it from a package.json script.`;
+
+const helperRoleProblem = (
+  subject: ScriptSubject,
+  helper: string,
+  role: ScriptRole,
+  pinned: ScriptRole
+): string =>
+  `${subject.file} script "${subject.name}" runs ${helper}, which scriptAllowlist pins to role ${pinned}, while ${subject.name} plays role ${role}. Fix: give the helper the same entry role as the script that runs it, or stop running it from a ${role} script.`;
 
 const subjectBase = (subject: ScriptSubject): string =>
   path.posix.dirname(subject.file);
@@ -526,15 +732,54 @@ const subjectProblems = (
     lookupHelper
   );
 
-  const judged = lintWordPattern.test(subject.body) || lintHelpers.length > 0;
+  const pin = pinOf(allowlist, subject.body);
+
+  const judged =
+    lintWordPattern.test(subject.body) ||
+    lintHelpers.length > 0 ||
+    pin !== undefined;
+
+  if (!judged) {
+    return [];
+  }
+
+  const role = roleOfName(subject.name);
+
+  if (role === undefined) {
+    return [missingRoleProblem(subject)];
+  }
+
+  const helperSources = lintHelpers.flatMap((helper) => {
+    const source = lookupHelper(helper);
+
+    return source === undefined ? [] : [source];
+  });
+
+  const ownProblems = (): readonly string[] => {
+    if (pin === undefined) {
+      return [bodyProblem(subject)];
+    }
+
+    if (pin.role !== role) {
+      return [roleMismatchProblem(subject)];
+    }
+
+    return roleProblems(role, subject.body, helperSources);
+  };
 
   return [
-    ...(judged && !Object.hasOwn(allowlist, subject.body)
-      ? [bodyProblem(subject)]
-      : []),
-    ...lintHelpers.flatMap((helper) =>
-      Object.hasOwn(allowlist, helper) ? [] : [helperProblem(subject, helper)]
-    ),
+    ...ownProblems(),
+    ...lintHelpers.flatMap((helper) => {
+      const helperPin = allowlist[helper];
+
+      if (helperPin === undefined) {
+        return [helperProblem(subject, helper)];
+      }
+
+      return helperPin.role === role
+        ? []
+        : [helperRoleProblem(subject, helper, role, helperPin.role)];
+    }),
   ];
 };
 
@@ -569,29 +814,53 @@ const configCommandsIn = (
     .map((command) => ({ file, command }));
 
 const configCommandProblem = ({ file, command }: ConfigCommand): string =>
-  `${file} runs \`${command}\`, which names oxlint, ultracite or oxfmt, and scriptAllowlist holds no entry for that exact line. Fix: add it to scriptAllowlist in scripts/lint-fence.test.ts with a one-sentence reason, or drop the line from the hook or workflow config.`;
+  `${file} runs \`${command}\`, which names oxlint, ultracite or oxfmt, and scriptAllowlist holds no entry for that exact line. Fix: add it to scriptAllowlist in scripts/lint-fence.test.ts with the role it plays and a one-sentence reason, or drop the line from the hook or workflow config.`;
 
 const configHelperProblem = (
   { file, command }: ConfigCommand,
   helper: string
 ): string =>
-  `${file} runs \`${command}\`, which runs ${helper}, and that helper names oxlint, ultracite or oxfmt with no entry in scriptAllowlist. Fix: add "${helper}" to scriptAllowlist in scripts/lint-fence.test.ts with a one-sentence reason, or drop the line.`;
+  `${file} runs \`${command}\`, which runs ${helper}, and that helper names oxlint, ultracite or oxfmt with no entry in scriptAllowlist. Fix: add "${helper}" to scriptAllowlist in scripts/lint-fence.test.ts with a role and a one-sentence reason, or drop the line.`;
+
+const configHelperRoleProblem = (
+  { file, command }: ConfigCommand,
+  helper: string,
+  pinned: ScriptRole,
+  role: ScriptRole
+): string =>
+  `${file} runs \`${command}\`, which runs ${helper}, and scriptAllowlist pins that helper to role ${pinned} while the line is pinned to role ${role}. Fix: give the helper the same entry role as the line that runs it, or drop the line.`;
 
 const configCommandProblems = (
   commands: readonly ConfigCommand[],
   allowlist: ScriptAllowlist,
   lookupHelper: HelperLookup
 ): readonly string[] =>
-  commands.flatMap((command) => [
-    ...(Object.hasOwn(allowlist, command.command)
-      ? []
-      : [configCommandProblem(command)]),
-    ...lintHelpersIn(".", command.command, lookupHelper).flatMap((helper) =>
-      Object.hasOwn(allowlist, helper)
+  commands.flatMap((command) => {
+    const pin = allowlist[command.command];
+    const helpers = lintHelpersIn(".", command.command, lookupHelper);
+
+    return [
+      ...(pin === undefined ? [configCommandProblem(command)] : []),
+      ...(pin === undefined
         ? []
-        : [configHelperProblem(command, helper)]
-    ),
-  ]);
+        : roleProblems(
+            pin.role,
+            command.command,
+            helpers.flatMap((helper) => lookupHelper(helper) ?? [])
+          )),
+      ...helpers.flatMap((helper) => {
+        const helperPin = allowlist[helper];
+
+        if (helperPin === undefined) {
+          return [configHelperProblem(command, helper)];
+        }
+
+        return pin !== undefined && helperPin.role !== pin.role
+          ? [configHelperRoleProblem(command, helper, helperPin.role, pin.role)]
+          : [];
+      }),
+    ];
+  });
 
 const trackedFiles = (): readonly string[] =>
   execFileSync("git", ["ls-files", "-z"], {
@@ -712,33 +981,6 @@ const generatedRules = [
   "generated/prefer-await-to-then",
 ] as const;
 
-const unsafeOxlintSpellings: readonly string[] = [
-  "-A all",
-  "-W all",
-  "-D all",
-  "-AW all",
-  "-WA all",
-  "-Dq all",
-  "-q",
-  "--quiet",
-  "--quiet=true",
-  "--allow all",
-  "--warn all",
-  "--deny all",
-  "--allow=all",
-  "--warn=all",
-  "--deny=off",
-  "--allow=off",
-  "--max-warnings=5",
-  "--max-warnings 5",
-  "--max-warnings=1",
-  "--disable-nested-config",
-  "--disable-oxlint-rules",
-  "--disable-all-rules",
-  "--disable-oxlint-rules=true",
-  "--report-unused-disable-directives-severity=off",
-];
-
 const unsafeScriptBodies: readonly string[] = [
   "ultracite check -A all",
   "ultracite check --allow all && oxfmt --check .",
@@ -757,7 +999,7 @@ const unsafeScriptBodies: readonly string[] = [
 
 const fixtureHelper = (helper: string): string | undefined => {
   if (helper === "scripts/verify-lint.sh" || helper === "ci/lint.sh") {
-    return 'oxlint -A all "$@"\n';
+    return 'pnpm exec oxlint -A all "$@" && oxfmt --check .\n';
   }
 
   return undefined;
@@ -849,14 +1091,33 @@ describe("lint fence", () => {
   });
 
   it("gives every allowlisted script a plain sentence", () => {
-    const thin = Object.entries(scriptAllowlist).flatMap(([entry, reason]) =>
-      reason.trim().endsWith(".") && reason.trim().length >= 20 ? [] : [entry]
+    const thin = Object.entries(scriptAllowlist).flatMap(
+      ([entry, { reason }]) =>
+        reason.trim().endsWith(".") && reason.trim().length >= 20 ? [] : [entry]
     );
 
     expect(
       thin,
       "Every scriptAllowlist reason must be one plain sentence of at least 20 characters ending in a period, because that reason is what a reader checks when a script touches lint."
     ).toEqual([]);
+  });
+
+  it("pins every allowlisted entry to a role the fence knows", () => {
+    const unknown = Object.entries(scriptAllowlist).flatMap(
+      ([entry, { role }]) =>
+        scriptRoles.includes(role) ? [] : [`${entry} (role ${role})`]
+    );
+
+    expect(
+      unknown,
+      `Every scriptAllowlist entry must carry one of the roles the fence decides with: ${scriptRoles.join(", ")}. Fix: give the entry the role it plays, or add the missing role to scriptRoles and roleDemands in scripts/lint-fence.test.ts.`
+    ).toEqual([]);
+    expect(
+      Object.values(scriptNameRoles).every((role) =>
+        scriptRoles.includes(role)
+      ),
+      "Every script name in scriptNameRoles must map to a role the fence decides with. Fix: map the name to a listed role, or add the role to scriptRoles."
+    ).toBe(true);
   });
 
   it("keeps every rule at error and the fence rules enabled", () => {
@@ -889,24 +1150,17 @@ describe("lint fence", () => {
   });
 
   it("keeps lint running at full strength in every package.json", () => {
-    const rootScripts = scriptsOf("package.json");
-    const lintScript = rootScripts.lint ?? "";
-
     expect(
-      lintScript,
+      scriptsOf("package.json").lint,
       "package.json has no lint script. Fix: restore `lint` so the repo still runs Oxlint through Ultracite and checks formatting."
-    ).toContain("ultracite check");
-    expect(
-      lintScript,
-      "The lint script no longer runs `oxfmt --check`. Fix: restore the format check in the lint script in package.json."
-    ).toContain("oxfmt --check");
+    ).toBeDefined();
     expect(
       trackedManifests(),
       "The script scan did not see the workspace manifests. Fix: make trackedManifests in scripts/lint-fence.test.ts list every tracked package.json, so a workspace script cannot weaken lint unseen."
     ).toContain("packages/core/package.json");
     expect(
       trackedScriptProblems(),
-      "A package.json script names lint, or runs a helper that does, and scriptAllowlist holds no entry for that exact body or helper. Fix: add it to scriptAllowlist in scripts/lint-fence.test.ts with a one-sentence reason, or remove it."
+      "A package.json script names lint, or runs a helper that does, and scriptAllowlist holds no entry for that exact body and its role or helper. Fix: add it to scriptAllowlist in scripts/lint-fence.test.ts with the role it plays and a one-sentence reason, or remove it."
     ).toEqual([]);
     expect(
       configCommandProblems(
@@ -914,12 +1168,16 @@ describe("lint fence", () => {
         scriptAllowlist,
         trackedHelperLookup()
       ),
-      "A hook or workflow config line names oxlint, ultracite or oxfmt without an allowlist entry, so CI could run lint outside the fence. Fix: add that exact line to scriptAllowlist with a reason, or drop it."
+      "A hook or workflow config line names oxlint, ultracite or oxfmt without an allowlist entry, so CI could run lint outside the fence. Fix: add that exact line to scriptAllowlist with a role and a reason, or drop it."
     ).toEqual([]);
     expect(
       staleAllowlistEntries(),
       "scriptAllowlist names a body, helper or config line that nothing uses any more. Fix: delete that entry, or restore the script it pins."
     ).toEqual([]);
+    expect(
+      readFileSync(path.join(repoRoot, "oxlint.config.ts"), "utf-8"),
+      "Ultracite check only counts as the real linter while oxlint.config.ts extends the Ultracite Oxlint config. Fix: restore the `ultracite/oxlint/core` import in oxlint.config.ts, or stop letting a lint script pass with `ultracite check`."
+    ).toContain("ultracite/oxlint");
     expect(
       lintOptions.typeAware,
       "Oxlint must keep type-aware linting on. Fix: restore `options: { typeAware: true }` in oxlint.config.ts."
@@ -996,8 +1254,11 @@ describe("lint fence", () => {
     ).toEqual(["scripts/verify-lint.sh"]);
 
     const bodyOnly = {
-      "bash scripts/verify-lint.sh":
-        "The wrapper is approved as one exact body so the helper rule has a script to judge.",
+      "bash scripts/verify-lint.sh": {
+        role: "lint",
+        reason:
+          "The wrapper is approved as one exact body so the helper rule has a script to judge.",
+      },
     } satisfies ScriptAllowlist;
 
     expect(
@@ -1009,6 +1270,67 @@ describe("lint fence", () => {
       helperPathsIn(".", "bash scripts/deploy-preview.sh"),
       "Helper resolution must work on the real tree, so the scan reads the scripts it claims to read."
     ).toContain("scripts/deploy-preview.sh");
+
+    const formatHelper = {
+      "bash scripts/verify-lint.sh": {
+        role: "format",
+        reason:
+          "The fixture pins the wrapper to the format role so the helper role rule has something to reject.",
+      },
+      "scripts/verify-lint.sh": {
+        role: "format",
+        reason:
+          "The fixture pins the helper to the format role so the helper role rule has something to reject.",
+      },
+    } satisfies ScriptAllowlist;
+
+    expect(
+      subjectProblems(subject, fixtureHelper, formatHelper),
+      "A lint script must still fail when the helper it runs is pinned to another role, because a format helper cannot fill a lint slot."
+    ).toEqual([
+      expect.stringContaining("pinned body of another role"),
+      expect.stringContaining("role format"),
+    ]);
+  });
+
+  it("keeps every body legal only for the role it runs as", () => {
+    const formatterPinnedToLint = {
+      "oxfmt --check": {
+        role: "lint",
+        reason:
+          "The fixture pins a formatter body to the lint role so the real-linter demand has something to reject.",
+      },
+    } satisfies ScriptAllowlist;
+
+    expect(
+      subjectProblems(
+        { file: "package.json", name: "lint", body: "oxfmt --check" },
+        fixtureHelper,
+        formatterPinnedToLint
+      ),
+      "A lint entry that runs only the formatter must fail, because the lint role has to run the real linter."
+    ).toEqual([expect.stringContaining("role lint")]);
+
+    const formatPinnedToLintBody = {
+      "ultracite check && oxfmt --check .": {
+        role: "format",
+        reason:
+          "The fixture pins the lint gate body to the format role so the reverse role rule has something to reject.",
+      },
+    } satisfies ScriptAllowlist;
+
+    expect(
+      subjectProblems(
+        {
+          file: "package.json",
+          name: "lint",
+          body: "ultracite check && oxfmt --check .",
+        },
+        fixtureHelper,
+        formatPinnedToLintBody
+      ),
+      "A lint gate body must not pass when it is pinned to another role, because the role is what tells the reader which slot the body fills."
+    ).toEqual([expect.stringContaining("pinned body of another role")]);
   });
 
   it("judges every lint word in the hook and CI config", () => {
@@ -1069,8 +1391,11 @@ describe("lint fence", () => {
     ).toEqual([]);
 
     const wrapperOnly = {
-      "bash ci/lint.sh":
-        "The CI wrapper is approved as one exact line so the helper rule has a config line to judge.",
+      "bash ci/lint.sh": {
+        role: "lint",
+        reason:
+          "The CI wrapper is approved as one exact line so the helper rule has a config line to judge.",
+      },
     } satisfies ScriptAllowlist;
 
     expect(
@@ -1087,46 +1412,52 @@ describe("lint fence", () => {
     ).toEqual([expect.stringContaining("ci/lint.sh")]);
   });
 
-  it("judges every script body as one exact string", () => {
+  it("judges every script body against the role its name plays", () => {
     const manifest = "packages/core/package.json";
     const extensions = [...sourceExtensions];
+    const listedBodies = Object.keys(scriptAllowlist);
 
     expect(
       [...sourceExtensionSet].toSorted(),
       "The source extension set must cover every kind of file Oxlint runs on. Fix: restore .ts, .tsx, .js, .jsx, .mts, .cts, .mjs, and .cjs in sourceExtensions in scripts/lint-fence.test.ts."
     ).toEqual([".cjs", ".cts", ".js", ".jsx", ".mjs", ".mts", ".ts", ".tsx"]);
 
+    const scriptNames = Object.keys(scriptNameRoles).map(concreteName);
+
     let cases = 0;
     let rejected = 0;
     let accepted = 0;
 
-    const checkBody = (body: string): void => {
+    const checkCase = (name: string, body: string): void => {
+      const role = roleOfName(name);
+      const pin = pinOf(scriptAllowlist, body);
+
       const problems = subjectProblems(
-        { file: manifest, name: "lint", body },
+        { file: manifest, name, body },
         fixtureHelper,
         scriptAllowlist
       );
 
-      if (Object.hasOwn(scriptAllowlist, body)) {
+      if (pin !== undefined && pin.role === role) {
         expect(
           problems,
-          `\`${body}\` is allowlisted, so the fence must accept it.`
+          `\`${body}\` is pinned to role ${pin.role}, so the fence must accept it under the name "${name}".`
         ).toEqual([]);
         accepted += 1;
       } else {
         expect(
           problems.length,
-          `\`${body}\` is not in scriptAllowlist, so the fence must reject it however it is written.`
+          `\`${body}\` under the name "${name}" has no matching role, so the fence must reject it however it is written.`
         ).toBeGreaterThan(0);
         expect(problems[0], `\`${body}\` must name the file.`).toContain(
           manifest
         );
         expect(problems[0], `\`${body}\` must name the script.`).toContain(
-          'script "lint"'
+          `script "${name}"`
         );
         expect(
           problems[0],
-          `\`${body}\` must tell the reader to extend scriptAllowlist.`
+          `\`${body}\` under "${name}" must tell the reader to extend scriptAllowlist.`
         ).toContain("scriptAllowlist");
         rejected += 1;
       }
@@ -1134,13 +1465,24 @@ describe("lint fence", () => {
       cases += 1;
     };
 
-    for (const body of Object.keys(scriptAllowlist)) {
-      checkBody(body);
+    for (const name of scriptNames) {
+      for (const body of listedBodies) {
+        checkCase(name, body);
+      }
+    }
+
+    const rootScripts = scriptsOf("package.json");
+
+    checkCase("lint", rootScripts.format ?? "");
+    checkCase("format", rootScripts.lint ?? "");
+
+    for (const name of ["lint", "lint:ci", "check", "precommit"]) {
+      checkCase(name, "oxfmt --check");
     }
 
     for (const extension of extensions) {
       for (const spelling of unsafeOxlintSpellings) {
-        checkBody(oxlintCommand(spelling, extension));
+        checkCase("lint", oxlintCommand(spelling, extension));
       }
 
       const file = `src/example${extension}`;
@@ -1161,27 +1503,29 @@ describe("lint fence", () => {
 
     const random = seededRandom(20_260_216);
     const glues = [" ", "  ", " && ", " && pnpm exec ", '  "', "' "];
-    const listedBodies = Object.keys(scriptAllowlist);
 
     for (const body of listedBodies) {
-      checkBody(`${body} && oxlint -A all`);
-      checkBody(`${body} && ultracite check --allow all`);
+      checkCase("lint", `${body} && oxlint -A all`);
+      checkCase("lint", `${body} && ultracite check --allow all`);
     }
 
     for (let index = 0; index < 600; index += 1) {
       const glue = pick(random, glues);
       const roll = random();
+      const name = pick(random, scriptNames);
 
       if (roll < 0.3) {
-        checkBody(pick(random, listedBodies));
+        checkCase(name, pick(random, listedBodies));
       } else if (roll < 0.55) {
-        checkBody(pick(random, unsafeScriptBodies));
+        checkCase(name, pick(random, unsafeScriptBodies));
       } else if (roll < 0.8) {
-        checkBody(
+        checkCase(
+          name,
           `${pick(random, unsafeScriptBodies)}${glue}${pick(random, unsafeScriptBodies)}`
         );
       } else {
-        checkBody(
+        checkCase(
+          name,
           `${pick(random, listedBodies)}${glue}${pick(random, unsafeScriptBodies)}`
         );
       }
@@ -1193,12 +1537,12 @@ describe("lint fence", () => {
     ).toBeGreaterThanOrEqual(600);
     expect(
       rejected,
-      "The property test must reject the unsafe bodies it generates, so a fence that accepts everything fails here."
+      "The property test must reject bodies that do not match their script's role, so a fence that accepts everything fails here."
     ).toBeGreaterThanOrEqual(600);
     expect(
       accepted,
-      "The property test must accept every allowlist entry, so a fence that accepts nothing fails here."
-    ).toBeGreaterThanOrEqual(Object.keys(scriptAllowlist).length);
+      "The property test must accept every allowlist entry under a name of its own role, so a fence that accepts nothing fails here."
+    ).toBeGreaterThanOrEqual(listedBodies.length);
   });
 
   it("classifies every severity spelling by its normalised meaning", () => {
