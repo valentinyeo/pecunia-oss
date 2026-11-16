@@ -45,10 +45,30 @@ const foldkitTestScope: RuleScope = {
   files: foldkitTestFiles,
 };
 
-const testFileGlobs = [
-  "**/*.{test,spec,test-d,spec-d}.{ts,tsx,js,jsx,mts,cts,mjs,cjs}",
-  "**/__tests__/**/*.{ts,tsx,js,jsx,mts,cts,mjs,cjs}",
+const sourceExtensions = [
+  ".ts",
+  ".tsx",
+  ".js",
+  ".jsx",
+  ".mts",
+  ".cts",
+  ".mjs",
+  ".cjs",
 ] as const;
+
+const sourceExtensionSet: ReadonlySet<string> = new Set(sourceExtensions);
+
+const extensionAlternatives = sourceExtensions
+  .map((extension) => extension.slice(1))
+  .join(",");
+
+const isSourceExtension = (file: string): boolean =>
+  sourceExtensionSet.has(path.extname(file));
+
+const testFileGlobs: readonly string[] = [
+  `**/*.{test,spec,test-d,spec-d}.{${extensionAlternatives}}`,
+  `**/__tests__/**/*.{${extensionAlternatives}}`,
+];
 
 const testFilesScope: RuleScope = { kind: "files", files: testFileGlobs };
 
@@ -174,8 +194,6 @@ const quotedDirectiveFixtures = new Set([
   "packages/core/test/no-comments-rule.test.ts",
 ]);
 
-const sourceFilePattern = /\.(?:ts|tsx|js|mjs|cts|mts)$/u;
-
 const commentPattern = /\/\/[^\n]*|\/\*[\s\S]*?\*\//gu;
 
 const directivePattern =
@@ -184,10 +202,6 @@ const directivePattern =
 const typeDirectivePattern = /^@ts-(?:expect-error|ignore|nocheck)\b/u;
 
 const rationalePattern = /\s--\s+\S/u;
-
-const maxWarningsPattern = /--max-warnings(?:=|\s+)(?<count>\d+)/u;
-
-const weakeningFlagPattern = /--quiet\b|--disable\b|--allow\b/u;
 
 const PackageManifest = Schema.fromJsonString(
   Schema.Struct({
@@ -238,7 +252,7 @@ const rulesOf = (
 const scopeOfOverride = (override: OxlintOverride): RuleScope => ({
   kind: "files",
   files: override.files,
-  excludeFiles: override.excludeFiles,
+  excludeFiles: override.excludeFiles ?? [],
 });
 
 const addScope = (
@@ -375,10 +389,11 @@ const hasRationale = (text: string): boolean => {
 const lineAt = (source: string, offset: number): number =>
   source.slice(0, offset).split("\n").length;
 
-const unreasonedDirectives = (file: string): readonly string[] => {
-  const source = readFileSync(path.join(repoRoot, file), "utf-8");
-
-  return [...source.matchAll(commentPattern)].flatMap((match) => {
+const unreasonedDirectivesIn = (
+  file: string,
+  source: string
+): readonly string[] =>
+  [...source.matchAll(commentPattern)].flatMap((match) => {
     const text = commentText(match[0]);
 
     if (!directivePattern.test(text) || hasRationale(text)) {
@@ -387,10 +402,15 @@ const unreasonedDirectives = (file: string): readonly string[] => {
 
     return [`${file}:${lineAt(source, match.index ?? 0)} ${text}`];
   });
-};
+
+const unreasonedDirectives = (file: string): readonly string[] =>
+  unreasonedDirectivesIn(
+    file,
+    readFileSync(path.join(repoRoot, file), "utf-8")
+  );
 
 const isScannedSource = (file: string): boolean =>
-  sourceFilePattern.test(file) &&
+  isSourceExtension(file) &&
   !quotedDirectiveFixtures.has(file) &&
   !ignoredScanPrefixes.some((prefix) => file.startsWith(prefix));
 
@@ -412,24 +432,107 @@ const scriptsOf = (file: string): Readonly<Record<string, string>> =>
     readFileSync(path.join(repoRoot, file), "utf-8")
   ).scripts ?? {};
 
-const warnsAboveZero = (command: string): boolean => {
-  const match = maxWarningsPattern.exec(command);
+const oxlintFlagAllowlist = {
+  "--fix": "Fix scripts ask Oxlint to rewrite the findings it can repair.",
+  "--format":
+    "A script can print findings in the shape its log reader expects.",
+  "--type-aware":
+    "Type-aware rules only run when the command line asks for them.",
+} satisfies Readonly<Record<string, string>>;
 
-  return match !== null && Number(match.groups?.count) > 0;
+const isAllowlistedOxlintFlag = (flag: string): boolean =>
+  Object.hasOwn(oxlintFlagAllowlist, flag);
+
+const shellOperators: ReadonlySet<string> = new Set([
+  "&&",
+  "||",
+  ";",
+  "|",
+  "&",
+  ">",
+  ">>",
+  "<",
+]);
+
+const shellTokens = (command: string): readonly string[] =>
+  command
+    .replaceAll(/["']/gu, " ")
+    .split(/\s+/u)
+    .filter((word) => word !== "");
+
+const isOxlintBinary = (word: string): boolean =>
+  word === "oxlint" || word.endsWith("/oxlint");
+
+const isFlagWord = (word: string): boolean =>
+  word.startsWith("-") && word !== "-";
+
+const invocationFlags = (
+  tokens: readonly string[],
+  start: number
+): readonly string[] => {
+  const flags: string[] = [];
+
+  for (const word of tokens.slice(start)) {
+    if (word === "--" || shellOperators.has(word)) {
+      break;
+    }
+
+    if (isFlagWord(word)) {
+      flags.push(word);
+    }
+  }
+
+  return flags;
 };
 
-const weakenedScripts = (
+const flagNames = (word: string): readonly string[] => {
+  const name = word.replace(/[=].*$/u, "");
+
+  if (name.startsWith("--")) {
+    return [name];
+  }
+
+  const flags: string[] = [];
+
+  for (const letter of name.slice(1)) {
+    flags.push(`-${letter}`);
+  }
+
+  return flags;
+};
+
+const flagProblem = (
+  file: string,
+  name: string,
+  command: string,
+  flag: string
+): string =>
+  `${file} script "${name}" runs \`${command}\`, and oxlint flag ${flag} is not on the fence allowlist. Fix: add ${flag} to oxlintFlagAllowlist in scripts/lint-fence.test.ts with a reason for why it cannot hide a finding, or remove it from the script.`;
+
+const scriptFlagProblems = (
   file: string,
   scripts: Readonly<Record<string, string>>
 ): readonly string[] =>
-  Object.entries(scripts).flatMap(([name, command]) =>
-    weakeningFlagPattern.test(command) || warnsAboveZero(command)
-      ? [`${file} script "${name}": ${command}`]
-      : []
-  );
+  Object.entries(scripts).flatMap(([name, command]) => {
+    const tokens = shellTokens(command);
 
-const allWeakenedScripts = (): readonly string[] =>
-  trackedManifests().flatMap((file) => weakenedScripts(file, scriptsOf(file)));
+    return tokens.flatMap((word, index) =>
+      isOxlintBinary(word)
+        ? invocationFlags(tokens, index + 1).flatMap((flagWord) =>
+            flagNames(flagWord).flatMap((flag) =>
+              isAllowlistedOxlintFlag(flag)
+                ? []
+                : [flagProblem(file, name, command, flag)]
+            )
+          )
+        : []
+    );
+  });
+
+const allScriptFlagProblems = (): readonly string[] =>
+  trackedManifests().flatMap((file) =>
+    scriptFlagProblems(file, scriptsOf(file))
+  );
 
 const severitySpellings: readonly {
   readonly spelling: AllowWarnDeny;
@@ -458,6 +561,50 @@ const generatedRules = [
   "generated/prefer-await-to-then",
 ] as const;
 
+const unsafeOxlintSpellings: readonly string[] = [
+  "-A all",
+  "-W all",
+  "-D all",
+  "-AW all",
+  "-WA all",
+  "-Dq all",
+  "-q",
+  "--quiet",
+  "--quiet=true",
+  "--allow all",
+  "--warn all",
+  "--deny all",
+  "--allow=all",
+  "--warn=all",
+  "--deny=off",
+  "--allow=off",
+  "--max-warnings=5",
+  "--max-warnings 5",
+  "--max-warnings=1",
+  "--disable-nested-config",
+  "--disable-oxlint-rules",
+  "--disable-all-rules",
+  "--disable-oxlint-rules=true",
+  "--report-unused-disable-directives-severity=off",
+];
+
+const allowlistedOxlintSpellings: readonly string[] = [
+  "",
+  "--fix",
+  "--type-aware",
+  "--format json",
+  "--format=json",
+  "--fix --type-aware",
+];
+
+const directiveMarker = ["//", "oxlint-disable-next-line", "no-debugger"].join(
+  " "
+);
+
+const bareDirective = `${directiveMarker}\nvoid 0;\n`;
+
+const reasonedDirective = `${directiveMarker} -- the fixture holds no debugger\nvoid 0;\n`;
+
 const seededRandom = (seed: number): (() => number) => {
   const modulus = 2_147_483_647;
   let state = (seed % (modulus - 1)) + 1;
@@ -484,17 +631,27 @@ const pick = <Item>(random: () => number, items: readonly Item[]): Item => {
 const configWith = (
   placement: "global" | "files",
   rule: string,
-  setting: DummyRule
+  setting: DummyRule,
+  files: readonly string[] = ["**/*.ts"]
 ): OxlintConfig =>
   placement === "global"
     ? { rules: { [rule]: setting } }
     : {
-        overrides: [{ files: ["**/*.ts"], rules: { [rule]: setting } }],
+        overrides: [{ files: [...files], rules: { [rule]: setting } }],
       };
+
+const oxlintCommand = (spelling: string, extension: string): string =>
+  ["oxlint", spelling, `src/example${extension}`]
+    .filter((word) => word !== "")
+    .join(" ");
 
 describe("lint fence", () => {
   const declaredOff = new Set(offScopes(lintConfig).keys());
-  const lintOptions = lintConfig.options;
+
+  const lintOptions: {
+    readonly typeAware?: boolean;
+    readonly maxWarnings?: number;
+  } = lintConfig.options ?? {};
 
   it("turns off only rules the allowlist explains, at the pinned scope", () => {
     const unexplained = offRuleProblems(lintConfig, offRuleAllowlist);
@@ -545,6 +702,10 @@ describe("lint fence", () => {
     );
 
     expect(
+      trackedSourceFiles().some((file) => file.endsWith(".cjs")),
+      "The directive scan must cover .cjs sources. Fix: keep .cjs in sourceExtensions in scripts/lint-fence.test.ts, so a CommonJS source cannot carry an unexplained suppression."
+    ).toBe(true);
+    expect(
       violations,
       "A disable directive has no reason. Fix: write `// oxlint-disable-next-line <rule> -- <reason>`, `// @ts-expect-error -- <reason>`, or delete the directive. A bare disable hides the invariant that makes it safe, and this test fails instead."
     ).toEqual([]);
@@ -567,15 +728,15 @@ describe("lint fence", () => {
       "The script scan did not see the workspace manifests. Fix: make trackedManifests in scripts/lint-fence.test.ts list every tracked package.json, so a workspace script cannot weaken lint unseen."
     ).toContain("packages/core/package.json");
     expect(
-      allWeakenedScripts(),
-      "A package.json script passes a flag that hides lint findings (--quiet, --disable, --allow, or --max-warnings above 0). Fix: remove the flag so every finding still fails the run."
+      allScriptFlagProblems(),
+      "A package.json script passes an oxlint flag that oxlintFlagAllowlist does not name, so the script can hide findings. Fix: remove the flag so every finding still fails the run, or add it to oxlintFlagAllowlist in scripts/lint-fence.test.ts with a reason."
     ).toEqual([]);
     expect(
-      lintOptions?.typeAware,
+      lintOptions.typeAware,
       "Oxlint must keep type-aware linting on. Fix: restore `options: { typeAware: true }` in oxlint.config.ts."
     ).toBe(true);
     expect(
-      lintOptions?.maxWarnings ?? 0,
+      lintOptions.maxWarnings ?? 0,
       "Oxlint must not allow warnings past zero. Fix: remove maxWarnings from oxlint.config.ts, or set it to 0."
     ).toBe(0);
   });
@@ -595,12 +756,125 @@ describe("lint fence", () => {
   });
 
   it("fails a workspace script that weakens lint", () => {
+    for (const command of [
+      "oxlint --quiet",
+      "oxlint -A all",
+      "oxlint shared -W all",
+      "pnpm --filter @pecunia/core exec oxlint -D all",
+    ]) {
+      const problems = scriptFlagProblems("packages/core/package.json", {
+        lint: command,
+      });
+
+      expect(
+        problems.length,
+        `\`${command}\` in a workspace package.json must fail, because every workspace script runs in CI too.`
+      ).toBeGreaterThan(0);
+      expect(problems[0]).toContain('script "lint"');
+      expect(problems[0]).toContain("oxlintFlagAllowlist");
+    }
+
     expect(
-      weakenedScripts("packages/core/package.json", {
-        lint: "oxlint --quiet",
+      scriptFlagProblems("packages/core/package.json", {
+        lint: "oxlint --fix shared",
       }),
-      "A --quiet flag in a workspace package.json must fail, because every workspace script runs in CI too."
-    ).toEqual(['packages/core/package.json script "lint": oxlint --quiet']);
+      "An allowlisted flag must pass, so the fence judges the whole command instead of a list of known bad flags."
+    ).toEqual([]);
+  });
+
+  it("judges every oxlint flag spelling and source extension by the one allowlist", () => {
+    const manifest = "packages/core/package.json";
+    const extensions = [...sourceExtensions];
+    const allowlisted = Object.keys(oxlintFlagAllowlist);
+
+    expect(
+      [...sourceExtensionSet].toSorted(),
+      "The source extension set must cover every kind of file Oxlint runs on. Fix: restore .ts, .tsx, .js, .jsx, .mts, .cts, .mjs, and .cjs in sourceExtensions in scripts/lint-fence.test.ts."
+    ).toEqual([".cjs", ".cts", ".js", ".jsx", ".mjs", ".mts", ".ts", ".tsx"]);
+    expect(
+      allowlisted.toSorted(),
+      "The script flag allowlist must hold exactly the flags this repo needs. Fix: add or remove the flag in oxlintFlagAllowlist in scripts/lint-fence.test.ts, with a reason."
+    ).toEqual(["--fix", "--format", "--type-aware"]);
+
+    let cases = 0;
+
+    const checkUnsafe = (spelling: string, extension: string): void => {
+      const command = oxlintCommand(spelling, extension);
+      const file = `src/example${extension}`;
+      const problems = scriptFlagProblems(manifest, { lint: command });
+
+      expect(
+        problems.length,
+        `\`${command}\` must fail the script fence, because ${spelling} is not on the allowlist.`
+      ).toBeGreaterThan(0);
+      expect(problems[0], `\`${command}\` must name the script.`).toContain(
+        'script "lint"'
+      );
+      expect(
+        problems[0],
+        `\`${command}\` must tell the reader to extend oxlintFlagAllowlist.`
+      ).toContain("oxlintFlagAllowlist");
+      expect(
+        isScannedSource(file),
+        `${file} must be scanned, so a suppression in it cannot hide.`
+      ).toBe(true);
+      expect(
+        unreasonedDirectivesIn(file, bareDirective).length,
+        `A bare oxlint-disable in ${file} must be reported.`
+      ).toBe(1);
+
+      cases += 1;
+    };
+
+    const checkAllowed = (spelling: string, extension: string): void => {
+      const command = oxlintCommand(spelling, extension);
+      const file = `src/example${extension}`;
+
+      expect(
+        scriptFlagProblems(manifest, { lint: command }),
+        `\`${command}\` must pass the script fence, because every flag in it is allowlisted.`
+      ).toEqual([]);
+      expect(
+        isScannedSource(file),
+        `${file} must be scanned, so a suppression in it cannot hide.`
+      ).toBe(true);
+      expect(
+        unreasonedDirectivesIn(file, reasonedDirective),
+        `A reasoned directive in ${file} must pass.`
+      ).toEqual([]);
+
+      cases += 1;
+    };
+
+    for (const extension of extensions) {
+      for (const spelling of unsafeOxlintSpellings) {
+        checkUnsafe(spelling, extension);
+      }
+
+      for (const spelling of allowlistedOxlintSpellings) {
+        checkAllowed(spelling, extension);
+      }
+    }
+
+    const random = seededRandom(20_260_215);
+
+    for (let index = 0; index < 600; index += 1) {
+      const extension = pick(random, extensions);
+      const combined = `-${pick(random, ["A", "W", "D"])}${pick(random, ["A", "W", "D", "q"])}`;
+
+      if (random() < 0.25) {
+        checkUnsafe(combined, extension);
+      } else if (random() < 0.5) {
+        checkUnsafe(pick(random, unsafeOxlintSpellings), extension);
+      } else {
+        checkAllowed(pick(random, allowlistedOxlintSpellings), extension);
+      }
+    }
+
+    expect(
+      cases,
+      "The property test must keep at least 600 cases, so shrinking either set is visible."
+    ).toBeGreaterThanOrEqual(600);
   });
 
   it("classifies every severity spelling by its normalised meaning", () => {
@@ -652,14 +926,12 @@ describe("lint fence", () => {
       for (const form of ruleForms) {
         const setting = form(spelling);
 
-        const pinnedConfig: OxlintConfig = {
-          overrides: [
-            {
-              files: testFileGlobs,
-              rules: { "promise/prefer-await-to-then": setting },
-            },
-          ],
-        };
+        const pinnedConfig = configWith(
+          "files",
+          "promise/prefer-await-to-then",
+          setting,
+          testFileGlobs
+        );
 
         const widerConfig = configWith(
           "global",
