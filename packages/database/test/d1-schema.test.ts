@@ -4,18 +4,22 @@ import { Effect } from "effect";
 
 import { RunLogs } from "../src/schema/d1.js";
 import {
+  accountKindRow,
   aliasRow,
   archiveTargetRow,
+  booleanCases,
   checkHoldingRow,
   checkPayeeRow,
   checkTransactionRow,
   currencyCases,
+  exchangeRateRow,
   holdingRow,
   integerCases,
   invoiceDocumentRow,
   invoiceExceptionRow,
   invoiceSourceRow,
   memberRow,
+  nullPrimaryKeyCases,
   otherAccountRow,
   otherArchiveTargetRow,
   otherCategoryRow,
@@ -303,11 +307,186 @@ const constraintCases: readonly ConstraintCase[] = [
       }),
     ],
   },
+  {
+    constraint: "provider_accounts_kind_check",
+    legal: [
+      insertStep("provider_accounts", {
+        ...accountKindRow,
+        id: "account-legal-kind",
+      }),
+    ],
+    name: "a provider account whose kind is outside the declared kinds",
+    rejected: [
+      insertStep("provider_accounts", {
+        ...accountKindRow,
+        external_id: "account-external-rejected-kind",
+        id: "account-rejected-kind",
+        kind: "invalid",
+      }),
+    ],
+  },
+  {
+    constraint: "UNIQUE constraint failed: index 'rules_match_idx'",
+    legal: [
+      insertStep("rules", {
+        ...ruleRow,
+        category_id: null,
+        id: "rule-null-bounds-legal",
+        kind: "exclude",
+        pattern: "Duplicate",
+      }),
+    ],
+    name: "a second identical rule whose bounds are both null",
+    rejected: [
+      insertStep("rules", {
+        ...ruleRow,
+        category_id: null,
+        id: "rule-null-bounds-rejected",
+        kind: "exclude",
+        pattern: "Duplicate",
+      }),
+    ],
+  },
+  {
+    constraint:
+      "UNIQUE constraint failed: tax_obligations.settled_transaction_id",
+    legal: [
+      insertStep("tax_obligations", {
+        ...taxObligationRow,
+        id: "obligation-legal-paid",
+        settled_transaction_id: "transaction-demo",
+        status: "paid",
+      }),
+      insertStep("tax_obligations", {
+        ...taxObligationRow,
+        id: "obligation-legal-estimated",
+        label: "Second quarter",
+        period_ends_on: "2026-03-31",
+      }),
+    ],
+    name: "one payment settling two tax obligations",
+    rejected: [
+      insertStep("tax_obligations", {
+        ...taxObligationRow,
+        id: "obligation-rejected-paid",
+        label: "Third quarter",
+        period_ends_on: "2026-06-30",
+        settled_transaction_id: "transaction-demo",
+        status: "paid",
+      }),
+    ],
+  },
+  {
+    constraint: "transactions_base_amount_check",
+    legal: [
+      insertStep("transactions", {
+        ...transactionRow,
+        external_id: "transaction-external-base-legal",
+        id: "transaction-base-legal",
+      }),
+    ],
+    name: "a same-currency transaction whose base amount disagrees",
+    rejected: [
+      insertStep("transactions", {
+        ...transactionRow,
+        base_minor: 1,
+        external_id: "transaction-external-base-rejected",
+        id: "transaction-base-rejected",
+        source_minor: 480_000,
+      }),
+    ],
+  },
+  {
+    constraint: "transactions_suggested_check",
+    legal: [
+      insertStep("transactions", {
+        ...transactionRow,
+        categorization: "confirmed",
+        category_id: "category-demo",
+        external_id: "transaction-external-confirmed-legal",
+        id: "transaction-confirmed-legal",
+      }),
+    ],
+    name: "a confirmed transaction that keeps an AI suggestion payload",
+    rejected: [
+      insertStep("transactions", {
+        ...transactionRow,
+        categorization: "confirmed",
+        category_id: "category-demo",
+        external_id: "transaction-external-confirmed-rejected",
+        id: "transaction-confirmed-rejected",
+        suggested_at: 1_767_225_900_000,
+        suggestion_model: "demo-model",
+      }),
+    ],
+  },
+  {
+    constraint: "transactions_classification_rule_check",
+    legal: [
+      insertStep("rules", ruleRow),
+      insertStep("transactions", {
+        ...transactionRow,
+        classification: "excluded",
+        classification_rule_id: "rule-demo",
+        external_id: "transaction-external-excluded-legal",
+        id: "transaction-excluded-legal",
+      }),
+    ],
+    name: "an excluded transaction with no classification rule",
+    rejected: [
+      insertStep("transactions", {
+        ...transactionRow,
+        classification: "excluded",
+        external_id: "transaction-external-excluded-rejected",
+        id: "transaction-excluded-rejected",
+      }),
+    ],
+  },
+  {
+    constraint: "transactions_income_payee_check",
+    legal: [
+      insertStep("rules", ruleRow),
+      insertStep("transactions", {
+        ...transactionRow,
+        classification: "income",
+        classification_rule_id: "rule-demo",
+        client_payee_id: "payee-demo",
+        external_id: "transaction-external-income-legal",
+        id: "transaction-income-legal",
+      }),
+    ],
+    name: "an excluded transaction that names a client payee",
+    rejected: [
+      insertStep("transactions", {
+        ...transactionRow,
+        classification: "excluded",
+        classification_rule_id: "rule-demo",
+        client_payee_id: "payee-demo",
+        external_id: "transaction-external-excluded-payee",
+        id: "transaction-excluded-payee",
+      }),
+    ],
+  },
 ];
 
 const integerValues = [1.5];
 
-const currencyValues = ["", "eur", "EURO", "123"];
+const firstUnsafeInteger = 2 ** 53;
+
+const currencyValues = ["", "eur", "EURO", "123", "EUR\u0000BAD"];
+
+const booleanValues = [2, -1];
+
+const rejectedRates: readonly {
+  readonly label: string;
+  readonly rate: number | string | null;
+}[] = [
+  { label: "a null rate with dated evidence", rate: null },
+  { label: "a rate stored as text", rate: "nope" },
+  { label: "an infinite rate", rate: Number.POSITIVE_INFINITY },
+];
+
+const storedRateCases = rejectedRates.filter(({ rate }) => rate !== null);
 
 interface CrossProfileCase {
   readonly child: SqlStep;
@@ -341,12 +520,16 @@ const crossProfileCases: readonly CrossProfileCase[] = [
     child: insertStep("transactions", {
       ...transactionRow,
       classification: "income",
+      classification_rule_id: "rule-demo",
       client_payee_id: "payee-other",
       external_id: "transaction-external-cross",
       id: "transaction-cross",
     }),
     name: "a transaction pointing at another profile's client payee",
-    parents: [insertStep("payees", otherPayeeRow)],
+    parents: [
+      insertStep("payees", otherPayeeRow),
+      insertStep("rules", ruleRow),
+    ],
   },
   {
     child: insertStep("transactions", {
@@ -743,6 +926,170 @@ it.effect("rejects a sync run whose provider account does not exist", () =>
 
     expect(message).toContain(foreignKeyMessage);
   })
+);
+
+it.effect.each(booleanCases)(
+  "rejects a flag outside 0 and 1 in $table",
+  ({ columns, row, table }) =>
+    Effect.gen(function* rejectNonBooleanFlag() {
+      const database = yield* migratedBook;
+
+      for (const column of columns) {
+        for (const value of booleanValues) {
+          const message = rejectedMessage(() => {
+            runStep(database, insertStep(table, { ...row, [column]: value }));
+          });
+
+          expect(message, `${table}.${column} = ${String(value)}`).toContain(
+            `${table}_${column}_boolean_check`
+          );
+        }
+      }
+    })
+);
+
+it.effect.each(nullPrimaryKeyCases)(
+  "rejects a $table row with no primary key",
+  ({ column, parents, row, table }) =>
+    Effect.gen(function* rejectNullPrimaryKey() {
+      const database = yield* migratedBook;
+
+      for (const parent of parents ?? []) {
+        runStep(database, parent);
+      }
+
+      const message = rejectedMessage(() => {
+        runStep(database, insertStep(table, { ...row, [column]: null }));
+      });
+
+      expect(message).toContain(
+        `NOT NULL constraint failed: ${table}.${column}`
+      );
+    })
+);
+
+it.effect("rejects an amount above the safe integer range", () =>
+  Effect.gen(function* rejectUnsafeAmount() {
+    const database = yield* migratedBook;
+
+    const message = rejectedMessage(() => {
+      runStep(
+        database,
+        insertStep("transactions", {
+          ...transactionRow,
+          external_id: "transaction-external-unsafe",
+          id: "transaction-unsafe",
+          source_minor: firstUnsafeInteger,
+        })
+      );
+    });
+
+    expect(message).toContain("transactions_source_minor_integer_check");
+  })
+);
+
+it.effect("rejects a nullable amount above the safe integer range", () =>
+  Effect.gen(function* rejectUnsafeFee() {
+    const database = yield* migratedBook;
+
+    const message = rejectedMessage(() => {
+      runStep(
+        database,
+        insertStep("transactions", {
+          ...checkTransactionRow,
+          external_id: "transaction-external-unsafe-fee",
+          fee_currency: "EUR",
+          fee_minor: firstUnsafeInteger,
+          id: "transaction-unsafe-fee",
+        })
+      );
+    });
+
+    expect(message).toContain("transactions_fee_minor_integer_check");
+  })
+);
+
+it.effect.each(rejectedRates)(
+  "rejects $label on a foreign-currency transaction",
+  ({ rate }) =>
+    Effect.gen(function* rejectUnusableRate() {
+      const database = yield* migratedBook;
+
+      const message = rejectedMessage(() => {
+        runStep(
+          database,
+          insertStep("transactions", {
+            ...transactionRow,
+            external_id: "transaction-external-rate",
+            id: "transaction-rate",
+            rate,
+            rate_as_of: "2026-01-01",
+            source_currency: "USD",
+          })
+        );
+      });
+
+      expect(message).toContain("transactions_rate_check");
+    })
+);
+
+it.effect.each(storedRateCases)(
+  "rejects $label in the rate table",
+  ({ rate }) =>
+    Effect.gen(function* rejectUnusableStoredRate() {
+      const database = yield* migratedBook;
+
+      const message = rejectedMessage(() => {
+        runStep(
+          database,
+          insertStep("exchange_rates", { ...exchangeRateRow, rate })
+        );
+      });
+
+      expect(message).toContain("exchange_rates_rate_check");
+    })
+);
+
+it.effect("rejects a base currency that differs from the profile's", () =>
+  Effect.gen(function* rejectForeignBaseCurrency() {
+    const database = yield* migratedBook;
+
+    const message = rejectedMessage(() => {
+      runStep(
+        database,
+        insertStep("transactions", {
+          ...transactionRow,
+          base_currency: "USD",
+          base_minor: 12_000,
+          external_id: "transaction-external-base-currency",
+          id: "transaction-base-currency",
+          source_currency: "USD",
+        })
+      );
+    });
+
+    expect(message).toContain(foreignKeyMessage);
+  })
+);
+
+it.effect(
+  "rejects a subscription base currency that differs from the profile's",
+  () =>
+    Effect.gen(function* rejectForeignSubscriptionBase() {
+      const database = yield* migratedBook;
+
+      const message = rejectedMessage(() => {
+        runStep(
+          database,
+          insertStep("subscriptions", {
+            ...subscriptionRow,
+            base_currency: "USD",
+          })
+        );
+      });
+
+      expect(message).toContain(foreignKeyMessage);
+    })
 );
 
 it.effect("rejects a member email that differs only by case", () =>

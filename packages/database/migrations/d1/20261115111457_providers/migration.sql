@@ -1,9 +1,10 @@
 CREATE TABLE `investment_platforms` (
 	`connector` text NOT NULL,
 	`enabled` integer DEFAULT 1 NOT NULL,
-	`id` text PRIMARY KEY,
+	`id` text PRIMARY KEY NOT NULL,
 	`label` text NOT NULL,
-	CONSTRAINT "investment_platforms_enabled_integer_check" CHECK(typeof("enabled") = 'integer'),
+	CONSTRAINT "investment_platforms_enabled_integer_check" CHECK(typeof("enabled") = 'integer' AND "enabled" BETWEEN -9007199254740991 AND 9007199254740991),
+	CONSTRAINT "investment_platforms_enabled_boolean_check" CHECK("enabled" IN (0, 1)),
 	CONSTRAINT "investment_platforms_connector_check" CHECK("connector" IN ('trading212', 'manual'))
 );
 --> statement-breakpoint
@@ -12,7 +13,7 @@ CREATE TABLE `provider_accounts` (
 	`created_at` integer NOT NULL,
 	`credential_key` text,
 	`external_id` text NOT NULL,
-	`id` text PRIMARY KEY,
+	`id` text PRIMARY KEY NOT NULL,
 	`kind` text NOT NULL,
 	`label` text NOT NULL,
 	`last_synced_at` integer,
@@ -21,17 +22,19 @@ CREATE TABLE `provider_accounts` (
 	`sync_start_date` text,
 	CONSTRAINT `fk_provider_accounts_profile_id_profiles_id_fk` FOREIGN KEY (`profile_id`) REFERENCES `profiles`(`id`),
 	CONSTRAINT `fk_provider_accounts_provider_id_providers_id_fk` FOREIGN KEY (`provider_id`) REFERENCES `providers`(`id`),
-	CONSTRAINT "provider_accounts_archived_at_integer_check" CHECK("archived_at" IS NULL OR typeof("archived_at") = 'integer'),
-	CONSTRAINT "provider_accounts_created_at_integer_check" CHECK(typeof("created_at") = 'integer'),
-	CONSTRAINT "provider_accounts_last_synced_at_integer_check" CHECK("last_synced_at" IS NULL OR typeof("last_synced_at") = 'integer')
+	CONSTRAINT "provider_accounts_archived_at_integer_check" CHECK("archived_at" IS NULL OR (typeof("archived_at") = 'integer' AND "archived_at" BETWEEN -9007199254740991 AND 9007199254740991)),
+	CONSTRAINT "provider_accounts_created_at_integer_check" CHECK(typeof("created_at") = 'integer' AND "created_at" BETWEEN -9007199254740991 AND 9007199254740991),
+	CONSTRAINT "provider_accounts_last_synced_at_integer_check" CHECK("last_synced_at" IS NULL OR (typeof("last_synced_at") = 'integer' AND "last_synced_at" BETWEEN -9007199254740991 AND 9007199254740991)),
+	CONSTRAINT "provider_accounts_kind_check" CHECK("kind" IN ('bank', 'investment', 'books', 'csv', 'manual'))
 );
 --> statement-breakpoint
 CREATE TABLE `providers` (
 	`enabled` integer DEFAULT 1 NOT NULL,
-	`id` text PRIMARY KEY,
+	`id` text PRIMARY KEY NOT NULL,
 	`kind` text NOT NULL,
 	`label` text NOT NULL,
-	CONSTRAINT "providers_enabled_integer_check" CHECK(typeof("enabled") = 'integer'),
+	CONSTRAINT "providers_enabled_integer_check" CHECK(typeof("enabled") = 'integer' AND "enabled" BETWEEN -9007199254740991 AND 9007199254740991),
+	CONSTRAINT "providers_enabled_boolean_check" CHECK("enabled" IN (0, 1)),
 	CONSTRAINT "providers_kind_check" CHECK("kind" IN ('bank', 'investment', 'books', 'csv', 'manual'))
 );
 --> statement-breakpoint

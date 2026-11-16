@@ -5,7 +5,7 @@ CREATE TABLE `subscriptions` (
 	`confidence` real DEFAULT 0 NOT NULL,
 	`created_at` integer NOT NULL,
 	`frequency` text NOT NULL,
-	`id` text PRIMARY KEY,
+	`id` text PRIMARY KEY NOT NULL,
 	`last_charged_on` text NOT NULL,
 	`next_expected_on` text NOT NULL,
 	`notes` text DEFAULT '' NOT NULL,
@@ -21,16 +21,18 @@ CREATE TABLE `subscriptions` (
 	CONSTRAINT `fk_subscriptions_profile_id_profiles_id_fk` FOREIGN KEY (`profile_id`) REFERENCES `profiles`(`id`),
 	CONSTRAINT `fk_subscriptions_profile_id_payee_id_payees_profile_id_id_fk` FOREIGN KEY (`profile_id`,`payee_id`) REFERENCES `payees`(`profile_id`,`id`),
 	CONSTRAINT `fk_subscriptions_profile_id_category_id_categories_profile_id_id_fk` FOREIGN KEY (`profile_id`,`category_id`) REFERENCES `categories`(`profile_id`,`id`),
-	CONSTRAINT "subscriptions_base_currency_code_check" CHECK("base_currency" GLOB '[A-Z][A-Z][A-Z]'),
-	CONSTRAINT "subscriptions_typical_currency_code_check" CHECK("typical_currency" GLOB '[A-Z][A-Z][A-Z]'),
-	CONSTRAINT "subscriptions_created_at_integer_check" CHECK(typeof("created_at") = 'integer'),
-	CONSTRAINT "subscriptions_occurrence_count_integer_check" CHECK(typeof("occurrence_count") = 'integer'),
-	CONSTRAINT "subscriptions_status_changed_at_integer_check" CHECK(typeof("status_changed_at") = 'integer'),
-	CONSTRAINT "subscriptions_typical_base_minor_integer_check" CHECK(typeof("typical_base_minor") = 'integer'),
-	CONSTRAINT "subscriptions_typical_minor_integer_check" CHECK(typeof("typical_minor") = 'integer'),
-	CONSTRAINT "subscriptions_updated_at_integer_check" CHECK(typeof("updated_at") = 'integer'),
+	CONSTRAINT `fk_subscriptions_profile_id_base_currency_profiles_id_base_currency_fk` FOREIGN KEY (`profile_id`,`base_currency`) REFERENCES `profiles`(`id`,`base_currency`),
+	CONSTRAINT "subscriptions_base_currency_code_check" CHECK(typeof("base_currency") = 'text' AND length("base_currency") = 3 AND instr("base_currency", char(0)) = 0 AND "base_currency" GLOB '[A-Z][A-Z][A-Z]'),
+	CONSTRAINT "subscriptions_typical_currency_code_check" CHECK(typeof("typical_currency") = 'text' AND length("typical_currency") = 3 AND instr("typical_currency", char(0)) = 0 AND "typical_currency" GLOB '[A-Z][A-Z][A-Z]'),
+	CONSTRAINT "subscriptions_created_at_integer_check" CHECK(typeof("created_at") = 'integer' AND "created_at" BETWEEN -9007199254740991 AND 9007199254740991),
+	CONSTRAINT "subscriptions_occurrence_count_integer_check" CHECK(typeof("occurrence_count") = 'integer' AND "occurrence_count" BETWEEN -9007199254740991 AND 9007199254740991),
+	CONSTRAINT "subscriptions_status_changed_at_integer_check" CHECK(typeof("status_changed_at") = 'integer' AND "status_changed_at" BETWEEN -9007199254740991 AND 9007199254740991),
+	CONSTRAINT "subscriptions_typical_base_minor_integer_check" CHECK(typeof("typical_base_minor") = 'integer' AND "typical_base_minor" BETWEEN -9007199254740991 AND 9007199254740991),
+	CONSTRAINT "subscriptions_typical_minor_integer_check" CHECK(typeof("typical_minor") = 'integer' AND "typical_minor" BETWEEN -9007199254740991 AND 9007199254740991),
+	CONSTRAINT "subscriptions_updated_at_integer_check" CHECK(typeof("updated_at") = 'integer' AND "updated_at" BETWEEN -9007199254740991 AND 9007199254740991),
 	CONSTRAINT "subscriptions_frequency_check" CHECK("frequency" IN ('weekly', 'monthly', 'quarterly', 'annual')),
-	CONSTRAINT "subscriptions_status_check" CHECK("status" IN ('detected', 'confirmed', 'dismissed', 'not_recurring', 'cancelled'))
+	CONSTRAINT "subscriptions_status_check" CHECK("status" IN ('detected', 'confirmed', 'dismissed', 'not_recurring', 'cancelled')),
+	CONSTRAINT "subscriptions_base_amount_check" CHECK("typical_currency" <> "base_currency" OR "typical_minor" = "typical_base_minor")
 );
 --> statement-breakpoint
 CREATE UNIQUE INDEX `subscriptions_payee_idx` ON `subscriptions` (`profile_id`,`payee_id`);--> statement-breakpoint

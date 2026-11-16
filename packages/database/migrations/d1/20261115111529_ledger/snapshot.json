@@ -1,8 +1,8 @@
 {
   "version": "7",
   "dialect": "sqlite",
-  "id": "e2661261-ce6b-4d9b-9006-394e78758046",
-  "prevIds": ["c8cdbeee-5e0b-446c-a953-d43693ed2952"],
+  "id": "6e819a8a-27ce-43f4-82b6-09e87248d3bf",
+  "prevIds": ["d965b37d-e43e-4ae7-8d02-8aee7e55a55f"],
   "ddl": [
     {
       "name": "app_setting",
@@ -136,7 +136,7 @@
       "table": "categories",
       "name": "id",
       "type": "text",
-      "notNull": false,
+      "notNull": true,
       "autoincrement": false,
       "default": null,
       "generated": null,
@@ -206,7 +206,7 @@
       "table": "investment_platforms",
       "name": "id",
       "type": "text",
-      "notNull": false,
+      "notNull": true,
       "autoincrement": false,
       "default": null,
       "generated": null,
@@ -246,7 +246,7 @@
       "table": "members",
       "name": "id",
       "type": "text",
-      "notNull": false,
+      "notNull": true,
       "autoincrement": false,
       "default": null,
       "generated": null,
@@ -286,7 +286,7 @@
       "table": "merchant_aliases",
       "name": "id",
       "type": "text",
-      "notNull": false,
+      "notNull": true,
       "autoincrement": false,
       "default": null,
       "generated": null,
@@ -366,7 +366,7 @@
       "table": "payees",
       "name": "id",
       "type": "text",
-      "notNull": false,
+      "notNull": true,
       "autoincrement": false,
       "default": null,
       "generated": null,
@@ -446,7 +446,7 @@
       "table": "profiles",
       "name": "id",
       "type": "text",
-      "notNull": false,
+      "notNull": true,
       "autoincrement": false,
       "default": null,
       "generated": null,
@@ -516,7 +516,7 @@
       "table": "provider_accounts",
       "name": "id",
       "type": "text",
-      "notNull": false,
+      "notNull": true,
       "autoincrement": false,
       "default": null,
       "generated": null,
@@ -596,7 +596,7 @@
       "table": "providers",
       "name": "id",
       "type": "text",
-      "notNull": false,
+      "notNull": true,
       "autoincrement": false,
       "default": null,
       "generated": null,
@@ -686,7 +686,7 @@
       "table": "rules",
       "name": "id",
       "type": "text",
-      "notNull": false,
+      "notNull": true,
       "autoincrement": false,
       "default": null,
       "generated": null,
@@ -816,7 +816,7 @@
       "table": "run_logs",
       "name": "id",
       "type": "text",
-      "notNull": false,
+      "notNull": true,
       "autoincrement": false,
       "default": null,
       "generated": null,
@@ -996,7 +996,7 @@
       "table": "transactions",
       "name": "id",
       "type": "text",
-      "notNull": false,
+      "notNull": true,
       "autoincrement": false,
       "default": null,
       "generated": null,
@@ -1377,6 +1377,24 @@
       "entityType": "indexes"
     },
     {
+      "table": "profiles",
+      "name": "profiles_id_base_currency_idx",
+      "columns": [
+        {
+          "value": "id",
+          "isExpression": false
+        },
+        {
+          "value": "base_currency",
+          "isExpression": false
+        }
+      ],
+      "isUnique": true,
+      "where": null,
+      "origin": "manual",
+      "entityType": "indexes"
+    },
+    {
       "table": "provider_accounts",
       "name": "provider_accounts_account_idx",
       "columns": [
@@ -1499,12 +1517,12 @@
           "isExpression": false
         },
         {
-          "value": "min_amount_minor",
-          "isExpression": false
+          "value": "coalesce(\"min_amount_minor\", -1)",
+          "isExpression": true
         },
         {
-          "value": "max_amount_minor",
-          "isExpression": false
+          "value": "coalesce(\"max_amount_minor\", -1)",
+          "isExpression": true
         }
       ],
       "isUnique": true,
@@ -1952,11 +1970,15 @@
       "entityType": "fks"
     },
     {
-      "table": "app_setting",
-      "name": "app_setting_pk",
-      "columns": ["id"],
+      "table": "transactions",
+      "name": "fk_transactions_profile_id_base_currency_profiles_id_base_currency_fk",
+      "columns": ["profile_id", "base_currency"],
+      "tableTo": "profiles",
+      "columnsTo": ["id", "base_currency"],
+      "onUpdate": "NO ACTION",
+      "onDelete": "NO ACTION",
       "nameExplicit": false,
-      "entityType": "pks"
+      "entityType": "fks"
     },
     {
       "table": "categories",
@@ -2037,8 +2059,15 @@
     },
     {
       "table": "app_setting",
+      "name": "app_setting_pk",
+      "columns": ["id"],
+      "nameExplicit": false,
+      "entityType": "pks"
+    },
+    {
+      "table": "app_setting",
       "name": "app_setting_updated_at_integer_check",
-      "value": "typeof(\"updated_at\") = 'integer'",
+      "value": "typeof(\"updated_at\") = 'integer' AND \"updated_at\" BETWEEN -9007199254740991 AND 9007199254740991",
       "entityType": "checks"
     },
     {
@@ -2050,13 +2079,13 @@
     {
       "table": "categories",
       "name": "categories_archived_at_integer_check",
-      "value": "\"archived_at\" IS NULL OR typeof(\"archived_at\") = 'integer'",
+      "value": "\"archived_at\" IS NULL OR (typeof(\"archived_at\") = 'integer' AND \"archived_at\" BETWEEN -9007199254740991 AND 9007199254740991)",
       "entityType": "checks"
     },
     {
       "table": "categories",
       "name": "categories_created_at_integer_check",
-      "value": "typeof(\"created_at\") = 'integer'",
+      "value": "typeof(\"created_at\") = 'integer' AND \"created_at\" BETWEEN -9007199254740991 AND 9007199254740991",
       "entityType": "checks"
     },
     {
@@ -2074,7 +2103,13 @@
     {
       "table": "investment_platforms",
       "name": "investment_platforms_enabled_integer_check",
-      "value": "typeof(\"enabled\") = 'integer'",
+      "value": "typeof(\"enabled\") = 'integer' AND \"enabled\" BETWEEN -9007199254740991 AND 9007199254740991",
+      "entityType": "checks"
+    },
+    {
+      "table": "investment_platforms",
+      "name": "investment_platforms_enabled_boolean_check",
+      "value": "\"enabled\" IN (0, 1)",
       "entityType": "checks"
     },
     {
@@ -2086,7 +2121,7 @@
     {
       "table": "members",
       "name": "members_created_at_integer_check",
-      "value": "typeof(\"created_at\") = 'integer'",
+      "value": "typeof(\"created_at\") = 'integer' AND \"created_at\" BETWEEN -9007199254740991 AND 9007199254740991",
       "entityType": "checks"
     },
     {
@@ -2098,7 +2133,7 @@
     {
       "table": "merchant_aliases",
       "name": "merchant_aliases_created_at_integer_check",
-      "value": "typeof(\"created_at\") = 'integer'",
+      "value": "typeof(\"created_at\") = 'integer' AND \"created_at\" BETWEEN -9007199254740991 AND 9007199254740991",
       "entityType": "checks"
     },
     {
@@ -2110,13 +2145,13 @@
     {
       "table": "payees",
       "name": "payees_archived_at_integer_check",
-      "value": "\"archived_at\" IS NULL OR typeof(\"archived_at\") = 'integer'",
+      "value": "\"archived_at\" IS NULL OR (typeof(\"archived_at\") = 'integer' AND \"archived_at\" BETWEEN -9007199254740991 AND 9007199254740991)",
       "entityType": "checks"
     },
     {
       "table": "payees",
       "name": "payees_created_at_integer_check",
-      "value": "typeof(\"created_at\") = 'integer'",
+      "value": "typeof(\"created_at\") = 'integer' AND \"created_at\" BETWEEN -9007199254740991 AND 9007199254740991",
       "entityType": "checks"
     },
     {
@@ -2128,19 +2163,19 @@
     {
       "table": "profiles",
       "name": "profiles_archived_at_integer_check",
-      "value": "\"archived_at\" IS NULL OR typeof(\"archived_at\") = 'integer'",
+      "value": "\"archived_at\" IS NULL OR (typeof(\"archived_at\") = 'integer' AND \"archived_at\" BETWEEN -9007199254740991 AND 9007199254740991)",
       "entityType": "checks"
     },
     {
       "table": "profiles",
       "name": "profiles_created_at_integer_check",
-      "value": "typeof(\"created_at\") = 'integer'",
+      "value": "typeof(\"created_at\") = 'integer' AND \"created_at\" BETWEEN -9007199254740991 AND 9007199254740991",
       "entityType": "checks"
     },
     {
       "table": "profiles",
       "name": "profiles_base_currency_code_check",
-      "value": "\"base_currency\" GLOB '[A-Z][A-Z][A-Z]'",
+      "value": "typeof(\"base_currency\") = 'text' AND length(\"base_currency\") = 3 AND instr(\"base_currency\", char(0)) = 0 AND \"base_currency\" GLOB '[A-Z][A-Z][A-Z]'",
       "entityType": "checks"
     },
     {
@@ -2152,25 +2187,37 @@
     {
       "table": "provider_accounts",
       "name": "provider_accounts_archived_at_integer_check",
-      "value": "\"archived_at\" IS NULL OR typeof(\"archived_at\") = 'integer'",
+      "value": "\"archived_at\" IS NULL OR (typeof(\"archived_at\") = 'integer' AND \"archived_at\" BETWEEN -9007199254740991 AND 9007199254740991)",
       "entityType": "checks"
     },
     {
       "table": "provider_accounts",
       "name": "provider_accounts_created_at_integer_check",
-      "value": "typeof(\"created_at\") = 'integer'",
+      "value": "typeof(\"created_at\") = 'integer' AND \"created_at\" BETWEEN -9007199254740991 AND 9007199254740991",
       "entityType": "checks"
     },
     {
       "table": "provider_accounts",
       "name": "provider_accounts_last_synced_at_integer_check",
-      "value": "\"last_synced_at\" IS NULL OR typeof(\"last_synced_at\") = 'integer'",
+      "value": "\"last_synced_at\" IS NULL OR (typeof(\"last_synced_at\") = 'integer' AND \"last_synced_at\" BETWEEN -9007199254740991 AND 9007199254740991)",
+      "entityType": "checks"
+    },
+    {
+      "table": "provider_accounts",
+      "name": "provider_accounts_kind_check",
+      "value": "\"kind\" IN ('bank', 'investment', 'books', 'csv', 'manual')",
       "entityType": "checks"
     },
     {
       "table": "providers",
       "name": "providers_enabled_integer_check",
-      "value": "typeof(\"enabled\") = 'integer'",
+      "value": "typeof(\"enabled\") = 'integer' AND \"enabled\" BETWEEN -9007199254740991 AND 9007199254740991",
+      "entityType": "checks"
+    },
+    {
+      "table": "providers",
+      "name": "providers_enabled_boolean_check",
+      "value": "\"enabled\" IN (0, 1)",
       "entityType": "checks"
     },
     {
@@ -2182,37 +2229,43 @@
     {
       "table": "rules",
       "name": "rules_created_at_integer_check",
-      "value": "typeof(\"created_at\") = 'integer'",
+      "value": "typeof(\"created_at\") = 'integer' AND \"created_at\" BETWEEN -9007199254740991 AND 9007199254740991",
       "entityType": "checks"
     },
     {
       "table": "rules",
       "name": "rules_enabled_integer_check",
-      "value": "typeof(\"enabled\") = 'integer'",
+      "value": "typeof(\"enabled\") = 'integer' AND \"enabled\" BETWEEN -9007199254740991 AND 9007199254740991",
       "entityType": "checks"
     },
     {
       "table": "rules",
       "name": "rules_max_amount_minor_integer_check",
-      "value": "\"max_amount_minor\" IS NULL OR typeof(\"max_amount_minor\") = 'integer'",
+      "value": "\"max_amount_minor\" IS NULL OR (typeof(\"max_amount_minor\") = 'integer' AND \"max_amount_minor\" BETWEEN -9007199254740991 AND 9007199254740991)",
       "entityType": "checks"
     },
     {
       "table": "rules",
       "name": "rules_min_amount_minor_integer_check",
-      "value": "\"min_amount_minor\" IS NULL OR typeof(\"min_amount_minor\") = 'integer'",
+      "value": "\"min_amount_minor\" IS NULL OR (typeof(\"min_amount_minor\") = 'integer' AND \"min_amount_minor\" BETWEEN -9007199254740991 AND 9007199254740991)",
       "entityType": "checks"
     },
     {
       "table": "rules",
       "name": "rules_priority_integer_check",
-      "value": "typeof(\"priority\") = 'integer'",
+      "value": "typeof(\"priority\") = 'integer' AND \"priority\" BETWEEN -9007199254740991 AND 9007199254740991",
       "entityType": "checks"
     },
     {
       "table": "rules",
       "name": "rules_updated_at_integer_check",
-      "value": "typeof(\"updated_at\") = 'integer'",
+      "value": "typeof(\"updated_at\") = 'integer' AND \"updated_at\" BETWEEN -9007199254740991 AND 9007199254740991",
+      "entityType": "checks"
+    },
+    {
+      "table": "rules",
+      "name": "rules_enabled_boolean_check",
+      "value": "\"enabled\" IN (0, 1)",
       "entityType": "checks"
     },
     {
@@ -2254,7 +2307,7 @@
     {
       "table": "run_logs",
       "name": "run_logs_recorded_at_integer_check",
-      "value": "typeof(\"recorded_at\") = 'integer'",
+      "value": "typeof(\"recorded_at\") = 'integer' AND \"recorded_at\" BETWEEN -9007199254740991 AND 9007199254740991",
       "entityType": "checks"
     },
     {
@@ -2272,61 +2325,61 @@
     {
       "table": "transactions",
       "name": "transactions_source_currency_code_check",
-      "value": "\"source_currency\" GLOB '[A-Z][A-Z][A-Z]'",
+      "value": "typeof(\"source_currency\") = 'text' AND length(\"source_currency\") = 3 AND instr(\"source_currency\", char(0)) = 0 AND \"source_currency\" GLOB '[A-Z][A-Z][A-Z]'",
       "entityType": "checks"
     },
     {
       "table": "transactions",
       "name": "transactions_base_currency_code_check",
-      "value": "\"base_currency\" GLOB '[A-Z][A-Z][A-Z]'",
+      "value": "typeof(\"base_currency\") = 'text' AND length(\"base_currency\") = 3 AND instr(\"base_currency\", char(0)) = 0 AND \"base_currency\" GLOB '[A-Z][A-Z][A-Z]'",
       "entityType": "checks"
     },
     {
       "table": "transactions",
       "name": "transactions_fee_currency_code_check",
-      "value": "\"fee_currency\" IS NULL OR \"fee_currency\" GLOB '[A-Z][A-Z][A-Z]'",
+      "value": "\"fee_currency\" IS NULL OR (typeof(\"fee_currency\") = 'text' AND length(\"fee_currency\") = 3 AND instr(\"fee_currency\", char(0)) = 0 AND \"fee_currency\" GLOB '[A-Z][A-Z][A-Z]')",
       "entityType": "checks"
     },
     {
       "table": "transactions",
       "name": "transactions_base_minor_integer_check",
-      "value": "typeof(\"base_minor\") = 'integer'",
+      "value": "typeof(\"base_minor\") = 'integer' AND \"base_minor\" BETWEEN -9007199254740991 AND 9007199254740991",
       "entityType": "checks"
     },
     {
       "table": "transactions",
       "name": "transactions_created_at_integer_check",
-      "value": "typeof(\"created_at\") = 'integer'",
+      "value": "typeof(\"created_at\") = 'integer' AND \"created_at\" BETWEEN -9007199254740991 AND 9007199254740991",
       "entityType": "checks"
     },
     {
       "table": "transactions",
       "name": "transactions_fee_minor_integer_check",
-      "value": "\"fee_minor\" IS NULL OR typeof(\"fee_minor\") = 'integer'",
+      "value": "\"fee_minor\" IS NULL OR (typeof(\"fee_minor\") = 'integer' AND \"fee_minor\" BETWEEN -9007199254740991 AND 9007199254740991)",
       "entityType": "checks"
     },
     {
       "table": "transactions",
       "name": "transactions_occurred_at_integer_check",
-      "value": "typeof(\"occurred_at\") = 'integer'",
+      "value": "typeof(\"occurred_at\") = 'integer' AND \"occurred_at\" BETWEEN -9007199254740991 AND 9007199254740991",
       "entityType": "checks"
     },
     {
       "table": "transactions",
       "name": "transactions_source_minor_integer_check",
-      "value": "typeof(\"source_minor\") = 'integer'",
+      "value": "typeof(\"source_minor\") = 'integer' AND \"source_minor\" BETWEEN -9007199254740991 AND 9007199254740991",
       "entityType": "checks"
     },
     {
       "table": "transactions",
       "name": "transactions_suggested_at_integer_check",
-      "value": "\"suggested_at\" IS NULL OR typeof(\"suggested_at\") = 'integer'",
+      "value": "\"suggested_at\" IS NULL OR (typeof(\"suggested_at\") = 'integer' AND \"suggested_at\" BETWEEN -9007199254740991 AND 9007199254740991)",
       "entityType": "checks"
     },
     {
       "table": "transactions",
       "name": "transactions_updated_at_integer_check",
-      "value": "typeof(\"updated_at\") = 'integer'",
+      "value": "typeof(\"updated_at\") = 'integer' AND \"updated_at\" BETWEEN -9007199254740991 AND 9007199254740991",
       "entityType": "checks"
     },
     {
@@ -2362,25 +2415,43 @@
     {
       "table": "transactions",
       "name": "transactions_suggested_check",
-      "value": "\"categorization\" <> 'suggested' OR (\"suggestion_model\" IS NOT NULL AND \"suggested_at\" IS NOT NULL)",
+      "value": "(\"categorization\" = 'suggested') = (\"suggestion_model\" IS NOT NULL AND \"suggested_at\" IS NOT NULL)",
       "entityType": "checks"
     },
     {
       "table": "transactions",
       "name": "transactions_applied_rule_check",
-      "value": "\"categorization\" <> 'applied' OR \"applied_rule_id\" IS NOT NULL",
+      "value": "(\"categorization\" = 'applied') = (\"applied_rule_id\" IS NOT NULL)",
       "entityType": "checks"
     },
     {
       "table": "transactions",
       "name": "transactions_income_payee_check",
-      "value": "\"classification\" <> 'income' OR \"client_payee_id\" IS NOT NULL",
+      "value": "(\"classification\" = 'income') = (\"client_payee_id\" IS NOT NULL)",
+      "entityType": "checks"
+    },
+    {
+      "table": "transactions",
+      "name": "transactions_classification_rule_check",
+      "value": "(\"classification\" = 'none') = (\"classification_rule_id\" IS NULL)",
+      "entityType": "checks"
+    },
+    {
+      "table": "transactions",
+      "name": "transactions_counterpart_profile_check",
+      "value": "\"counterpart_profile_id\" IS NULL OR \"classification\" = 'self_transfer'",
+      "entityType": "checks"
+    },
+    {
+      "table": "transactions",
+      "name": "transactions_base_amount_check",
+      "value": "\"source_currency\" <> \"base_currency\" OR \"source_minor\" = \"base_minor\"",
       "entityType": "checks"
     },
     {
       "table": "transactions",
       "name": "transactions_rate_check",
-      "value": "(\"source_currency\" = \"base_currency\" AND \"source_currency\" GLOB '[A-Z][A-Z][A-Z]' AND \"rate\" IS NULL AND \"rate_as_of\" IS NULL) OR (\"source_currency\" <> \"base_currency\" AND \"rate\" > 0 AND \"rate_as_of\" IS NOT NULL)",
+      "value": "(\"source_currency\" = \"base_currency\" AND \"rate\" IS NULL AND \"rate_as_of\" IS NULL) OR (\"source_currency\" <> \"base_currency\" AND typeof(\"rate\") = 'real' AND \"rate\" > 0 AND \"rate\" < 1e300 AND \"rate_as_of\" IS NOT NULL)",
       "entityType": "checks"
     },
     {

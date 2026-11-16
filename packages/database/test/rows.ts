@@ -73,6 +73,12 @@ export const checkAccountRow: Row = {
   id: "account-check",
 };
 
+export const accountKindRow: Row = {
+  ...accountRow,
+  external_id: "account-external-kind",
+  id: "account-kind",
+};
+
 export const platformRow: Row = {
   connector: "manual",
   enabled: 1,
@@ -397,6 +403,14 @@ export const checkProfileRow: Row = {
   name: "Check Ltd",
 };
 
+export const runLogRow: Row = {
+  capability: "search",
+  id: "run-log-demo",
+  outcome: "Succeeded",
+  person_id: "person-demo",
+  recorded_at: createdAt,
+};
+
 interface IntegerCase {
   readonly columns: readonly string[];
   readonly parents?: readonly SqlStep[];
@@ -406,6 +420,19 @@ interface IntegerCase {
 
 interface CurrencyCase {
   readonly columns: readonly string[];
+  readonly row: Row;
+  readonly table: string;
+}
+
+interface BooleanCase {
+  readonly columns: readonly string[];
+  readonly row: Row;
+  readonly table: string;
+}
+
+interface NullPrimaryKeyCase {
+  readonly column: string;
+  readonly parents?: readonly SqlStep[];
   readonly row: Row;
   readonly table: string;
 }
@@ -552,6 +579,61 @@ export const integerCases: readonly IntegerCase[] = [
     row: checkTransactionRow,
     table: "transactions",
   },
+];
+
+export const booleanCases: readonly BooleanCase[] = [
+  {
+    columns: [
+      "retrieval_bookkeeper",
+      "retrieval_email",
+      "retrieval_portal",
+      "retrieval_two_factor",
+    ],
+    row: invoiceSourceRow,
+    table: "invoice_sources",
+  },
+  { columns: ["enabled"], row: platformRow, table: "investment_platforms" },
+  { columns: ["enabled"], row: providerRow, table: "providers" },
+  { columns: ["enabled"], row: checkRuleRow, table: "rules" },
+  {
+    columns: ["primary"],
+    row: { ...taxProfileRow, id: "tax-profile-flag" },
+    table: "tax_profiles",
+  },
+];
+
+export const nullPrimaryKeyCases: readonly NullPrimaryKeyCase[] = [
+  { column: "id", row: archiveTargetRow, table: "archive_targets" },
+  { column: "id", row: checkCategoryRow, table: "categories" },
+  { column: "id", row: holdingRow, table: "holdings" },
+  { column: "id", row: invoiceDocumentRow, table: "invoice_documents" },
+  {
+    column: "transaction_id",
+    row: invoiceExceptionRow,
+    table: "invoice_exceptions",
+  },
+  { column: "id", row: invoiceSourceRow, table: "invoice_sources" },
+  { column: "id", row: platformRow, table: "investment_platforms" },
+  { column: "id", row: checkMemberRow, table: "members" },
+  { column: "id", row: aliasRow, table: "merchant_aliases" },
+  { column: "id", row: checkPayeeRow, table: "payees" },
+  { column: "id", row: checkProfileRow, table: "profiles" },
+  { column: "id", row: checkAccountRow, table: "provider_accounts" },
+  { column: "id", row: providerRow, table: "providers" },
+  { column: "id", row: reportRow, table: "reports" },
+  { column: "id", row: runLogRow, table: "run_logs" },
+  { column: "id", row: checkRuleRow, table: "rules" },
+  { column: "id", row: subscriptionRow, table: "subscriptions" },
+  {
+    column: "id",
+    parents: [insertStep("sync_runs", checkSyncRunRow)],
+    row: rejectionRow,
+    table: "sync_run_rejections",
+  },
+  { column: "id", row: checkSyncRunRow, table: "sync_runs" },
+  { column: "id", row: taxObligationRow, table: "tax_obligations" },
+  { column: "id", row: taxProfileRow, table: "tax_profiles" },
+  { column: "id", row: transactionRow, table: "transactions" },
 ];
 
 export const currencyCases: readonly CurrencyCase[] = [

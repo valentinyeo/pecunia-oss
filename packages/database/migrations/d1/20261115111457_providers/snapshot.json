@@ -1,8 +1,8 @@
 {
   "version": "7",
   "dialect": "sqlite",
-  "id": "c8cdbeee-5e0b-446c-a953-d43693ed2952",
-  "prevIds": ["9195d413-acf4-4b6a-ba4e-0395e51a5578"],
+  "id": "d965b37d-e43e-4ae7-8d02-8aee7e55a55f",
+  "prevIds": ["59f7935d-cc79-44d1-a101-eceed151d8f1"],
   "ddl": [
     {
       "name": "app_setting",
@@ -106,7 +106,7 @@
       "table": "investment_platforms",
       "name": "id",
       "type": "text",
-      "notNull": false,
+      "notNull": true,
       "autoincrement": false,
       "default": null,
       "generated": null,
@@ -146,7 +146,7 @@
       "table": "members",
       "name": "id",
       "type": "text",
-      "notNull": false,
+      "notNull": true,
       "autoincrement": false,
       "default": null,
       "generated": null,
@@ -206,7 +206,7 @@
       "table": "profiles",
       "name": "id",
       "type": "text",
-      "notNull": false,
+      "notNull": true,
       "autoincrement": false,
       "default": null,
       "generated": null,
@@ -276,7 +276,7 @@
       "table": "provider_accounts",
       "name": "id",
       "type": "text",
-      "notNull": false,
+      "notNull": true,
       "autoincrement": false,
       "default": null,
       "generated": null,
@@ -356,7 +356,7 @@
       "table": "providers",
       "name": "id",
       "type": "text",
-      "notNull": false,
+      "notNull": true,
       "autoincrement": false,
       "default": null,
       "generated": null,
@@ -406,7 +406,7 @@
       "table": "run_logs",
       "name": "id",
       "type": "text",
-      "notNull": false,
+      "notNull": true,
       "autoincrement": false,
       "default": null,
       "generated": null,
@@ -480,6 +480,24 @@
       "columns": [
         {
           "value": "name",
+          "isExpression": false
+        }
+      ],
+      "isUnique": true,
+      "where": null,
+      "origin": "manual",
+      "entityType": "indexes"
+    },
+    {
+      "table": "profiles",
+      "name": "profiles_id_base_currency_idx",
+      "columns": [
+        {
+          "value": "id",
+          "isExpression": false
+        },
+        {
+          "value": "base_currency",
           "isExpression": false
         }
       ],
@@ -609,13 +627,6 @@
       "entityType": "fks"
     },
     {
-      "table": "app_setting",
-      "name": "app_setting_pk",
-      "columns": ["id"],
-      "nameExplicit": false,
-      "entityType": "pks"
-    },
-    {
       "table": "investment_platforms",
       "name": "investment_platforms_pk",
       "columns": ["id"],
@@ -659,8 +670,15 @@
     },
     {
       "table": "app_setting",
+      "name": "app_setting_pk",
+      "columns": ["id"],
+      "nameExplicit": false,
+      "entityType": "pks"
+    },
+    {
+      "table": "app_setting",
       "name": "app_setting_updated_at_integer_check",
-      "value": "typeof(\"updated_at\") = 'integer'",
+      "value": "typeof(\"updated_at\") = 'integer' AND \"updated_at\" BETWEEN -9007199254740991 AND 9007199254740991",
       "entityType": "checks"
     },
     {
@@ -672,7 +690,13 @@
     {
       "table": "investment_platforms",
       "name": "investment_platforms_enabled_integer_check",
-      "value": "typeof(\"enabled\") = 'integer'",
+      "value": "typeof(\"enabled\") = 'integer' AND \"enabled\" BETWEEN -9007199254740991 AND 9007199254740991",
+      "entityType": "checks"
+    },
+    {
+      "table": "investment_platforms",
+      "name": "investment_platforms_enabled_boolean_check",
+      "value": "\"enabled\" IN (0, 1)",
       "entityType": "checks"
     },
     {
@@ -684,7 +708,7 @@
     {
       "table": "members",
       "name": "members_created_at_integer_check",
-      "value": "typeof(\"created_at\") = 'integer'",
+      "value": "typeof(\"created_at\") = 'integer' AND \"created_at\" BETWEEN -9007199254740991 AND 9007199254740991",
       "entityType": "checks"
     },
     {
@@ -696,19 +720,19 @@
     {
       "table": "profiles",
       "name": "profiles_archived_at_integer_check",
-      "value": "\"archived_at\" IS NULL OR typeof(\"archived_at\") = 'integer'",
+      "value": "\"archived_at\" IS NULL OR (typeof(\"archived_at\") = 'integer' AND \"archived_at\" BETWEEN -9007199254740991 AND 9007199254740991)",
       "entityType": "checks"
     },
     {
       "table": "profiles",
       "name": "profiles_created_at_integer_check",
-      "value": "typeof(\"created_at\") = 'integer'",
+      "value": "typeof(\"created_at\") = 'integer' AND \"created_at\" BETWEEN -9007199254740991 AND 9007199254740991",
       "entityType": "checks"
     },
     {
       "table": "profiles",
       "name": "profiles_base_currency_code_check",
-      "value": "\"base_currency\" GLOB '[A-Z][A-Z][A-Z]'",
+      "value": "typeof(\"base_currency\") = 'text' AND length(\"base_currency\") = 3 AND instr(\"base_currency\", char(0)) = 0 AND \"base_currency\" GLOB '[A-Z][A-Z][A-Z]'",
       "entityType": "checks"
     },
     {
@@ -720,25 +744,37 @@
     {
       "table": "provider_accounts",
       "name": "provider_accounts_archived_at_integer_check",
-      "value": "\"archived_at\" IS NULL OR typeof(\"archived_at\") = 'integer'",
+      "value": "\"archived_at\" IS NULL OR (typeof(\"archived_at\") = 'integer' AND \"archived_at\" BETWEEN -9007199254740991 AND 9007199254740991)",
       "entityType": "checks"
     },
     {
       "table": "provider_accounts",
       "name": "provider_accounts_created_at_integer_check",
-      "value": "typeof(\"created_at\") = 'integer'",
+      "value": "typeof(\"created_at\") = 'integer' AND \"created_at\" BETWEEN -9007199254740991 AND 9007199254740991",
       "entityType": "checks"
     },
     {
       "table": "provider_accounts",
       "name": "provider_accounts_last_synced_at_integer_check",
-      "value": "\"last_synced_at\" IS NULL OR typeof(\"last_synced_at\") = 'integer'",
+      "value": "\"last_synced_at\" IS NULL OR (typeof(\"last_synced_at\") = 'integer' AND \"last_synced_at\" BETWEEN -9007199254740991 AND 9007199254740991)",
+      "entityType": "checks"
+    },
+    {
+      "table": "provider_accounts",
+      "name": "provider_accounts_kind_check",
+      "value": "\"kind\" IN ('bank', 'investment', 'books', 'csv', 'manual')",
       "entityType": "checks"
     },
     {
       "table": "providers",
       "name": "providers_enabled_integer_check",
-      "value": "typeof(\"enabled\") = 'integer'",
+      "value": "typeof(\"enabled\") = 'integer' AND \"enabled\" BETWEEN -9007199254740991 AND 9007199254740991",
+      "entityType": "checks"
+    },
+    {
+      "table": "providers",
+      "name": "providers_enabled_boolean_check",
+      "value": "\"enabled\" IN (0, 1)",
       "entityType": "checks"
     },
     {
@@ -750,7 +786,7 @@
     {
       "table": "run_logs",
       "name": "run_logs_recorded_at_integer_check",
-      "value": "typeof(\"recorded_at\") = 'integer'",
+      "value": "typeof(\"recorded_at\") = 'integer' AND \"recorded_at\" BETWEEN -9007199254740991 AND 9007199254740991",
       "entityType": "checks"
     },
     {

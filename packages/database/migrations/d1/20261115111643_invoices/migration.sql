@@ -1,12 +1,12 @@
 CREATE TABLE `archive_targets` (
 	`blocklist` text DEFAULT '[]' NOT NULL,
 	`created_at` integer NOT NULL,
-	`id` text PRIMARY KEY,
+	`id` text PRIMARY KEY NOT NULL,
 	`profile_id` text NOT NULL,
 	`provider` text NOT NULL,
 	`root_ref` text NOT NULL,
 	CONSTRAINT `fk_archive_targets_profile_id_profiles_id_fk` FOREIGN KEY (`profile_id`) REFERENCES `profiles`(`id`),
-	CONSTRAINT "archive_targets_created_at_integer_check" CHECK(typeof("created_at") = 'integer'),
+	CONSTRAINT "archive_targets_created_at_integer_check" CHECK(typeof("created_at") = 'integer' AND "created_at" BETWEEN -9007199254740991 AND 9007199254740991),
 	CONSTRAINT "archive_targets_provider_check" CHECK("provider" IN ('drive', 'local', 'none'))
 );
 --> statement-breakpoint
@@ -21,7 +21,7 @@ CREATE TABLE `invoice_documents` (
 	`created_at` integer NOT NULL,
 	`document_date` text NOT NULL,
 	`document_type` text NOT NULL,
-	`id` text PRIMARY KEY,
+	`id` text PRIMARY KEY NOT NULL,
 	`original_filename` text NOT NULL,
 	`profile_id` text NOT NULL,
 	`r2_key` text NOT NULL,
@@ -35,11 +35,11 @@ CREATE TABLE `invoice_documents` (
 	CONSTRAINT `fk_invoice_documents_profile_id_archive_target_id_archive_targets_profile_id_id_fk` FOREIGN KEY (`profile_id`,`archive_target_id`) REFERENCES `archive_targets`(`profile_id`,`id`),
 	CONSTRAINT `fk_invoice_documents_profile_id_transaction_id_transactions_profile_id_id_fk` FOREIGN KEY (`profile_id`,`transaction_id`) REFERENCES `transactions`(`profile_id`,`id`),
 	CONSTRAINT `fk_invoice_documents_profile_id_vendor_payee_id_payees_profile_id_id_fk` FOREIGN KEY (`profile_id`,`vendor_payee_id`) REFERENCES `payees`(`profile_id`,`id`),
-	CONSTRAINT "invoice_documents_amount_currency_code_check" CHECK("amount_currency" IS NULL OR "amount_currency" GLOB '[A-Z][A-Z][A-Z]'),
-	CONSTRAINT "invoice_documents_amount_minor_integer_check" CHECK("amount_minor" IS NULL OR typeof("amount_minor") = 'integer'),
-	CONSTRAINT "invoice_documents_archived_at_integer_check" CHECK("archived_at" IS NULL OR typeof("archived_at") = 'integer'),
-	CONSTRAINT "invoice_documents_created_at_integer_check" CHECK(typeof("created_at") = 'integer'),
-	CONSTRAINT "invoice_documents_size_bytes_integer_check" CHECK(typeof("size_bytes") = 'integer'),
+	CONSTRAINT "invoice_documents_amount_currency_code_check" CHECK("amount_currency" IS NULL OR (typeof("amount_currency") = 'text' AND length("amount_currency") = 3 AND instr("amount_currency", char(0)) = 0 AND "amount_currency" GLOB '[A-Z][A-Z][A-Z]')),
+	CONSTRAINT "invoice_documents_amount_minor_integer_check" CHECK("amount_minor" IS NULL OR (typeof("amount_minor") = 'integer' AND "amount_minor" BETWEEN -9007199254740991 AND 9007199254740991)),
+	CONSTRAINT "invoice_documents_archived_at_integer_check" CHECK("archived_at" IS NULL OR (typeof("archived_at") = 'integer' AND "archived_at" BETWEEN -9007199254740991 AND 9007199254740991)),
+	CONSTRAINT "invoice_documents_created_at_integer_check" CHECK(typeof("created_at") = 'integer' AND "created_at" BETWEEN -9007199254740991 AND 9007199254740991),
+	CONSTRAINT "invoice_documents_size_bytes_integer_check" CHECK(typeof("size_bytes") = 'integer' AND "size_bytes" BETWEEN -9007199254740991 AND 9007199254740991),
 	CONSTRAINT "invoice_documents_type_check" CHECK("document_type" IN ('invoice', 'receipt', 'statement', 'credit_note', 'other')),
 	CONSTRAINT "invoice_documents_source_check" CHECK("source" IN ('upload', 'agent', 'email', 'legacy_upload')),
 	CONSTRAINT "invoice_documents_archive_state_check" CHECK("archive_state" IN ('unarchived', 'reserved', 'archived', 'failed')),
@@ -52,16 +52,16 @@ CREATE TABLE `invoice_exceptions` (
 	`profile_id` text NOT NULL,
 	`reason` text NOT NULL,
 	`recorded_at` integer NOT NULL,
-	`transaction_id` text PRIMARY KEY,
+	`transaction_id` text PRIMARY KEY NOT NULL,
 	CONSTRAINT `fk_invoice_exceptions_profile_id_profiles_id_fk` FOREIGN KEY (`profile_id`) REFERENCES `profiles`(`id`),
 	CONSTRAINT `fk_invoice_exceptions_profile_id_transaction_id_transactions_profile_id_id_fk` FOREIGN KEY (`profile_id`,`transaction_id`) REFERENCES `transactions`(`profile_id`,`id`),
-	CONSTRAINT "invoice_exceptions_recorded_at_integer_check" CHECK(typeof("recorded_at") = 'integer'),
+	CONSTRAINT "invoice_exceptions_recorded_at_integer_check" CHECK(typeof("recorded_at") = 'integer' AND "recorded_at" BETWEEN -9007199254740991 AND 9007199254740991),
 	CONSTRAINT "invoice_exceptions_reason_check" CHECK(length(trim("reason")) > 0)
 );
 --> statement-breakpoint
 CREATE TABLE `invoice_sources` (
 	`created_at` integer NOT NULL,
-	`id` text PRIMARY KEY,
+	`id` text PRIMARY KEY NOT NULL,
 	`login_hint` text,
 	`notes` text,
 	`pattern` text NOT NULL,
@@ -75,12 +75,16 @@ CREATE TABLE `invoice_sources` (
 	`vendor_payee_id` text,
 	CONSTRAINT `fk_invoice_sources_profile_id_profiles_id_fk` FOREIGN KEY (`profile_id`) REFERENCES `profiles`(`id`),
 	CONSTRAINT `fk_invoice_sources_profile_id_vendor_payee_id_payees_profile_id_id_fk` FOREIGN KEY (`profile_id`,`vendor_payee_id`) REFERENCES `payees`(`profile_id`,`id`),
-	CONSTRAINT "invoice_sources_created_at_integer_check" CHECK(typeof("created_at") = 'integer'),
-	CONSTRAINT "invoice_sources_retrieval_bookkeeper_integer_check" CHECK(typeof("retrieval_bookkeeper") = 'integer'),
-	CONSTRAINT "invoice_sources_retrieval_email_integer_check" CHECK(typeof("retrieval_email") = 'integer'),
-	CONSTRAINT "invoice_sources_retrieval_portal_integer_check" CHECK(typeof("retrieval_portal") = 'integer'),
-	CONSTRAINT "invoice_sources_retrieval_two_factor_integer_check" CHECK(typeof("retrieval_two_factor") = 'integer'),
-	CONSTRAINT "invoice_sources_updated_at_integer_check" CHECK(typeof("updated_at") = 'integer')
+	CONSTRAINT "invoice_sources_created_at_integer_check" CHECK(typeof("created_at") = 'integer' AND "created_at" BETWEEN -9007199254740991 AND 9007199254740991),
+	CONSTRAINT "invoice_sources_retrieval_bookkeeper_integer_check" CHECK(typeof("retrieval_bookkeeper") = 'integer' AND "retrieval_bookkeeper" BETWEEN -9007199254740991 AND 9007199254740991),
+	CONSTRAINT "invoice_sources_retrieval_email_integer_check" CHECK(typeof("retrieval_email") = 'integer' AND "retrieval_email" BETWEEN -9007199254740991 AND 9007199254740991),
+	CONSTRAINT "invoice_sources_retrieval_portal_integer_check" CHECK(typeof("retrieval_portal") = 'integer' AND "retrieval_portal" BETWEEN -9007199254740991 AND 9007199254740991),
+	CONSTRAINT "invoice_sources_retrieval_two_factor_integer_check" CHECK(typeof("retrieval_two_factor") = 'integer' AND "retrieval_two_factor" BETWEEN -9007199254740991 AND 9007199254740991),
+	CONSTRAINT "invoice_sources_updated_at_integer_check" CHECK(typeof("updated_at") = 'integer' AND "updated_at" BETWEEN -9007199254740991 AND 9007199254740991),
+	CONSTRAINT "invoice_sources_retrieval_bookkeeper_boolean_check" CHECK("retrieval_bookkeeper" IN (0, 1)),
+	CONSTRAINT "invoice_sources_retrieval_email_boolean_check" CHECK("retrieval_email" IN (0, 1)),
+	CONSTRAINT "invoice_sources_retrieval_portal_boolean_check" CHECK("retrieval_portal" IN (0, 1)),
+	CONSTRAINT "invoice_sources_retrieval_two_factor_boolean_check" CHECK("retrieval_two_factor" IN (0, 1))
 );
 --> statement-breakpoint
 CREATE UNIQUE INDEX `archive_targets_profile_provider_idx` ON `archive_targets` (`profile_id`,`provider`);--> statement-breakpoint
