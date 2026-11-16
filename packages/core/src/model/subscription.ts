@@ -1,10 +1,9 @@
 import { Schema } from "effect";
 
+import { AmountsSchema } from "./money.js";
 import {
-  BaseAmountSchema,
   CategoryIdSchema,
   DateOnlySchema,
-  MoneySchema,
   PayeeIdSchema,
   ProfileIdSchema,
   SubscriptionIdSchema,
@@ -31,7 +30,7 @@ export const SubscriptionStatusSchema = Schema.TaggedUnion({
 export type SubscriptionStatus = typeof SubscriptionStatusSchema.Type;
 
 export const SubscriptionSchema = Schema.Struct({
-  baseAmount: BaseAmountSchema,
+  amounts: AmountsSchema,
   categoryId: Schema.OptionFromNullishOr(CategoryIdSchema),
   confidence: Schema.Finite,
   frequency: FrequencySchema,
@@ -41,7 +40,6 @@ export const SubscriptionSchema = Schema.Struct({
   payeeId: PayeeIdSchema,
   profileId: ProfileIdSchema,
   status: SubscriptionStatusSchema,
-  typical: MoneySchema,
 });
 
 export type Subscription = typeof SubscriptionSchema.Type;

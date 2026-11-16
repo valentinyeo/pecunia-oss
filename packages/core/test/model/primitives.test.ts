@@ -1,6 +1,9 @@
 import { describe, expect, it } from "@effect/vitest";
 import { Schema } from "effect";
 
+import * as modelModule from "../../src/model/index.js";
+import * as moneyModule from "../../src/model/money.js";
+import * as primitivesModule from "../../src/model/primitives.js";
 import {
   DateOnlySchema,
   MoneySchema,
@@ -35,6 +38,12 @@ describe("domain primitives", () => {
     expect(Schema.decodeSync(TransactionIdSchema)(v7)).toBe(v7);
     expect(() => Schema.decodeSync(ProfileIdSchema)(v4)).toThrow();
     expect(() => Schema.decodeSync(ProfileIdSchema)("demo-profile")).toThrow();
+  });
+
+  it("exposes no schema that brands an arbitrary amount as a base amount", () => {
+    expect(Object.keys(primitivesModule)).not.toContain("BaseAmountSchema");
+    expect(Object.keys(moneyModule)).not.toContain("BaseAmountSchema");
+    expect(Object.keys(modelModule)).not.toContain("BaseAmountSchema");
   });
 
   it("rejects a date that is not in YYYY-MM-DD form", () => {

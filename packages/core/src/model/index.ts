@@ -1,7 +1,6 @@
 export {
   AliasIdSchema,
   ArchiveTargetIdSchema,
-  BaseAmountSchema,
   CategoryIdSchema,
   CurrencyCodeSchema,
   DateOnlySchema,
@@ -30,7 +29,6 @@ export {
 export type {
   AliasId,
   ArchiveTargetId,
-  BaseAmount,
   CategoryId,
   CurrencyCode,
   DateOnly,
@@ -61,20 +59,32 @@ export { RateSchema } from "./rate.js";
 export type { Rate } from "./rate.js";
 
 export {
+  AmountsSchema,
   ConversionOverflow,
   CurrencyMismatch,
   MoneyOverflow,
   RateUnavailable,
+  SameCurrencyAmountSchema,
   addMoney,
   convert,
   convertMinor,
+  convertedAmounts,
   minorUnitExponent,
+  sameCurrencyAmount,
+  sourceAmount,
   subtractMoney,
 } from "./money.js";
 
 export { RateOnSameCurrency } from "./rate-on-same-currency.js";
 
-export type { ConversionQuery, RateLookup } from "./money.js";
+export type {
+  Amounts,
+  BaseAmount,
+  ConversionQuery,
+  ConvertedAmount,
+  RateLookup,
+  SameCurrencyAmount,
+} from "./money.js";
 
 export {
   MemberSchema,
@@ -96,17 +106,13 @@ export type { Provider, ProviderAccount, ProviderKind } from "./provider.js";
 export {
   CategorizationSchema,
   ClassificationSchema,
-  ConversionSchema,
   DirectionSchema,
   TransactionSchema,
-  convertedAmounts,
 } from "./transaction.js";
 
 export type {
   Categorization,
   Classification,
-  Conversion,
-  ConvertedAmounts,
   Direction,
   Transaction,
 } from "./transaction.js";

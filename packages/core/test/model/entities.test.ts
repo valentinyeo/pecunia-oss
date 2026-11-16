@@ -1,14 +1,14 @@
 import { describe, expect, it } from "@effect/vitest";
-import { DateTime, Effect, Option, Predicate, Schema } from "effect";
+import { DateTime, Effect, Option, Schema } from "effect";
 
 import {
   ArchiveStateSchema,
+  AmountsSchema,
   ArchiveTargetSchema,
   AppSettingSchema,
   CategorySchema,
   CategorizationSchema,
   ClassificationSchema,
-  ConversionSchema,
   ExchangeRateSchema,
   HoldingSchema,
   InvoiceDocumentSchema,
@@ -23,6 +23,7 @@ import {
   ProviderSchema,
   RateOnSameCurrency,
   ReportSchema,
+  SameCurrencyAmountSchema,
   RuleSchema,
   SubscriptionSchema,
   SubscriptionStatusSchema,
@@ -32,11 +33,12 @@ import {
   TaxObligationStatusSchema,
   TaxProfileSchema,
   TransactionSchema,
+  convertedAmounts,
+  sameCurrencyAmount,
 } from "../../src/model/index.js";
 import {
   AliasIdSchema,
   ArchiveTargetIdSchema,
-  BaseAmountSchema,
   CategoryIdSchema,
   CurrencyCodeSchema,
   DateOnlySchema,
@@ -60,7 +62,6 @@ import {
 import type { DateOnly } from "../../src/model/primitives.js";
 import { RateSchema } from "../../src/model/rate.js";
 import type { Rate } from "../../src/model/rate.js";
-import { convertedAmounts } from "../../src/model/transaction.js";
 
 const at = Schema.decodeSync(TimestampSchema)(
   DateTime.makeUnsafe("2024-01-31T10:00:00Z")
@@ -152,12 +153,26 @@ const wire = <S extends Schema.ConstraintEncoder<unknown>>(
   value: S["Type"]
 ): S["Encoded"] => Schema.encodeSync(schema)(value);
 
+const storedConversion = (minor: number, rate: string) =>
+  convertedAmounts(
+    moneyOf("USD", minor),
+    currencyOf("EUR"),
+    rateOf(rate),
+    dateOnly("2024-01-30")
+  );
+
 const strictRuleDecoder = Schema.decodeUnknownSync(RuleSchema, {
   onExcessProperty: "error",
 });
 
-const transactionWire = (): typeof TransactionSchema.Encoded => ({
-  base: euro(850),
+const strictTransactionDecoder = Schema.decodeSync(TransactionSchema, {
+  onExcessProperty: "error",
+});
+
+const transactionWire = (
+  amounts: typeof AmountsSchema.Encoded
+): typeof TransactionSchema.Encoded => ({
+  amounts,
   categorization: wire(
     CategorizationSchema,
     CategorizationSchema.cases.None.make({})
@@ -165,13 +180,6 @@ const transactionWire = (): typeof TransactionSchema.Encoded => ({
   classification: wire(
     ClassificationSchema,
     ClassificationSchema.cases.None.make({})
-  ),
-  conversion: wire(
-    ConversionSchema,
-    ConversionSchema.cases.Converted.make({
-      asOf: dateOnly("2024-01-30"),
-      rate: rateOf("0.85"),
-    })
   ),
   createdAt: at,
   direction: "out",
@@ -188,7 +196,6 @@ const transactionWire = (): typeof TransactionSchema.Encoded => ({
     merchant: "Example Ltd",
     reference: "INV-1",
   },
-  source: { currency: "USD", minor: 1000 },
   status: "posted",
   valueDate: "2024-01-30",
 });
@@ -322,7 +329,7 @@ describe("valid rows decode for every aggregate", () => {
 
     expect(
       Schema.decodeSync(SubscriptionSchema)({
-        baseAmount: euro(999),
+        amounts: wire(AmountsSchema, sameCurrencyAmount(moneyOf("EUR", 999))),
         categoryId: null,
         confidence: 0.9,
         frequency: "monthly",
@@ -335,7 +342,6 @@ describe("valid rows decode for every aggregate", () => {
           SubscriptionStatusSchema,
           SubscriptionStatusSchema.cases.Confirmed.make({ at })
         ),
-        typical: euro(999),
       }).frequency
     ).toBe("monthly");
 
@@ -475,100 +481,98 @@ describe("valid rows decode for every aggregate", () => {
   });
 });
 
-describe("the transaction type forbids a mixed conversion", () => {
-  it("decodes a converted transaction and keeps the raw amount exact", () => {
-    const transaction = Schema.decodeSync(TransactionSchema)(transactionWire());
+describe("a transaction carries one amount per currency story", () => {
+  it.effect(
+    "decodes a converted transaction into the converter's own output",
+    () =>
+      Effect.gen(function* convertedRowDecodes() {
+        const stored = yield* storedConversion(1000, "0.85");
 
-    expect(transaction.source.minor).toBe(1000);
-    expect(transaction.base.minor).toBe(850);
-    expect(Predicate.isTagged(transaction.conversion, "Converted")).toBe(true);
-    expect(Option.isNone(transaction.payeeId)).toBe(true);
-  });
+        const transaction = yield* Schema.decodeEffect(TransactionSchema)(
+          transactionWire(wire(AmountsSchema, stored))
+        );
 
-  it("rejects a non-base amount without a rate", () => {
-    expect(() =>
-      Schema.decodeSync(TransactionSchema)({
-        ...transactionWire(),
-        conversion: wire(
-          ConversionSchema,
-          ConversionSchema.cases.SameCurrency.make({})
-        ),
+        expect(transaction.amounts).toStrictEqual(stored);
+        expect(stored.base).toStrictEqual({ currency: "EUR", minor: 850 });
+        expect(Option.isNone(transaction.payeeId)).toBe(true);
       })
-    ).toThrow();
-  });
+  );
 
-  it("rejects a rate on a same-currency amount", () => {
+  it.effect("rejects a converted base amount the rate does not produce", () =>
+    Effect.gen(function* baseMustFollowTheRate() {
+      const stored = yield* storedConversion(1000, "0.85");
+
+      const tampered = Object.fromEntries([
+        ...Object.entries(wire(AmountsSchema, stored)),
+        ["base", euro(1)],
+      ]);
+
+      expect(() => Schema.decodeUnknownSync(AmountsSchema)(tampered)).toThrow();
+    })
+  );
+
+  it.effect("rejects a converted amount whose rate is missing", () =>
+    Effect.gen(function* rateIsRequired() {
+      const stored = yield* storedConversion(1000, "0.85");
+
+      const withoutRate = Object.fromEntries(
+        Object.entries(wire(AmountsSchema, stored)).filter(
+          ([key]) => key !== "rate"
+        )
+      );
+
+      expect(() =>
+        Schema.decodeUnknownSync(AmountsSchema)(withoutRate)
+      ).toThrow();
+    })
+  );
+
+  it("rejects a same-currency amount that also carries a base amount", () => {
+    const sameCurrency = Schema.encodeSync(SameCurrencyAmountSchema)(
+      SameCurrencyAmountSchema.make({ amount: moneyOf("EUR", 1000) })
+    );
+
+    const tampered = { ...sameCurrency, base: moneyOf("EUR", 1000) };
+
+    const withBase = {
+      ...transactionWire(
+        wire(AmountsSchema, sameCurrencyAmount(moneyOf("EUR", 1000)))
+      ),
+      amounts: tampered,
+    };
+
     expect(() =>
-      Schema.decodeSync(TransactionSchema)({
-        ...transactionWire(),
-        base: euro(1000),
-        source: euro(1000),
-      })
+      Schema.decodeSync(AmountsSchema, { onExcessProperty: "error" })(tampered)
     ).toThrow();
+    expect(() => strictTransactionDecoder(withBase)).toThrow();
   });
 
-  it("rejects a stored base amount the rate does not produce", () => {
-    expect(() =>
-      Schema.decodeSync(TransactionSchema)({
-        ...transactionWire(),
-        base: euro(1),
-      })
-    ).toThrow();
-  });
+  it("keeps one amount on a same-currency transaction", () => {
+    const amount = moneyOf("EUR", 1000);
 
-  it("rejects a same-currency base amount that differs from the source", () => {
-    expect(() =>
-      Schema.decodeSync(TransactionSchema)({
-        ...transactionWire(),
-        base: euro(900),
-        conversion: wire(
-          ConversionSchema,
-          ConversionSchema.cases.SameCurrency.make({})
-        ),
-        source: euro(1000),
-      })
-    ).toThrow();
-  });
+    const transaction = Schema.decodeSync(TransactionSchema)(
+      transactionWire(wire(AmountsSchema, sameCurrencyAmount(amount)))
+    );
 
-  it("accepts a same-currency base amount equal to the source", () => {
-    expect(
-      Schema.decodeSync(TransactionSchema)({
-        ...transactionWire(),
-        base: euro(1000),
-        conversion: wire(
-          ConversionSchema,
-          ConversionSchema.cases.SameCurrency.make({})
-        ),
-        source: euro(1000),
-      }).base.minor
-    ).toBe(1000);
+    expect(transaction.amounts).toStrictEqual(sameCurrencyAmount(amount));
+    expect(Object.keys(transaction.amounts).toSorted()).toStrictEqual([
+      "_tag",
+      "amount",
+    ]);
   });
 
   it.effect("builds a conversion whose base the rate produces", () =>
     Effect.gen(function* constructorRoundTrips() {
-      const stored = yield* convertedAmounts(
-        moneyOf("USD", 1000),
-        currencyOf("EUR"),
-        rateOf("0.85"),
-        dateOnly("2024-01-30")
-      );
+      const stored = yield* storedConversion(1000, "0.85");
 
       expect(stored.base).toStrictEqual({ currency: "EUR", minor: 850 });
-      expect(stored.conversion).toStrictEqual(
-        ConversionSchema.cases.Converted.make({
-          asOf: dateOnly("2024-01-30"),
-          rate: rateOf("0.85"),
-        })
+      expect(stored.source).toStrictEqual(moneyOf("USD", 1000));
+
+      const decoded = yield* Schema.decodeEffect(TransactionSchema)(
+        transactionWire(wire(AmountsSchema, stored))
       );
 
-      const decoded = yield* Schema.decodeEffect(TransactionSchema)({
-        ...transactionWire(),
-        base: wire(BaseAmountSchema, stored.base),
-        conversion: wire(ConversionSchema, stored.conversion),
-      });
-
-      expect(decoded.base.minor).toBe(850);
-      expect(Predicate.isTagged(decoded.conversion, "Converted")).toBe(true);
+      expect(decoded.amounts).toStrictEqual(stored);
     })
   );
 
@@ -592,7 +596,9 @@ describe("the transaction type forbids a mixed conversion", () => {
   it("rejects a fee in another currency than the source", () => {
     expect(() =>
       Schema.decodeSync(TransactionSchema)({
-        ...transactionWire(),
+        ...transactionWire(
+          wire(AmountsSchema, sameCurrencyAmount(moneyOf("EUR", 1000)))
+        ),
         fee: { currency: "GBP", minor: 100 },
       })
     ).toThrow();

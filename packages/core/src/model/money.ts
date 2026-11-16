@@ -1,21 +1,23 @@
-import { Effect, Option, Schema } from "effect";
+import { Effect, Option, Predicate, Schema } from "effect";
 
 import { ConversionOverflow } from "./conversion-overflow.js";
 import { CurrencyMismatch } from "./currency-mismatch.js";
 import { MoneyOverflow } from "./money-overflow.js";
 import type {
-  BaseAmount,
   CurrencyCode,
+  DateOnly,
   MinorUnits,
   Money,
 } from "./primitives.js";
 import {
-  BaseAmountSchema,
+  CurrencyCodeSchema,
+  DateOnlySchema,
   MinorUnitsSchema,
   MoneySchema,
 } from "./primitives.js";
+import { RateOnSameCurrency } from "./rate-on-same-currency.js";
 import { RateUnavailable } from "./rate-unavailable.js";
-import { RATE_SCALE_FACTOR } from "./rate.js";
+import { RATE_SCALE_FACTOR, RateSchema } from "./rate.js";
 import type { Rate } from "./rate.js";
 
 export { ConversionOverflow } from "./conversion-overflow.js";
@@ -65,10 +67,17 @@ const minorUnitExponents = new Map([
 export const minorUnitExponent = (currency: CurrencyCode): number =>
   minorUnitExponents.get(currency) ?? 2;
 
-const moneyOf = (currency: CurrencyCode, minor: number): Money =>
+const BaseAmountSchema = Schema.Struct({
+  currency: CurrencyCodeSchema,
+  minor: MinorUnitsSchema,
+}).pipe(Schema.brand("BaseAmount"));
+
+export type BaseAmount = typeof BaseAmountSchema.Type;
+
+const moneyOf = (currency: CurrencyCode, minor: MinorUnits): Money =>
   Schema.decodeSync(MoneySchema)({ currency, minor });
 
-const baseAmountOf = (currency: CurrencyCode, minor: number): BaseAmount =>
+const baseAmountOf = (currency: CurrencyCode, minor: MinorUnits): BaseAmount =>
   Schema.decodeSync(BaseAmountSchema)({ currency, minor });
 
 const minorUnitsOf = (minor: bigint): Option.Option<MinorUnits> =>
@@ -150,6 +159,91 @@ export const subtractMoney = (
   right: Money
 ): Effect.Effect<Money, CurrencyMismatch | MoneyOverflow> =>
   combine(left, right, "subtract");
+
+interface ConvertedAmountFields {
+  readonly asOf: DateOnly;
+  readonly base: BaseAmount;
+  readonly rate: Rate;
+  readonly source: Money;
+}
+
+const convertedBaseMatchesRate = Schema.makeFilter<ConvertedAmountFields>(
+  (amounts) =>
+    amounts.source.currency !== amounts.base.currency &&
+    Option.match(
+      convertMinor(
+        amounts.source.minor,
+        amounts.source.currency,
+        amounts.base.currency,
+        amounts.rate
+      ),
+      {
+        onNone: () => false,
+        onSome: (minor) => minor === amounts.base.minor,
+      }
+    ),
+  { expected: "a base amount the rate produces from the source amount" }
+);
+
+const ConvertedAmountSchema = Schema.TaggedStruct("Converted", {
+  asOf: DateOnlySchema,
+  base: BaseAmountSchema,
+  rate: RateSchema,
+  source: MoneySchema,
+}).check(convertedBaseMatchesRate);
+
+export const SameCurrencyAmountSchema = Schema.TaggedStruct("SameCurrency", {
+  amount: MoneySchema,
+});
+
+export type ConvertedAmount = typeof ConvertedAmountSchema.Type;
+
+export type SameCurrencyAmount = typeof SameCurrencyAmountSchema.Type;
+
+export type Amounts = ConvertedAmount | SameCurrencyAmount;
+
+export const AmountsSchema = Schema.Union([
+  ConvertedAmountSchema,
+  SameCurrencyAmountSchema,
+]);
+
+export const sourceAmount = (amounts: Amounts): Money =>
+  Predicate.isTagged(amounts, "Converted") ? amounts.source : amounts.amount;
+
+export const sameCurrencyAmount = (amount: Money): SameCurrencyAmount =>
+  SameCurrencyAmountSchema.make({ amount });
+
+export const convertedAmounts = (
+  source: Money,
+  baseCurrency: CurrencyCode,
+  rate: Rate,
+  asOf: DateOnly
+): Effect.Effect<ConvertedAmount, ConversionOverflow | RateOnSameCurrency> =>
+  source.currency === baseCurrency
+    ? Effect.fail(new RateOnSameCurrency({ currency: source.currency }))
+    : Option.match(
+        convertMinor(source.minor, source.currency, baseCurrency, rate),
+        {
+          onNone: () =>
+            Effect.fail(
+              new ConversionOverflow({
+                baseCurrency,
+                currency: source.currency,
+                minor: source.minor,
+                rate,
+              })
+            ),
+          onSome: (minor) =>
+            Effect.succeed(
+              ConvertedAmountSchema.make({
+                asOf,
+                base: baseAmountOf(baseCurrency, minor),
+                rate,
+                source,
+              })
+            ),
+        }
+      );
 
 export const convert = (
   money: Money,

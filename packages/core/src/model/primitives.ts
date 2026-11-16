@@ -17,13 +17,6 @@ export const MoneySchema = Schema.Struct({
 
 export type Money = typeof MoneySchema.Type;
 
-export const BaseAmountSchema = Schema.Struct({
-  currency: CurrencyCodeSchema,
-  minor: MinorUnitsSchema,
-}).pipe(Schema.brand("BaseAmount"));
-
-export type BaseAmount = typeof BaseAmountSchema.Type;
-
 export const QuantitySchema = Schema.Int.check(
   Schema.isGreaterThanOrEqualTo(0)
 ).pipe(Schema.brand("Quantity"));
