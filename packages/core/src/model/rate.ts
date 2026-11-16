@@ -1,5 +1,8 @@
 import { Schema, SchemaGetter } from "effect";
 
+import { carries, valueOperation } from "./operation.js";
+import type { Operation } from "./operation.js";
+
 export const RATE_SCALE = 12;
 
 export const RATE_SCALE_FACTOR = 10n ** BigInt(RATE_SCALE);
@@ -39,4 +42,15 @@ export const RateSchema = Schema.String.check(
 
 export type Rate = typeof RateSchema.Type;
 
-export const rateText = (rate: Rate): string => toText(rate);
+export const rateSample = (): Rate => Schema.decodeSync(RateSchema)("0.85");
+
+export const rateArgument = () => carries("Rate", RateSchema, rateSample);
+
+export const rateTextOperation: Operation<[Rate], string> = valueOperation({
+  arguments: [carries("Rate", RateSchema, rateSample)],
+  name: "rateText",
+  run: (rate: Rate): string => toText(rate),
+  samples: () => [rateSample()],
+});
+
+export const rateText = rateTextOperation.apply;

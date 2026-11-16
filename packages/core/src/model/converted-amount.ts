@@ -17,6 +17,16 @@ import type {
   RateOnSameCurrency,
 } from "./errors.js";
 import { rateOnSameCurrency } from "./errors.js";
+import type { Operation } from "./operation.js";
+import {
+  codeArgument,
+  codeSample,
+  dateArgument,
+  dateSample,
+  moneyArgument,
+  moneySample,
+  resultOperation,
+} from "./operation.js";
 import type {
   CurrencyCode,
   DateOnly,
@@ -29,7 +39,7 @@ import {
   MinorUnitsSchema,
   MoneySchema,
 } from "./primitives.js";
-import { RateSchema } from "./rate.js";
+import { RateSchema, rateArgument, rateSample } from "./rate.js";
 import type { Rate } from "./rate.js";
 
 const conversionProof: unique symbol = Symbol("Converted");
@@ -69,27 +79,51 @@ export class ConvertedAmount {
     this.source = fields.source;
   }
 
-  static converting(
-    source: Money,
-    baseCurrency: CurrencyCode,
-    rate: Rate,
-    asOf: DateOnly
-  ): Result.Result<
-    ConvertedAmount,
-    | ConversionInputInvalid
-    | ConversionOverflow
-    | RateOnSameCurrency
-    | Schema.SchemaError
-  > {
-    if (source.currency === baseCurrency) {
-      return Result.fail(rateOnSameCurrency({ currency: source.currency }));
-    }
+  static readonly convertingOperation: Operation<
+    [Money, CurrencyCode, Rate, DateOnly],
+    Result.Result<
+      ConvertedAmount,
+      | ConversionInputInvalid
+      | ConversionOverflow
+      | RateOnSameCurrency
+      | Schema.SchemaError
+    >
+  > = resultOperation({
+    arguments: [
+      moneyArgument(),
+      codeArgument(),
+      rateArgument(),
+      dateArgument(),
+    ],
+    name: "ConvertedAmount.converting",
+    run: (
+      source: Money,
+      baseCurrency: CurrencyCode,
+      rate: Rate,
+      asOf: DateOnly
+    ): Result.Result<
+      ConvertedAmount,
+      | ConversionInputInvalid
+      | ConversionOverflow
+      | RateOnSameCurrency
+      | Schema.SchemaError
+    > =>
+      source.currency === baseCurrency
+        ? Result.fail(rateOnSameCurrency({ currency: source.currency }))
+        : Result.map(
+            BaseAmount.atRateOperation.apply(source, baseCurrency, rate),
+            (base) => new ConvertedAmount({ asOf, base, rate, source })
+          ),
+    samples: () => [
+      moneySample(),
+      codeSample("GBP"),
+      rateSample(),
+      dateSample(),
+    ],
+  });
 
-    return Result.map(
-      BaseAmount.atRate(source, baseCurrency, rate),
-      (base) => new ConvertedAmount({ asOf, base, rate, source })
-    );
-  }
+  static readonly converting: typeof ConvertedAmount.convertingOperation.apply =
+    ConvertedAmount.convertingOperation.apply;
 
   static restore(stored: unknown): Option.Option<ConvertedAmount> {
     return ConvertedAmount.#fromStored(
@@ -126,6 +160,9 @@ export class ConvertedAmount {
     return value instanceof ConvertedAmount && value.#proof === conversionProof;
   }
 }
+
+export const convertingOperation: typeof ConvertedAmount.convertingOperation =
+  ConvertedAmount.convertingOperation;
 
 const StoredBaseAmountSchema = Schema.Struct({
   currency: CurrencyCodeSchema,

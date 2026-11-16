@@ -1,11 +1,21 @@
 import { Option, Result } from "effect";
+import type { Schema } from "effect";
 
 import { parse } from "./codec.js";
 import type { ConversionInputInvalid, ConversionOverflow } from "./errors.js";
 import { conversionInputInvalid, conversionOverflow } from "./errors.js";
+import {
+  carries,
+  codeArgument,
+  codeSample,
+  moneySample,
+  resultOperation,
+  valueOperation,
+} from "./operation.js";
+import type { Operation } from "./operation.js";
 import type { CurrencyCode, MinorUnits } from "./primitives.js";
 import { MinorUnitsSchema } from "./primitives.js";
-import { RATE_SCALE_FACTOR } from "./rate.js";
+import { RATE_SCALE_FACTOR, rateArgument, rateSample } from "./rate.js";
 import type { Rate } from "./rate.js";
 
 const minorUnitExponents = new Map([
@@ -37,8 +47,19 @@ const minorUnitExponents = new Map([
   ["XPF", 0],
 ]);
 
-export const minorUnitExponent = (currency: CurrencyCode): number =>
+const minorUnitExponentRun = (currency: CurrencyCode): number =>
   minorUnitExponents.get(currency) ?? 2;
+
+export const minorUnitExponentOperation: Operation<[CurrencyCode], number> =
+  valueOperation({
+    arguments: [codeArgument()],
+    name: "minorUnitExponent",
+    run: minorUnitExponentRun,
+    samples: () => [codeSample("JPY")],
+  });
+
+export const minorUnitExponent: typeof minorUnitExponentOperation.apply =
+  minorUnitExponentOperation.apply;
 
 export const minorUnitsOf = (minor: bigint): Option.Option<MinorUnits> =>
   minor >= BigInt(Number.MIN_SAFE_INTEGER) &&
@@ -69,7 +90,7 @@ const invalidReason = (
   return Number.isInteger(minor) ? "unsafe" : "fractional";
 };
 
-export const convertMinor = (
+const convertMinorRun = (
   minor: MinorUnits,
   from: CurrencyCode,
   to: CurrencyCode,
@@ -102,3 +123,29 @@ export const convertMinor = (
     onSome: (value) => Result.succeed(value),
   });
 };
+
+export const convertMinorOperation: Operation<
+  [MinorUnits, CurrencyCode, CurrencyCode, Rate],
+  Result.Result<
+    MinorUnits,
+    ConversionInputInvalid | ConversionOverflow | Schema.SchemaError
+  >
+> = resultOperation({
+  arguments: [
+    carries("MinorUnits", MinorUnitsSchema, () => moneySample().minor),
+    codeArgument(),
+    codeArgument(),
+    rateArgument(),
+  ],
+  name: "convertMinor",
+  run: convertMinorRun,
+  samples: () => [
+    moneySample().minor,
+    codeSample("USD"),
+    codeSample("GBP"),
+    rateSample(),
+  ],
+});
+
+export const convertMinor: typeof convertMinorOperation.apply =
+  convertMinorOperation.apply;

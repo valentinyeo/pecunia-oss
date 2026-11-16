@@ -1,9 +1,8 @@
-import { Effect, Option, Predicate, Schema } from "effect";
+import { Effect, Option, Predicate, Result, Schema } from "effect";
 
-import { BaseAmount } from "./base-amount.js";
-import type { RateLookup } from "./base-amount.js";
+import { convertOperation } from "./base-amount.js";
 import type { Exact } from "./codec.js";
-import { assertNoForeignKeys, parse } from "./codec.js";
+import { parse } from "./codec.js";
 import { minorUnitsOf } from "./convert-minor.js";
 import { ConvertedAmount, ConvertedAmountSchema } from "./converted-amount.js";
 import type {
@@ -12,17 +11,33 @@ import type {
   CurrencyMismatch,
   MoneyOverflow,
   RateOnSameCurrency,
-  RateUnavailable,
 } from "./errors.js";
 import { currencyMismatch, moneyOverflow } from "./errors.js";
+import type { Operation } from "./operation.js";
+import {
+  carries,
+  codeArgument,
+  codeSample,
+  dateArgument,
+  dateSample,
+  effectOperation,
+  moneyArgument,
+  moneySample,
+  valueOperation,
+} from "./operation.js";
 import type {
   CurrencyCode,
   DateOnly,
   MinorUnits,
   Money,
 } from "./primitives.js";
-import { MoneySchema } from "./primitives.js";
+import {
+  CurrencyCodeSchema,
+  DateOnlySchema,
+  MoneySchema,
+} from "./primitives.js";
 import type { Rate } from "./rate.js";
+import { rateArgument, rateSample } from "./rate.js";
 
 export { BaseAmount } from "./base-amount.js";
 
@@ -47,31 +62,20 @@ export type { MoneyOverflow, MoneyOverflowFields } from "./errors.js";
 
 export type { RateUnavailable, RateUnavailableFields } from "./errors.js";
 
-const moneyOf = (currency: CurrencyCode, minor: MinorUnits): Money =>
-  parse(MoneySchema, { currency, minor });
-
 const mismatch = (
   left: CurrencyCode,
   right: CurrencyCode
 ): Effect.Effect<never, CurrencyMismatch> =>
   Effect.fail(currencyMismatch({ left, right }));
 
-const combine = (
+const moneyOf = (currency: CurrencyCode, minor: MinorUnits): Money =>
+  parse(MoneySchema, { currency, minor });
+
+const combineRun = (
   left: Money,
   right: Money,
   operation: "add" | "subtract"
-): Effect.Effect<
-  Money,
-  CurrencyMismatch | MoneyOverflow | Schema.SchemaError
-> => {
-  const failure =
-    assertNoForeignKeys(left, MoneySchema) ??
-    assertNoForeignKeys(right, MoneySchema);
-
-  if (failure !== undefined) {
-    return Effect.fail(failure);
-  }
-
+): Effect.Effect<Money, CurrencyMismatch | MoneyOverflow> => {
   if (left.currency !== right.currency) {
     return mismatch(left.currency, right.currency);
   }
@@ -95,21 +99,30 @@ const combine = (
   });
 };
 
-export const addMoney = (
-  left: Money,
-  right: Money
-): Effect.Effect<
-  Money,
-  CurrencyMismatch | MoneyOverflow | Schema.SchemaError
-> => combine(left, right, "add");
+export const addMoneyOperation: Operation<
+  [Money, Money],
+  Effect.Effect<Money, CurrencyMismatch | MoneyOverflow | Schema.SchemaError>
+> = effectOperation({
+  arguments: [moneyArgument(), moneyArgument()],
+  name: "addMoney",
+  run: (left: Money, right: Money) => combineRun(left, right, "add"),
+  samples: () => [moneySample(), moneySample()],
+});
 
-export const subtractMoney = (
-  left: Money,
-  right: Money
-): Effect.Effect<
-  Money,
-  CurrencyMismatch | MoneyOverflow | Schema.SchemaError
-> => combine(left, right, "subtract");
+export const subtractMoneyOperation: Operation<
+  [Money, Money],
+  Effect.Effect<Money, CurrencyMismatch | MoneyOverflow | Schema.SchemaError>
+> = effectOperation({
+  arguments: [moneyArgument(), moneyArgument()],
+  name: "subtractMoney",
+  run: (left: Money, right: Money) => combineRun(left, right, "subtract"),
+  samples: () => [moneySample(), moneySample()],
+});
+
+export const addMoney: typeof addMoneyOperation.apply = addMoneyOperation.apply;
+
+export const subtractMoney: typeof subtractMoneyOperation.apply =
+  subtractMoneyOperation.apply;
 
 export const SameCurrencyAmountSchema = Schema.TaggedStruct("SameCurrency", {
   amount: MoneySchema,
@@ -127,42 +140,75 @@ export type SameCurrencyAmount = Extract<
   { readonly _tag: "SameCurrency" }
 >;
 
-export const sourceAmount = (
-  amounts: Amounts | typeof AmountsSchema.Type
-): Money =>
+const sourceAmountRun = (amounts: Amounts): Money =>
   Predicate.isTagged(amounts, "Converted") ? amounts.source : amounts.amount;
 
-export const sameCurrencyAmount = (amount: Money): SameCurrencyAmount =>
+const sameCurrencyAmountRun = (amount: Money): SameCurrencyAmount =>
   parse(
     SameCurrencyAmountSchema,
     // oxlint-disable-next-line anti-slop-effect/no-manual-tagged-construction -- the tag is written once here because the codec handle is the only strict door
     { _tag: "SameCurrency", amount }
   );
 
-export const convertedAmounts = (
-  source: Money,
-  baseCurrency: CurrencyCode,
-  rate: Rate,
-  asOf: DateOnly
-): Effect.Effect<
-  ConvertedAmount,
-  | ConversionInputInvalid
-  | ConversionOverflow
-  | RateOnSameCurrency
-  | Schema.SchemaError
-> =>
-  Effect.fromResult(
-    ConvertedAmount.converting(source, baseCurrency, rate, asOf)
+const amountsSample = (): Amounts =>
+  Result.getOrThrow(
+    ConvertedAmount.converting(
+      moneySample(),
+      parse(CurrencyCodeSchema, "GBP"),
+      rateSample(),
+      parse(DateOnlySchema, "2024-01-30")
+    )
   );
 
-export const convert = (
-  money: Money,
-  baseCurrency: CurrencyCode,
-  lookup: RateLookup
-): Effect.Effect<
-  BaseAmount,
-  | ConversionInputInvalid
-  | ConversionOverflow
-  | RateUnavailable
-  | Schema.SchemaError
-> => BaseAmount.convert(money, baseCurrency, lookup);
+export const sourceAmountOperation: Operation<[Amounts], Money> =
+  valueOperation({
+    arguments: [carries("Amounts", AmountsSchema, amountsSample)],
+    name: "sourceAmount",
+    run: sourceAmountRun,
+    samples: () => [amountsSample()],
+  });
+
+export const sameCurrencyAmountOperation: Operation<
+  [Money],
+  SameCurrencyAmount
+> = valueOperation({
+  arguments: [moneyArgument()],
+  name: "sameCurrencyAmount",
+  run: sameCurrencyAmountRun,
+  samples: () => [moneySample()],
+});
+
+export const sourceAmount: typeof sourceAmountOperation.apply =
+  sourceAmountOperation.apply;
+
+export const sameCurrencyAmount: typeof sameCurrencyAmountOperation.apply =
+  sameCurrencyAmountOperation.apply;
+
+export const convertedAmountsOperation: Operation<
+  [Money, CurrencyCode, Rate, DateOnly],
+  Effect.Effect<
+    ConvertedAmount,
+    | ConversionInputInvalid
+    | ConversionOverflow
+    | RateOnSameCurrency
+    | Schema.SchemaError
+  >
+> = effectOperation({
+  arguments: [moneyArgument(), codeArgument(), rateArgument(), dateArgument()],
+  name: "convertedAmounts",
+  run: (
+    source: Money,
+    baseCurrency: CurrencyCode,
+    rate: Rate,
+    asOf: DateOnly
+  ) =>
+    Effect.fromResult(
+      ConvertedAmount.converting(source, baseCurrency, rate, asOf)
+    ),
+  samples: () => [moneySample(), codeSample("GBP"), rateSample(), dateSample()],
+});
+
+export const convertedAmounts: typeof convertedAmountsOperation.apply =
+  convertedAmountsOperation.apply;
+
+export const convert: typeof convertOperation.apply = convertOperation.apply;
