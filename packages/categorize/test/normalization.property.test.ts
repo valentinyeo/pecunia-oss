@@ -56,7 +56,7 @@ const nameWords = [
   "Demo",
   "Cloud",
   "Hosting",
-  "Müller",
+  "Café",
   "Ltd",
   "EUR",
   "2025",
