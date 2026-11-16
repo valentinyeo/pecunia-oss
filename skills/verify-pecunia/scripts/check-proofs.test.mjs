@@ -111,8 +111,17 @@ const observedRecords = (records) =>
 
 const mutated = (records) => structuredClone(records);
 
+const writtenSteps = (records) =>
+  table.steps.filter(
+    (step) =>
+      step.writes === true && records.some((record) => record.step === step.id)
+  );
+
+const readbacksOf = (step) =>
+  step.expectations.filter((expectation) => expectation.readback === true);
+
 const mutate = (records, random) => {
-  const kind = Math.floor(random() * 16);
+  const kind = Math.floor(random() * 20);
   const withObservations = observedRecords(records);
   const record = pick(random, withObservations);
   const observation = pick(random, record.observations);
@@ -341,29 +350,100 @@ const mutate = (records, random) => {
     };
   }
 
-  const caseTable = structuredClone(table);
-  const step = caseTable.steps.find((entry) => entry.id === record.step);
-  const expectation = step.expectations.find(
-    (entry) => entry.id === observation.id
-  );
+  if (kind === 15) {
+    const caseTable = structuredClone(table);
+    const step = caseTable.steps.find((entry) => entry.id === record.step);
+    const expectation = step.expectations.find(
+      (entry) => entry.id === observation.id
+    );
 
-  for (const predicate of [
-    "equals",
-    "equalsDemoNumber",
-    "contains",
-    "countEquals",
-    "isTrue",
-    "isFalse",
-  ]) {
-    delete expectation[predicate];
+    for (const predicate of [
+      "equals",
+      "equalsDemoNumber",
+      "contains",
+      "countEquals",
+      "isTrue",
+      "isFalse",
+    ]) {
+      delete expectation[predicate];
+    }
+
+    return {
+      cause: observation.id,
+      records: mutated(records),
+      table: caseTable,
+      pages: pageExpectations,
+    };
   }
 
-  return {
-    cause: observation.id,
-    records: mutated(records),
-    table: caseTable,
-    pages: pageExpectations,
-  };
+  if (kind === 16) {
+    const written = pick(random, writtenSteps(records));
+    const caseTable = structuredClone(table);
+
+    delete caseTable.steps.find((entry) => entry.id === written.id).writes;
+
+    return {
+      cause: written.id,
+      records: mutated(records),
+      table: caseTable,
+      pages: pageExpectations,
+    };
+  }
+
+  if (kind === 17) {
+    const written = pick(random, writtenSteps(records));
+    const caseTable = structuredClone(table);
+    const step = caseTable.steps.find((entry) => entry.id === written.id);
+
+    for (const expectation of step.expectations) {
+      delete expectation.readback;
+    }
+
+    return {
+      cause: written.id,
+      records: mutated(records),
+      table: caseTable,
+      pages: pageExpectations,
+    };
+  }
+
+  if (kind === 18) {
+    const written = pick(random, writtenSteps(records));
+    const readback = pick(random, readbacksOf(written));
+    const next = mutated(records);
+    const target = next.find((entry) => entry.step === written.id);
+
+    target.observations = target.observations.filter(
+      (entry) => entry.id !== readback.id
+    );
+
+    return {
+      cause: readback.id,
+      records: next,
+      table,
+      pages: pageExpectations,
+    };
+  }
+
+  if (kind === 19) {
+    const written = pick(random, writtenSteps(records));
+    const readback = pick(random, readbacksOf(written));
+    const next = mutated(records);
+
+    next
+      .find((entry) => entry.step === written.id)
+      .observations.find((entry) => entry.id === readback.id).value =
+      "mutated-readback";
+
+    return {
+      cause: readback.id,
+      records: next,
+      table,
+      pages: pageExpectations,
+    };
+  }
+
+  assert.fail(`the mutation kind ${kind} has no case`);
 };
 
 const injectStepFailure = (source, id) => {
@@ -540,6 +620,98 @@ test("the unmutated helper passes", () => {
     assert.match(result.stdout, expected);
   } finally {
     rmSync(result.root, { force: true, recursive: true });
+  }
+});
+
+test("the verdict fails a write step with no readback by name", () => {
+  const unmarked = structuredClone(table);
+
+  for (const step of unmarked.steps) {
+    for (const expectation of step.expectations) {
+      delete expectation.readback;
+    }
+  }
+
+  const records = passingRecords();
+  const written = writtenSteps(records);
+  const result = judgeRecords(records, unmarked);
+  const text = result.failures.join("\n");
+
+  assert.ok(written.length > 0, "the step table marks no step as writing");
+  assert.equal(result.passed, false);
+  assert.match(text, /writes but declares no readback expectation/u);
+
+  for (const step of written) {
+    assert.ok(text.includes(step.id), `${step.id} is not named: ${text}`);
+  }
+
+  const misplaced = structuredClone(table);
+  const reader = misplaced.steps.find(
+    (step) => step.writes !== true && step.expectations.length > 0
+  );
+
+  reader.expectations[0].readback = true;
+
+  const wrong = judgeRecords(records, misplaced);
+
+  assert.equal(wrong.passed, false);
+  assert.match(
+    wrong.failures.join("\n"),
+    /is not marked as writing but declares readback/u
+  );
+});
+
+test("a discarding adapter fails through the stored-state readback", () => {
+  const source = readFileSync(join(SCRIPT_DIR, "drive-bank-lines.mjs"), "utf8");
+  const write = [
+    "      const edited = yield* editBankLine.handler(",
+    "        editRequest({",
+    "          category: CategoryChangeSchema.cases.Assigned.make({",
+    "            categoryId: category,",
+    "          }),",
+    "          lineId: target.id,",
+    "          note: NoteChangeSchema.cases.Set.make({ text: writtenNote }),",
+    "        })",
+    "      );",
+  ].join("\n");
+  const discard = [
+    "      const edited = {",
+    "        category: Option.some(category),",
+    "        id: target.id,",
+    "        note: writtenNote,",
+    "        profileId: demoProfileId,",
+    "      };",
+  ].join("\n");
+  const path = join(SCRIPT_DIR, `.check-mutant-${process.pid}-edit.mjs`);
+
+  assert.ok(source.includes(write), "the edit drive write call is missing");
+
+  try {
+    writeFileSync(path, source.replace(write, discard));
+
+    const drive = spawnSync("node", [path, "--capability", "edit"], {
+      cwd: REPO_ROOT,
+      encoding: "utf8",
+    });
+
+    assert.equal(drive.status, 0, drive.stderr);
+
+    const { observations } = JSON.parse(drive.stdout);
+    const records = passingRecords().map((record) =>
+      record.step === "bank-line-edit" ? { ...record, observations } : record
+    );
+    const result = judgeRecords(records);
+    const text = result.failures.join("\n");
+    const reply = result.expectations.find(
+      (expectation) =>
+        expectation.id === "bank-line-edit-sets-category-and-note"
+    );
+
+    assert.equal(reply?.passed, true, text);
+    assert.equal(result.passed, false, text);
+    assert.match(text, /bank-line-edit-stores-category-and-note/u);
+  } finally {
+    rmSync(path, { force: true });
   }
 });
 

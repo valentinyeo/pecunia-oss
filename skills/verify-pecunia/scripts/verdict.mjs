@@ -336,6 +336,40 @@ const judgeExpectations = ({
   return declared.size;
 };
 
+const judgeWriteReadbacks = ({ fail, planned, ran, steps }) => {
+  for (const id of planned) {
+    const step = steps.get(id);
+
+    if (step === undefined) {
+      continue;
+    }
+
+    if (step.writes !== undefined && typeof step.writes !== "boolean") {
+      fail(
+        `step ${id} declares writes ${JSON.stringify(step.writes)}, which is not true or false`
+      );
+    }
+
+    const readbacks = asArray(step.expectations).filter(
+      (expectation) => expectation.readback === true
+    );
+
+    if (step.writes === true) {
+      if (ran.has(id) && readbacks.length === 0) {
+        fail(`step ${id} writes but declares no readback expectation`);
+      }
+
+      continue;
+    }
+
+    for (const expectation of readbacks) {
+      fail(
+        `step ${id} is not marked as writing but declares readback expectation ${expectation.id}`
+      );
+    }
+  }
+};
+
 const judgeCoverage = ({
   capabilities,
   fail,
@@ -483,6 +517,7 @@ export const judge = ({
   }
 
   judgeCoverage({ capabilities, fail, feature, planned, ran, table });
+  judgeWriteReadbacks({ fail, planned, ran, steps });
 
   const pages = pageExpectations ?? { crossCutting: [], pages: new Map() };
   const featurePages =
@@ -638,6 +673,11 @@ const proofMarkdown = ({
 
   lines.push(
     "",
+    `Total: ${result.expectations.length} expectations across ${result.steps.length} steps, ${result.declared} declared, ${result.evaluated} evaluated.`
+  );
+
+  lines.push(
+    "",
     "## Seeded tables",
     "",
     "```text",
@@ -736,6 +776,12 @@ const writeEvidence = ({
   const failedSteps = asArray(records).filter(
     (record) => record.exit !== 0
   ).length;
+  const stepExpectations = {};
+
+  for (const check of checks) {
+    stepExpectations[check.step] = (stepExpectations[check.step] ?? 0) + 1;
+  }
+
   const proof = {
     branch: data.branch ?? "unknown",
     checks,
@@ -751,6 +797,7 @@ const writeEvidence = ({
     passed,
     ranAt,
     seed: { command: data.seedCommand ?? "unknown" },
+    stepExpectations,
     steps: result.steps.length,
     total: checks.length,
   };

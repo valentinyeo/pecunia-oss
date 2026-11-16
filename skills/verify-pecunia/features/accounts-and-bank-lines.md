@@ -55,7 +55,9 @@ Checks this drive runs, on top of the five cross-cutting checks:
 - `sync-rejections-match-count`: the failed run's `rejected` counter equals its quarantine rows.
 - `import-targets-listed`: `Demo Bank` is the import target for `Example Ltd`, kind `bank`, base currency EUR, provider `Wise`.
 - `import-writes-every-line`: the demo CSV imports five lines with nothing rejected.
+- `import-stores-every-line`: reading the ledger back through its own read path finds the same five lines the import reported.
 - `import-replay-adds-nothing`: importing the same file again imports zero rows and reports five already imported.
+- `import-replay-stores-nothing`: the ledger still holds five lines for the account after the replay.
 - `import-names-a-rejected-line`: a file with one good line and one bad date imports one row, rejects one, and names `bad-date`.
 - `import-refuses-unknown-account`: an account the profile does not hold fails with `ImportAccountNotFound`.
 
@@ -66,6 +68,7 @@ The three bank-line capabilities have their own steps, so a run that skips one i
 - `bank-line-list-filters-by-direction`: an `out` filter returns the 8 out lines and nothing else.
 - `bank-line-list-pages-without-repeats`: two pages of 5 lines share no line.
 - `bank-line-edit-sets-category-and-note`: an edit writes the category and the note.
+- `bank-line-edit-stores-category-and-note`: the listing reads the edited line back with the new category and note, through a read path the edit does not return.
 - `bank-line-edit-keeps-the-line-in-its-profile`: the edit returns the same line in the same profile.
 - `bank-line-edit-refuses-an-unknown-line`: an edit of a missing line fails with `UnknownBankLine`.
 - `bank-line-edit-refuses-a-foreign-category`: an edit to a category outside the profile fails with `UnknownCategory`.
@@ -87,9 +90,9 @@ node skills/verify-pecunia/scripts/drive-bank-lines.mjs --capability edit
 node skills/verify-pecunia/scripts/drive-bank-lines.mjs --capability review
 ```
 
-`drive-bank-import.mjs` reads the seeded demo book for its import targets, then drives `listImportTargets` and `importBankFile` through the package handlers with the memory ledger and the demo CSV fixture. It prints its named observations as one JSON object: the listed target, the first import summary, the replay summary, the rejected line, and the unknown-account refusal. The helper writes the same object to `bank-import-drive.json` next to `proof.json`.
+`drive-bank-import.mjs` reads the seeded demo book for its import targets, then drives `listImportTargets` and `importBankFile` through the package handlers with the memory ledger and the demo CSV fixture. It prints its named observations as one JSON object: the listed target, the first import summary, the ledger read back through `ImportLedger.storedLines`, the replay summary, the ledger read back again after the replay, the rejected line, and the unknown-account refusal. The helper writes the same object to `bank-import-drive.json` next to `proof.json`.
 
-`drive-bank-lines.mjs` drives one bank-line capability per run against the demo seed with the memory store. `list` observes the total and awaiting count, the ordering, the out filter with its `allOut` flag, and the two pages. `edit` observes the stored category and note, the line's profile, and the two refusals. `review` observes the review tag and time, the list read-back, and the viewer refusal. The helper writes each object to `bank-line-<capability>-drive.json` next to `proof.json`. No drive compares a value with an expected one; `scripts/verdict.mjs` does that from `scripts/step-table.json`.
+`drive-bank-lines.mjs` drives one bank-line capability per run against the demo seed with the memory store. `list` observes the total and awaiting count, the ordering, the out filter with its `allOut` flag, and the two pages. `edit` observes the returned category and note, the same values read back from the listing, the line's profile, and the two refusals. `review` observes the review tag and time, the list read-back, and the viewer refusal. Every step that writes ends with a readback through a read path the write did not use. The helper writes each object to `bank-line-<capability>-drive.json` next to `proof.json`. No drive compares a value with an expected one; `scripts/verdict.mjs` does that from `scripts/step-table.json`.
 
 ## Proof a pull request must attach
 

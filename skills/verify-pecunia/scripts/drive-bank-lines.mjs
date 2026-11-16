@@ -176,6 +176,8 @@ const editObservations = () =>
           })
         )
         .pipe(Effect.result);
+      const page = yield* listBankLines.handler(request({}));
+      const stored = page.lines.find((line) => line.id === target.id);
       const unknownCategory = yield* editBankLine
         .handler(
           editRequest({
@@ -193,6 +195,13 @@ const editObservations = () =>
           {
             id: "bank-line-edit-sets-category-and-note",
             value: `category=${Option.isSome(edited.category) ? edited.category.value : "none"} note=${edited.note}`,
+          },
+          {
+            id: "bank-line-edit-stores-category-and-note",
+            value:
+              stored === undefined
+                ? "missing"
+                : `category=${Option.isSome(stored.category) ? stored.category.value : "none"} note=${stored.note}`,
           },
           {
             id: "bank-line-edit-keeps-the-line-in-its-profile",

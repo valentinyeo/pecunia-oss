@@ -9,8 +9,9 @@ import { Digest, WebCrypto } from "effect/crypto";
 
 import {
   importBankFile,
+  ImportLedger,
   listImportTargets,
-} from "../../../packages/bank-import/dist/capabilities.js";
+} from "../../../packages/bank-import/dist/index.js";
 import { memoryImportLedgerLayer } from "../../../packages/bank-import/dist/ledger-memory.js";
 
 const SCRIPT_DIR = fileURLToPath(new URL(".", import.meta.url));
@@ -85,6 +86,12 @@ const observations = await Effect.runPromise(
     const replayed = yield* importBankFile.handler(
       request(content, target.id, "demo-bank.csv")
     );
+    const storedOnce = yield* ImportLedger.use((ledger) =>
+      ledger.storedLines(profileId, target.id)
+    );
+    const storedReplay = yield* ImportLedger.use((ledger) =>
+      ledger.storedLines(profileId, target.id)
+    );
     const broken = yield* importBankFile.handler(
       request(BROKEN_FILE, target.id, "demo-bank-broken.csv")
     );
@@ -104,8 +111,16 @@ const observations = await Effect.runPromise(
           value: `imported=${imported.imported} alreadyImported=${imported.alreadyImported} rejected=${imported.rejected.length}`,
         },
         {
+          id: "import-stores-every-line",
+          value: `stored=${storedOnce.length} imported=${imported.imported}`,
+        },
+        {
           id: "import-replay-adds-nothing",
           value: `imported=${replayed.imported} alreadyImported=${replayed.alreadyImported}`,
+        },
+        {
+          id: "import-replay-stores-nothing",
+          value: `stored=${storedReplay.length} alreadyImported=${replayed.alreadyImported}`,
         },
         {
           id: "import-names-a-rejected-line",
