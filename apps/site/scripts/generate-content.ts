@@ -764,6 +764,7 @@ const skillGroups = [
       "ship",
       "profile-a-worker",
       "test-behaviour",
+      "verify-pecunia",
       "investigate-a-failure",
     ],
     title: "Ship with evidence",
