@@ -66,7 +66,7 @@ const rootScripts = new Map([
   ["lint", "ultracite check --config ./oxlint.config.ts && oxfmt --check ."],
   [
     "check",
-    "pnpm run lockfile:check && varlock load && turbo run typecheck typecheck-scripts && ultracite check --config ./oxlint.config.ts && oxfmt --check .",
+    "pnpm run lockfile:check && varlock load && pnpm run check:personal-data && turbo run typecheck typecheck-scripts && ultracite check --config ./oxlint.config.ts && oxfmt --check .",
   ],
   ["test", "pnpm test:security-audit && pnpm test:guards && turbo run test"],
   ["test:guards", "vitest run scripts/*.test.ts"],
