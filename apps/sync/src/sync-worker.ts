@@ -14,15 +14,23 @@ export const MARKET_CRON = "30 5 * * *";
 const scheduledWorkLandsWithSync =
   "Pecunia's sweep, sync, and market schedules are registered. The jobs land with the bank sync surface.";
 
+interface SyncWorkerBindings {
+  readonly BACKEND: typeof PecuniaRpcBackend;
+}
+
+export const syncWorkerProps = {
+  compatibility: { date: "2026-05-28" },
+  env: { BACKEND: PecuniaRpcBackend } satisfies SyncWorkerBindings,
+  main: import.meta.url,
+  observability: privateObservability,
+  workersDev: false,
+} satisfies Omit<Cloudflare.Workers.WorkerProps<SyncWorkerBindings>, "env"> & {
+  readonly env: SyncWorkerBindings;
+};
+
 export default class SyncWorker extends Cloudflare.Worker<SyncWorker>()(
   "SyncWorker",
-  {
-    compatibility: { date: "2026-05-28" },
-    env: { BACKEND: PecuniaRpcBackend },
-    main: import.meta.url,
-    observability: privateObservability,
-    workersDev: false,
-  },
+  syncWorkerProps,
   Effect.gen(function* syncWorkerRuntime() {
     const cron = yield* Cloudflare.Workers.CronEventSource;
 

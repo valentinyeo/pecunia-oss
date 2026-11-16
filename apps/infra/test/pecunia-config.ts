@@ -13,3 +13,12 @@ export const pecuniaStackConfig: PecuniaStackConfig = {
   MCP_BEARER_TOKEN: "mcp-bearer-example-token",
   PECUNIA_ORIGIN: "https://pecunia.example.test",
 };
+
+export const configWithout = (
+  ...omitted: readonly string[]
+): Record<string, string> =>
+  Object.fromEntries(
+    Object.entries(pecuniaStackConfig).filter(
+      ([name]) => !omitted.includes(name)
+    )
+  );

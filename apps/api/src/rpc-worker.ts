@@ -12,6 +12,7 @@ import { identity } from "effect/Function";
 import { RpcSerialization, RpcServer } from "effect/rpc";
 
 import { privateObservability } from "../../site/src/observability.js";
+import { bindPlainSetting } from "./settings-binding.js";
 
 const retainInProd =
   globalThis.__ALCHEMY_RUNTIME__ === true
@@ -29,11 +30,6 @@ export default class PecuniaRpcBackend extends Cloudflare.Workers.RpcWorker<Pecu
   "PecuniaRpcBackend",
   {
     compatibility: { date: "2026-05-28" },
-    env: {
-      ACCESS_AUDIENCE: Config.String("ACCESS_AUDIENCE"),
-      ACCESS_TEAM_DOMAIN: Config.String("ACCESS_TEAM_DOMAIN"),
-      PUBLIC_ORIGIN: Config.String("PECUNIA_ORIGIN"),
-    },
     main: import.meta.url,
     observability: privateObservability,
     schema: rpcProjection.group,
@@ -41,6 +37,22 @@ export default class PecuniaRpcBackend extends Cloudflare.Workers.RpcWorker<Pecu
   },
   Effect.gen(function* rpcBackendRuntime() {
     const host = yield* Cloudflare.Worker;
+
+    const accessAudience = yield* Config.option(
+      Config.String("ACCESS_AUDIENCE")
+    );
+
+    const accessTeamDomain = yield* Config.option(
+      Config.String("ACCESS_TEAM_DOMAIN")
+    );
+
+    const publicOrigin = yield* Config.option(Config.String("PECUNIA_ORIGIN"));
+
+    yield* bindPlainSetting(host, "ACCESS_AUDIENCE", accessAudience);
+
+    yield* bindPlainSetting(host, "ACCESS_TEAM_DOMAIN", accessTeamDomain);
+
+    yield* bindPlainSetting(host, "PUBLIC_ORIGIN", publicOrigin);
 
     const vendor = Context.get(
       yield* Layer.build(D1Vendor({ id: "Pecunia" })).pipe(retainInProd),

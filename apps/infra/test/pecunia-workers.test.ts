@@ -1,5 +1,5 @@
 import { NodeServices } from "@effect/platform-node";
-import { expect, it } from "@effect/vitest";
+import { expect, expectTypeOf, it } from "@effect/vitest";
 import { AuthProviders, Stage } from "alchemy";
 import { AlchemyContextLive } from "alchemy/AlchemyContext";
 import * as Output from "alchemy/Output";
@@ -19,9 +19,10 @@ import {
   MARKET_CRON,
   SWEEP_CRON,
   SYNC_CRON,
+  syncWorkerProps,
 } from "../../sync/src/sync-worker.js";
 import stack from "../alchemy.run.js";
-import { pecuniaStackConfig } from "./pecunia-config.js";
+import { configWithout, pecuniaStackConfig } from "./pecunia-config.js";
 import type { PecuniaStackConfig } from "./pecunia-config.js";
 
 const services = Layer.mergeAll(
@@ -44,7 +45,11 @@ const services = Layer.mergeAll(
   )
 );
 
-const compiledStack = (config: PecuniaStackConfig = pecuniaStackConfig) =>
+const compiledStack = (
+  config:
+    | PecuniaStackConfig
+    | Readonly<Record<string, string>> = pecuniaStackConfig
+) =>
   stack.pipe(
     Effect.provide(
       Layer.mergeAll(
@@ -253,9 +258,69 @@ it.effect.prop(
         ACCESS_TEAM_DOMAIN: teamDomain,
         PUBLIC_ORIGIN: origin,
       });
+
+      expect(
+        [
+          ...new Set(
+            rowsOf(compiled.bindings.PecuniaRpcBackend ?? []).map(
+              (row) => `${row.name}:${row.type}`
+            )
+          ),
+        ]
+          .filter((binding) => binding.endsWith(":plain_text"))
+          .toSorted()
+      ).toEqual([
+        "ACCESS_AUDIENCE:plain_text",
+        "ACCESS_TEAM_DOMAIN:plain_text",
+        "PUBLIC_ORIGIN:plain_text",
+      ]);
+
+      expect([
+        ...new Set(
+          rowsOf(compiled.bindings.McpEndpoint ?? [])
+            .filter((row) => row.type === "secret_text")
+            .map((row) => `${row.name}:${row.text}`)
+        ),
+      ]).toEqual([`MCP_BEARER_TOKEN:${pecuniaStackConfig.MCP_BEARER_TOKEN}`]);
     }),
   { arbitrary: { runs: 4 }, timeout: 30_000 }
 );
+
+const optionalSettingNames = [
+  "ACCESS_AUDIENCE",
+  "ACCESS_TEAM_DOMAIN",
+  "MCP_BEARER_TOKEN",
+  "PECUNIA_ORIGIN",
+] as const;
+
+it.effect(
+  "plans without any Pecunia setting the deployment has not provided",
+  () =>
+    Effect.forEach(
+      optionalSettingNames,
+      (setting) =>
+        Effect.gen(function* checkUnprovidedSetting() {
+          const compiled = yield* compiledStack(configWithout(setting));
+
+          const declared = [
+            ...rowsOf(compiled.bindings.PecuniaRpcBackend),
+            ...rowsOf(compiled.bindings.McpEndpoint),
+          ].map((row) => row.name);
+
+          expect(declared, `${setting} must stay unbound`).not.toContain(
+            setting
+          );
+        }),
+      { discard: true }
+    )
+);
+
+it("requires the sync worker to declare the BACKEND service binding", () => {
+  expect(Object.keys(syncWorkerProps.env)).toEqual(["BACKEND"]);
+  expectTypeOf<Record<string, never>>().not.toExtend<
+    typeof syncWorkerProps.env
+  >();
+});
 
 const accountId = /(?<![0-9a-f])[0-9a-f]{32}(?![0-9a-f])/u;
 
@@ -272,6 +337,7 @@ const repoRoot = new URL("../../../", import.meta.url).pathname;
 const sourceFiles = [
   "apps/api/src/mcp-worker.ts",
   "apps/api/src/rpc-worker.ts",
+  "apps/api/src/settings-binding.ts",
   "apps/infra/alchemy.preview.ts",
   "apps/infra/alchemy.run.ts",
   "apps/infra/src/preview.ts",
