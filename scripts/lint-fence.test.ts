@@ -47,6 +47,7 @@ const allowedOtherConfigFiles = new Map([
 ]);
 
 const repoIgnorePatterns = [
+  "examples/**",
   ".agent_sources/**",
   ".agent-sources/**",
   "**/dist/**",
@@ -1553,6 +1554,10 @@ describe("lint fence", () => {
     expect(
       configFileProblems(configFiles),
       "A second Oxlint config exists, so a package or an example can turn rules off where the root config cannot see it. Fix: delete it, or list the path in allowedOtherConfigFiles in scripts/lint-fence.test.ts with a reason."
+    ).toEqual([]);
+    expect(
+      trackedFiles().filter((file) => path.basename(file) === ".eslintignore"),
+      "A tracked .eslintignore hides whatever paths it names from Oxlint, including real source directories a canary never lands in, and no written table lists it. Fix: delete it and ignore paths through ignorePatterns in oxlint.config.ts, where repoIgnorePatterns in scripts/lint-fence.test.ts records each one with a reason."
     ).toEqual([]);
   });
 
