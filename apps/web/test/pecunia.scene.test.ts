@@ -100,6 +100,22 @@ describe("pecunia shell", () => {
     );
   });
 
+  it("the dashboard draws the same charts in the dark theme", () => {
+    Scene.scene(
+      { update, view },
+      Scene.given({ ...initialModel, theme: "dark" }),
+      Scene.expect(Scene.selector('[data-theme="dark"]')).toExist(),
+      Scene.expect(
+        Scene.role("img", {
+          name: "Balance over the last twelve months, £35,120.00 in Jan and £48,250.00 in Dec",
+        })
+      ).toExist(),
+      Scene.expect(Scene.text("Spend by category")).toExist(),
+      Scene.expect(Scene.text("£2,318.47")).toExist(),
+      expectPressed("Dark", "true")
+    );
+  });
+
   it("the boot reads the address bar", () => {
     expect(boot.commands).toStrictEqual([ReadLocation()]);
     expect(boot.model.theme).toBe("light");
