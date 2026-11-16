@@ -42,7 +42,7 @@ const allowedConfigFiles = new Map([
 const allowedOtherConfigFiles = new Map([
   [
     "examples/tokenmaxx-starter/.oxlintrc.json",
-    "the standalone starter example sits outside the pnpm workspace, never imports @pecunia/*, and is copied into a new project rather than linted here.",
+    "the standalone starter example sits outside the pnpm workspace, never imports @pecunia/*, and is copied into a new project rather than linted here, and the root lint run names oxlint.config.ts with --config so this nested config never becomes the config root for examples.",
   ],
 ]);
 
@@ -63,10 +63,10 @@ const repoIgnorePatterns = [
 const allowedExtends: NonNullable<OxlintConfig["extends"]> = [core];
 
 const rootScripts = new Map([
-  ["lint", "ultracite check && oxfmt --check ."],
+  ["lint", "ultracite check --config ./oxlint.config.ts && oxfmt --check ."],
   [
     "check",
-    "pnpm run lockfile:check && varlock load && turbo run typecheck typecheck-scripts && ultracite check && oxfmt --check .",
+    "pnpm run lockfile:check && varlock load && turbo run typecheck typecheck-scripts && ultracite check --config ./oxlint.config.ts && oxfmt --check .",
   ],
   ["test", "pnpm test:security-audit && pnpm test:guards && turbo run test"],
   ["test:guards", "vitest run scripts/*.test.ts"],
@@ -1583,6 +1583,37 @@ describe("lint fence", () => {
       "A root script the fence depends on changed. Fix: restore it, or change rootScripts in scripts/lint-fence.test.ts in the same commit."
     ).toEqual([]);
   });
+
+  it(
+    "keeps the real root lint command off examples on a clean copy of the repo",
+    { timeout: 900_000 },
+    async () => {
+      const root = freshScratch("root-lint");
+
+      try {
+        buildScratch(root);
+
+        writeFileWithParents(
+          root,
+          "examples/fence-root-lint-canary.ts",
+          "debugger;\n"
+        );
+
+        const run = await runAsync("pnpm", lintRunArgs, root);
+
+        const ignored = run.stdout
+          .split("\n")
+          .filter((line) => /^examples\/[^:]+:\d+:\d+:/u.test(line));
+
+        expect(
+          ignored,
+          `The root \`lint\` script is ${JSON.stringify(scriptsOf("package.json").lint)} and it reported files under examples/ on a clean copy of the repo, where a canary violation sits. examples/ is ignored through repoIgnorePatterns, and Oxlint only honours that table when the run names its config, because a config inside examples/ otherwise becomes the config root for that subtree and drops the parent ignorePatterns. Fix: keep "examples/**" in oxlint.config.ts and --config ./oxlint.config.ts in the root lint script.\n\n${describeRun(run)}`
+        ).toEqual([]);
+      } finally {
+        rmSync(root, { force: true, recursive: true });
+      }
+    }
+  );
 
   it("requires a reason on every disable directive", () => {
     const violations = trackedSourceFiles().flatMap((file) =>
