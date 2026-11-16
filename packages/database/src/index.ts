@@ -26,3 +26,45 @@ export type {
   RunLogEntry,
   RunOutcome,
 } from "./model.js";
+
+export { Categorization, categorizationLayer } from "./categorization.js";
+
+export { CategorizationLayer } from "./categorization-d1.js";
+
+export {
+  CategorizationError,
+  CategorizationOperationSchema,
+  CategorizationSnapshotSchema,
+  CreateAliasInputSchema,
+  CreateCategoryInputSchema,
+  CreatePayeeInputSchema,
+} from "./categorization-model.js";
+
+export { InvalidCategorizationInput } from "./invalid-categorization-input.js";
+
+export { RuleNotFound } from "./rule-not-found.js";
+
+export type {
+  CategorizationOperation,
+  CategorizationSnapshot,
+  CreateAliasInput,
+  CreateCategoryInput,
+  CreatePayeeInput,
+} from "./categorization-model.js";
+
+export {
+  categorizationRepository,
+  PersistedAliasRowSchema,
+  PersistedCategoryRowSchema,
+  PersistedPayeeRowSchema,
+  PersistedRuleRowSchema,
+} from "./categorization-store.js";
+
+export type {
+  CategorizationOperations,
+  CategorizationRepository,
+  PersistedAliasRow,
+  PersistedCategoryRow,
+  PersistedPayeeRow,
+  PersistedRuleRow,
+} from "./categorization-store.js";

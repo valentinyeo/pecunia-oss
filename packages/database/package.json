@@ -42,6 +42,7 @@
     "@alchemy.run/drizzle": "2.0.0-beta.87",
     "@alchemy.run/sql": "2.0.0-beta.87",
     "@effect/sql-pg": "4.1.4",
+    "@pecunia/categorize": "workspace:*",
     "alchemy": "2.0.0-beta.87",
     "drizzle-orm": "1.0.0-rc.5",
     "effect": "4.1.4",
