@@ -115,22 +115,35 @@ const asInvalid = (
 const declaredNames = (ast: SchemaAST.AST): readonly string[] =>
   fieldsOf(ast).map(([key]) => key);
 
+const StrayCandidateSchema = Schema.Record(Schema.String, Schema.Unknown);
+
+type StrayCandidate = typeof StrayCandidateSchema.Type;
+
+const declaredFields = (
+  ast: SchemaAST.AST
+): ReadonlyMap<string, SchemaAST.AST> => new Map(fieldsOf(ast));
+
 const nestedStrayField = (
   ast: SchemaAST.AST,
-  value: unknown
+  value: StrayCandidate
 ): string | undefined => {
   if (!Predicate.isTagged(ast, "Objects") || ast.indexSignatures.length > 0) {
     return undefined;
   }
 
-  if (!Predicate.isObject(value) || Array.isArray(value)) {
-    return undefined;
-  }
+  const fields = declaredFields(ast);
 
-  for (const [key, type] of fieldsOf(ast)) {
-    const nested = Predicate.isTagged(type, "Objects")
-      ? strayField(type, (value as Record<string, unknown>)[key])
-      : undefined;
+  for (const [key, child] of Object.entries(value)) {
+    const type = fields.get(key);
+
+    if (!Predicate.isTagged(type, "Objects") || !Predicate.isObject(child)) {
+      continue;
+    }
+
+    const nested = strayField(
+      type,
+      Schema.decodeUnknownSync(StrayCandidateSchema)(child)
+    );
 
     if (nested !== undefined) {
       return nested;
@@ -142,23 +155,24 @@ const nestedStrayField = (
 
 const strayField = (
   ast: SchemaAST.AST,
-  value: unknown
+  value: StrayCandidate
 ): string | undefined => {
-  if (!Predicate.isObject(value) || Array.isArray(value)) {
-    return undefined;
-  }
-
   const stray = Object.keys(value).find(
     (key) => !declaredNames(ast).includes(key)
   );
 
-  return stray === undefined ? nestedStrayField(ast, value) : stray;
+  return stray ?? nestedStrayField(ast, value);
 };
 
 const rejectsStrayKeys = <T extends Schema.Top>(schema: T) =>
   schema.check(
     Schema.makeFilter<T["Type"]>((value) => {
-      const stray = strayField(Schema.toEncoded(schema).ast, value);
+      const stray = Predicate.isObject(value)
+        ? strayField(
+            Schema.toEncoded(schema).ast,
+            Schema.decodeUnknownSync(StrayCandidateSchema)(value)
+          )
+        : undefined;
 
       return stray === undefined ? true : `unexpected field "${stray}"`;
     })
@@ -193,7 +207,12 @@ const closedMember = (
         )
       ),
       encode: SchemaGetter.transformEffect((value, options) => {
-        const stray = strayField(encoded, value);
+        const stray = Predicate.isObject(value)
+          ? strayField(
+              encoded,
+              Schema.decodeUnknownSync(StrayCandidateSchema)(value)
+            )
+          : undefined;
 
         return stray === undefined
           ? asInvalid(
