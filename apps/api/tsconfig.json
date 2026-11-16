@@ -1,0 +1,16 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "plugins": [
+      {
+        "name": "@effect/language-service",
+        "allowedUnstableApis": [
+          "effect/http/HttpServerResponse",
+          "effect/rpc/RpcSerialization",
+          "effect/rpc/RpcServer"
+        ]
+      }
+    ]
+  },
+  "include": ["src/**/*.ts", "../site/src/cloudflare-workers.d.ts"]
+}

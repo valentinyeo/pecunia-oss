@@ -34,6 +34,7 @@
     "test": "vitest run",
     "build": "tsc -p tsconfig.build.json",
     "check": "pnpm run typecheck",
+    "db:seed:demo": "node scripts/seed-demo.ts",
     "pretest": "pnpm run --silent build"
   },
   "dependencies": {

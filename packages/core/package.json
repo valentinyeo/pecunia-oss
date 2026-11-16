@@ -69,6 +69,16 @@
       "import": "./dist/flag-capabilities.js",
       "default": "./dist/flag-capabilities.js"
     },
+    "./bank-import": {
+      "types": "./src/bank-import.ts",
+      "import": "./dist/bank-import.js",
+      "default": "./dist/bank-import.js"
+    },
+    "./settings": {
+      "types": "./src/settings.ts",
+      "import": "./dist/settings.js",
+      "default": "./dist/settings.js"
+    },
     "./learn": {
       "types": "./src/learn.ts",
       "import": "./dist/learn.js",
