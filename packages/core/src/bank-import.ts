@@ -65,6 +65,12 @@ export type ImportSummary = typeof ImportSummarySchema.Type;
 
 export const MAXIMUM_BANK_FILE_BYTES = 4_194_304;
 
+const utf8 = new TextEncoder();
+
+const isWithinBankFileLimit = (content: string) =>
+  content.length <= MAXIMUM_BANK_FILE_BYTES &&
+  utf8.encode(content).byteLength <= MAXIMUM_BANK_FILE_BYTES;
+
 export const listImportTargetsContract = defineContract("listImportTargets", {
   annotations: { idempotent: true, readOnly: true },
   description:
@@ -85,7 +91,11 @@ export const importBankFileContract = defineContract("importBankFile", {
   ]),
   input: Schema.Struct({
     accountId: ProviderAccountIdSchema,
-    content: Schema.String.check(Schema.isMaxLength(MAXIMUM_BANK_FILE_BYTES)),
+    content: Schema.String.check(
+      Schema.makeFilter(isWithinBankFileLimit, {
+        expected: `a bank file of at most ${MAXIMUM_BANK_FILE_BYTES} UTF-8 bytes`,
+      })
+    ),
     fileName: Schema.NonEmptyString,
     profileId: ProfileIdSchema,
   }),

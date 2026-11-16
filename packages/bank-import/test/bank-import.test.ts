@@ -3,6 +3,8 @@ import { describe, expect, it } from "@effect/vitest";
 import {
   BankFileRejected,
   ImportAccountNotFound,
+  importBankFileContract,
+  MAXIMUM_BANK_FILE_BYTES,
   ProviderAccountIdSchema,
 } from "@pecunia/core/bank-import";
 import type { ProviderAccountId } from "@pecunia/core/bank-import";
@@ -259,4 +261,37 @@ describe("finding an account", () => {
       ).toBe(otherAccountId);
     }).pipe(Effect.provide(demoLedgerLayer))
   );
+});
+
+const decodeImport = (content: string) =>
+  Schema.decodeResult(importBankFileContract.input)({
+    accountId: demoAccountId,
+    content,
+    fileName: "demo-bank.csv",
+    profileId: demoProfileId,
+  });
+
+describe("the size a bank file may reach", () => {
+  it("counts UTF-8 bytes, so a multi-byte file over the limit is refused", () => {
+    const content = "\u{1F600}".repeat(1_048_577);
+
+    expect(content.length).toBeLessThanOrEqual(MAXIMUM_BANK_FILE_BYTES);
+    expect(new TextEncoder().encode(content).byteLength).toBeGreaterThan(
+      MAXIMUM_BANK_FILE_BYTES
+    );
+    expect(Result.isFailure(decodeImport(content))).toBe(true);
+  });
+
+  it("refuses one ASCII character over the limit and accepts the limit itself", () => {
+    expect(
+      Result.isSuccess(decodeImport("a".repeat(MAXIMUM_BANK_FILE_BYTES)))
+    ).toBe(true);
+    expect(
+      Result.isFailure(decodeImport("a".repeat(MAXIMUM_BANK_FILE_BYTES + 1)))
+    ).toBe(true);
+  });
+
+  it("accepts a multi-byte file under the limit in bytes", () => {
+    expect(Result.isSuccess(decodeImport("\u{1F600}".repeat(1024)))).toBe(true);
+  });
 });
