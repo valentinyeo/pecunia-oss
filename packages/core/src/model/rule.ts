@@ -1,6 +1,6 @@
 import { Option, Schema } from "effect";
 
-import { closed, closedUnion } from "./closed-union.js";
+import type { Exact } from "./codec.js";
 import {
   CategoryIdSchema,
   MinorUnitsSchema,
@@ -16,7 +16,7 @@ export const MatchFieldSchema = Schema.Literals([
   "reference",
 ]);
 
-export type MatchField = typeof MatchFieldSchema.Type;
+export type MatchField = Exact<typeof MatchFieldSchema.Type>;
 
 export const MatchTypeSchema = Schema.Literals([
   "contains",
@@ -25,11 +25,11 @@ export const MatchTypeSchema = Schema.Literals([
   "prefix",
 ]);
 
-export type MatchType = typeof MatchTypeSchema.Type;
+export type MatchType = Exact<typeof MatchTypeSchema.Type>;
 
 export const RuleDirectionSchema = Schema.Literals(["any", "in", "out"]);
 
-export type RuleDirection = typeof RuleDirectionSchema.Type;
+export type RuleDirection = Exact<typeof RuleDirectionSchema.Type>;
 
 const ruleFields = {
   createdAt: TimestampSchema,
@@ -45,7 +45,7 @@ const ruleFields = {
   profileId: ProfileIdSchema,
 } as const;
 
-const RuleUnion = closedUnion([
+const RuleUnion = Schema.Union([
   Schema.Struct({
     ...ruleFields,
     categoryId: CategoryIdSchema,
@@ -88,6 +88,6 @@ const boundsAreOrdered = Schema.makeFilter<typeof RuleUnion.Type>(
   { expected: "minAmount at or below maxAmount" }
 );
 
-export const RuleSchema = closed(RuleUnion.check(boundsAreOrdered));
+export const RuleSchema = RuleUnion.check(boundsAreOrdered);
 
-export type Rule = typeof RuleSchema.Type;
+export type Rule = Exact<typeof RuleSchema.Type>;

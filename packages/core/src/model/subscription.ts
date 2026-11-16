@@ -1,6 +1,6 @@
 import { Schema } from "effect";
 
-import { closed, closedUnion } from "./closed-union.js";
+import type { Exact } from "./codec.js";
 import { AmountsSchema } from "./money.js";
 import {
   CategoryIdSchema,
@@ -18,33 +18,29 @@ export const FrequencySchema = Schema.Literals([
   "weekly",
 ]);
 
-export type Frequency = typeof FrequencySchema.Type;
+export type Frequency = Exact<typeof FrequencySchema.Type>;
 
-export const SubscriptionStatusSchema = closed(
-  closedUnion([
-    Schema.TaggedStruct("Cancelled", { at: TimestampSchema }),
-    Schema.TaggedStruct("Confirmed", { at: TimestampSchema }),
-    Schema.TaggedStruct("Detected", { at: TimestampSchema }),
-    Schema.TaggedStruct("Dismissed", { at: TimestampSchema }),
-    Schema.TaggedStruct("NotRecurring", { at: TimestampSchema }),
-  ]).pipe(Schema.toTaggedUnion("_tag"))
-);
+export const SubscriptionStatusSchema = Schema.Union([
+  Schema.TaggedStruct("Cancelled", { at: TimestampSchema }),
+  Schema.TaggedStruct("Confirmed", { at: TimestampSchema }),
+  Schema.TaggedStruct("Detected", { at: TimestampSchema }),
+  Schema.TaggedStruct("Dismissed", { at: TimestampSchema }),
+  Schema.TaggedStruct("NotRecurring", { at: TimestampSchema }),
+]).pipe(Schema.toTaggedUnion("_tag"));
 
-export type SubscriptionStatus = typeof SubscriptionStatusSchema.Type;
+export type SubscriptionStatus = Exact<typeof SubscriptionStatusSchema.Type>;
 
-export const SubscriptionSchema = closed(
-  Schema.Struct({
-    amounts: AmountsSchema,
-    categoryId: Schema.OptionFromNullishOr(CategoryIdSchema),
-    confidence: Schema.Finite,
-    frequency: FrequencySchema,
-    id: SubscriptionIdSchema,
-    lastChargedOn: DateOnlySchema,
-    nextExpectedOn: DateOnlySchema,
-    payeeId: PayeeIdSchema,
-    profileId: ProfileIdSchema,
-    status: SubscriptionStatusSchema,
-  })
-);
+export const SubscriptionSchema = Schema.Struct({
+  amounts: AmountsSchema,
+  categoryId: Schema.OptionFromNullishOr(CategoryIdSchema),
+  confidence: Schema.Finite,
+  frequency: FrequencySchema,
+  id: SubscriptionIdSchema,
+  lastChargedOn: DateOnlySchema,
+  nextExpectedOn: DateOnlySchema,
+  payeeId: PayeeIdSchema,
+  profileId: ProfileIdSchema,
+  status: SubscriptionStatusSchema,
+});
 
-export type Subscription = typeof SubscriptionSchema.Type;
+export type Subscription = Exact<typeof SubscriptionSchema.Type>;

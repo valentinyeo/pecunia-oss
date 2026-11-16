@@ -214,4 +214,6 @@ export { AppSettingSchema } from "./app-setting.js";
 
 export type { AppSetting } from "./app-setting.js";
 
-export { strictParseOptions } from "./parse-options.js";
+export { codec, parse, render, strictOptions, verified } from "./codec.js";
+
+export type { Exact, ModelCodec } from "./codec.js";

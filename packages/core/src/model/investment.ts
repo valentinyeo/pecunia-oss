@@ -1,7 +1,7 @@
 import { Option, Schema, SchemaGetter } from "effect";
 
-import { closed, closedUnion } from "./closed-union.js";
-import { strictParseOptions } from "./parse-options.js";
+import type { Exact } from "./codec.js";
+import { parse } from "./codec.js";
 import {
   CurrencyCodeSchema,
   DateOnlySchema,
@@ -13,16 +13,14 @@ import {
   TimestampSchema,
 } from "./primitives.js";
 
-export const InvestmentPlatformSchema = closed(
-  Schema.Struct({
-    connector: Schema.Literals(["manual", "trading212"]),
-    enabled: Schema.Boolean,
-    id: PlatformIdSchema,
-    label: Schema.NonEmptyString,
-  })
-);
+export const InvestmentPlatformSchema = Schema.Struct({
+  connector: Schema.Literals(["manual", "trading212"]),
+  enabled: Schema.Boolean,
+  id: PlatformIdSchema,
+  label: Schema.NonEmptyString,
+});
 
-export type InvestmentPlatform = typeof InvestmentPlatformSchema.Type;
+export type InvestmentPlatform = Exact<typeof InvestmentPlatformSchema.Type>;
 
 export const AssetTypeSchema = Schema.Literals([
   "cash",
@@ -32,7 +30,7 @@ export const AssetTypeSchema = Schema.Literals([
   "stock",
 ]);
 
-export type AssetType = typeof AssetTypeSchema.Type;
+export type AssetType = Exact<typeof AssetTypeSchema.Type>;
 
 const HoldingFields = {
   assetType: AssetTypeSchema,
@@ -56,25 +54,21 @@ const StoredHoldingSchema = Schema.Struct({
 
 type StoredHolding = typeof StoredHoldingSchema.Type;
 
-export const PendingHoldingSchema = closed(
-  Schema.Struct({
-    ...HoldingFields,
-    lastPrice: Schema.OptionFromNullishOr(Schema.Never),
-    pricedAt: Schema.OptionFromNullishOr(Schema.Never),
-    state: Schema.Literals(["pending"]),
-  })
-);
+export const PendingHoldingSchema = Schema.Struct({
+  ...HoldingFields,
+  lastPrice: Schema.OptionFromNullishOr(Schema.Never),
+  pricedAt: Schema.OptionFromNullishOr(Schema.Never),
+  state: Schema.Literals(["pending"]),
+});
 
-export const PricedHoldingSchema = closed(
-  Schema.Struct({
-    ...HoldingFields,
-    lastPrice: Schema.OptionFromNullishOr(MoneySchema),
-    pricedAt: Schema.OptionFromNullishOr(TimestampSchema),
-    state: Schema.Literals(["active", "closed"]),
-  })
-);
+export const PricedHoldingSchema = Schema.Struct({
+  ...HoldingFields,
+  lastPrice: Schema.OptionFromNullishOr(MoneySchema),
+  pricedAt: Schema.OptionFromNullishOr(TimestampSchema),
+  state: Schema.Literals(["active", "closed"]),
+});
 
-const DecodedHoldingSchema = closedUnion([
+const DecodedHoldingSchema = Schema.Union([
   PendingHoldingSchema,
   PricedHoldingSchema,
 ]);
@@ -121,10 +115,7 @@ const decodedHolding = (
 };
 
 const encodedHolding = (holding: EncodedHolding): StoredHolding =>
-  Schema.decodeSync(
-    StoredHoldingSchema,
-    strictParseOptions
-  )({
+  parse(StoredHoldingSchema, {
     ...holding,
     costBasis: holding.costBasis ?? null,
     lastPrice: holding.lastPrice ?? null,
@@ -132,15 +123,13 @@ const encodedHolding = (holding: EncodedHolding): StoredHolding =>
     state: holding.state,
   });
 
-export const HoldingSchema = closed(
-  StoredHoldingSchema.pipe(
-    Schema.decodeTo(DecodedHoldingSchema, {
-      decode: SchemaGetter.transformOptional((stored) =>
-        stored.pipe(Option.flatMap(decodedHolding))
-      ),
-      encode: SchemaGetter.transform(encodedHolding),
-    })
-  )
+export const HoldingSchema = StoredHoldingSchema.pipe(
+  Schema.decodeTo(DecodedHoldingSchema, {
+    decode: SchemaGetter.transformOptional((stored) =>
+      stored.pipe(Option.flatMap(decodedHolding))
+    ),
+    encode: SchemaGetter.transform(encodedHolding),
+  })
 );
 
-export type Holding = typeof HoldingSchema.Type;
+export type Holding = Exact<typeof HoldingSchema.Type>;

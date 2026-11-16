@@ -1,3 +1,6 @@
+// oxlint-disable anti-slop/no-unknown-parameters -- restore is a boundary that parses stored rows
+// oxlint-disable eslint/prefer-object-spread, typescript/no-misused-spread -- the encoded row keeps every own key of the class instance so the strict encoder can reject strays
+
 import {
   Effect,
   Option,
@@ -8,7 +11,8 @@ import {
 } from "effect";
 
 import { BaseAmount } from "./base-amount.js";
-import { closed } from "./closed-union.js";
+import type { Exact } from "./codec.js";
+import { verified } from "./codec.js";
 import type { ConversionInputInvalid } from "./conversion-input-invalid.js";
 import type { ConversionOverflow } from "./conversion-overflow.js";
 import type {
@@ -36,7 +40,7 @@ interface ConvertedAmountFields {
   readonly source: Money;
 }
 
-export interface StoredConversion {
+export type StoredConversion = Exact<{
   readonly _tag: "Converted";
   readonly asOf: DateOnly;
   readonly base: {
@@ -45,7 +49,7 @@ export interface StoredConversion {
   };
   readonly rate: Rate;
   readonly source: Money;
-}
+}>;
 
 export class ConvertedAmount {
   readonly _tag = "Converted";
@@ -74,7 +78,7 @@ export class ConvertedAmount {
     ConversionInputInvalid | ConversionOverflow | RateOnSameCurrency
   > {
     if (source.currency === baseCurrency) {
-      return Result.fail(new RateOnSameCurrency({ currency: source.currency }));
+      return Result.fail(RateOnSameCurrency.of({ currency: source.currency }));
     }
 
     return Result.map(
@@ -83,7 +87,13 @@ export class ConvertedAmount {
     );
   }
 
-  static restore(stored: StoredConversion): Option.Option<ConvertedAmount> {
+  static restore(stored: unknown): Option.Option<ConvertedAmount> {
+    return ConvertedAmount.#fromStored(
+      verified(StoredConvertedAmountSchema, stored)
+    );
+  }
+
+  static #fromStored(stored: StoredConversion): Option.Option<ConvertedAmount> {
     if (stored.source.currency === stored.base.currency) {
       return Option.none();
     }
@@ -145,11 +155,9 @@ const decodedConvertedAmount = (
 ): Option.Option<ConvertedAmount> => ConvertedAmount.restore(stored);
 
 const encodedConvertedAmount = (amount: ConvertedAmount): StoredConversion =>
-  StoredConvertedAmountSchema.make({
-    asOf: amount.asOf,
-    base: amount.base,
-    rate: amount.rate,
-    source: amount.source,
+  Object.assign({}, amount, {
+    _tag: "Converted" as const,
+    base: Object.assign({}, amount.base),
   });
 
 const convertedAmountEncode = SchemaGetter.transformEffect<
@@ -167,22 +175,20 @@ const convertedAmountEncode = SchemaGetter.transformEffect<
       )
 );
 
-export const ConvertedAmountSchema = closed(
-  StoredConvertedAmountSchema.pipe(
-    Schema.decodeTo(
-      Schema.declare((value: unknown): value is ConvertedAmount =>
-        ConvertedAmount.isConvertedAmount(value)
-      ).check(
-        Schema.makeFilter(conversionIsExact, {
-          expected: "a conversion that matches its own source, rate, and base",
-        })
+export const ConvertedAmountSchema = StoredConvertedAmountSchema.pipe(
+  Schema.decodeTo(
+    Schema.declare((value: unknown): value is ConvertedAmount =>
+      ConvertedAmount.isConvertedAmount(value)
+    ).check(
+      Schema.makeFilter(conversionIsExact, {
+        expected: "a conversion that matches its own source, rate, and base",
+      })
+    ),
+    {
+      decode: SchemaGetter.transformOptional((stored) =>
+        stored.pipe(Option.flatMap(decodedConvertedAmount))
       ),
-      {
-        decode: SchemaGetter.transformOptional((stored) =>
-          stored.pipe(Option.flatMap(decodedConvertedAmount))
-        ),
-        encode: convertedAmountEncode,
-      }
-    )
+      encode: convertedAmountEncode,
+    }
   )
 );

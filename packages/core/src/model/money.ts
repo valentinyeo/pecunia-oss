@@ -2,14 +2,14 @@ import { Effect, Option, Predicate, Schema } from "effect";
 
 import { BaseAmount } from "./base-amount.js";
 import type { RateLookup } from "./base-amount.js";
-import { closed, closedUnion } from "./closed-union.js";
+import type { Exact } from "./codec.js";
+import { parse } from "./codec.js";
 import type { ConversionInputInvalid } from "./conversion-input-invalid.js";
 import type { ConversionOverflow } from "./conversion-overflow.js";
 import { minorUnitsOf } from "./convert-minor.js";
 import { ConvertedAmount, ConvertedAmountSchema } from "./converted-amount.js";
 import { CurrencyMismatch } from "./currency-mismatch.js";
 import { MoneyOverflow } from "./money-overflow.js";
-import { strictParseOptions } from "./parse-options.js";
 import type {
   CurrencyCode,
   DateOnly,
@@ -42,13 +42,13 @@ export { MoneyOverflow } from "./money-overflow.js";
 export { RateUnavailable } from "./rate-unavailable.js";
 
 const moneyOf = (currency: CurrencyCode, minor: MinorUnits): Money =>
-  Schema.decodeSync(MoneySchema, strictParseOptions)({ currency, minor });
+  parse(MoneySchema, { currency, minor });
 
 const mismatch = (
   left: CurrencyCode,
   right: CurrencyCode
 ): Effect.Effect<never, CurrencyMismatch> =>
-  Effect.fail(new CurrencyMismatch({ left, right }));
+  Effect.fail(CurrencyMismatch.of({ left, right }));
 
 const combine = (
   left: Money,
@@ -67,7 +67,7 @@ const combine = (
   return Option.match(minorUnitsOf(total), {
     onNone: () =>
       Effect.fail(
-        new MoneyOverflow({
+        MoneyOverflow.of({
           currency: left.currency,
           left: left.minor,
           operation,
@@ -90,17 +90,16 @@ export const subtractMoney = (
 ): Effect.Effect<Money, CurrencyMismatch | MoneyOverflow> =>
   combine(left, right, "subtract");
 
-export const SameCurrencyAmountSchema = closed(
-  Schema.TaggedStruct("SameCurrency", {
-    amount: MoneySchema,
-  })
-);
+export const SameCurrencyAmountSchema = Schema.TaggedStruct("SameCurrency", {
+  amount: MoneySchema,
+});
 
-export const AmountsSchema = closed(
-  closedUnion([ConvertedAmountSchema, SameCurrencyAmountSchema])
-);
+export const AmountsSchema = Schema.Union([
+  ConvertedAmountSchema,
+  SameCurrencyAmountSchema,
+]);
 
-export type Amounts = typeof AmountsSchema.Type;
+export type Amounts = Exact<typeof AmountsSchema.Type>;
 
 export type SameCurrencyAmount = Extract<
   Amounts,
@@ -111,7 +110,7 @@ export const sourceAmount = (amounts: Amounts): Money =>
   Predicate.isTagged(amounts, "Converted") ? amounts.source : amounts.amount;
 
 export const sameCurrencyAmount = (amount: Money): SameCurrencyAmount =>
-  SameCurrencyAmountSchema.make({ amount });
+  parse(SameCurrencyAmountSchema, SameCurrencyAmountSchema.make({ amount }));
 
 export const convertedAmounts = (
   source: Money,

@@ -46,7 +46,7 @@ export class BaseAmount {
     return Option.match(lookup({ from: money.currency, to: baseCurrency }), {
       onNone: () =>
         Effect.fail(
-          new RateUnavailable({ from: money.currency, to: baseCurrency })
+          RateUnavailable.of({ from: money.currency, to: baseCurrency })
         ),
       onSome: (rate) =>
         Effect.fromResult(BaseAmount.atRate(money, baseCurrency, rate)),

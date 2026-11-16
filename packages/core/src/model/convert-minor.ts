@@ -1,8 +1,8 @@
-import { Option, Result, Schema } from "effect";
+import { Option, Result } from "effect";
 
+import { parse } from "./codec.js";
 import { ConversionInputInvalid } from "./conversion-input-invalid.js";
 import { ConversionOverflow } from "./conversion-overflow.js";
-import { strictParseOptions } from "./parse-options.js";
 import type { CurrencyCode, MinorUnits } from "./primitives.js";
 import { MinorUnitsSchema } from "./primitives.js";
 import { RATE_SCALE_FACTOR } from "./rate.js";
@@ -43,9 +43,7 @@ export const minorUnitExponent = (currency: CurrencyCode): number =>
 export const minorUnitsOf = (minor: bigint): Option.Option<MinorUnits> =>
   minor >= BigInt(Number.MIN_SAFE_INTEGER) &&
   minor <= BigInt(Number.MAX_SAFE_INTEGER)
-    ? Option.some(
-        Schema.decodeSync(MinorUnitsSchema, strictParseOptions)(Number(minor))
-      )
+    ? Option.some(parse(MinorUnitsSchema, Number(minor)))
     : Option.none();
 
 const divideRoundHalfAwayFromZero = (
@@ -79,7 +77,7 @@ export const convertMinor = (
 ): Result.Result<MinorUnits, ConversionInputInvalid | ConversionOverflow> => {
   if (!Number.isSafeInteger(minor)) {
     return Result.fail(
-      new ConversionInputInvalid({ from, reason: invalidReason(minor), to })
+      ConversionInputInvalid.of({ from, reason: invalidReason(minor), to })
     );
   }
 
@@ -94,7 +92,7 @@ export const convertMinor = (
   return Option.match(minorUnitsOf(converted), {
     onNone: () =>
       Result.fail(
-        new ConversionOverflow({
+        ConversionOverflow.of({
           baseCurrency: to,
           currency: from,
           minor,
