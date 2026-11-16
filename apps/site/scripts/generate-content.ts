@@ -758,7 +758,10 @@ const skillGroups = [
     title: "Learn by building",
   },
   { names: ["keep-or-cut", "uncomplect"], title: "Choose what you keep" },
-  { names: ["gardener", "security-audit"], title: "Keep the fence sharp" },
+  {
+    names: ["gardener", "security-audit", "money-math"],
+    title: "Keep the fence sharp",
+  },
   {
     names: [
       "ship",
