@@ -4,10 +4,11 @@ useDefault = true
 # A git commit SHA is not a key, but the default sourcegraph rule reads any bare 40-character hex
 # run as one. The peer study notes and the peer refresh data quote upstream commit SHAs constantly,
 # so that one rule is restated here with the same regex, entropy and keywords, plus an allowlist that
-# applies to a bare hex value only. A finding drops when that value sits in a documented commit
-# place: a JSON commit field, a GitHub tree/blob/commit URL path, backticks right after commit or
-# sha, an `at `<sha>`` citation, or a repo pin `owner/repo#<sha>`. Every prefixed Sourcegraph token
-# is caught by the rule below, which carries no allowlist, so a pin can never excuse one.
+# allows a whole line only when every run of 40 or more token characters on it is a documented commit
+# citation: a JSON commit field, a GitHub tree/blob/commit URL path, a backticked `commit <sha>` or
+# `at <sha>`, or a repo pin `owner/repo#<sha>`. Nothing else on the line is excused, so a second
+# secret beside a citation still fails. Every prefixed Sourcegraph token is caught by the rule below,
+# which carries no allowlist.
 [[rules]]
 id = "sourcegraph-access-token"
 description = "A bare 40 character hex value outside a documented commit place."
@@ -15,11 +16,11 @@ regex = '''(?i)\b([a-fA-F0-9]{40})\b(?:[\x60'"\s;]|\\[nr]|$)'''
 entropy = 3
 keywords = ["sgp_", "sourcegraph"]
 [[rules.allowlists]]
-description = "A git commit SHA quoted in a commit place is not a secret"
+description = "A line whose every long token run is a documented commit citation"
 condition = "AND"
 regexTarget = "line"
 regexes = [
-  '''"(?:sha|commit|commits|previousCommit|previousSha|sourceCommit|provenanceCommit|pinnedCommit|mergeCommit|headCommit)"\s*:\s*"[0-9a-f]{40}"|/(?:tree|commits?|blob)/[0-9a-f]{40}(?:[\x60'"\s)#,/]|$)|(?:^|[^A-Za-z0-9_-])(?:commit|sha)(?:\s+sha)?:? \x60[0-9a-f]{40}\x60|(?:^|[^A-Za-z0-9_-])at \x60[0-9a-f]{40}\x60|[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+#[0-9a-f]{40}''',
+  '''^(?:(?:"(?:sha|commit|commits|previousCommit|previousSha|sourceCommit|provenanceCommit|pinnedCommit|mergeCommit|headCommit)"\s*:\s*"[0-9a-f]{40}"|[A-Za-z0-9_.-]*/(?:tree|commits?|blob)/[0-9a-f]{40}|(?:commit|sha)(?:\s+sha)?:? \x60[0-9a-f]{40}\x60|at \x60[0-9a-f]{40}\x60|[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+#[0-9a-f]{40})|[A-Za-z0-9_-]{0,39}[^A-Za-z0-9_-])*[A-Za-z0-9_-]{0,39}$''',
 ]
 
 # A Sourcegraph access token always starts with sgp_, so it is caught wherever it sits. The rule
@@ -41,11 +42,11 @@ secretGroup = 1
 entropy = 3.5
 keywords = ["cloudflare", "cf", "wrangler"]
 [[rules.allowlists]]
-description = "A git commit SHA quoted next to a Cloudflare word is not a Cloudflare token"
+description = "A line whose every long token run is a documented commit citation"
 condition = "AND"
 regexTarget = "line"
 regexes = [
-  '''"(?:sha|commit|commits|previousCommit|previousSha|sourceCommit|provenanceCommit|pinnedCommit|mergeCommit|headCommit)"\s*:\s*"[0-9a-f]{40}"|/(?:tree|commits?|blob)/[0-9a-f]{40}(?:[\x60'"\s)#,/]|$)|(?:^|[^A-Za-z0-9_-])(?:commit|sha)(?:\s+sha)?:? \x60[0-9a-f]{40}\x60|(?:^|[^A-Za-z0-9_-])at \x60[0-9a-f]{40}\x60|[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+#[0-9a-f]{40}''',
+  '''^(?:(?:"(?:sha|commit|commits|previousCommit|previousSha|sourceCommit|provenanceCommit|pinnedCommit|mergeCommit|headCommit)"\s*:\s*"[0-9a-f]{40}"|[A-Za-z0-9_.-]*/(?:tree|commits?|blob)/[0-9a-f]{40}|(?:commit|sha)(?:\s+sha)?:? \x60[0-9a-f]{40}\x60|at \x60[0-9a-f]{40}\x60|[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+#[0-9a-f]{40})|[A-Za-z0-9_-]{0,39}[^A-Za-z0-9_-])*[A-Za-z0-9_-]{0,39}$''',
 ]
 
 # A long random value in quotes or backticks next to token, secret, key or password.
@@ -59,7 +60,8 @@ keywords = ["token", "secret", "key", "password"]
 
 # The crash tests plant a made-up JWT to prove that crash traces redact credentials. It is a
 # fixture, not a token: the header decodes to {"alg":"HS256"} and the signature is a placeholder.
-# The allowlist tests the finding itself, so a second JWT on the same line is still reported.
+# The allowlist matches that exact token and nothing longer, so extending the signature or adding a
+# second JWT on the same line is still reported.
 [[rules]]
 id = "jwt"
 description = "Uncovered a JSON Web Token, which may lead to unauthorized access to web applications and sensitive user data."
@@ -71,7 +73,7 @@ description = "The planted fixture JWT in the crash redaction tests"
 condition = "AND"
 regexTarget = "match"
 regexes = [
-  '''eyJhbGciOiJIUzI1NiJ9\.eyJzdWIiOiIxMjM0NTY3ODkwIn0\.signatureValue''',
+  '''^eyJhbGciOiJIUzI1NiJ9\.eyJzdWIiOiIxMjM0NTY3ODkwIn0\.signatureValue(?:[\x60'"\s;]|\\[nr])?$''',
 ]
 
 [allowlist]

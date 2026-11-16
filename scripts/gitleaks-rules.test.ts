@@ -42,6 +42,8 @@ const otherJwt = [
   "anotherSignatureValue",
 ].join(".");
 
+const longValue = hex("Xk3Qw9Zt5Lb7Nc2Md4Pf", "6Rg8Sh1Vj0Wa3Ye5Ui7a");
+
 const scan = (
   name: string,
   text: string
@@ -104,6 +106,39 @@ describe.runIf(available)("the gitleaks rules", () => {
 
   it("passes the fixture JWT alone", () => {
     expect(ruleIds("note.md", `fixture ${fixtureJwt}`)).toEqual([]);
+  });
+
+  it("reports the fixture JWT once its signature is extended", () => {
+    expect(ruleIds("note.md", `fixture ${fixtureJwt}Extended`)).toContain(
+      "jwt"
+    );
+  });
+
+  it("reports a bare forty character value beside a repository pin", () => {
+    expect(
+      ruleIds(
+        "note.md",
+        `sourcegraph digest ${commitSha} pinned at owner/repo#${pinnedSha}`
+      )
+    ).toContain("sourcegraph-access-token");
+  });
+
+  it("reports a Cloudflare shaped token beside a repository pin", () => {
+    expect(
+      ruleIds(
+        "note.md",
+        `wrangler token ${longValue} pinned at owner/repo#${pinnedSha}`
+      )
+    ).toContain("cloudflare-token-named-nearby");
+  });
+
+  it("reports a Cloudflare shaped token on a line that cites a commit url", () => {
+    expect(
+      ruleIds(
+        "note.md",
+        `cloudflare token ${longValue} https://example.test/owner/repo/blob/${pinnedSha}/src/x.ts`
+      )
+    ).toContain("cloudflare-token-named-nearby");
   });
 
   it("passes a commit sha in a json commit field", () => {
