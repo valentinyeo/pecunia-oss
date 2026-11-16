@@ -30,12 +30,10 @@ export const FingerprintedLineSchema = Schema.Struct({
 
 export type FingerprintedLine = typeof FingerprintedLineSchema.Type;
 
-export const FileRowSchema = Schema.Struct({
-  lineNumber: Schema.Int,
-  text: Schema.String,
-});
-
-export type FileRow = typeof FileRowSchema.Type;
+export interface FileRow {
+  readonly lineNumber: number;
+  readonly text: string;
+}
 
 export interface ParsedBankFile {
   readonly lines: readonly ParsedLine[];

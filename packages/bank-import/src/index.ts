@@ -18,6 +18,7 @@ export {
 
 export type {
   DateOnly,
+  FileRow,
   Fingerprint,
   FingerprintedLine,
   ParsedBankFile,
