@@ -62,6 +62,14 @@ const cloudPayee = Schema.decodeSync(PayeeIdSchema)(
   "0192f0c1-0009-71f7-8998-998f8330df68"
 );
 
+const examplePayee = Schema.decodeSync(PayeeIdSchema)(
+  "0192f0c1-0008-7e52-8fb0-fb052d752a6a"
+);
+
+const incomeRule = Schema.decodeSync(RuleIdSchema)(
+  "0192f0c1-001a-7537-8bd4-bd4ff9524fef"
+);
+
 const absentRule = Schema.decodeSync(RuleIdSchema)(
   "0192f0c1-0fff-7abc-8abc-000000000000"
 );
@@ -330,6 +338,42 @@ it.layer(testLayer)("Categorization over the migrated D1 schema", (test) => {
         ClassificationSchema.cases.None.make({})
       );
       expect(decision.payeeId).toBe(cloudPayee);
+    })
+  );
+
+  test.effect("reads a client name as a rule, never as code", () =>
+    Effect.gen(function* readClientRule() {
+      const categorization = yield* Categorization;
+
+      const fromClient = yield* categorization.decide(
+        business,
+        line({
+          direction: "in",
+          merchant: "Example Ltd",
+          minorAmount: 480_000,
+        })
+      );
+
+      expect(fromClient.classification).toEqual(
+        ClassificationSchema.cases.Income.make({
+          clientPayeeId: examplePayee,
+          ruleId: incomeRule,
+        })
+      );
+      expect(fromClient.payeeId).toBe(examplePayee);
+
+      const lookalike = yield* categorization.decide(
+        business,
+        line({
+          direction: "in",
+          merchant: "Example Studios",
+          minorAmount: 480_000,
+        })
+      );
+
+      expect(lookalike.classification).toEqual(
+        ClassificationSchema.cases.None.make({})
+      );
     })
   );
 
