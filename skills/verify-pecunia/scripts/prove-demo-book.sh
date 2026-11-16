@@ -7,6 +7,7 @@ EVIDENCE_ROOT="$REPO_ROOT/skills/verify-pecunia/evidence"
 FEATURES=(accounts-and-bank-lines categories-and-rules dashboard-sums subscriptions investments fx-conversion tax invoices)
 FEATURE=all
 LABEL_ARG=
+IMPORT_FEATURES=" all accounts-and-bank-lines "
 
 fence_failure() {
   printf '%s. Fix: %s.\n' "$1" "$2" >&2
@@ -25,8 +26,13 @@ while [ "$#" -gt 0 ]; do
       LABEL_ARG=$2
       shift 2
       ;;
+    --evidence-root)
+      [ "$#" -ge 2 ] || fence_failure "The flag --evidence-root needs a value" "pass a directory the run may write into"
+      EVIDENCE_ROOT=$2
+      shift 2
+      ;;
     --help)
-      printf 'Usage: %s [--feature <%s|all>] [--label <name>]\n' "$0" "${FEATURES[*]}"
+      printf 'Usage: %s [--feature <%s|all>] [--label <name>] [--evidence-root <dir>]\n' "$0" "${FEATURES[*]}"
       exit 0
       ;;
     *)
@@ -47,7 +53,7 @@ LABEL=${LABEL_ARG:-$FEATURE}
 if [ -n "$LABEL_ARG" ]; then
   LABEL_FLAG=" --label $LABEL_ARG"
 else
-  LABEL_FLAG=""
+  LABEL_FLAG=" --label $LABEL"
 fi
 RUN_DATE=$(date -u +%Y-%m-%d)
 EVIDENCE_DIR="$EVIDENCE_ROOT/$RUN_DATE-$LABEL"
@@ -65,6 +71,10 @@ SCRATCH=$(mktemp -d "${TMPDIR:-/tmp}/pecunia-verify-XXXXXX")
 DATABASE="$SCRATCH/demo.sqlite"
 RESULTS="$SCRATCH/results.jsonl"
 SEED_LOG="$SCRATCH/seed.log"
+BUILD_LOG="$SCRATCH/build.log"
+MAP_LOG="$SCRATCH/feature-map.log"
+DRIVE_JSON="$SCRATCH/bank-import-drive.json"
+BUILD_COMMAND="pnpm turbo run build --filter=@pecunia/bank-import..."
 CHECKS=0
 FAILURES=0
 ACTIVE_FEATURE=all
@@ -141,6 +151,13 @@ check_generic() {
   emails=$(value "SELECT COUNT(*) AS total FROM members WHERE email NOT LIKE '%@example.com'")
   names=$(value "SELECT group_concat(name, ',') AS names FROM (SELECT name FROM profiles ORDER BY name)")
   check demo-book-holds-made-up-identities "The demo book holds made-up identities only" "0 non-placeholder emails, Demo Person,Example Ltd" "$emails non-placeholder emails, $names"
+
+  local map_line unnamed unexported planned mismatched
+  if ! map_line=$(node "$SCRIPT_DIR/check-feature-map.mjs" 2> "$MAP_LOG"); then
+    cat "$MAP_LOG" >&2
+  fi
+  read -r unnamed unexported planned mismatched <<< "$(printf '%s\n' "$map_line" | sed -E 's/^SUMMARY unnamed=([0-9]+) unexported=([0-9]+) planned=([0-9]+) status=([0-9]+).*/\1 \2 \3 \4/')"
+  check feature-map-matches-capabilities "Every capability is on a feature page or declared not money" "0 unnamed, 0 unexported, 0 planned with a capability, 0 status mismatches" "${unnamed:-missing} unnamed, ${unexported:-missing} unexported, ${planned:-missing} planned with a capability, ${mismatched:-missing} status mismatches"
 }
 
 check_accounts_and_bank_lines() {
@@ -161,6 +178,22 @@ check_accounts_and_bank_lines() {
   check sync-import-count-matches-lines "The succeeded sync wrote the number of lines it reports" 1 "$written"
   check sync-failure-names-itself "The failed sync names its failure" 0 "$failed_tag"
   check sync-rejections-match-count "The failed sync quarantines the number of lines it reports" 1 "$rejects"
+
+  local listed imported replayed broken unknown
+  if ! node "$SCRIPT_DIR/drive-bank-import.mjs" --database "$DATABASE" > "$DRIVE_JSON"; then
+    fence_failure "The bank import capability drive failed" "run `node skills/verify-pecunia/scripts/drive-bank-import.mjs --database <demo.sqlite>` and fix the failure it prints"
+  fi
+  listed=$(jq -r '[.listed[] | "\(.label) kind=\(.kind) base=\(.baseCurrency) provider=\(.providerLabel)"] | join("; ")' "$DRIVE_JSON")
+  imported=$(jq -r '"imported=\(.imported.imported) alreadyImported=\(.imported.alreadyImported) rejected=\(.imported.rejected | length)"' "$DRIVE_JSON")
+  replayed=$(jq -r '"imported=\(.replayed.imported) alreadyImported=\(.replayed.alreadyImported)"' "$DRIVE_JSON")
+  broken=$(jq -r '"imported=\(.broken.imported) rejected=\(.broken.rejected | length) reason=\(.broken.rejected[0].reason)"' "$DRIVE_JSON")
+  unknown=$(jq -r '.unknownAccount' "$DRIVE_JSON")
+
+  check import-targets-listed "The demo book lists its bank account as an import target" "Demo Bank kind=bank base=EUR provider=Wise" "$listed"
+  check import-writes-every-line "An import writes every line in the demo file" "imported=5 alreadyImported=0 rejected=0" "$imported"
+  check import-replay-adds-nothing "A replay of the same file adds no rows" "imported=0 alreadyImported=5" "$replayed"
+  check import-names-a-rejected-line "A broken line is rejected by name and kept out" "imported=1 rejected=1 reason=bad-date" "$broken"
+  check import-refuses-unknown-account "An import refuses an account the profile does not hold" ImportAccountNotFound "$unknown"
 }
 
 check_categories_and_rules() {
@@ -292,6 +325,15 @@ DEMO_SHA=$(sha256sum "$DATABASE" | cut -d' ' -f1)
 BRANCH=$(git -C "$REPO_ROOT" rev-parse --abbrev-ref HEAD)
 COMMIT=$(git -C "$REPO_ROOT" rev-parse --short HEAD)
 
+case "$IMPORT_FEATURES" in
+  *" $FEATURE "*)
+    if ! pnpm turbo run build --filter=@pecunia/bank-import... > "$BUILD_LOG" 2>&1; then
+      cat "$BUILD_LOG" >&2
+      fence_failure "The bank import packages did not build" "run `$BUILD_COMMAND` and fix the failure it prints"
+    fi
+    ;;
+esac
+
 check_generic
 if [ "$FEATURE" = all ]; then
   check_accounts_and_bank_lines
@@ -307,9 +349,13 @@ else
 fi
 
 mkdir -p "$EVIDENCE_DIR"
+if [ -s "$DRIVE_JSON" ]; then
+  cp "$DRIVE_JSON" "$EVIDENCE_DIR/bank-import-drive.json"
+fi
 
 {
   printf '# Verification proof: %s\n\n' "$FEATURE"
+  printf -- '- Run label: `%s`\n' "$LABEL"
   printf -- '- Run at: %s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
   printf -- '- Branch: `%s` at `%s`\n' "$BRANCH" "$COMMIT"
   printf -- '- Node: `%s`\n' "$(node --version)"
@@ -317,12 +363,18 @@ mkdir -p "$EVIDENCE_DIR"
   printf -- '- Demo book SHA-256: `%s`\n' "$DEMO_SHA"
   printf -- '- The scratch database is deleted after the run; `proof.json` holds every observation.\n\n' "$DEMO_SHA"
   printf '## Commands\n\n```sh\n'
+  case "$IMPORT_FEATURES" in
+    *" $FEATURE "*) printf '%s\n' "$BUILD_COMMAND" ;;
+  esac
   printf '%s\n' "$SEED_COMMAND"
   printf 'bash skills/verify-pecunia/scripts/prove-demo-book.sh --feature %s%s\n' "$FEATURE" "$LABEL_FLAG"
   printf '```\n\n'
   printf '## Seeded tables\n\n```text\n%s\n```\n\n' "$SEED_ROWS"
-  printf '## Checks\n\n| Check | Result | Expected | Observed |\n| --- | --- | --- | --- |\n'
+printf '## Checks\n\n| Check | Result | Expected | Observed |\n| --- | --- | --- | --- |\n'
   jq -r '"| `\(.id)` \(.title) | \(if .passed then "PASS" else "FAIL" end) | `\(.expected)` | `\(.actual)` |"' "$RESULTS"
+  if [ -s "$DRIVE_JSON" ]; then
+    printf '\n## Bank import drive\n\n`bank-import-drive.json` holds the capability drive: the listed import targets, the first import, the replay, the rejected line, and the refusal for an unknown account.\n'
+  fi
   printf '\n## Verdict\n\n'
   if [ "$FAILURES" -eq 0 ]; then
     printf 'PASS: %s checks held against the seeded demo book.\n' "$CHECKS"
@@ -332,10 +384,19 @@ mkdir -p "$EVIDENCE_DIR"
   printf '\n## What this proves\n\n'
   printf -- '- The migrations and the demo seed fill a real SQLite database with the demo book.\n'
   printf -- '- Every money value read back is an integer of minor units with an ISO currency code.\n'
-  printf -- '- The money promises named by the checks hold for the demo data, each asserted against a stated expected value.\n\n'
+  printf -- '- The money promises named by the checks hold for the demo data, each asserted against a stated expected value.\n'
+  if [ -s "$DRIVE_JSON" ]; then
+    printf -- '- `listImportTargets` lists the demo bank account and `importBankFile` writes five lines, writes none on a replay, names a rejected line, and refuses an unknown account.\n'
+  fi
+  printf -- '- Every capability implemented in the packages and apps is on a feature page or in the not-money table, and no page marks a feature planned while its capability exists.\n\n'
   printf '## What this does not prove\n\n'
-  printf -- '- No finance screen, capability, CLI command, or MCP tool exists on this branch, so this run drives the demo book at the data layer, not a user surface.\n'
-  printf -- '- A green run does not prove a new capability reads the same rows the same way; the pull request that adds the surface still needs its own proof.\n'
+  if [ -s "$DRIVE_JSON" ]; then
+    printf -- '- The import capability runs on the package memory ledger against the seeded demo book; a persistent import store and the RPC, MCP, and CLI projections are not exercised.\n'
+    printf -- '- The other money features still have no user surface, so their checks read the demo book at the data layer.\n\n'
+  else
+    printf -- '- No finance screen, capability, CLI command, or MCP tool reaches this feature, so this run drives the demo book at the data layer.\n'
+    printf -- '- A green run does not prove a new capability reads the same rows the same way; the pull request that adds the surface still needs its own proof.\n\n'
+  fi
 } > "$PROOF_PATH"
 
 jq -n --arg feature "$FEATURE" --arg branch "$BRANCH" --arg commit "$COMMIT" --arg node_version "$(node --version)" --arg demo_sha "$DEMO_SHA" --arg seed_command "$SEED_COMMAND" --arg ran_at "$(date -u +%Y-%m-%dT%H:%M:%SZ)" --argjson failures "$FAILURES" --argjson checks_count "$CHECKS" --slurpfile checks "$RESULTS" '{feature: $feature, branch: $branch, commit: $commit, node: $node_version, ranAt: $ran_at, seed: {command: $seed_command}, demoBookSha256: $demo_sha, passed: ($failures == 0), failed: $failures, total: $checks_count, checks: $checks}' > "$EVIDENCE_DIR/proof.json"

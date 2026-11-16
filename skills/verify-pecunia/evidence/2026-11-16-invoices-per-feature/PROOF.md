@@ -1,5 +1,6 @@
 # Verification proof: invoices
 
+- Run label: `invoices-per-feature`
 - Run at: 2026-11-16T15:42:33Z
 - Branch: `verify-skill` at `a395bd9e`
 - Node: `v24.18.0`

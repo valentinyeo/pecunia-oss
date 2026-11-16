@@ -97,9 +97,12 @@ If a feature page says `planned`, no user surface exists. A pull request that cl
 
 Evidence lives under `skills/verify-pecunia/evidence/<yyyy-mm-dd>-<label>/` and is committed with the change.
 
-- `PROOF.md`: what ran, the commands, the checks, the verdict, and what the run does not prove.
+- `PROOF.md`: the run label, what ran, the commands, the checks, the verdict, and what the run does not prove.
 - `proof.json`: the same checks as data. `jq '.checks[] | select(.passed | not)' proof.json` lists every failure.
+- `bank-import-drive.json`: the import capability drive, when the run covers accounts and bank lines.
 - Manual runs add the captured action and result: `page.html`, `rpc-response.json`, and a screenshot when a browser is available. Name them in `PROOF.md`.
+
+The recorded command must replay: the run label is printed in `PROOF.md` and in the command, and `node skills/verify-pecunia/scripts/replay-proof.mjs` replays every committed proof under a fresh label and compares the result with the saved evidence.
 
 The proof standards:
 
@@ -119,20 +122,17 @@ The proof standards:
 
 ## Feature map
 
-Every money feature has one page:
+`features/README.md` is the index, the status table, and the not-money capability table. Every money feature has one page beside it. Each page says what the feature promises, how a user reaches it, how to drive it, and the proof a pull request touching it must attach.
 
-- `features/accounts-and-bank-lines.md`
-- `features/categories-and-rules.md`
-- `features/dashboard-sums.md`
-- `features/subscriptions.md`
-- `features/investments.md`
-- `features/fx-conversion.md`
-- `features/tax.md`
-- `features/invoices.md`
+The status line on a page is one of `planned`, `partly built`, or `built`. `planned` means the user surface is not built and the page names the data-layer check that runs today. `partly built` means a capability exists but no screen or transport reaches it. `built` means the page names a route, tool, or command a person can drive.
 
-Each page says what the feature promises, how a user reaches it, how to drive it, and the proof a pull request touching it must attach. `features/README.md` is the index and the status table.
+The map is checked, not maintained by hand:
 
-`planned` means the user surface is not built. The page names the data-layer check that runs today and the surface the slice will add. A page whose check ids no longer exist in `prove-demo-book.sh` is drift: fix the page or add the check before proving.
+```sh
+node skills/verify-pecunia/scripts/check-feature-map.mjs
+```
+
+It reads every capability implemented in the packages and apps and fails by name when a capability is on no feature page and not in the not-money table, when a page marks a feature planned while a capability for it exists, or when a page, the status table, and the repository disagree. Every demo-book run includes that check as `feature-map-matches-capabilities`.
 
 ## Helpers
 
@@ -144,7 +144,17 @@ bash skills/verify-pecunia/scripts/prove-demo-book.sh --feature invoices --label
 bash skills/verify-pecunia/scripts/prove-demo-book.sh --help
 ```
 
-It needs Node `24.18.0`, pnpm, `sqlite3`, and `jq`, all present on the project server. Its fence messages name the missing tool and the fix.
+It needs Node `24.18.0`, pnpm, `sqlite3`, and `jq`, all present on the project server. Its fence messages name the missing tool and the fix. `--evidence-root <dir>` writes the proof somewhere other than the committed evidence folder; the replay check uses it so a replay never overwrites a proof.
+
+The other scripts are the three checks the helper runs or a reviewer runs by hand:
+
+```sh
+node skills/verify-pecunia/scripts/check-feature-map.mjs
+node skills/verify-pecunia/scripts/drive-bank-import.mjs --database /tmp/pecunia-verify/demo.sqlite
+node skills/verify-pecunia/scripts/replay-proof.mjs
+```
+
+`check-feature-map.mjs` fails by name when the map and the repository disagree. `drive-bank-import.mjs` drives `listImportTargets` and `importBankFile` against a seeded demo book and prints one JSON object. `replay-proof.mjs` reads every committed `PROOF.md`, replays its command under a fresh label in a temporary evidence root, and compares the replayed `proof.json` with the saved one by check id, expected value, observed value, and demo book hash. It fails by name when a saved check is missing or a saved observation changed.
 
 ## Gotchas
 

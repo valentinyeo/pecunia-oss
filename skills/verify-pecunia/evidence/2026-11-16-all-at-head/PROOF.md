@@ -1,5 +1,6 @@
 # Verification proof: all
 
+- Run label: `all-at-head`
 - Run at: 2026-11-16T15:11:56Z
 - Branch: `verify-skill` at `58626ce3`
 - Node: `v24.18.0`

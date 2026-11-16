@@ -45,6 +45,7 @@ export default defineConfig({
     "scripts/hooks/**",
     "tools/oxlint/anti-slop/**",
     "skills/security-audit/**",
+    "skills/verify-pecunia/scripts/**",
   ],
   jsPlugins: [
     { name: "foldkit", specifier: "@foldkit/oxlint-plugin" },
