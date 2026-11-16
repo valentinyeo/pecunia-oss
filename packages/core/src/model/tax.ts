@@ -10,10 +10,21 @@ import {
   TransactionIdSchema,
 } from "./primitives.js";
 
+const noObligationDetail = {
+  at: Schema.optionalKey(Schema.Never),
+  booksStatus: Schema.optionalKey(Schema.Never),
+  reason: Schema.optionalKey(Schema.Never),
+  settledBy: Schema.optionalKey(Schema.Never),
+} as const;
+
 export const TaxObligationStatusSchema = Schema.TaggedUnion({
-  Estimated: { booksStatus: Schema.String },
-  Paid: { at: TimestampSchema, settledBy: TransactionIdSchema },
-  WrittenOff: { reason: Schema.NonEmptyString },
+  Estimated: { ...noObligationDetail, booksStatus: Schema.String },
+  Paid: {
+    ...noObligationDetail,
+    at: TimestampSchema,
+    settledBy: TransactionIdSchema,
+  },
+  WrittenOff: { ...noObligationDetail, reason: Schema.NonEmptyString },
 });
 
 export type TaxObligationStatus = typeof TaxObligationStatusSchema.Type;

@@ -35,6 +35,7 @@ import {
   TransactionSchema,
   convertedAmounts,
   sameCurrencyAmount,
+  strictParseOptions,
 } from "../../src/model/index.js";
 import type { Holding } from "../../src/model/investment.js";
 import {
@@ -162,13 +163,15 @@ const storedConversion = (minor: number, rate: string) =>
     dateOnly("2024-01-30")
   );
 
-const strictRuleDecoder = Schema.decodeUnknownSync(RuleSchema, {
-  onExcessProperty: "error",
-});
+const strictRuleDecoder = Schema.decodeUnknownSync(
+  RuleSchema,
+  strictParseOptions
+);
 
-const strictTransactionDecoder = Schema.decodeSync(TransactionSchema, {
-  onExcessProperty: "error",
-});
+const strictTransactionDecoder = Schema.decodeUnknownSync(
+  TransactionSchema,
+  strictParseOptions
+);
 
 const transactionWire = (
   amounts: typeof AmountsSchema.Encoded
@@ -546,7 +549,7 @@ describe("a transaction carries one amount per currency story", () => {
     };
 
     expect(() =>
-      Schema.decodeSync(AmountsSchema, { onExcessProperty: "error" })(tampered)
+      Schema.decodeUnknownSync(AmountsSchema, strictParseOptions)(tampered)
     ).toThrow();
     expect(() => strictTransactionDecoder(withBase)).toThrow();
   });
@@ -662,11 +665,16 @@ describe("the rule union forbids a rule with two targets", () => {
   });
 
   it("rejects a tax_payment rule without an obligation kind", () => {
+    const taxPaymentWithoutObligation = {
+      ...ruleFields,
+      kind: "tax_payment",
+    };
+
     expect(() =>
-      Schema.decodeUnknownSync(RuleSchema, { onExcessProperty: "error" })({
-        ...ruleFields,
-        kind: "tax_payment",
-      })
+      Schema.decodeUnknownSync(
+        RuleSchema,
+        strictParseOptions
+      )(taxPaymentWithoutObligation)
     ).toThrow();
   });
 

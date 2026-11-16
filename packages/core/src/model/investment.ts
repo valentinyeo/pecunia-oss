@@ -1,5 +1,6 @@
 import { Option, Schema, SchemaGetter } from "effect";
 
+import { strictParseOptions } from "./parse-options.js";
 import {
   CurrencyCodeSchema,
   DateOnlySchema,
@@ -113,7 +114,10 @@ const decodedHolding = (
 };
 
 const encodedHolding = (holding: EncodedHolding): StoredHolding =>
-  Schema.decodeSync(StoredHoldingSchema)({
+  Schema.decodeSync(
+    StoredHoldingSchema,
+    strictParseOptions
+  )({
     ...holding,
     costBasis: holding.costBasis ?? null,
     lastPrice: holding.lastPrice ?? null,

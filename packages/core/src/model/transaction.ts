@@ -19,15 +19,28 @@ export const DirectionSchema = Schema.Literals(["in", "neutral", "out"]);
 
 export type Direction = typeof DirectionSchema.Type;
 
+const noCategorizationDetail = {
+  at: Schema.optionalKey(Schema.Never),
+  categoryId: Schema.optionalKey(Schema.Never),
+  model: Schema.optionalKey(Schema.Never),
+  ruleId: Schema.optionalKey(Schema.Never),
+} as const;
+
 export const CategorizationSchema = Schema.TaggedUnion({
   Applied: {
+    ...noCategorizationDetail,
     at: TimestampSchema,
     categoryId: CategoryIdSchema,
     ruleId: RuleIdSchema,
   },
-  Confirmed: { at: TimestampSchema, categoryId: CategoryIdSchema },
-  None: {},
+  Confirmed: {
+    ...noCategorizationDetail,
+    at: TimestampSchema,
+    categoryId: CategoryIdSchema,
+  },
+  None: { ...noCategorizationDetail },
   Suggested: {
+    ...noCategorizationDetail,
     at: TimestampSchema,
     categoryId: CategoryIdSchema,
     model: Schema.NonEmptyString,
@@ -36,20 +49,39 @@ export const CategorizationSchema = Schema.TaggedUnion({
 
 export type Categorization = typeof CategorizationSchema.Type;
 
+const noClassificationTarget = {
+  clientPayeeId: Schema.optionalKey(Schema.Never),
+  counterpartProfileId: Schema.optionalKey(Schema.Never),
+  obligationKind: Schema.optionalKey(Schema.Never),
+  ofPayeeId: Schema.optionalKey(Schema.Never),
+} as const;
+
+const classified = { ...noClassificationTarget, ruleId: RuleIdSchema } as const;
+
 export const ClassificationSchema = Schema.TaggedUnion({
-  Excluded: { ruleId: RuleIdSchema },
-  Income: { clientPayeeId: PayeeIdSchema, ruleId: RuleIdSchema },
-  InternalTransfer: { ruleId: RuleIdSchema },
-  None: {},
+  Excluded: { ...classified },
+  Income: {
+    ...noClassificationTarget,
+    clientPayeeId: PayeeIdSchema,
+    ruleId: RuleIdSchema,
+  },
+  InternalTransfer: { ...classified },
+  None: { ...noClassificationTarget, ruleId: Schema.optionalKey(Schema.Never) },
   Refund: {
+    ...noClassificationTarget,
     ofPayeeId: Schema.OptionFromNullishOr(PayeeIdSchema),
     ruleId: RuleIdSchema,
   },
   SelfTransfer: {
+    ...noClassificationTarget,
     counterpartProfileId: Schema.OptionFromNullishOr(ProfileIdSchema),
     ruleId: RuleIdSchema,
   },
-  TaxPayment: { obligationKind: Schema.NonEmptyString, ruleId: RuleIdSchema },
+  TaxPayment: {
+    ...noClassificationTarget,
+    obligationKind: Schema.NonEmptyString,
+    ruleId: RuleIdSchema,
+  },
 });
 
 export type Classification = typeof ClassificationSchema.Type;

@@ -8,6 +8,7 @@ import { minorUnitsOf } from "./convert-minor.js";
 import { ConvertedAmount, ConvertedAmountSchema } from "./converted-amount.js";
 import { CurrencyMismatch } from "./currency-mismatch.js";
 import { MoneyOverflow } from "./money-overflow.js";
+import { strictParseOptions } from "./parse-options.js";
 import type {
   CurrencyCode,
   DateOnly,
@@ -40,7 +41,7 @@ export { MoneyOverflow } from "./money-overflow.js";
 export { RateUnavailable } from "./rate-unavailable.js";
 
 const moneyOf = (currency: CurrencyCode, minor: MinorUnits): Money =>
-  Schema.decodeSync(MoneySchema)({ currency, minor });
+  Schema.decodeSync(MoneySchema, strictParseOptions)({ currency, minor });
 
 const mismatch = (
   left: CurrencyCode,
@@ -88,7 +89,15 @@ export const subtractMoney = (
 ): Effect.Effect<Money, CurrencyMismatch | MoneyOverflow> =>
   combine(left, right, "subtract");
 
+const noConversionDetail = {
+  asOf: Schema.optionalKey(Schema.Never),
+  base: Schema.optionalKey(Schema.Never),
+  rate: Schema.optionalKey(Schema.Never),
+  source: Schema.optionalKey(Schema.Never),
+} as const;
+
 export const SameCurrencyAmountSchema = Schema.TaggedStruct("SameCurrency", {
+  ...noConversionDetail,
   amount: MoneySchema,
 });
 

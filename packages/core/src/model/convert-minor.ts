@@ -2,6 +2,7 @@ import { Option, Result, Schema } from "effect";
 
 import { ConversionInputInvalid } from "./conversion-input-invalid.js";
 import { ConversionOverflow } from "./conversion-overflow.js";
+import { strictParseOptions } from "./parse-options.js";
 import type { CurrencyCode, MinorUnits } from "./primitives.js";
 import { MinorUnitsSchema } from "./primitives.js";
 import { RATE_SCALE_FACTOR } from "./rate.js";
@@ -42,7 +43,9 @@ export const minorUnitExponent = (currency: CurrencyCode): number =>
 export const minorUnitsOf = (minor: bigint): Option.Option<MinorUnits> =>
   minor >= BigInt(Number.MIN_SAFE_INTEGER) &&
   minor <= BigInt(Number.MAX_SAFE_INTEGER)
-    ? Option.some(Schema.decodeSync(MinorUnitsSchema)(Number(minor)))
+    ? Option.some(
+        Schema.decodeSync(MinorUnitsSchema, strictParseOptions)(Number(minor))
+      )
     : Option.none();
 
 const divideRoundHalfAwayFromZero = (

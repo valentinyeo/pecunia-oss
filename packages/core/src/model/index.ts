@@ -213,3 +213,5 @@ export type { Report } from "./report.js";
 export { AppSettingSchema } from "./app-setting.js";
 
 export type { AppSetting } from "./app-setting.js";
+
+export { strictParseOptions } from "./parse-options.js";

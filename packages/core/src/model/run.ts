@@ -23,13 +23,21 @@ export const SyncCountsSchema = Schema.Struct({
 
 export type SyncCounts = typeof SyncCountsSchema.Type;
 
+const noRunDetail = {
+  at: Schema.optionalKey(Schema.Never),
+  chunk: Schema.optionalKey(Schema.Never),
+  counts: Schema.optionalKey(Schema.Never),
+  startedAt: Schema.optionalKey(Schema.Never),
+  tag: Schema.optionalKey(Schema.Never),
+} as const;
+
 export const SyncRunStateSchema = Schema.TaggedUnion({
-  Cancelled: { at: TimestampSchema },
-  Categorizing: { at: TimestampSchema },
-  ChunkDone: { at: TimestampSchema, chunk: Schema.Int },
-  Failed: { at: TimestampSchema, tag: Schema.NonEmptyString },
-  Running: { chunk: Schema.Int, startedAt: TimestampSchema },
-  Succeeded: { at: TimestampSchema, counts: SyncCountsSchema },
+  Cancelled: { ...noRunDetail, at: TimestampSchema },
+  Categorizing: { ...noRunDetail, at: TimestampSchema },
+  ChunkDone: { ...noRunDetail, at: TimestampSchema, chunk: Schema.Int },
+  Failed: { ...noRunDetail, at: TimestampSchema, tag: Schema.NonEmptyString },
+  Running: { ...noRunDetail, chunk: Schema.Int, startedAt: TimestampSchema },
+  Succeeded: { ...noRunDetail, at: TimestampSchema, counts: SyncCountsSchema },
 });
 
 export type SyncRunState = typeof SyncRunStateSchema.Type;
