@@ -42,10 +42,10 @@
       "outputs": ["dist/**"]
     },
     "test": {
-      "dependsOn": ["build", "//#test:scripts"],
+      "dependsOn": ["build", "//#test:guards"],
       "outputs": []
     },
-    "//#test:scripts": {
+    "//#test:guards": {
       "outputs": []
     },
     "//#lint": {
