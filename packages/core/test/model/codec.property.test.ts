@@ -1,6 +1,7 @@
 // oxlint-disable anti-slop/no-unknown-parameters, anti-slop/no-unknown-returns, anti-slop/no-unsafe-dictionary-type, anti-slop/no-manual-tagged-construction, anti-slop/no-reflect-apply, anti-slop/no-known-value-widening, anti-slop-effect/no-manual-tagged-construction, typescript/no-unsafe-type-assertion -- the adversarial property test builds wire fixtures and untrusted inputs by hand
 
 // oxlint-disable anti-slop/require-safety-comment-for-type-assertion, eslint/prefer-object-spread, eslint/prefer-destructuring, typescript/no-unnecessary-type-assertion -- the adversarial property test injects strays through untyped handles by design
+// oxlint-disable anti-slop/no-object-parameters, anti-slop/no-runtime-typeof, anti-slop/no-reflect-get -- the adversarial property test walks untrusted decoded trees on purpose
 
 import { DateTime, Option, Predicate, Result, Schema } from "effect";
 import type { SchemaAST } from "effect";
@@ -1833,7 +1834,7 @@ describe("every model door rejects a forged Option wrapper", () => {
       expect(
         () =>
           construct(factory as (input: never) => unknown, {
-            amount: Object.assign(Option.none(), { value: wrappedMoney() }),
+            amount: Object.assign(freshNone(), { value: wrappedMoney() }),
           }),
         `${factory.name} accepted a None that carries a value`
       ).toThrow(/amount/u);
@@ -1846,5 +1847,481 @@ describe("every model door rejects a forged Option wrapper", () => {
         `${factory.name} accepted a Some that carries a rate`
       ).toThrow(/fee/u);
     }
+  });
+});
+
+type ForeignKey = string | number | symbol;
+
+interface NodeRef {
+  readonly key: ForeignKey | undefined;
+  readonly label: string;
+  readonly node: object;
+  readonly parent: object | undefined;
+}
+
+const escapePattern = (text: string): string =>
+  text.replaceAll(/[$()*+.?[\\\]^{|}]/gu, "\\$&");
+
+const nodeRefs = (
+  value: unknown,
+  label: string,
+  parent: object | undefined,
+  key: ForeignKey | undefined,
+  out: NodeRef[]
+): void => {
+  if (typeof value !== "object" || value === null) {
+    return;
+  }
+
+  out.push({ key, label, node: value, parent });
+
+  if (Array.isArray(value)) {
+    for (const [index, child] of value.entries()) {
+      nodeRefs(child, `${label}[${String(index)}]`, value, index, out);
+    }
+
+    return;
+  }
+
+  if (Option.isOption(value)) {
+    if (Option.isSome(value)) {
+      nodeRefs(value.value, `${label}.value`, value, "value", out);
+    }
+
+    return;
+  }
+
+  if (DateTime.isDateTime(value)) {
+    return;
+  }
+
+  for (const childKey of Object.keys(value)) {
+    nodeRefs(
+      Reflect.get(value, childKey),
+      `${label}.${childKey}`,
+      value,
+      childKey,
+      out
+    );
+  }
+};
+
+const foreignKeyOf = (
+  pool: readonly string[],
+  turn: number,
+  node: Readonly<Record<string, unknown>>
+): string => {
+  for (let step = 0; step < pool.length; step += 1) {
+    const candidate = pool[(turn + step) % pool.length] ?? "rate";
+
+    if (!Object.hasOwn(node, candidate)) {
+      return candidate;
+    }
+  }
+
+  return "rate";
+};
+
+const attachMethods = [
+  "assign",
+  "define",
+  "define-hidden",
+  "symbol-assign",
+  "symbol-hidden",
+] as const;
+
+type AttachMethod = (typeof attachMethods)[number] | "spread";
+
+const attachForeign = (
+  ref: NodeRef,
+  holder: { current: unknown },
+  method: AttachMethod,
+  key: ForeignKey,
+  value: unknown
+): (() => void) | undefined => {
+  switch (method) {
+    case "assign":
+    case "symbol-assign": {
+      Object.assign(ref.node, { [key]: value });
+
+      return () => {
+        Reflect.deleteProperty(ref.node, key);
+      };
+    }
+
+    case "define":
+    case "define-hidden":
+    case "symbol-hidden": {
+      Object.defineProperty(ref.node, key, {
+        configurable: true,
+        enumerable: method === "define",
+        value,
+        writable: true,
+      });
+
+      return () => {
+        Reflect.deleteProperty(ref.node, key);
+      };
+    }
+
+    case "spread": {
+      if (!isPlainObject(ref.node)) {
+        return undefined;
+      }
+
+      const copy = { ...ref.node, [key]: value };
+
+      if (ref.parent === undefined || ref.key === undefined) {
+        holder.current = copy;
+
+        return () => {
+          holder.current = ref.node;
+        };
+      }
+
+      Reflect.set(ref.parent, ref.key, copy);
+
+      return () => {
+        Reflect.set(ref.parent as never, ref.key as never, ref.node);
+      };
+    }
+
+    default: {
+      return undefined;
+    }
+  }
+};
+
+const expectEveryDoorRejects = (
+  handle: Handle,
+  value: unknown,
+  name: string,
+  label: string
+): void => {
+  const pattern = new RegExp(escapePattern(name), "u");
+  const encoded = handle.encode(value as never);
+
+  expect(Result.isFailure(encoded), `${label} encoded`).toBe(true);
+
+  if (Result.isFailure(encoded)) {
+    expect(encoded.failure.message, `${label} encode names it`).toContain(name);
+  }
+
+  expect(
+    () => render(handle as ModelCodec<never, unknown>, value as never),
+    `${label} render names it`
+  ).toThrow(pattern);
+
+  expect(
+    () => verified(handle as ModelCodec<never, unknown>, value),
+    `${label} verified names it`
+  ).toThrow(pattern);
+};
+
+const curatedDoors: readonly {
+  readonly handle: Handle;
+  readonly name: string;
+  readonly wire: unknown;
+}[] = [
+  {
+    handle: codecs.archiveTarget as never,
+    name: "ArchiveTarget",
+    wire: archiveTargetWire,
+  },
+  { handle: codecs.amounts as never, name: "Amounts", wire: convertedWire },
+  {
+    handle: codecs.convertedAmount as never,
+    name: "ConvertedAmount",
+    wire: convertedWire,
+  },
+  {
+    handle: codecs.invoiceDocument as never,
+    name: "InvoiceDocument",
+    wire: invoiceWire(true),
+  },
+  {
+    handle: codecs.rateUnavailable as never,
+    name: "RateUnavailable",
+    wire: { _tag: "RateUnavailable", from: "USD", to: "EUR" },
+  },
+  {
+    handle: codecs.timestamp as never,
+    name: "Timestamp",
+    wire: DateTime.makeUnsafe("2024-02-01T09:00:00Z"),
+  },
+  {
+    handle: codecs.transaction as never,
+    name: "Transaction",
+    wire: transactionWire(true),
+  },
+];
+
+const fixtureDoors = fixtures.flatMap(({ name, schema, wires }) =>
+  wires.slice(0, 1).map((wire) => ({
+    handle: schema,
+    name,
+    wire: withoutMeta(wire),
+  }))
+);
+
+const foreignDoors = [
+  ...curatedDoors,
+  ...fixtureDoors.filter(
+    (door) =>
+      !curatedDoors.some(
+        (curated) =>
+          curated.name === door.name || curated.handle.name === door.name
+      )
+  ),
+];
+
+describe("every node rejects a foreign own key attached any way", () => {
+  it("rejects spread, assign, hidden and symbol keys on every node at every depth", () => {
+    const pool = foreignPool();
+    let cases = 0;
+    let turn = 0;
+
+    for (const { handle, name, wire } of foreignDoors) {
+      const decoded = handle.decode(wire);
+
+      if (Result.isFailure(decoded)) {
+        continue;
+      }
+
+      const refs: NodeRef[] = [];
+
+      nodeRefs(decoded.success, name, undefined, undefined, refs);
+
+      const holder: { current: unknown } = { current: decoded.success };
+
+      for (const [index, ref] of refs.entries()) {
+        for (const method of [...attachMethods, "spread" as const]) {
+          const symbol = method.startsWith("symbol");
+
+          const seed = foreignKeyOf(
+            pool,
+            turn + index,
+            ref.node as Readonly<Record<string, unknown>>
+          );
+
+          const key: ForeignKey = symbol ? Symbol(seed) : seed;
+          const label = `${name}[${String(index)}] ${method} ${String(key)}`;
+
+          turn += 1;
+
+          if (Object.hasOwn(ref.node, key)) {
+            continue;
+          }
+
+          const restore = attachForeign(
+            ref,
+            holder,
+            method,
+            key,
+            strayValue(seed)
+          );
+
+          if (restore === undefined) {
+            continue;
+          }
+
+          try {
+            expectEveryDoorRejects(handle, holder.current, String(key), label);
+            cases += 3;
+          } finally {
+            restore();
+          }
+        }
+      }
+    }
+
+    expect(cases).toBeGreaterThanOrEqual(700);
+  });
+
+  it("rejects a foreign own key attached any way at every error factory", () => {
+    const pool = foreignPool();
+
+    const factories: readonly {
+      readonly factory: (fields: never) => unknown;
+      readonly fields: Readonly<Record<string, unknown>>;
+    }[] = [
+      {
+        factory: model.conversionInputInvalid,
+        fields: { from: "USD", reason: "fractional", to: "EUR" },
+      },
+      {
+        factory: model.conversionOverflow,
+        fields: {
+          baseCurrency: "EUR",
+          currency: "USD",
+          minor: 1,
+          rate: rateOf("0.85"),
+        },
+      },
+      {
+        factory: model.currencyMismatch,
+        fields: { left: "USD", right: "EUR" },
+      },
+      {
+        factory: model.moneyOverflow,
+        fields: { currency: "EUR", left: 1, operation: "add", right: 2 },
+      },
+      {
+        factory: model.rateOnSameCurrency,
+        fields: { currency: "EUR" },
+      },
+      {
+        factory: model.rateUnavailable,
+        fields: { from: "USD", to: "EUR" },
+      },
+    ];
+
+    let cases = 0;
+    let turn = 0;
+
+    for (const { factory, fields } of factories) {
+      for (const method of [...attachMethods, "spread" as const]) {
+        const symbol = method.startsWith("symbol");
+        const seed = foreignKeyOf(pool, turn, fields);
+        const key: ForeignKey = symbol ? Symbol(seed) : seed;
+        const label = `${factory.name} ${method} ${String(key)}`;
+
+        turn += 1;
+
+        const target: Record<string, unknown> = { ...fields };
+
+        const ref: NodeRef = {
+          key: undefined,
+          label,
+          node: target,
+          parent: undefined,
+        };
+
+        const holder: { current: unknown } = { current: target };
+
+        if (method === "spread") {
+          holder.current = { ...target, [key]: strayValue(seed) };
+        } else {
+          const restore = attachForeign(
+            ref,
+            holder,
+            method,
+            key,
+            strayValue(seed)
+          );
+
+          if (restore === undefined) {
+            continue;
+          }
+        }
+
+        expect(
+          () => construct(factory, holder.current as Record<string, unknown>),
+          `${label} accepted the key`
+        ).toThrow(new RegExp(escapePattern(String(key)), "u"));
+
+        cases += 1;
+      }
+    }
+
+    expect(cases).toBeGreaterThanOrEqual(30);
+  });
+
+  it("keeps the tenth verdict reproductions rejected", () => {
+    const hiddenRate = (): object =>
+      Object.defineProperty({ currency: "EUR", minor: 120_000 }, "rate", {
+        configurable: true,
+        value: rateOf("0.85"),
+      });
+
+    const invoice = parse(codecs.invoiceDocument, invoiceWire(true));
+    const forgedMoney = hiddenRate();
+
+    expect(
+      Result.isFailure(
+        codecs.invoiceDocument.encode({
+          ...invoice,
+          amount: Option.some(forgedMoney),
+        } as never)
+      )
+    ).toBe(true);
+
+    expect(() =>
+      render(codecs.invoiceDocument, {
+        ...invoice,
+        amount: Option.some(forgedMoney),
+      } as never)
+    ).toThrow(/rate/u);
+
+    expect(() =>
+      verified(codecs.invoiceDocument, {
+        ...invoiceWire(true),
+        amount: forgedMoney,
+      })
+    ).toThrow(/rate/u);
+
+    const timestamp = parse(
+      codecs.timestamp,
+      DateTime.makeUnsafe("2024-02-01T09:00:00Z")
+    );
+
+    Object.assign(timestamp, { rate: rateOf("0.85") });
+
+    const transaction = parse(codecs.transaction, transactionWire(true));
+    const forgedTimestamp = { ...transaction, createdAt: timestamp };
+
+    expect(
+      Result.isFailure(codecs.transaction.encode(forgedTimestamp as never))
+    ).toBe(true);
+
+    expect(() => render(codecs.transaction, forgedTimestamp as never)).toThrow(
+      /rate/u
+    );
+
+    expect(() => verified(codecs.transaction, forgedTimestamp)).toThrow(
+      /rate/u
+    );
+
+    const target = parse(codecs.archiveTarget, archiveTargetWire);
+    const blocklist = [...target.blocklist];
+
+    Object.assign(blocklist, { rate: rateOf("0.85") });
+
+    const forgedTarget = { ...target, blocklist };
+
+    expect(
+      Result.isFailure(codecs.archiveTarget.encode(forgedTarget as never))
+    ).toBe(true);
+
+    expect(() => render(codecs.archiveTarget, forgedTarget as never)).toThrow(
+      /rate/u
+    );
+
+    expect(() => verified(codecs.archiveTarget, forgedTarget)).toThrow(/rate/u);
+  });
+
+  it("rejects a hidden symbol key on a money spread", () => {
+    const invoice = parse(codecs.invoiceDocument, invoiceWire(true));
+    const key = Symbol("rate");
+
+    const forgedMoney = Object.defineProperty(
+      { currency: "EUR", minor: 120_000 },
+      key,
+      { configurable: true, value: rateOf("0.85") }
+    );
+
+    expect(() =>
+      render(codecs.invoiceDocument, {
+        ...invoice,
+        amount: Option.some(forgedMoney),
+      } as never)
+    ).toThrow(/rate/u);
+
+    expect(() =>
+      verified(codecs.invoiceDocument, {
+        ...invoiceWire(true),
+        amount: forgedMoney,
+      })
+    ).toThrow(/rate/u);
   });
 });
