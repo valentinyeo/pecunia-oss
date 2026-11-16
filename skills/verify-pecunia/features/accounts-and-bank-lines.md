@@ -14,8 +14,11 @@ Status: partly built. The import capability exists on `main` with its checks. No
 
 - `listImportTargets` (`packages/bank-import/src/capabilities.ts`) lists the bank and CSV accounts a profile can import a file into, with each account's base currency.
 - `importBankFile` (`packages/bank-import/src/capabilities.ts`) imports a bank CSV into one account and keeps every distinct line once by its fingerprint.
+- `listBankLines` (`packages/bank-lines/src/capabilities.ts`) lists one profile's bank lines with a filter, a search, and a cursor.
+- `editBankLine` (`packages/bank-lines/src/capabilities.ts`) edits one line's category and note inside the profile it belongs to.
+- `reviewBankLine` (`packages/bank-lines/src/capabilities.ts`) marks one line reviewed inside the profile it belongs to.
 
-Both are implemented and tested at the package level. The RPC, MCP, and CLI projections do not carry them yet; the slice that adds the projection updates this page with the exact route, tool, and command.
+All are implemented and tested at the package level. The RPC, MCP, and CLI projections do not carry them yet; the slice that adds the projection updates this page with the exact route, tool, and command.
 
 ## Sub-features
 
