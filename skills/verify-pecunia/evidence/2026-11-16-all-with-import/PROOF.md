@@ -14,6 +14,7 @@
 pnpm turbo run build --filter=@pecunia/bank-import...
 pnpm --filter @pecunia/database db:seed:demo /tmp/pecunia-verify-OxbyMh/demo.sqlite
 bash skills/verify-pecunia/scripts/prove-demo-book.sh --feature all --label all-with-import
+node skills/verify-pecunia/scripts/replay-proof.mjs --only all-with-import
 ```
 
 ## Seeded tables

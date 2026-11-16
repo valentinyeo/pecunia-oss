@@ -12,7 +12,8 @@
 
 ```sh
 pnpm --filter @pecunia/database db:seed:demo /tmp/pecunia-verify-q1O5k3/demo.sqlite
-bash skills/verify-pecunia/scripts/prove-demo-book.sh --feature all
+bash skills/verify-pecunia/scripts/prove-demo-book.sh --feature all --label all
+node skills/verify-pecunia/scripts/replay-proof.mjs --only all
 ```
 
 ## Seeded tables

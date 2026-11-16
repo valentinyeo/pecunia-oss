@@ -102,7 +102,7 @@ Evidence lives under `skills/verify-pecunia/evidence/<yyyy-mm-dd>-<label>/` and 
 - `bank-import-drive.json`: the import capability drive, when the run covers accounts and bank lines.
 - Manual runs add the captured action and result: `page.html`, `rpc-response.json`, and a screenshot when a browser is available. Name them in `PROOF.md`.
 
-The recorded command must replay: the run label is printed in `PROOF.md` and in the command, and `node skills/verify-pecunia/scripts/replay-proof.mjs` replays every committed proof under a fresh label and compares the result with the saved evidence.
+The recorded command must replay: the run label is printed in `PROOF.md` and in the command, and `PROOF.md` also records `node skills/verify-pecunia/scripts/replay-proof.mjs --only <label>`, which replays that proof under a fresh label and compares the result with the saved evidence.
 
 The proof standards:
 
@@ -132,7 +132,7 @@ The map is checked, not maintained by hand:
 node skills/verify-pecunia/scripts/check-feature-map.mjs
 ```
 
-It reads every capability implemented in the packages and apps and fails by name when a capability is on no feature page and not in the not-money table, when a page marks a feature planned while a capability for it exists, or when a page, the status table, and the repository disagree. Every demo-book run includes that check as `feature-map-matches-capabilities`.
+It reads every capability implemented in the packages and apps and fails by name when a capability is on no feature page and not in the not-money table, when a page marks a feature planned while a capability for it exists, or when a page, the status table, and the repository disagree. It counts every problem it prints and exits non-zero for each. Every demo-book run includes that check as `feature-map-matches-capabilities` and `feature-map-reports-no-problems`, and the run fails when the checker exits non-zero even if every check line says PASS.
 
 ## Helpers
 
@@ -154,7 +154,17 @@ node skills/verify-pecunia/scripts/drive-bank-import.mjs --database /tmp/pecunia
 node skills/verify-pecunia/scripts/replay-proof.mjs
 ```
 
-`check-feature-map.mjs` fails by name when the map and the repository disagree. `drive-bank-import.mjs` drives `listImportTargets` and `importBankFile` against a seeded demo book and prints one JSON object. `replay-proof.mjs` reads every committed `PROOF.md`, replays its command under a fresh label in a temporary evidence root, and compares the replayed `proof.json` with the saved one by check id, expected value, observed value, and demo book hash. It fails by name when a saved check is missing or a saved observation changed.
+`check-feature-map.mjs` fails by name when the map and the repository disagree. It counts every problem it prints, whatever the category, and exits non-zero when there is one. `drive-bank-import.mjs` drives `listImportTargets` and `importBankFile` against a seeded demo book and prints one JSON object. `replay-proof.mjs` reads every committed `PROOF.md`, replays its command under a fresh label in a temporary evidence root, and compares the replayed `proof.json` with the saved one by check id, expected value, observed value, and demo book hash. It fails by name when a saved check is missing or a saved observation changed. `PROOF.md` records its replay as `node skills/verify-pecunia/scripts/replay-proof.mjs --only <label>`.
+
+Every step the helper runs comes from one declared table in `prove-demo-book.sh`, and `scripts/lib/steps.sh` runs each step and each command through one recorder. The recorder keeps the exit code, and a step counts as failed when it did not run, exited non-zero, or wrote no output. `prove-demo-book.sh` prints `PASS` only when every declared step ran and exited 0, and exits non-zero otherwise. `--list-steps` prints that table without running anything.
+
+The skill's own check proves that mechanism, and it must run before a pull request that touches the helper:
+
+```sh
+node --test skills/verify-pecunia/scripts/check-proofs.test.mjs
+```
+
+It takes about four minutes. It checks the table against the step functions, runs the unmutated helper, then mutates each declared step to exit 1 and to write no output, asserts the helper exits non-zero without printing `PASS`, rejects a step with no table entry, rejects a bypassed exit code, and asserts the map check fails and counts one problem for a removed capability.
 
 ## Gotchas
 

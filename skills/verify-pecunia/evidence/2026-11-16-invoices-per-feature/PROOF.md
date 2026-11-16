@@ -13,6 +13,7 @@
 ```sh
 pnpm --filter @pecunia/database db:seed:demo /tmp/pecunia-verify-fMspd9/demo.sqlite
 bash skills/verify-pecunia/scripts/prove-demo-book.sh --feature invoices --label invoices-per-feature
+node skills/verify-pecunia/scripts/replay-proof.mjs --only invoices-per-feature
 ```
 
 ## Seeded tables
