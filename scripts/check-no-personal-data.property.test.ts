@@ -19,8 +19,7 @@ import {
   RULE_IDS,
 } from "./check-no-personal-data.ts";
 import type { AllowList, RuleId } from "./check-no-personal-data.ts";
-import { DECODERS, decodeText } from "./decoded-text.ts";
-import type { DecoderId } from "./decoded-text.ts";
+import { decodeText } from "./decoded-text.ts";
 
 const empty: AllowList = { skipped: [], values: [] };
 
@@ -204,10 +203,31 @@ const IBAN_COUNTRIES: readonly (readonly [string, number])[] = [
   ["PT", 25],
 ];
 
+const ibanCheckDigits = (country: string, bban: string) => {
+  const rearranged = `${bban}${country}00`;
+
+  let remainder = 0;
+
+  for (const character of rearranged.toUpperCase()) {
+    const digits =
+      character >= "A" && character <= "Z"
+        ? String((character.codePointAt(0) ?? 0) - 55)
+        : character;
+
+    for (const digit of digits) {
+      remainder = (remainder * 10 + Number(digit)) % 97;
+    }
+  }
+
+  return String(98 - remainder).padStart(2, "0");
+};
+
 const ibanValue = (random: Random) => {
   const [country, length] = random.pick(IBAN_COUNTRIES);
 
-  const body = `${country}${random.digits(2)}${random.alphanumeric(4)}${random.digits(length - 8)}`;
+  const bban = `${random.alphanumeric(4)}${random.digits(length - 8)}`;
+
+  const body = `${country}${ibanCheckDigits(country, bban)}${bban}`;
 
   const parts: string[] = [];
 
@@ -262,21 +282,18 @@ const accountValue = (random: Random) =>
   inNumber([random.digits(4), random.digits(4)], random);
 
 const pairDocument = (random: Random) => {
-  const gap = random.pick(SEPARATORS);
+  const sort = sortCodeValue(random);
 
-  const pair =
-    random.between(1, 2) === 1
-      ? `${sortCodeValue(random)}${gap}${accountValue(random)}`
-      : `${accountValue(random)}${gap}${sortCodeValue(random)}`;
+  const account = accountValue(random);
 
   return random.pick([
-    pair,
-    `${random.prose(3)} ${pair} ${random.prose(2)}`,
-    `{"sortCode":${sortCodeValue(random)},"accountNumber":${accountValue(random)}}`,
-    `| field | value |\n| --- | --- |\n| sort code | ${sortCodeValue(random)} |\n| account number | ${accountValue(random)} |`,
-    `sort code,account number\n${sortCodeValue(random)},${accountValue(random)}`,
-    `${pair}\n${random.prose(2)}`,
-    `${random.prose(2)} ${pair}`,
+    `sort code ${sort} account number ${account}`,
+    `Account: sort code ${sort}\nAccount: number ${account}`,
+    `{"sortCode":${sort},"accountNumber":${account}}`,
+    `| sort code | account number |\n| --- | --- |\n| ${sort} | ${account} |`,
+    `sort code,account number\n${sort},${account}`,
+    `${random.prose(3)} sort code ${sort} account number ${account} ${random.prose(2)}`,
+    `${random.prose(2)} (sort code ${sort}, account number ${account})`,
   ]);
 };
 
@@ -458,8 +475,22 @@ const mailboxNames = ["demo", "jane", "sam", "owner"];
 
 const mailboxWords = ["owner", "doe", "smith", "finance"];
 
+const MAILBOX_SEPARATORS = [
+  "",
+  " ",
+  "  ",
+  ":",
+  ": ",
+  "=",
+  " = ",
+  ",",
+  ", ",
+  " - ",
+  " ",
+];
+
 const quotedMailbox = (random: Random) => {
-  const local = `${random.pick(mailboxNames)}${random.pick(SEPARATORS)}${random.pick(mailboxWords)}`;
+  const local = `${random.pick(mailboxNames)}${random.pick(MAILBOX_SEPARATORS)}${random.pick(mailboxWords)}`;
 
   return `"${local}"@${random.pick(EMAIL_DOMAINS)}`;
 };
@@ -615,6 +646,14 @@ const DETECTORS: readonly Detector[] = [
     path: "apps/infra/wrangler.yaml",
     sensitive: secretBlockDocument,
   },
+  {
+    covers: ["decode-did-not-settle"],
+    harmless: (random) => `${random.prose(3)} &amp; ${random.prose(2)}`,
+    name: "unsettled-decoding",
+    path: "docs/notes.md",
+    sensitive: (random) =>
+      `${random.prose(2)} &${"amp;".repeat(9)} ${random.prose(2)}`,
+  },
 ];
 
 const allowPath = path.resolve(
@@ -666,141 +705,299 @@ describe("every sensitive value is reported whatever formatting wraps it", () =>
   }, 60_000);
 });
 
-const ENCODED_CASES = 20;
+const COMPOSED_CASES = 1500;
 
-const ENCODED_DETECTORS = [
-  "iban",
-  "sort-code-and-account",
-  "bank-field-pair",
-  "email",
-  "quoted-mailbox-email",
-];
+const COMPOSED_SEED = SEED + 9001;
 
-const ENTITY_CODES = new Map([
-  [" ", "&nbsp;"],
-  ["%", "&#37;"],
-  [".", "&#46;"],
-  ["@", "&#64;"],
+const ENTITY_FORMS = new Map([
+  ["@", ["&#64;", "&commat;", "&#x40;"]],
+  [".", ["&#46;", "&#x2e;", "&period;"]],
+  [" ", ["&nbsp;", "&#32;", "&#x20;"]],
+  ["-", ["&#45;", "&#x2d;", "&dash;"]],
+  ["%", ["&#37;", "&#x25;", "&percnt;"]],
+  ["+", ["&#43;", "&#x2b;", "&plus;"]],
+  ["|", ["&#124;", "&#x7c;", "&verbar;"]],
+  [":", ["&#58;", "&#x3a;", "&colon;"]],
 ]);
-
-const identityEncoded = (text: string) => text;
-
-const jsonEncoded = (text: string) => JSON.stringify(text).slice(1, -1);
-
-const entityEncoded = (text: string) =>
-  text.replaceAll(
-    /[@.% ]/gu,
-    (character) => ENTITY_CODES.get(character) ?? character
-  );
-
-const tagEncoded = (text: string) =>
-  text.replaceAll(/(?<=[\p{L}\p{N}])[ \t\n\r]+(?=[\p{L}\p{N}])/gu, "<br>");
 
 const percentOf = (character: string) =>
   [...new TextEncoder().encode(character)]
     .map((byte) => `%${byte.toString(16).toUpperCase().padStart(2, "0")}`)
     .join("");
 
-const percentEncoded = (text: string) =>
+const inEntityForm = (text: string, random: Random) =>
+  text.replaceAll(/[@. %+|:-]/gu, (character) => {
+    const forms = ENTITY_FORMS.get(character);
+
+    return forms === undefined ? character : random.pick(forms);
+  });
+
+const asJsonString = (text: string) => JSON.stringify(text).slice(1, -1);
+
+const asPercent = (text: string) =>
   text.replaceAll(/[^A-Za-z0-9\n]/gu, percentOf);
 
+const asForm = (text: string) =>
+  text.replaceAll(" ", "+").replaceAll(/[^A-Za-z0-9+\n]/gu, percentOf);
+
+const TAG_FORMS = [
+  "<br>",
+  '<br\n class="bank">',
+  '<span title="a > b">',
+  "<b>",
+  "<i class='note'>",
+];
+
+const withTags = (text: string, random: Random) => {
+  const positions = Array.from({ length: random.between(1, 4) }, () =>
+    random.between(1, Math.max(1, text.length - 1))
+  ).toSorted((left, right) => right - left);
+
+  let result = text;
+
+  for (const position of positions) {
+    result = `${result.slice(0, position)}${random.pick(TAG_FORMS)}${result.slice(position)}`;
+  }
+
+  return result;
+};
+
+const withZeroWidth = (text: string, random: Random) => {
+  let result = text;
+
+  for (let count = random.between(1, 4); count > 0; count -= 1) {
+    const position = random.between(1, Math.max(1, result.length - 1));
+
+    result = `${result.slice(0, position)}\u200B${result.slice(position)}`;
+  }
+
+  return result;
+};
+
+const asFullWidth = (text: string) =>
+  text.replaceAll(/[0-9]/gu, (digit) =>
+    String.fromCodePoint((digit.codePointAt(0) ?? 0) + 0xfe_e0)
+  );
+
+const inHref = (text: string, random: Random) =>
+  random.pick([
+    `<a href="mailto:${text}">contact</a>`,
+    `<a href="${text}">bank details</a>`,
+    `<a
+      href="${text}"
+      title="pay here"
+    >pay</a>`,
+  ]);
+
 interface Encoder {
-  readonly covers: readonly DecoderId[];
-  readonly encode: (text: string) => string;
+  readonly encode: (text: string, random: Random) => string;
   readonly name: string;
 }
 
-const ENCODERS: readonly Encoder[] = [
-  { covers: [], encode: identityEncoded, name: "identity" },
-  { covers: ["json-string"], encode: jsonEncoded, name: "json-escape" },
+const COMPOSABLE_ENCODERS: readonly Encoder[] = [
+  { encode: (text) => text, name: "identity" },
+  { encode: asJsonString, name: "json-string" },
+  { encode: inEntityForm, name: "html-entity" },
+  { encode: asPercent, name: "percent" },
+  { encode: asForm, name: "form-plus" },
+  { encode: withTags, name: "tag-between" },
+  { encode: withZeroWidth, name: "zero-width" },
+  { encode: asFullWidth, name: "full-width-digits" },
+  { encode: inHref, name: "href-attribute" },
+];
+
+interface ComposableLeak {
+  readonly document: (value: string) => string;
+  readonly encoders: readonly Encoder[];
+  readonly name: string;
+  readonly path: string;
+  readonly rules: readonly RuleId[];
+  readonly twin: (random: Random) => string;
+  readonly twinDocument: (value: string) => string;
+  readonly value: (random: Random) => string;
+  readonly wrappers: readonly Encoder[];
+}
+
+const plainDocument = (value: string) => value;
+
+const VERIFIER_IBAN = "GB82WEST12345698765432";
+
+const ibanRemainder = (country: string, bban: string) => {
+  const rearranged = `${bban}${country}00`.toUpperCase();
+
+  let remainder = 0;
+
+  for (const character of rearranged) {
+    const digits =
+      character >= "A" && character <= "Z"
+        ? String((character.codePointAt(0) ?? 0) - 55)
+        : character;
+
+    for (const digit of digits) {
+      remainder = (remainder * 10 + Number(digit)) % 97;
+    }
+  }
+
+  return remainder;
+};
+
+const nonChecksumIban = (random: Random) => {
+  const [country, length] = random.pick(IBAN_COUNTRIES);
+
+  for (;;) {
+    const bban = random.alphanumeric(length - 4);
+
+    if (ibanRemainder(country, bban) !== 1) {
+      return `${country}00${bban}`;
+    }
+  }
+};
+
+const VALUE_ENCODERS: readonly Encoder[] = COMPOSABLE_ENCODERS.filter(
+  (encoder) =>
+    !["identity", "tag-between", "href-attribute"].includes(encoder.name)
+);
+
+const WRAPPERS: readonly Encoder[] = COMPOSABLE_ENCODERS.filter((encoder) =>
+  ["tag-between", "href-attribute"].includes(encoder.name)
+);
+
+const COMPOSABLE_LEAKS: readonly ComposableLeak[] = [
   {
-    covers: ["html-entity", "separator"],
-    encode: entityEncoded,
-    name: "html-entity",
+    document: (value) => `Payments:\nIBAN: ${value}`,
+    encoders: VALUE_ENCODERS,
+    name: "iban",
+    path: "docs/payments.md",
+    rules: ["iban"],
+    twin: nonChecksumIban,
+    twinDocument: (value) => `Payments:\nIBAN: ${value}`,
+    value: ibanValue,
+    wrappers: WRAPPERS,
   },
-  { covers: ["tag"], encode: tagEncoded, name: "tag-wrap" },
-  { covers: ["percent"], encode: percentEncoded, name: "percent-encode" },
   {
-    covers: ["html-entity", "percent"],
-    encode: (text) => percentEncoded(entityEncoded(text)),
-    name: "entity-then-percent",
+    document: (value) => `Payments: sort code ${value}`,
+    encoders: VALUE_ENCODERS,
+    name: "bank-pair",
+    path: "docs/payments.md",
+    rules: ["bank-account"],
+    twin: (random) => `sort code ${sortCodeValue(random)}`,
+    twinDocument: (value) => `Payments: ${value}`,
+    value: (random) =>
+      `${sortCodeValue(random)} account number ${accountValue(random)}`,
+    wrappers: WRAPPERS,
   },
   {
-    covers: ["html-entity", "percent"],
-    encode: (text) => entityEncoded(percentEncoded(text)),
-    name: "percent-then-entity",
+    document: (value) => `Contact ${value} before Friday.`,
+    encoders: VALUE_ENCODERS,
+    name: "email",
+    path: "docs/payments.md",
+    rules: ["email"],
+    twin: (random) =>
+      `${random.pick(mailboxNames)}@${random.pick(PLACEHOLDER_DOMAINS)}`,
+    twinDocument: (value) => `Contact ${value} before Friday.`,
+    value: (random) =>
+      `${random.pick(EMAIL_LOCALS)}@${random.pick(EMAIL_DOMAINS)}`,
+    wrappers: WRAPPERS,
   },
   {
-    covers: ["tag", "percent"],
-    encode: (text) => percentEncoded(tagEncoded(text)),
-    name: "tag-then-percent",
+    document: (value) => `Contact ${value} before Friday.`,
+    encoders: VALUE_ENCODERS,
+    name: "quoted-mailbox",
+    path: "docs/payments.md",
+    rules: ["email"],
+    twin: (random) =>
+      `"${random.pick(mailboxNames)} ${random.pick(mailboxWords)}"@${random.pick(PLACEHOLDER_DOMAINS)}`,
+    twinDocument: (value) => `Contact ${value} before Friday.`,
+    value: quotedMailbox,
+    wrappers: WRAPPERS,
   },
   {
-    covers: ["json-string", "percent"],
-    encode: (text) => percentEncoded(jsonEncoded(text)),
-    name: "json-then-percent",
+    document: plainDocument,
+    encoders: VALUE_ENCODERS.filter((encoder) => encoder.name !== "form-plus"),
+    name: "block-scalar",
+    path: "apps/infra/wrangler.yaml",
+    rules: ["secret-block-scalar"],
+    twin: secretBlockWithoutToken,
+    twinDocument: plainDocument,
+    value: secretBlockDocument,
+    wrappers: [],
   },
 ];
 
-describe("every encoded spelling of a leak is read, and its harmless twin is quiet", () => {
-  it(`reads ${ENCODED_DETECTORS.length * ENCODERS.length * ENCODED_CASES} seeded encodings`, () => {
-    const undecoded = DECODERS.map((decoder) => decoder.id).filter(
-      (id) => !ENCODERS.some((encoder) => encoder.covers.includes(id))
-    );
-
-    const unnamed = ENCODED_DETECTORS.filter(
-      (name) => !DETECTORS.some((detector) => detector.name === name)
-    );
-
-    expect({ undecoded, unnamed }).toEqual({ undecoded: [], unnamed: [] });
+describe("a leak survives any random composition of encodings", () => {
+  it(`reads ${COMPOSED_CASES} seeded compositions and keeps every twin quiet`, () => {
+    const random = makeRandom(COMPOSED_SEED);
 
     const missed: string[] = [];
 
     const noisy: string[] = [];
 
-    let cases = 0;
+    const compose = (
+      text: string,
+      steps: readonly Encoder[],
+      wrapper: Encoder | undefined
+    ) => {
+      let current = wrapper === undefined ? text : wrapper.encode(text, random);
 
-    for (const [kind, name] of ENCODED_DETECTORS.entries()) {
-      const detector = DETECTORS.find((entry) => entry.name === name);
-
-      if (detector === undefined) {
-        continue;
+      for (const step of steps) {
+        current = step.encode(current, random);
       }
 
-      for (const [index, encoder] of ENCODERS.entries()) {
-        const random = makeRandom(SEED + 101 + kind * 31 + index);
+      return current;
+    };
 
-        for (let attempt = 0; attempt < ENCODED_CASES; attempt += 1) {
-          const sensitive = encoder.encode(detector.sensitive(random));
+    for (let index = 0; index < COMPOSED_CASES; index += 1) {
+      const leak = random.pick(COMPOSABLE_LEAKS);
 
-          const rules = rulesOf(detector.path, sensitive);
+      const steps = Array.from({ length: random.between(1, 4) }, () =>
+        random.pick(leak.encoders)
+      );
 
-          if (!detector.covers.every((rule) => rules.includes(rule))) {
-            missed.push(`${encoder.name}/${name}: ${sensitive}`);
-          }
+      const wrapper =
+        leak.wrappers.length === 0 || random.between(1, 2) === 1
+          ? undefined
+          : random.pick(leak.wrappers);
 
-          const harmless = encoder.encode(detector.harmless(random));
+      const names = [...steps, ...(wrapper === undefined ? [] : [wrapper])]
+        .map((step) => step.name)
+        .join(" > ");
 
-          if (rulesOf(detector.path, harmless).length > 0) {
-            noisy.push(`${encoder.name}/${name}: ${harmless}`);
-          }
+      const sensitive = compose(leak.value(random), steps, wrapper);
 
-          cases += 1;
-        }
+      const rules = rulesOf(leak.path, leak.document(sensitive));
+
+      if (!leak.rules.every((rule) => rules.includes(rule))) {
+        missed.push(
+          `seed ${COMPOSED_SEED} case ${index} ${leak.name} [${names}]: ${sensitive}`
+        );
+      }
+
+      const twinStepNames = steps.filter((step) => step.name !== "tag-between");
+
+      const twin = compose(
+        leak.twin(random),
+        twinStepNames,
+        wrapper?.name === "href-attribute" ? wrapper : undefined
+      );
+
+      if (rulesOf(leak.path, leak.twinDocument(twin)).length > 0) {
+        noisy.push(
+          `seed ${COMPOSED_SEED} case ${index} ${leak.name} [${names}]: ${twin}`
+        );
       }
     }
 
-    expect(cases).toBeGreaterThanOrEqual(600);
-
     expect({ missed, noisy }).toEqual({ missed: [], noisy: [] });
-  }, 120_000);
+  }, 240_000);
 
   it("reads a leak through a decoder that runs to a fixed point", () => {
-    expect(decodeText("%26%2364%3B").text).toBe("@");
+    expect(decodeText("%26%2364%3B").text.text).toBe("@");
 
-    expect(decodeText("GB82<br>WEST").text).toBe("GB82 WEST");
+    expect(decodeText("GB82<br>WEST").text.text).toBe("GB82WEST");
 
-    expect(decodeText("\\u0040").text).toBe("@");
+    expect(decodeText("\\u0040").text.text).toBe("@");
+
+    expect(decodeText(decodeText(VERIFIER_IBAN).text.text).settled).toBe(true);
   });
 });
 

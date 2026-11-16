@@ -47,7 +47,7 @@ describe("planted personal data fails", () => {
     expect(
       ruleOf(
         "apps/cli/src/accounts.ts",
-        'const iban = "GB00DEMO12345678901234";'
+        'const iban = "GB82WEST12345698765432";'
       )
     ).toEqual(["iban"]);
   });
@@ -95,9 +95,61 @@ describe("planted personal data fails", () => {
     expect(
       lineOf(
         "apps/cli/src/accounts.ts",
-        'const empty = null;\nconst iban = "GB00DEMO12345678901234";'
+        'const empty = null;\nconst iban = "GB82WEST12345698765432";'
       )
     ).toEqual([2]);
+  });
+});
+
+describe("a leak the verifier wrote by hand is reported", () => {
+  const planted = "Xk3Qw9Zt5Lb7Nc2Md4Pf6Rg8Sh1Vj0Wa3Ye5Ui7a";
+
+  it("reads a mailbox inside a percent-encoded contact link", () => {
+    expect(
+      ruleOf(
+        "docs/payments.md",
+        '<a href="mailto:demo.person%40mailhost.co.uk">contact</a>'
+      )
+    ).toEqual(["email"]);
+  });
+
+  it("reads an IBAN written as a form field with plus signs", () => {
+    expect(
+      ruleOf("docs/payments.md", "iban=GB82+WEST+1234+5698+7654+32")
+    ).toEqual(["iban"]);
+  });
+
+  it("reads bank details written as form fields with plus signs", () => {
+    expect(
+      ruleOf("docs/payments.md", "sort_code=23+45+67&account_number=98765432")
+    ).toEqual(["bank-account"]);
+  });
+
+  it("reads an IBAN split by a multiline tag with an attribute", () => {
+    expect(
+      ruleOf(
+        "docs/payments.md",
+        'GB82 WEST 1234<br\n class="bank">5698 7654 32'
+      )
+    ).toEqual(["iban"]);
+  });
+
+  it("reads a block scalar under a quoted YAML key", () => {
+    expect(
+      ruleOf(
+        "apps/infra/wrangler.yaml",
+        `"CLOUDFLARE_API_TOKEN": |-\n  ${planted}`
+      )
+    ).toEqual(["secret-block-scalar"]);
+  });
+
+  it("reads a block scalar under a commented key with an indentation indicator", () => {
+    expect(
+      ruleOf(
+        "apps/infra/wrangler.yaml",
+        `CLOUDFLARE_API_TOKEN: |2- # demo\n  ${planted}`
+      )
+    ).toEqual(["secret-block-scalar"]);
   });
 });
 
@@ -361,13 +413,13 @@ describe("explicit allowances pass only in the file they name", () => {
     {
       path: testFile,
       reason: "Planted sample in the guard's own test.",
-      value: "GB00DEMO12345678901234",
+      value: "GB82WEST12345698765432",
     },
   ]);
 
   it("passes on the value inside the file the allow list names", () => {
     expect(
-      ruleOf(testFile, 'const iban = "GB00DEMO12345678901234";', allow)
+      ruleOf(testFile, 'const iban = "GB82WEST12345698765432";', allow)
     ).toEqual([]);
   });
 
@@ -375,7 +427,7 @@ describe("explicit allowances pass only in the file they name", () => {
     expect(
       ruleOf(
         "apps/cli/src/accounts.ts",
-        'const iban = "GB00DEMO12345678901234";',
+        'const iban = "GB82WEST12345698765432";',
         allow
       )
     ).toEqual(["iban"]);
@@ -383,11 +435,7 @@ describe("explicit allowances pass only in the file they name", () => {
 
   it("fails on the same rule when the value is not the allowed one", () => {
     expect(
-      ruleOf(
-        testFile,
-        `const iban = "${"GB00DEMO12345678901234".replace("DEMO", "OTHR")}";`,
-        allow
-      )
+      ruleOf(testFile, 'const iban = "DE89370400440532013000";', allow)
     ).toEqual(["iban"]);
   });
 
@@ -421,7 +469,7 @@ describe("explicit allowances pass only in the file they name", () => {
     };
 
     expect(
-      ruleOf("pnpm-lock.yaml", 'resolution: "GB00DEMO12345678901234"', skipped)
+      ruleOf("pnpm-lock.yaml", 'resolution: "GB82WEST12345698765432"', skipped)
     ).toEqual([]);
   });
 });
