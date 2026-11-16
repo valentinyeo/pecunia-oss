@@ -2,14 +2,17 @@
 set -euo pipefail
 
 SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
+VERDICT="$SCRIPT_DIR/verdict.mjs"
+TABLE="$SCRIPT_DIR/step-table.json"
+FEATURES_DIR="$SCRIPT_DIR/../features"
 REPO_ROOT=$(cd -- "$SCRIPT_DIR/../../.." && pwd)
 EVIDENCE_ROOT="$REPO_ROOT/skills/verify-pecunia/evidence"
-FEATURES=(accounts-and-bank-lines categories-and-rules dashboard-sums subscriptions investments fx-conversion tax invoices)
+source "$SCRIPT_DIR/lib/steps.sh"
+
+mapfile -t FEATURES < <(node "$VERDICT" features)
 FEATURE=all
 LABEL_ARG=
 LIST_STEPS=0
-IMPORT_FEATURES=" all accounts-and-bank-lines "
-source "$SCRIPT_DIR/lib/steps.sh"
 
 fence_failure() {
   printf '%s. Fix: %s.\n' "$1" "$2" >&2
@@ -19,7 +22,7 @@ fence_failure() {
 while [ "$#" -gt 0 ]; do
   case "$1" in
     --feature)
-      [ "$#" -ge 2 ] || fence_failure "The flag --feature needs a value" "pass one of all ${FEATURES[*]}"
+      [ "$#" -ge 2 ] || fence_failure "The flag --feature needs a value" "pass one of ${FEATURES[*]}"
       FEATURE=$2
       shift 2
       ;;
@@ -38,7 +41,7 @@ while [ "$#" -gt 0 ]; do
       shift
       ;;
     --help)
-      printf 'Usage: %s [--feature <%s|all>] [--label <name>] [--evidence-root <dir>] [--list-steps]\n' "$0" "${FEATURES[*]}"
+      printf 'Usage: %s [--feature <%s>] [--label <name>] [--evidence-root <dir>] [--list-steps]\n' "$0" "$(printf '%s|' "${FEATURES[@]}" | sed 's/|$//')"
       exit 0
       ;;
     *)
@@ -47,32 +50,18 @@ while [ "$#" -gt 0 ]; do
   esac
 done
 
-if [ "$FEATURE" != all ]; then
-  known=0
-  for candidate in "${FEATURES[@]}"; do
-    [ "$candidate" = "$FEATURE" ] && known=1
-  done
-  [ "$known" -eq 1 ] || fence_failure "The feature $FEATURE has no page in the feature map" "pass one of all ${FEATURES[*]}"
-fi
-
-steps_declare_table() {
-  case "$FEATURE" in
-    all) steps_declare seed log seed; steps_declare build log build; steps_declare feature-map checks map; steps_declare generic checks ""; steps_declare accounts-and-bank-lines checks bank-import; steps_declare categories-and-rules checks ""; steps_declare dashboard-sums checks ""; steps_declare subscriptions checks ""; steps_declare investments checks ""; steps_declare fx-conversion checks ""; steps_declare tax checks ""; steps_declare invoices checks "" ;;
-    accounts-and-bank-lines) steps_declare seed log seed; steps_declare build log build; steps_declare feature-map checks map; steps_declare generic checks ""; steps_declare accounts-and-bank-lines checks bank-import ;;
-    *) steps_declare seed log seed; steps_declare feature-map checks map; steps_declare generic checks ""; steps_declare "$FEATURE" checks "" ;;
-  esac
-}
+known=0
+for candidate in "${FEATURES[@]}"; do
+  [ "$candidate" = "$FEATURE" ] && known=1
+done
+[ "$known" -eq 1 ] || fence_failure "The feature $FEATURE has no page in the feature map" "pass one of ${FEATURES[*]}"
 
 if [ "$LIST_STEPS" -eq 1 ]; then
-  steps_declare_table
-  steps_list
+  node "$VERDICT" list --feature "$FEATURE"
   exit 0
 fi
 
-steps_declare_table
-
 LABEL=${LABEL_ARG:-$FEATURE}
-LABEL_FLAG=" --label $LABEL"
 RUN_DATE=$(date -u +%Y-%m-%d)
 EVIDENCE_DIR="$EVIDENCE_ROOT/$RUN_DATE-$LABEL"
 PROOF_PATH="$EVIDENCE_DIR/PROOF.md"
@@ -92,14 +81,20 @@ BUILD_LOG="$SCRATCH/build.log"
 MAP_LOG="$SCRATCH/feature-map.log"
 DRIVE_JSON="$SCRATCH/bank-import-drive.json"
 BUILD_COMMAND="pnpm turbo run build --filter=@pecunia/bank-import..."
-ACTIVE_FEATURE=all
-
-steps_init "$SCRATCH/steps"
-
+BUILD_LINES_COMMAND="pnpm turbo run build --filter=@pecunia/bank-lines..."
+SEED_COMMAND="pnpm --filter @pecunia/database db:seed:demo $DATABASE"
 cleanup() {
   rm -rf "$SCRATCH"
 }
 trap cleanup EXIT
+
+steps_init "$SCRATCH/steps" "$FEATURE"
+steps_meta branch "$(git -C "$REPO_ROOT" rev-parse --abbrev-ref HEAD)"
+steps_meta commit "$(git -C "$REPO_ROOT" rev-parse --short HEAD)"
+steps_meta node "$(node --version)"
+steps_meta seedCommand "$SEED_COMMAND"
+steps_meta buildCommand "$BUILD_COMMAND"
+steps_meta buildLinesCommand "$BUILD_LINES_COMMAND"
 
 sql() {
   sqlite3 -json "$DATABASE" "$1"
@@ -109,8 +104,26 @@ value() {
   sql "$1" | jq -r '(.[0] // {}) | to_entries[0].value // ""'
 }
 
+step_seed() {
+  printf 'Seeding the demo book into %s\n' "$DATABASE"
+  steps_run_command seed pnpm --filter @pecunia/database db:seed:demo "$DATABASE" > "$SEED_LOG" 2>&1
+  if [ "$(steps_command_exit seed)" != 0 ]; then
+    cat "$SEED_LOG" >&2
+  fi
+  steps_require_file seed-log "$SEED_LOG"
+  steps_require_file demo-book "$DATABASE"
+}
+
+step_build() {
+  steps_run_command build-import pnpm turbo run build --filter=@pecunia/bank-import... > "$BUILD_LOG" 2>&1
+  steps_run_command build-lines pnpm turbo run build --filter=@pecunia/bank-lines... >> "$BUILD_LOG" 2>&1
+  if [ "$(steps_command_exit build-import)" != 0 ] || [ "$(steps_command_exit build-lines)" != 0 ]; then
+    cat "$BUILD_LOG" >&2
+  fi
+  steps_require_file build-log "$BUILD_LOG"
+}
+
 step_feature_map() {
-  ACTIVE_FEATURE=all
   local map_line unnamed unexported planned mismatched problems exit_status
   map_line=$(steps_run_command map node "$SCRIPT_DIR/check-feature-map.mjs" 2> "$MAP_LOG")
   if [ -s "$MAP_LOG" ]; then
@@ -119,12 +132,11 @@ step_feature_map() {
   read -r unnamed unexported planned mismatched <<< "$(printf '%s\n' "$map_line" | sed -E 's/^SUMMARY unnamed=([0-9]+) unexported=([0-9]+) planned=([0-9]+) status=([0-9]+).*/\1 \2 \3 \4/')"
   check feature-map-matches-capabilities "Every capability is on a feature page or declared not money" "0 unnamed, 0 unexported, 0 planned with a capability, 0 status mismatches" "${unnamed:-missing} unnamed, ${unexported:-missing} unexported, ${planned:-missing} planned with a capability, ${mismatched:-missing} status mismatches"
   problems=$(printf '%s\n' "$map_line" | sed -E 's/^SUMMARY .* problems=([0-9]+).*/\1/')
-  exit_status=$(steps_command_status map)
+  exit_status=$(steps_command_exit map)
   check feature-map-reports-no-problems "The map check counts every problem it prints and exits non-zero for each" "problems=0 exit=0" "problems=${problems:-missing} exit=${exit_status:-missing}"
 }
 
 step_generic() {
-  ACTIVE_FEATURE=all
   local wrong_declarations=0 wrong_storage=0 money_columns=0 currency_columns=0 wrong_currency=0
   local table name declaration rows
 
@@ -169,7 +181,6 @@ step_generic() {
 }
 
 step_accounts_and_bank_lines() {
-  ACTIVE_FEATURE=accounts-and-bank-lines
   local cross_profile duplicates labels runs written failed_tag rejects
   cross_profile=$(value "SELECT COUNT(*) AS total FROM transactions t JOIN provider_accounts a ON a.id = t.provider_account_id WHERE a.profile_id <> t.profile_id")
   duplicates=$(value "SELECT COUNT(*) AS total FROM (SELECT provider_account_id, external_id FROM transactions GROUP BY provider_account_id, external_id HAVING COUNT(*) > 1)")
@@ -189,6 +200,7 @@ step_accounts_and_bank_lines() {
 
   local listed imported replayed broken unknown
   steps_run_command bank-import node "$SCRIPT_DIR/drive-bank-import.mjs" --database "$DATABASE" > "$DRIVE_JSON"
+  steps_keep_artifact bank-import-drive.json "$DRIVE_JSON"
   if [ ! -s "$DRIVE_JSON" ]; then
     check import-drive-writes-observations "The bank import drive writes its observations" "observations" "none"
     return 0
@@ -206,8 +218,75 @@ step_accounts_and_bank_lines() {
   check import-refuses-unknown-account "An import refuses an account the profile does not hold" ImportAccountNotFound "$unknown"
 }
 
+step_bank_line_list() {
+  local drive=$SCRATCH/bank-line-list-drive.json
+  steps_run_command bank-line-list node "$SCRIPT_DIR/drive-bank-lines.mjs" --capability list > "$drive"
+  steps_keep_artifact bank-line-list-drive.json "$drive"
+  if [ ! -s "$drive" ]; then
+    check bank-line-list-drive-writes-observations "The listing drive writes its observations" "observations" "none"
+    return 0
+  fi
+
+  local total demo awaiting ordered filtered filtered_out page_one page_two overlap
+  total=$(jq -r '.total' "$drive")
+  demo=$(jq -r '.demoLines' "$drive")
+  awaiting=$(jq -r '.awaiting' "$drive")
+  ordered=$(jq -r '.ordered' "$drive")
+  filtered=$(jq -r '.filtered.count' "$drive")
+  filtered_out=$(jq -r '.filtered.allOut' "$drive")
+  page_one=$(jq -r '.pages.first' "$drive")
+  page_two=$(jq -r '.pages.second' "$drive")
+  overlap=$(jq -r '.pages.overlap' "$drive")
+
+  check bank-line-list-returns-the-demo-book "The listing capability returns every demo line" "$demo lines from $demo demo lines, 2 awaiting review" "$total lines from $demo demo lines, $awaiting awaiting review"
+  check bank-line-list-orders-newest-first "The listing capability orders lines newest first" "newest first" "$ordered"
+  check bank-line-list-filters-by-direction "A direction filter returns only lines in that direction" "out only, every filtered line is out, 8 lines" "out only, every filtered line is out, $filtered lines"
+  check bank-line-list-pages-without-repeats "Keyset paging never repeats a line" "5 + 5 lines, 0 repeats" "$page_one + $page_two lines, $overlap repeats"
+}
+
+step_bank_line_edit() {
+  local drive=$SCRATCH/bank-line-edit-drive.json
+  steps_run_command bank-line-edit node "$SCRIPT_DIR/drive-bank-lines.mjs" --capability edit > "$drive"
+  steps_keep_artifact bank-line-edit-drive.json "$drive"
+  if [ ! -s "$drive" ]; then
+    check bank-line-edit-drive-writes-observations "The edit drive writes its observations" "observations" "none"
+    return 0
+  fi
+
+  local category note kept unknown_line unknown_category
+  category=$(jq -r '.edited.category' "$drive")
+  note=$(jq -r '.edited.note' "$drive")
+  kept=$(jq -r '.edited.profileKept' "$drive")
+  unknown_line=$(jq -r '.unknownLine' "$drive")
+  unknown_category=$(jq -r '.unknownCategory' "$drive")
+
+  check bank-line-edit-sets-category-and-note "The edit capability writes the category and the note" "category set, note set" "$category, $note"
+  check bank-line-edit-keeps-the-line-in-its-profile "The edit returns the same line in the same profile" "true" "$kept"
+  check bank-line-edit-refuses-an-unknown-line "An edit of a missing line is refused by name" UnknownBankLine "$unknown_line"
+  check bank-line-edit-refuses-a-foreign-category "An edit to a category outside the profile is refused by name" UnknownCategory "$unknown_category"
+}
+
+step_bank_line_review() {
+  local drive=$SCRATCH/bank-line-review-drive.json
+  steps_run_command bank-line-review node "$SCRIPT_DIR/drive-bank-lines.mjs" --capability review > "$drive"
+  steps_keep_artifact bank-line-review-drive.json "$drive"
+  if [ ! -s "$drive" ]; then
+    check bank-line-review-drive-writes-observations "The review drive writes its observations" "observations" "none"
+    return 0
+  fi
+
+  local tag at listed viewer
+  tag=$(jq -r '.reviewed.tag' "$drive")
+  at=$(jq -r '.reviewed.at' "$drive")
+  listed=$(jq -r '.reviewed.listed' "$drive")
+  viewer=$(jq -r '.viewer' "$drive")
+
+  check bank-line-review-marks-the-line "The review capability marks the line reviewed" "Reviewed at a recorded time" "$tag at $at"
+  check bank-line-review-shows-in-the-list "The reviewed line reads back from the listing capability" Reviewed "$listed"
+  check bank-line-review-refuses-a-viewer "A read-only member cannot review a line" Forbidden "$viewer"
+}
+
 step_categories_and_rules() {
-  ACTIVE_FEATURE=categories-and-rules
   local wrong_category wrong_classification wrong_target wrong_alias swept
   wrong_category=$(value "SELECT COUNT(*) AS total FROM transactions t JOIN rules r ON r.id = t.applied_rule_id WHERE r.kind <> 'categorize' OR r.category_id IS NOT t.category_id")
   wrong_classification=$(value "SELECT COUNT(*) AS total FROM transactions t JOIN rules r ON r.id = t.classification_rule_id WHERE (CASE r.kind WHEN 'exclude' THEN 'excluded' WHEN 'income_client' THEN 'income' ELSE r.kind END) <> t.classification")
@@ -223,7 +302,6 @@ step_categories_and_rules() {
 }
 
 step_dashboard_sums() {
-  ACTIVE_FEATURE=dashboard-sums
   local business spend income transfers excluded pending cloud software lines
   business=$(value "SELECT id AS id FROM profiles WHERE kind = 'business'")
   spend=$(value "SELECT COALESCE(SUM(base_minor), 0) AS total FROM transactions WHERE profile_id = '$business' AND status = 'posted' AND direction = 'out' AND classification = 'none'")
@@ -246,7 +324,6 @@ step_dashboard_sums() {
 }
 
 step_subscriptions() {
-  ACTIVE_FEATURE=subscriptions
   local active missing cancelled annual
   active=$(value "SELECT COUNT(*) AS total FROM subscriptions WHERE status IN ('confirmed', 'detected')")
   missing=$(value "SELECT COUNT(*) AS total FROM subscriptions WHERE status IN ('confirmed', 'detected') AND frequency NOT IN ('weekly', 'monthly', 'quarterly', 'annual')")
@@ -260,7 +337,6 @@ step_subscriptions() {
 }
 
 step_investments() {
-  ACTIVE_FEATURE=investments
   local priced pending known exact platforms
   priced=$(value "SELECT group_concat(name || ' value=' || (quantity_micros * last_price_minor / 1000000) || ' gain=' || (quantity_micros * last_price_minor / 1000000 - cost_basis_minor), '; ') AS priced FROM (SELECT * FROM holdings WHERE last_price_minor IS NOT NULL ORDER BY name)")
   pending=$(value "SELECT COUNT(*) AS total FROM holdings WHERE state = 'pending' AND last_price_minor IS NULL")
@@ -276,7 +352,6 @@ step_investments() {
 }
 
 step_fx_conversion() {
-  ACTIVE_FEATURE=fx-conversion
   local conversions rounding same_currency months
   conversions=$(value "SELECT group_concat(external_id || ' ' || source_minor || ' ' || source_currency || ' -> ' || base_minor || ' ' || base_currency || ' at ' || rate, '; ') AS conversions FROM (SELECT * FROM transactions WHERE source_currency <> base_currency ORDER BY occurred_at)")
   rounding=$(value "SELECT COUNT(*) AS total FROM transactions WHERE source_currency <> base_currency AND abs(base_minor - round(source_minor * rate)) > 0")
@@ -290,7 +365,6 @@ step_fx_conversion() {
 }
 
 step_tax() {
-  ACTIVE_FEATURE=tax
   local settlement orphans paid unpaid tax_year
   settlement=$(value "SELECT COUNT(*) AS total FROM tax_obligations o JOIN transactions t ON t.id = o.settled_transaction_id WHERE o.status = 'paid' AND (o.amount_minor <> t.base_minor OR o.amount_currency <> t.base_currency OR t.classification <> 'tax_payment')")
   orphans=$(value "SELECT COUNT(*) AS total FROM tax_obligations WHERE status <> 'paid' AND settled_transaction_id IS NOT NULL")
@@ -306,7 +380,6 @@ step_tax() {
 }
 
 step_invoices() {
-  ACTIVE_FEATURE=invoices
   local wrong_amount exception unarchived archived vendors
   wrong_amount=$(value "SELECT COUNT(*) AS total FROM invoice_documents d JOIN transactions t ON t.id = d.transaction_id WHERE d.amount_minor <> t.base_minor OR d.amount_currency <> t.base_currency")
   exception=$(value "SELECT t.base_minor || ' documents=' || (SELECT COUNT(*) FROM invoice_documents d WHERE d.transaction_id = e.transaction_id) AS detail FROM invoice_exceptions e JOIN transactions t ON t.id = e.transaction_id")
@@ -323,112 +396,16 @@ step_invoices() {
   check invoice-archive-states "Every archive state carries the columns it promises" 0 "$archive_states"
 }
 
-step_seed() {
-  printf 'Seeding the demo book into %s\n' "$DATABASE"
-  steps_run_command seed pnpm --filter @pecunia/database db:seed:demo "$DATABASE" > "$SEED_LOG" 2>&1
-  if [ "$(steps_command_status seed)" != 0 ]; then
-    cat "$SEED_LOG" >&2
-    fence_failure "The demo seed failed" "run \`pnpm --filter @pecunia/database db:seed:demo /tmp/demo.sqlite\` and fix the failure it prints"
+mapfile -t PLANNED < <(node "$VERDICT" plan --feature "$FEATURE")
+
+for planned_step in "${PLANNED[@]}"; do
+  steps_run_step "$planned_step"
+  if [ "$planned_step" = seed ]; then
+    steps_meta demoBookSha256 "$(sha256sum "$DATABASE" 2>/dev/null | cut -d' ' -f1 || true)"
+    steps_meta seedRows "$(grep -E ': [0-9]+ rows$' "$SEED_LOG" | sed -E 's/^.*INFO \([^)]*\): //' || true)"
   fi
-  steps_require_file "$SEED_LOG"
-  steps_require_file "$DATABASE"
-}
+done
 
-step_build() {
-  steps_run_command build pnpm turbo run build --filter=@pecunia/bank-import... > "$BUILD_LOG" 2>&1
-  if [ "$(steps_command_status build)" != 0 ]; then
-    cat "$BUILD_LOG" >&2
-    fence_failure "The bank import packages did not build" "run `$BUILD_COMMAND` and fix the failure it prints"
-  fi
-  steps_require_file "$BUILD_LOG"
-}
-
-steps_run_step seed
-SEED_COMMAND="pnpm --filter @pecunia/database db:seed:demo $DATABASE"
-SEED_ROWS=$(grep -E ': [0-9]+ rows$' "$SEED_LOG" | sed -E 's/^.*INFO \([^)]*\): //' || true)
-DEMO_SHA=$(sha256sum "$DATABASE" | cut -d' ' -f1)
-BRANCH=$(git -C "$REPO_ROOT" rev-parse --abbrev-ref HEAD)
-COMMIT=$(git -C "$REPO_ROOT" rev-parse --short HEAD)
-
-case "$IMPORT_FEATURES" in
-  *" $FEATURE "*) steps_run_step build ;;
-esac
-
-steps_run_step feature-map
-steps_run_step generic
-if [ "$FEATURE" = all ]; then
-  for candidate in "${FEATURES[@]}"; do
-    steps_run_step "$candidate"
-  done
-else
-  steps_run_step "$FEATURE"
-fi
-
-if steps_finish; then
-  VERDICT_STATUS=0
-else
-  VERDICT_STATUS=1
-fi
-
-mkdir -p "$EVIDENCE_DIR"
-if [ -s "$DRIVE_JSON" ]; then
-  cp "$DRIVE_JSON" "$EVIDENCE_DIR/bank-import-drive.json"
-fi
-
-{
-  printf '# Verification proof: %s\n\n' "$FEATURE"
-  printf -- '- Run label: `%s`\n' "$LABEL"
-  printf -- '- Run at: %s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
-  printf -- '- Branch: `%s` at `%s`\n' "$BRANCH" "$COMMIT"
-  printf -- '- Node: `%s`\n' "$(node --version)"
-  printf -- '- Demo seed: `%s`\n' "$SEED_COMMAND"
-  printf -- '- Demo book SHA-256: `%s`\n' "$DEMO_SHA"
-  printf -- '- The scratch database is deleted after the run; `proof.json` holds every observation.\n\n' "$DEMO_SHA"
-  printf '## Commands\n\n```sh\n'
-  case "$IMPORT_FEATURES" in
-    *" $FEATURE "*) printf '%s\n' "$BUILD_COMMAND" ;;
-  esac
-  printf '%s\n' "$SEED_COMMAND"
-  printf 'bash skills/verify-pecunia/scripts/prove-demo-book.sh --feature %s%s\n' "$FEATURE" "$LABEL_FLAG"
-  printf 'node skills/verify-pecunia/scripts/replay-proof.mjs --only %s\n' "$LABEL"
-  printf '```\n\n'
-  printf '## Steps\n\n| Step | Exit | Checks |\n| --- | --- | --- |\n'
-  awk -F'\t' '$1 == "step" { print $2 "\t" $3 }' "$STEP_LEDGER" | while IFS=$'\t' read -r step_name step_exit; do
-    step_checks=$(jq -s --arg step "$step_name" '[.[] | select(.step == $step)] | length' "$STEP_RESULTS")
-    printf '| `%s` | %s | %s |\n' "$step_name" "$step_exit" "$step_checks"
-  done
-  printf '\n## Seeded tables\n\n```text\n%s\n```\n\n' "$SEED_ROWS"
-printf '## Checks\n\n| Check | Result | Expected | Observed |\n| --- | --- | --- | --- |\n'
-  jq -r '"| `\(.id)` \(.title) | \(if .passed then "PASS" else "FAIL" end) | `\(.expected)` | `\(.actual)` |"' "$STEP_RESULTS"
-  if [ -s "$DRIVE_JSON" ]; then
-    printf '\n## Bank import drive\n\n`bank-import-drive.json` holds the capability drive: the listed import targets, the first import, the replay, the rejected line, and the refusal for an unknown account.\n'
-  fi
-  printf '\n## Verdict\n\n'
-  if [ "$VERDICT_STATUS" -eq 0 ]; then
-    printf 'PASS: %s steps ran, %s checks held against the seeded demo book.\n' "${#STEP_NAMES[@]}" "$CHECK_TOTAL"
-  else
-    printf 'FAIL: %s problems, %s of %s checks failed.\n' "${#STEP_FAILURES[@]}" "$CHECK_FAILED" "$CHECK_TOTAL"
-  fi
-  printf '\n## What this proves\n\n'
-  printf -- '- The migrations and the demo seed fill a real SQLite database with the demo book.\n'
-  printf -- '- Every money value read back is an integer of minor units with an ISO currency code.\n'
-  printf -- '- The money promises named by the checks hold for the demo data, each asserted against a stated expected value.\n'
-  if [ -s "$DRIVE_JSON" ]; then
-    printf -- '- `listImportTargets` lists the demo bank account and `importBankFile` writes five lines, writes none on a replay, names a rejected line, and refuses an unknown account.\n'
-  fi
-  printf -- '- Every capability implemented in the packages and apps is on a feature page or in the not-money table, and no page marks a feature planned while its capability exists.\n\n'
-  printf '## What this does not prove\n\n'
-  if [ -s "$DRIVE_JSON" ]; then
-    printf -- '- The import capability runs on the package memory ledger against the seeded demo book; a persistent import store and the RPC, MCP, and CLI projections are not exercised.\n'
-    printf -- '- The other money features still have no user surface, so their checks read the demo book at the data layer.\n'
-  else
-    printf -- '- No finance screen, capability, CLI command, or MCP tool reaches this feature, so this run drives the demo book at the data layer.\n'
-    printf -- '- A green run does not prove a new capability reads the same rows the same way; the pull request that adds the surface still needs its own proof.\n'
-  fi
-} > "$PROOF_PATH"
-
-jq -n --arg feature "$FEATURE" --arg branch "$BRANCH" --arg commit "$COMMIT" --arg node_version "$(node --version)" --arg demo_sha "$DEMO_SHA" --arg seed_command "$SEED_COMMAND" --arg ran_at "$(date -u +%Y-%m-%dT%H:%M:%SZ)" --argjson failures "$CHECK_FAILED" --argjson checks_count "$CHECK_TOTAL" --argjson steps "${#STEP_NAMES[@]}" --argjson step_failures "${#STEP_FAILURES[@]}" --slurpfile checks "$STEP_RESULTS" '{feature: $feature, branch: $branch, commit: $commit, node: $node_version, ranAt: $ran_at, seed: {command: $seed_command}, demoBookSha256: $demo_sha, passed: ($step_failures == 0 and $failures == 0), failed: $failures, total: $checks_count, steps: $steps, failedSteps: $step_failures, checks: $checks}' > "$EVIDENCE_DIR/proof.json"
-
-printf '\nProof: %s\n' "$PROOF_PATH"
-steps_verdict
-[ "$VERDICT_STATUS" -eq 0 ]
+VERDICT_STATUS=0
+node "$VERDICT" check --feature "$FEATURE" --label "$LABEL" --records "$STEPS_RECORDS" --evidence "$EVIDENCE_DIR" --table "$TABLE" --features "$FEATURES_DIR" --ran-at "$(date -u +%Y-%m-%dT%H:%M:%SZ)" || VERDICT_STATUS=$?
+exit "$VERDICT_STATUS"

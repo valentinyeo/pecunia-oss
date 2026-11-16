@@ -1,0 +1,150 @@
+{
+  "features": {
+    "all": [
+      "seed",
+      "build",
+      "feature-map",
+      "generic",
+      "accounts-and-bank-lines",
+      "bank-line-list",
+      "bank-line-edit",
+      "bank-line-review",
+      "categories-and-rules",
+      "dashboard-sums",
+      "subscriptions",
+      "investments",
+      "fx-conversion",
+      "tax",
+      "invoices"
+    ],
+    "accounts-and-bank-lines": [
+      "seed",
+      "build",
+      "feature-map",
+      "generic",
+      "accounts-and-bank-lines",
+      "bank-line-list",
+      "bank-line-edit",
+      "bank-line-review"
+    ],
+    "categories-and-rules": [
+      "seed",
+      "feature-map",
+      "generic",
+      "categories-and-rules"
+    ],
+    "dashboard-sums": ["seed", "feature-map", "generic", "dashboard-sums"],
+    "subscriptions": ["seed", "feature-map", "generic", "subscriptions"],
+    "investments": ["seed", "feature-map", "generic", "investments"],
+    "fx-conversion": ["seed", "feature-map", "generic", "fx-conversion"],
+    "tax": ["seed", "feature-map", "generic", "tax"],
+    "invoices": ["seed", "feature-map", "generic", "invoices"]
+  },
+  "steps": [
+    {
+      "id": "seed",
+      "commands": ["seed"],
+      "outputs": ["seed-log", "demo-book"],
+      "artifacts": [],
+      "capabilities": []
+    },
+    {
+      "id": "build",
+      "commands": ["build-import", "build-lines"],
+      "outputs": ["build-log"],
+      "artifacts": [],
+      "capabilities": []
+    },
+    {
+      "id": "feature-map",
+      "commands": ["map"],
+      "outputs": [],
+      "artifacts": [],
+      "capabilities": []
+    },
+    {
+      "id": "generic",
+      "commands": [],
+      "outputs": [],
+      "artifacts": [],
+      "capabilities": []
+    },
+    {
+      "id": "accounts-and-bank-lines",
+      "commands": ["bank-import"],
+      "outputs": [],
+      "artifacts": ["bank-import-drive.json"],
+      "capabilities": ["listImportTargets", "importBankFile"]
+    },
+    {
+      "id": "bank-line-list",
+      "commands": ["bank-line-list"],
+      "outputs": [],
+      "artifacts": ["bank-line-list-drive.json"],
+      "capabilities": ["listBankLines"]
+    },
+    {
+      "id": "bank-line-edit",
+      "commands": ["bank-line-edit"],
+      "outputs": [],
+      "artifacts": ["bank-line-edit-drive.json"],
+      "capabilities": ["editBankLine"]
+    },
+    {
+      "id": "bank-line-review",
+      "commands": ["bank-line-review"],
+      "outputs": [],
+      "artifacts": ["bank-line-review-drive.json"],
+      "capabilities": ["reviewBankLine"]
+    },
+    {
+      "id": "categories-and-rules",
+      "commands": [],
+      "outputs": [],
+      "artifacts": [],
+      "capabilities": []
+    },
+    {
+      "id": "dashboard-sums",
+      "commands": [],
+      "outputs": [],
+      "artifacts": [],
+      "capabilities": []
+    },
+    {
+      "id": "subscriptions",
+      "commands": [],
+      "outputs": [],
+      "artifacts": [],
+      "capabilities": []
+    },
+    {
+      "id": "investments",
+      "commands": [],
+      "outputs": [],
+      "artifacts": [],
+      "capabilities": []
+    },
+    {
+      "id": "fx-conversion",
+      "commands": [],
+      "outputs": [],
+      "artifacts": [],
+      "capabilities": []
+    },
+    {
+      "id": "tax",
+      "commands": [],
+      "outputs": [],
+      "artifacts": [],
+      "capabilities": []
+    },
+    {
+      "id": "invoices",
+      "commands": [],
+      "outputs": [],
+      "artifacts": [],
+      "capabilities": []
+    }
+  ]
+}
