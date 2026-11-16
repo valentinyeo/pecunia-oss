@@ -35,7 +35,7 @@ import {
   TransactionSchema,
   convertedAmounts,
   sameCurrencyAmount,
-  strictParseOptions,
+  strictOptions,
 } from "../../src/model/index.js";
 import type { Holding } from "../../src/model/investment.js";
 import {
@@ -163,14 +163,11 @@ const storedConversion = (minor: number, rate: string) =>
     dateOnly("2024-01-30")
   );
 
-const strictRuleDecoder = Schema.decodeUnknownSync(
-  RuleSchema,
-  strictParseOptions
-);
+const strictRuleDecoder = Schema.decodeUnknownSync(RuleSchema, strictOptions);
 
 const strictTransactionDecoder = Schema.decodeUnknownSync(
   TransactionSchema,
-  strictParseOptions
+  strictOptions
 );
 
 const transactionWire = (
@@ -549,7 +546,7 @@ describe("a transaction carries one amount per currency story", () => {
     };
 
     expect(() =>
-      Schema.decodeUnknownSync(AmountsSchema, strictParseOptions)(tampered)
+      Schema.decodeUnknownSync(AmountsSchema, strictOptions)(tampered)
     ).toThrow();
     expect(() => strictTransactionDecoder(withBase)).toThrow();
   });
@@ -598,7 +595,7 @@ describe("a transaction carries one amount per currency story", () => {
       );
 
       expect(failure).toStrictEqual(
-        new RateOnSameCurrency({ currency: currencyOf("EUR") })
+        RateOnSameCurrency.of({ currency: currencyOf("EUR") })
       );
     })
   );
@@ -673,7 +670,7 @@ describe("the rule union forbids a rule with two targets", () => {
     expect(() =>
       Schema.decodeUnknownSync(
         RuleSchema,
-        strictParseOptions
+        strictOptions
       )(taxPaymentWithoutObligation)
     ).toThrow();
   });

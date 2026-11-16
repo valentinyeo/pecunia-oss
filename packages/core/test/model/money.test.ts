@@ -138,7 +138,7 @@ describe("money arithmetic", () => {
         );
 
         expect(sum).toStrictEqual(
-          new MoneyOverflow({
+          MoneyOverflow.of({
             currency: euro(0).currency,
             left: minorOf(Number.MAX_SAFE_INTEGER),
             operation: "add",
@@ -151,7 +151,7 @@ describe("money arithmetic", () => {
         );
 
         expect(difference).toStrictEqual(
-          new MoneyOverflow({
+          MoneyOverflow.of({
             currency: euro(0).currency,
             left: minorOf(Number.MIN_SAFE_INTEGER),
             operation: "subtract",
@@ -177,7 +177,7 @@ describe("money arithmetic", () => {
           expected > BigInt(Number.MAX_SAFE_INTEGER)
         ) {
           expect(Result.isFailure(sum) && sum.failure).toStrictEqual(
-            new MoneyOverflow({
+            MoneyOverflow.of({
               currency: euro(0).currency,
               left: minorOf(left),
               operation: "add",
@@ -206,7 +206,7 @@ describe("money arithmetic", () => {
         );
 
         expect(failure).toStrictEqual(
-          new CurrencyMismatch({ left: euro(0).currency, right: currency })
+          CurrencyMismatch.of({ left: euro(0).currency, right: currency })
         );
 
         const subtractionFailure = yield* Effect.flip(
@@ -214,7 +214,7 @@ describe("money arithmetic", () => {
         );
 
         expect(subtractionFailure).toStrictEqual(
-          new CurrencyMismatch({ left: currency, right: euro(0).currency })
+          CurrencyMismatch.of({ left: currency, right: euro(0).currency })
         );
       })
   );
@@ -233,7 +233,7 @@ describe("conversion", () => {
         );
 
         expect(failure).toStrictEqual(
-          new RateUnavailable({ from: currency, to: euro(0).currency })
+          RateUnavailable.of({ from: currency, to: euro(0).currency })
         );
       })
   );
@@ -288,7 +288,7 @@ describe("conversion", () => {
       );
 
       expect(failure).toStrictEqual(
-        new ConversionOverflow({
+        ConversionOverflow.of({
           baseCurrency: currencyOf("GBP"),
           currency: currencyOf("USD"),
           minor: large.minor,
@@ -339,7 +339,7 @@ describe("conversion", () => {
     );
 
     expect(Result.isFailure(outcome) && outcome.failure).toStrictEqual(
-      new ConversionInputInvalid({
+      ConversionInputInvalid.of({
         from: currencyOf("USD"),
         reason: "unsafe",
         to: currencyOf("GBP"),
@@ -358,7 +358,7 @@ describe("conversion", () => {
     );
 
     expect(Result.isFailure(outcome) && outcome.failure).toStrictEqual(
-      new ConversionInputInvalid({
+      ConversionInputInvalid.of({
         from: currencyOf("USD"),
         reason: "fractional",
         to: currencyOf("GBP"),

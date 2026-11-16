@@ -12,8 +12,9 @@ import {
   SameCurrencyAmountSchema,
   SyncRunStateSchema,
   TaxObligationStatusSchema,
+  codec,
   sameCurrencyAmount,
-  strictParseOptions,
+  strictOptions,
 } from "../../src/model/index.js";
 import type {
   Amounts,
@@ -72,68 +73,62 @@ const rejectionMessage = (
     ? result.failure.message
     : "the forged value was accepted";
 
-const decodeAmounts = Schema.decodeUnknownResult(
-  AmountsSchema,
-  strictParseOptions
-);
+const decodeAmounts = Schema.decodeUnknownResult(AmountsSchema, strictOptions);
 
-const encodeAmounts = Schema.encodeUnknownResult(
-  AmountsSchema,
-  strictParseOptions
-);
+const encodeAmounts = Schema.encodeUnknownResult(AmountsSchema, strictOptions);
 
 const decodeArchive = Schema.decodeUnknownResult(
   ArchiveStateSchema,
-  strictParseOptions
+  strictOptions
 );
 
 const encodeArchive = Schema.encodeUnknownResult(
   ArchiveStateSchema,
-  strictParseOptions
+  strictOptions
 );
 
 const decodeCategorization = Schema.decodeUnknownResult(
   CategorizationSchema,
-  strictParseOptions
+  strictOptions
 );
 
 const encodeCategorization = Schema.encodeUnknownResult(
   CategorizationSchema,
-  strictParseOptions
+  strictOptions
 );
 
 const decodeClassification = Schema.decodeUnknownResult(
   ClassificationSchema,
-  strictParseOptions
+  strictOptions
 );
 
 const encodeClassification = Schema.encodeUnknownResult(
   ClassificationSchema,
-  strictParseOptions
+  strictOptions
 );
 
 const decodeObligation = Schema.decodeUnknownResult(
   TaxObligationStatusSchema,
-  strictParseOptions
+  strictOptions
 );
 
 const encodeObligation = Schema.encodeUnknownResult(
   TaxObligationStatusSchema,
-  strictParseOptions
+  strictOptions
 );
 
-const decodeRule = Schema.decodeUnknownResult(RuleSchema, strictParseOptions);
+const decodeRule = Schema.decodeUnknownResult(RuleSchema, strictOptions);
 
-const encodeRule = Schema.encodeUnknownResult(RuleSchema, strictParseOptions);
+const encodeRule = Schema.encodeUnknownResult(RuleSchema, strictOptions);
 
 const decodeSyncRun = Schema.decodeUnknownResult(
   SyncRunStateSchema,
-  strictParseOptions
+  strictOptions
 );
 
 const encodeSyncRun = Schema.encodeUnknownResult(
   SyncRunStateSchema,
-  strictParseOptions
+  strictOptions
 );
 
 const ruleWire = () =>
@@ -378,7 +373,7 @@ describe("a rule holds exactly one target", () => {
   it("rejects a categorize rule that also carries a client payee", () => {
     expect(
       rejectionMessage(
-        Schema.decodeUnknownResult(RuleSchema)({
+        codec(RuleSchema).decode({
           ...ruleWire(),
           categoryId,
           clientPayeeId: payeeId,
@@ -389,9 +384,9 @@ describe("a rule holds exactly one target", () => {
   });
 
   it("rejects encoding a categorize rule with a client payee", () => {
-    expect(
-      rejectionMessage(Schema.encodeUnknownResult(RuleSchema)(forgedRule))
-    ).toContain("clientPayeeId");
+    expect(rejectionMessage(codec(RuleSchema).encode(forgedRule))).toContain(
+      "clientPayeeId"
+    );
   });
 });
 
@@ -399,7 +394,7 @@ describe("a categorization holds exactly one category story", () => {
   it("rejects an uncategorized row that carries a category", () => {
     expect(
       rejectionMessage(
-        Schema.decodeUnknownResult(CategorizationSchema)({
+        codec(CategorizationSchema).decode({
           ...noneCategorizationWire,
           categoryId,
         })
@@ -409,9 +404,7 @@ describe("a categorization holds exactly one category story", () => {
 
   it("rejects encoding an uncategorized row with a category", () => {
     expect(
-      rejectionMessage(
-        Schema.encodeUnknownResult(CategorizationSchema)(forgedCategorization)
-      )
+      rejectionMessage(codec(CategorizationSchema).encode(forgedCategorization))
     ).toContain("categoryId");
   });
 });
@@ -420,7 +413,7 @@ describe("a classification holds exactly one target", () => {
   it("rejects an unclassified row that carries a client payee", () => {
     expect(
       rejectionMessage(
-        Schema.decodeUnknownResult(ClassificationSchema)({
+        codec(ClassificationSchema).decode({
           ...noneClassificationWire,
           clientPayeeId: payeeId,
         })
@@ -430,16 +423,14 @@ describe("a classification holds exactly one target", () => {
 
   it("rejects encoding an unclassified row with a client payee", () => {
     expect(
-      rejectionMessage(
-        Schema.encodeUnknownResult(ClassificationSchema)(forgedClassification)
-      )
+      rejectionMessage(codec(ClassificationSchema).encode(forgedClassification))
     ).toContain("clientPayeeId");
   });
 
   it("rejects an unclassified row that carries a rule", () => {
     expect(
       rejectionMessage(
-        Schema.decodeUnknownResult(ClassificationSchema)({
+        codec(ClassificationSchema).decode({
           ...noneClassificationWire,
           ruleId,
         })
@@ -448,13 +439,12 @@ describe("a classification holds exactly one target", () => {
   });
 
   it("rejects encoding an unclassified row with a rule", () => {
+    const forged: Classification = structuredClone(noneClassification);
+
+    Object.assign(forged, { ruleId });
+
     expect(
-      rejectionMessage(
-        Schema.encodeUnknownResult(ClassificationSchema)({
-          ...noneClassification,
-          ruleId,
-        })
-      )
+      rejectionMessage(codec(ClassificationSchema).encode(forged))
     ).toContain("ruleId");
   });
 });
@@ -463,7 +453,7 @@ describe("an amount holds exactly one currency story", () => {
   it("rejects a same-currency amount that carries a conversion", () => {
     expect(
       rejectionMessage(
-        Schema.decodeUnknownResult(AmountsSchema)({
+        codec(AmountsSchema).decode({
           ...sameCurrencyWire,
           base: moneyOf("EUR", 1000),
         })
@@ -473,7 +463,7 @@ describe("an amount holds exactly one currency story", () => {
 
   it("rejects encoding a same-currency amount with a conversion", () => {
     expect(
-      rejectionMessage(Schema.encodeUnknownResult(AmountsSchema)(forgedAmounts))
+      rejectionMessage(codec(AmountsSchema).encode(forgedAmounts))
     ).toContain("base");
   });
 });
@@ -526,7 +516,7 @@ describe("a tax obligation holds exactly one settlement story", () => {
   it("rejects an estimated obligation that carries a settlement", () => {
     expect(
       rejectionMessage(
-        Schema.decodeUnknownResult(TaxObligationStatusSchema)({
+        codec(TaxObligationStatusSchema).decode({
           ...estimatedObligationWire,
           settledBy: transactionId,
         })
@@ -537,7 +527,7 @@ describe("a tax obligation holds exactly one settlement story", () => {
   it("rejects encoding an estimated obligation with a settlement", () => {
     expect(
       rejectionMessage(
-        Schema.encodeUnknownResult(TaxObligationStatusSchema)(forgedObligation)
+        codec(TaxObligationStatusSchema).encode(forgedObligation)
       )
     ).toContain("settledBy");
   });
@@ -547,7 +537,7 @@ describe("a sync run holds exactly one progress story", () => {
   it("rejects a running sync that carries final counts", () => {
     expect(
       rejectionMessage(
-        Schema.decodeUnknownResult(SyncRunStateSchema)({
+        codec(SyncRunStateSchema).decode({
           ...runningSyncWire,
           counts: { imported: 1, rejected: 0, skipped: 0 },
         })
@@ -557,9 +547,7 @@ describe("a sync run holds exactly one progress story", () => {
 
   it("rejects encoding a running sync with final counts", () => {
     expect(
-      rejectionMessage(
-        Schema.encodeUnknownResult(SyncRunStateSchema)(forgedSync)
-      )
+      rejectionMessage(codec(SyncRunStateSchema).encode(forgedSync))
     ).toContain("counts");
   });
 });
@@ -568,7 +556,7 @@ describe("an archive holds exactly one archiving story", () => {
   it("rejects an unarchived document that carries a file id", () => {
     expect(
       rejectionMessage(
-        Schema.decodeUnknownResult(ArchiveStateSchema)({
+        codec(ArchiveStateSchema).decode({
           ...unarchivedWire,
           fileId: "demo-file",
         })
@@ -578,9 +566,7 @@ describe("an archive holds exactly one archiving story", () => {
 
   it("rejects encoding an unarchived document with a file id", () => {
     expect(
-      rejectionMessage(
-        Schema.encodeUnknownResult(ArchiveStateSchema)(forgedArchive)
-      )
+      rejectionMessage(codec(ArchiveStateSchema).encode(forgedArchive))
     ).toContain("fileId");
   });
 });
