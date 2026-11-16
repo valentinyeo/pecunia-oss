@@ -1,5 +1,6 @@
 import { Schema } from "effect";
 
+import { closedError } from "./closed-union.js";
 import { CurrencyCodeSchema, MinorUnitsSchema } from "./primitives.js";
 import { RateSchema, rateText } from "./rate.js";
 
@@ -16,3 +17,5 @@ export class ConversionOverflow extends Schema.TaggedError<
     return `Converting ${this.minor} ${this.currency} at ${rateText(this.rate)} into ${this.baseCurrency} leaves the safe integer range. Fix: convert a smaller amount, or store the amount in ${this.currency}.`;
   }
 }
+
+closedError(ConversionOverflow);

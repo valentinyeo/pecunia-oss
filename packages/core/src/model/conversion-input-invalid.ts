@@ -1,5 +1,6 @@
 import { Schema } from "effect";
 
+import { closedError } from "./closed-union.js";
 import { CurrencyCodeSchema } from "./primitives.js";
 
 export class ConversionInputInvalid extends Schema.TaggedError<
@@ -14,3 +15,5 @@ export class ConversionInputInvalid extends Schema.TaggedError<
     return `Converting ${this.from} into ${this.to} needs whole minor units that a number holds exactly, but this amount is ${this.reason}. Fix: pass a safe integer number of minor units.`;
   }
 }
+
+closedError(ConversionInputInvalid);

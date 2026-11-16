@@ -186,6 +186,17 @@ const strictOptions = (
   onExcessProperty: "error",
 });
 
+const strayIssue = (
+  stray: string,
+  cause: unknown,
+  options: SchemaAST.ParseOptions
+): SchemaIssue.InvalidValue =>
+  new SchemaIssue.InvalidValue(
+    { message: `unexpected field "${stray}"` },
+    cause,
+    options
+  );
+
 const rejectStray =
   (ast: SchemaAST.AST, options: SchemaAST.ParseOptions) =>
   (input: Candidate): Effect.Effect<void, SchemaIssue.Issue> => {
@@ -193,14 +204,55 @@ const rejectStray =
 
     return stray === undefined
       ? Effect.void
-      : Effect.fail(
-          new SchemaIssue.InvalidValue(
-            { message: `unexpected field "${stray}"` },
-            input,
-            options
-          )
-        );
+      : Effect.fail(strayIssue(stray, input, options));
   };
+
+const assertStrayFree = (
+  ast: SchemaAST.AST | undefined,
+  cause: unknown
+): void => {
+  if (ast === undefined || !Predicate.isObject(cause)) {
+    return;
+  }
+
+  const candidate = Schema.decodeSync(CandidateSchema)(cause);
+
+  const stray = strayField(ast, candidate);
+
+  if (stray !== undefined) {
+    throw new Error(`Schema validation failed: unexpected field "${stray}"`, {
+      cause: strayIssue(stray, cause, { onExcessProperty: "error" }),
+    });
+  }
+};
+
+const isCodec = (value: unknown): value is Codec => Schema.isSchema(value);
+
+const closeDoors = (schema: Codec, wrapped: Codec): void => {
+  if (
+    Predicate.hasProperty(schema, "cases") &&
+    Predicate.isObject(schema.cases)
+  ) {
+    Object.assign(wrapped, {
+      cases: Object.fromEntries(
+        Object.entries(schema.cases).flatMap(([tag, member]) =>
+          isCodec(member) ? [[tag, closed(member)]] : []
+        )
+      ),
+    });
+  }
+
+  if (
+    Predicate.hasProperty(schema, "members") &&
+    Array.isArray(schema.members)
+  ) {
+    Object.assign(wrapped, {
+      members: schema.members.flatMap((member) =>
+        isCodec(member) ? [closed(member)] : []
+      ),
+    });
+  }
+};
 
 export const closed = <S extends Codec>(schema: S): S => {
   const encodedAst = Schema.toEncoded(schema).ast;
@@ -265,18 +317,101 @@ export const closed = <S extends Codec>(schema: S): S => {
     value: (
       input: Parameters<S["make"]>[0],
       options?: Parameters<S["make"]>[1]
-    ) => schema.make(input, options),
+    ) => {
+      assertStrayFree(scanAst, input);
+
+      return schema.make(input, options);
+    },
   });
 
-  if (Predicate.hasProperty(schema, "cases")) {
-    Object.assign(wrapped, { cases: schema.cases });
-  }
-
-  if (Predicate.hasProperty(schema, "members")) {
-    Object.assign(wrapped, { members: schema.members });
-  }
+  closeDoors(schema, wrapped);
 
   return wrapped;
+};
+
+type ErrorClass = Codec & {
+  readonly ast: SchemaAST.AST;
+};
+
+interface Factory {
+  readonly make: (input: Candidate) => object;
+}
+
+const isFactory = (value: Codec): value is Codec & Factory =>
+  Predicate.isFunction(value);
+
+export const closedError = <C extends ErrorClass>(errorClass: C): C => {
+  const originalAst = errorClass.ast;
+
+  const original = Schema.make<Codec>(originalAst);
+
+  const inherited = (input: Candidate): object => {
+    if (!isFactory(errorClass)) {
+      throw new TypeError("schema class exposes no make");
+    }
+
+    return errorClass.make(input);
+  };
+
+  const encodedAst = Schema.toEncoded(original).ast;
+
+  const ast = new SchemaAST.Declaration(
+    [originalAst],
+    () => (input, _self, options) => {
+      const decode = () =>
+        fromResult(
+          Schema.decodeUnknownResult(original, strictOptions(options))(input)
+        );
+
+      if (!Predicate.isObject(input)) {
+        return decode();
+      }
+
+      return rejectStray(
+        encodedAst,
+        options
+      )(Schema.decodeSync(CandidateSchema)(input)).pipe(Effect.flatMap(decode));
+    },
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    () => (input, _self, options) => {
+      const encode = () =>
+        fromResult(
+          Schema.encodeUnknownResult(original, strictOptions(options))(input)
+        );
+
+      if (!Predicate.isObject(input)) {
+        return encode();
+      }
+
+      return rejectStray(
+        encodedAst,
+        options
+      )(Schema.decodeSync(CandidateSchema)(input)).pipe(Effect.flatMap(encode));
+    }
+  );
+
+  Object.defineProperty(errorClass, "ast", {
+    configurable: true,
+    enumerable: false,
+    value: ast,
+  });
+
+  Object.defineProperty(errorClass, "make", {
+    configurable: true,
+    enumerable: true,
+    writable: true,
+    value: (input: Candidate): object => {
+      assertStrayFree(encodedAst, input);
+
+      return inherited(input);
+    },
+  });
+
+  return errorClass;
 };
 
 export const closedUnion = <

@@ -1,5 +1,6 @@
 import { Schema } from "effect";
 
+import { closedError } from "./closed-union.js";
 import { CurrencyCodeSchema } from "./primitives.js";
 
 export class CurrencyMismatch extends Schema.TaggedError<
@@ -13,3 +14,5 @@ export class CurrencyMismatch extends Schema.TaggedError<
     return `Cannot combine ${this.left} with ${this.right}. Fix: convert both amounts into one currency with convert().`;
   }
 }
+
+closedError(CurrencyMismatch);

@@ -1,5 +1,6 @@
 import { Schema } from "effect";
 
+import { closedError } from "./closed-union.js";
 import { CurrencyCodeSchema } from "./primitives.js";
 
 export class RateOnSameCurrency extends Schema.TaggedError<
@@ -12,3 +13,5 @@ export class RateOnSameCurrency extends Schema.TaggedError<
     return `A ${this.currency} amount cannot be converted into ${this.currency} with a rate. Fix: store it with SameCurrency and no rate.`;
   }
 }
+
+closedError(RateOnSameCurrency);
