@@ -1,0 +1,818 @@
+{
+  "version": "7",
+  "dialect": "sqlite",
+  "id": "be5324dd-2aee-4c21-a27e-040a821c48f5",
+  "prevIds": ["429e5c08-7e89-4cc6-8db9-a527ca6ff89c"],
+  "ddl": [
+    {
+      "name": "app_setting",
+      "entityType": "tables"
+    },
+    {
+      "name": "investment_platforms",
+      "entityType": "tables"
+    },
+    {
+      "name": "members",
+      "entityType": "tables"
+    },
+    {
+      "name": "profiles",
+      "entityType": "tables"
+    },
+    {
+      "name": "provider_accounts",
+      "entityType": "tables"
+    },
+    {
+      "name": "providers",
+      "entityType": "tables"
+    },
+    {
+      "name": "run_logs",
+      "entityType": "tables"
+    },
+    {
+      "table": "app_setting",
+      "name": "id",
+      "type": "integer",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "app_setting",
+      "name": "locale",
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "app_setting",
+      "name": "primary_profile_id",
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "app_setting",
+      "name": "timezone",
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "app_setting",
+      "name": "updated_at",
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "investment_platforms",
+      "name": "connector",
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "investment_platforms",
+      "name": "enabled",
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": "1",
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "investment_platforms",
+      "name": "id",
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "investment_platforms",
+      "name": "label",
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "members",
+      "name": "created_at",
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "members",
+      "name": "email",
+      "type": "text COLLATE NOCASE",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "members",
+      "name": "id",
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "members",
+      "name": "profile_id",
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "members",
+      "name": "role",
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "profiles",
+      "name": "archived_at",
+      "type": "integer",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "profiles",
+      "name": "base_currency",
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "profiles",
+      "name": "created_at",
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "profiles",
+      "name": "id",
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "profiles",
+      "name": "kind",
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "profiles",
+      "name": "name",
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "provider_accounts",
+      "name": "archived_at",
+      "type": "integer",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "provider_accounts",
+      "name": "created_at",
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "provider_accounts",
+      "name": "credential_key",
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "provider_accounts",
+      "name": "external_id",
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "provider_accounts",
+      "name": "id",
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "provider_accounts",
+      "name": "kind",
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "provider_accounts",
+      "name": "label",
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "provider_accounts",
+      "name": "last_synced_at",
+      "type": "integer",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "provider_accounts",
+      "name": "profile_id",
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "provider_accounts",
+      "name": "provider_id",
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "provider_accounts",
+      "name": "sync_start_date",
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "providers",
+      "name": "enabled",
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": "1",
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "providers",
+      "name": "id",
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "providers",
+      "name": "kind",
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "providers",
+      "name": "label",
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "run_logs",
+      "name": "capability",
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "run_logs",
+      "name": "failure_tag",
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "run_logs",
+      "name": "id",
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "run_logs",
+      "name": "outcome",
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "run_logs",
+      "name": "person_id",
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "run_logs",
+      "name": "recorded_at",
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "members",
+      "name": "members_profile_email_idx",
+      "columns": [
+        {
+          "value": "profile_id",
+          "isExpression": false
+        },
+        {
+          "value": "email",
+          "isExpression": false
+        }
+      ],
+      "isUnique": true,
+      "where": null,
+      "origin": "manual",
+      "entityType": "indexes"
+    },
+    {
+      "table": "members",
+      "name": "members_email_idx",
+      "columns": [
+        {
+          "value": "email",
+          "isExpression": false
+        }
+      ],
+      "isUnique": false,
+      "where": null,
+      "origin": "manual",
+      "entityType": "indexes"
+    },
+    {
+      "table": "profiles",
+      "name": "profiles_name_idx",
+      "columns": [
+        {
+          "value": "name",
+          "isExpression": false
+        }
+      ],
+      "isUnique": true,
+      "where": null,
+      "origin": "manual",
+      "entityType": "indexes"
+    },
+    {
+      "table": "profiles",
+      "name": "profiles_id_base_currency_idx",
+      "columns": [
+        {
+          "value": "id",
+          "isExpression": false
+        },
+        {
+          "value": "base_currency",
+          "isExpression": false
+        }
+      ],
+      "isUnique": true,
+      "where": null,
+      "origin": "manual",
+      "entityType": "indexes"
+    },
+    {
+      "table": "provider_accounts",
+      "name": "provider_accounts_account_idx",
+      "columns": [
+        {
+          "value": "profile_id",
+          "isExpression": false
+        },
+        {
+          "value": "provider_id",
+          "isExpression": false
+        },
+        {
+          "value": "external_id",
+          "isExpression": false
+        }
+      ],
+      "isUnique": true,
+      "where": null,
+      "origin": "manual",
+      "entityType": "indexes"
+    },
+    {
+      "table": "provider_accounts",
+      "name": "provider_accounts_profile_id_idx",
+      "columns": [
+        {
+          "value": "profile_id",
+          "isExpression": false
+        },
+        {
+          "value": "id",
+          "isExpression": false
+        }
+      ],
+      "isUnique": true,
+      "where": null,
+      "origin": "manual",
+      "entityType": "indexes"
+    },
+    {
+      "table": "provider_accounts",
+      "name": "provider_accounts_profile_idx",
+      "columns": [
+        {
+          "value": "profile_id",
+          "isExpression": false
+        }
+      ],
+      "isUnique": false,
+      "where": null,
+      "origin": "manual",
+      "entityType": "indexes"
+    },
+    {
+      "table": "run_logs",
+      "name": "run_logs_person_recent_idx",
+      "columns": [
+        {
+          "value": "person_id",
+          "isExpression": false
+        },
+        {
+          "value": "recorded_at",
+          "isExpression": false
+        },
+        {
+          "value": "id",
+          "isExpression": false
+        }
+      ],
+      "isUnique": false,
+      "where": null,
+      "origin": "manual",
+      "entityType": "indexes"
+    },
+    {
+      "table": "app_setting",
+      "name": "fk_app_setting_primary_profile_id_profiles_id_fk",
+      "columns": ["primary_profile_id"],
+      "tableTo": "profiles",
+      "columnsTo": ["id"],
+      "onUpdate": "NO ACTION",
+      "onDelete": "NO ACTION",
+      "nameExplicit": false,
+      "entityType": "fks"
+    },
+    {
+      "table": "members",
+      "name": "fk_members_profile_id_profiles_id_fk",
+      "columns": ["profile_id"],
+      "tableTo": "profiles",
+      "columnsTo": ["id"],
+      "onUpdate": "NO ACTION",
+      "onDelete": "NO ACTION",
+      "nameExplicit": false,
+      "entityType": "fks"
+    },
+    {
+      "table": "provider_accounts",
+      "name": "fk_provider_accounts_profile_id_profiles_id_fk",
+      "columns": ["profile_id"],
+      "tableTo": "profiles",
+      "columnsTo": ["id"],
+      "onUpdate": "NO ACTION",
+      "onDelete": "NO ACTION",
+      "nameExplicit": false,
+      "entityType": "fks"
+    },
+    {
+      "table": "provider_accounts",
+      "name": "fk_provider_accounts_provider_id_providers_id_fk",
+      "columns": ["provider_id"],
+      "tableTo": "providers",
+      "columnsTo": ["id"],
+      "onUpdate": "NO ACTION",
+      "onDelete": "NO ACTION",
+      "nameExplicit": false,
+      "entityType": "fks"
+    },
+    {
+      "table": "investment_platforms",
+      "name": "investment_platforms_pk",
+      "columns": ["id"],
+      "nameExplicit": false,
+      "entityType": "pks"
+    },
+    {
+      "table": "members",
+      "name": "members_pk",
+      "columns": ["id"],
+      "nameExplicit": false,
+      "entityType": "pks"
+    },
+    {
+      "table": "profiles",
+      "name": "profiles_pk",
+      "columns": ["id"],
+      "nameExplicit": false,
+      "entityType": "pks"
+    },
+    {
+      "table": "provider_accounts",
+      "name": "provider_accounts_pk",
+      "columns": ["id"],
+      "nameExplicit": false,
+      "entityType": "pks"
+    },
+    {
+      "table": "providers",
+      "name": "providers_pk",
+      "columns": ["id"],
+      "nameExplicit": false,
+      "entityType": "pks"
+    },
+    {
+      "table": "run_logs",
+      "name": "run_logs_pk",
+      "columns": ["id"],
+      "nameExplicit": false,
+      "entityType": "pks"
+    },
+    {
+      "table": "app_setting",
+      "name": "app_setting_pk",
+      "columns": ["id"],
+      "nameExplicit": false,
+      "entityType": "pks"
+    },
+    {
+      "table": "app_setting",
+      "name": "app_setting_updated_at_integer_check",
+      "value": "typeof(\"updated_at\") = 'integer' AND \"updated_at\" BETWEEN -9007199254740991 AND 9007199254740991",
+      "entityType": "checks"
+    },
+    {
+      "table": "app_setting",
+      "name": "app_setting_singleton_check",
+      "value": "\"id\" = 1",
+      "entityType": "checks"
+    },
+    {
+      "table": "investment_platforms",
+      "name": "investment_platforms_enabled_integer_check",
+      "value": "typeof(\"enabled\") = 'integer' AND \"enabled\" BETWEEN -9007199254740991 AND 9007199254740991",
+      "entityType": "checks"
+    },
+    {
+      "table": "investment_platforms",
+      "name": "investment_platforms_enabled_boolean_check",
+      "value": "\"enabled\" IN (0, 1)",
+      "entityType": "checks"
+    },
+    {
+      "table": "investment_platforms",
+      "name": "investment_platforms_connector_check",
+      "value": "\"connector\" IN ('trading212', 'manual')",
+      "entityType": "checks"
+    },
+    {
+      "table": "members",
+      "name": "members_created_at_integer_check",
+      "value": "typeof(\"created_at\") = 'integer' AND \"created_at\" BETWEEN -9007199254740991 AND 9007199254740991",
+      "entityType": "checks"
+    },
+    {
+      "table": "members",
+      "name": "members_email_check",
+      "value": "typeof(\"email\") = 'text' AND length(trim(\"email\", ' ' || char(9) || char(10) || char(13))) > 0",
+      "entityType": "checks"
+    },
+    {
+      "table": "members",
+      "name": "members_role_check",
+      "value": "\"role\" IN ('owner', 'viewer')",
+      "entityType": "checks"
+    },
+    {
+      "table": "profiles",
+      "name": "profiles_archived_at_integer_check",
+      "value": "\"archived_at\" IS NULL OR (typeof(\"archived_at\") = 'integer' AND \"archived_at\" BETWEEN -9007199254740991 AND 9007199254740991)",
+      "entityType": "checks"
+    },
+    {
+      "table": "profiles",
+      "name": "profiles_created_at_integer_check",
+      "value": "typeof(\"created_at\") = 'integer' AND \"created_at\" BETWEEN -9007199254740991 AND 9007199254740991",
+      "entityType": "checks"
+    },
+    {
+      "table": "profiles",
+      "name": "profiles_base_currency_code_check",
+      "value": "typeof(\"base_currency\") = 'text' AND length(\"base_currency\") = 3 AND instr(\"base_currency\", char(0)) = 0 AND \"base_currency\" GLOB '[A-Z][A-Z][A-Z]'",
+      "entityType": "checks"
+    },
+    {
+      "table": "profiles",
+      "name": "profiles_kind_check",
+      "value": "\"kind\" IN ('personal', 'business')",
+      "entityType": "checks"
+    },
+    {
+      "table": "provider_accounts",
+      "name": "provider_accounts_archived_at_integer_check",
+      "value": "\"archived_at\" IS NULL OR (typeof(\"archived_at\") = 'integer' AND \"archived_at\" BETWEEN -9007199254740991 AND 9007199254740991)",
+      "entityType": "checks"
+    },
+    {
+      "table": "provider_accounts",
+      "name": "provider_accounts_created_at_integer_check",
+      "value": "typeof(\"created_at\") = 'integer' AND \"created_at\" BETWEEN -9007199254740991 AND 9007199254740991",
+      "entityType": "checks"
+    },
+    {
+      "table": "provider_accounts",
+      "name": "provider_accounts_last_synced_at_integer_check",
+      "value": "\"last_synced_at\" IS NULL OR (typeof(\"last_synced_at\") = 'integer' AND \"last_synced_at\" BETWEEN -9007199254740991 AND 9007199254740991)",
+      "entityType": "checks"
+    },
+    {
+      "table": "provider_accounts",
+      "name": "provider_accounts_sync_start_date_date_check",
+      "value": "\"sync_start_date\" IS NULL OR (typeof(\"sync_start_date\") = 'text' AND length(\"sync_start_date\") = 10 AND \"sync_start_date\" GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]')",
+      "entityType": "checks"
+    },
+    {
+      "table": "provider_accounts",
+      "name": "provider_accounts_kind_check",
+      "value": "\"kind\" IN ('bank', 'investment', 'books', 'csv', 'manual')",
+      "entityType": "checks"
+    },
+    {
+      "table": "providers",
+      "name": "providers_enabled_integer_check",
+      "value": "typeof(\"enabled\") = 'integer' AND \"enabled\" BETWEEN -9007199254740991 AND 9007199254740991",
+      "entityType": "checks"
+    },
+    {
+      "table": "providers",
+      "name": "providers_enabled_boolean_check",
+      "value": "\"enabled\" IN (0, 1)",
+      "entityType": "checks"
+    },
+    {
+      "table": "providers",
+      "name": "providers_kind_check",
+      "value": "\"kind\" IN ('bank', 'investment', 'books', 'csv', 'manual')",
+      "entityType": "checks"
+    },
+    {
+      "table": "run_logs",
+      "name": "run_logs_recorded_at_integer_check",
+      "value": "typeof(\"recorded_at\") = 'integer' AND \"recorded_at\" BETWEEN -9007199254740991 AND 9007199254740991",
+      "entityType": "checks"
+    },
+    {
+      "table": "run_logs",
+      "name": "run_logs_outcome_check",
+      "value": "\"outcome\" IN ('Succeeded', 'Failed')",
+      "entityType": "checks"
+    },
+    {
+      "table": "run_logs",
+      "name": "run_logs_failure_tag_check",
+      "value": "(\"outcome\" = 'Succeeded' AND \"failure_tag\" IS NULL) OR (\"outcome\" = 'Failed' AND \"failure_tag\" IS NOT NULL)",
+      "entityType": "checks"
+    }
+  ],
+  "renames": []
+}

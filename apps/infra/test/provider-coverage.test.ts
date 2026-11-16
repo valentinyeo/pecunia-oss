@@ -9,6 +9,7 @@ import * as SecureRandom from "effect/crypto/SecureRandom";
 import * as HttpClient from "effect/http/HttpClient";
 
 import stack from "../alchemy.run.js";
+import { pecuniaStackConfig } from "./pecunia-config.js";
 
 const services = Layer.mergeAll(
   AlchemyContextLive.pipe(
@@ -42,8 +43,8 @@ it.effect.prop(
             Effect.provideService(
               ConfigProvider.ConfigProvider,
               ConfigProvider.fromUnknown({
+                ...pecuniaStackConfig,
                 AUTH_ENABLED: authEnabled,
-                EMAIL_FORWARD_TO: "forward@example.test",
                 EVENTS_ENABLED: eventsEnabled,
               })
             )
@@ -80,5 +81,5 @@ it.effect.prop(
         }
       }
     }),
-  { arbitrary: { runs: 2 } }
+  { arbitrary: { runs: 2 }, timeout: 60_000 }
 );

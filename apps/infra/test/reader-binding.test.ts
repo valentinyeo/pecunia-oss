@@ -9,6 +9,7 @@ import * as SecureRandom from "effect/crypto/SecureRandom";
 import * as HttpClient from "effect/http/HttpClient";
 
 import stack from "../alchemy.run.js";
+import { pecuniaStackConfig } from "./pecunia-config.js";
 
 const services = Layer.mergeAll(
   AlchemyContextLive.pipe(
@@ -30,7 +31,7 @@ const services = Layer.mergeAll(
   ),
   ConfigProvider.layer(
     ConfigProvider.fromUnknown({
-      EMAIL_FORWARD_TO: "forward@example.test",
+      ...pecuniaStackConfig,
     })
   )
 );

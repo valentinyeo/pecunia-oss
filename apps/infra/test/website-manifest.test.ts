@@ -19,6 +19,7 @@ import * as HttpClient from "effect/http/HttpClient";
 
 import { WebsiteContentManifestError } from "../../web/src/website-content-manifest-error.js";
 import stack from "../alchemy.run.js";
+import { pecuniaStackConfig } from "./pecunia-config.js";
 
 const manifestPath = fileURLToPath(
   new URL("../../site/dist/content/manifest.json", import.meta.url)
@@ -40,9 +41,7 @@ const services = Layer.mergeAll(
     HttpClient.HttpClient,
     HttpClient.make(() => Effect.die("manifest-check-must-not-call-provider"))
   ),
-  ConfigProvider.layer(
-    ConfigProvider.fromUnknown({ EMAIL_FORWARD_TO: "forward@example.test" })
-  )
+  ConfigProvider.layer(ConfigProvider.fromUnknown(pecuniaStackConfig))
 );
 
 const scenarios = [

@@ -1,0 +1,3851 @@
+{
+  "version": "7",
+  "dialect": "sqlite",
+  "id": "62f27067-4f79-45dd-995f-58ee8e55067e",
+  "prevIds": ["d2490363-2594-4c86-ba8d-8eabf178e386"],
+  "ddl": [
+    {
+      "name": "app_setting",
+      "entityType": "tables"
+    },
+    {
+      "name": "categories",
+      "entityType": "tables"
+    },
+    {
+      "name": "exchange_rates",
+      "entityType": "tables"
+    },
+    {
+      "name": "holdings",
+      "entityType": "tables"
+    },
+    {
+      "name": "investment_platforms",
+      "entityType": "tables"
+    },
+    {
+      "name": "members",
+      "entityType": "tables"
+    },
+    {
+      "name": "merchant_aliases",
+      "entityType": "tables"
+    },
+    {
+      "name": "payees",
+      "entityType": "tables"
+    },
+    {
+      "name": "profiles",
+      "entityType": "tables"
+    },
+    {
+      "name": "provider_accounts",
+      "entityType": "tables"
+    },
+    {
+      "name": "providers",
+      "entityType": "tables"
+    },
+    {
+      "name": "rules",
+      "entityType": "tables"
+    },
+    {
+      "name": "run_logs",
+      "entityType": "tables"
+    },
+    {
+      "name": "subscriptions",
+      "entityType": "tables"
+    },
+    {
+      "name": "sync_run_rejections",
+      "entityType": "tables"
+    },
+    {
+      "name": "sync_runs",
+      "entityType": "tables"
+    },
+    {
+      "name": "transactions",
+      "entityType": "tables"
+    },
+    {
+      "table": "app_setting",
+      "name": "id",
+      "type": "integer",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "app_setting",
+      "name": "locale",
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "app_setting",
+      "name": "primary_profile_id",
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "app_setting",
+      "name": "timezone",
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "app_setting",
+      "name": "updated_at",
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "categories",
+      "name": "archived_at",
+      "type": "integer",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "categories",
+      "name": "color",
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "categories",
+      "name": "created_at",
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "categories",
+      "name": "id",
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "categories",
+      "name": "name",
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "categories",
+      "name": "parent_id",
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "categories",
+      "name": "profile_id",
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "categories",
+      "name": "spending_type",
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "exchange_rates",
+      "name": "as_of",
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "exchange_rates",
+      "name": "base_currency",
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "exchange_rates",
+      "name": "fetched_at",
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "exchange_rates",
+      "name": "quote_currency",
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "exchange_rates",
+      "name": "rate",
+      "type": "real",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "holdings",
+      "name": "asset_type",
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "holdings",
+      "name": "cost_basis_currency",
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "holdings",
+      "name": "cost_basis_minor",
+      "type": "integer",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "holdings",
+      "name": "created_at",
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "holdings",
+      "name": "currency",
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "holdings",
+      "name": "id",
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "holdings",
+      "name": "last_price_currency",
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "holdings",
+      "name": "last_price_minor",
+      "type": "integer",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "holdings",
+      "name": "name",
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "holdings",
+      "name": "notes",
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": "''",
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "holdings",
+      "name": "opened_on",
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "holdings",
+      "name": "platform_id",
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "holdings",
+      "name": "priced_at",
+      "type": "integer",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "holdings",
+      "name": "profile_id",
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "holdings",
+      "name": "quantity_micros",
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "holdings",
+      "name": "state",
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "holdings",
+      "name": "symbol",
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "holdings",
+      "name": "updated_at",
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "investment_platforms",
+      "name": "connector",
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "investment_platforms",
+      "name": "enabled",
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": "1",
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "investment_platforms",
+      "name": "id",
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "investment_platforms",
+      "name": "label",
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "members",
+      "name": "created_at",
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "members",
+      "name": "email",
+      "type": "text COLLATE NOCASE",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "members",
+      "name": "id",
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "members",
+      "name": "profile_id",
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "members",
+      "name": "role",
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "merchant_aliases",
+      "name": "created_at",
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "merchant_aliases",
+      "name": "id",
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "merchant_aliases",
+      "name": "match_type",
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "merchant_aliases",
+      "name": "pattern",
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "merchant_aliases",
+      "name": "payee_id",
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "merchant_aliases",
+      "name": "profile_id",
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "payees",
+      "name": "archived_at",
+      "type": "integer",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "payees",
+      "name": "created_at",
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "payees",
+      "name": "default_category_id",
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "payees",
+      "name": "id",
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "payees",
+      "name": "kind",
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "payees",
+      "name": "name",
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "payees",
+      "name": "normalized_name",
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "payees",
+      "name": "profile_id",
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "profiles",
+      "name": "archived_at",
+      "type": "integer",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "profiles",
+      "name": "base_currency",
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "profiles",
+      "name": "created_at",
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "profiles",
+      "name": "id",
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "profiles",
+      "name": "kind",
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "profiles",
+      "name": "name",
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "provider_accounts",
+      "name": "archived_at",
+      "type": "integer",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "provider_accounts",
+      "name": "created_at",
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "provider_accounts",
+      "name": "credential_key",
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "provider_accounts",
+      "name": "external_id",
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "provider_accounts",
+      "name": "id",
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "provider_accounts",
+      "name": "kind",
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "provider_accounts",
+      "name": "label",
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "provider_accounts",
+      "name": "last_synced_at",
+      "type": "integer",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "provider_accounts",
+      "name": "profile_id",
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "provider_accounts",
+      "name": "provider_id",
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "provider_accounts",
+      "name": "sync_start_date",
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "providers",
+      "name": "enabled",
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": "1",
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "providers",
+      "name": "id",
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "providers",
+      "name": "kind",
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "providers",
+      "name": "label",
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "rules",
+      "name": "category_id",
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "rules",
+      "name": "client_payee_id",
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "rules",
+      "name": "counterpart_profile_id",
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "rules",
+      "name": "created_at",
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "rules",
+      "name": "direction",
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": "'any'",
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "rules",
+      "name": "enabled",
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": "1",
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "rules",
+      "name": "id",
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "rules",
+      "name": "kind",
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "rules",
+      "name": "match_field",
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "rules",
+      "name": "match_type",
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "rules",
+      "name": "max_amount_minor",
+      "type": "integer",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "rules",
+      "name": "min_amount_minor",
+      "type": "integer",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "rules",
+      "name": "obligation_kind",
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "rules",
+      "name": "pattern",
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "rules",
+      "name": "priority",
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": "0",
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "rules",
+      "name": "profile_id",
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "rules",
+      "name": "updated_at",
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "run_logs",
+      "name": "capability",
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "run_logs",
+      "name": "failure_tag",
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "run_logs",
+      "name": "id",
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "run_logs",
+      "name": "outcome",
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "run_logs",
+      "name": "person_id",
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "run_logs",
+      "name": "recorded_at",
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "subscriptions",
+      "name": "amount_cv",
+      "type": "real",
+      "notNull": true,
+      "autoincrement": false,
+      "default": "0",
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "subscriptions",
+      "name": "base_currency",
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "subscriptions",
+      "name": "category_id",
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "subscriptions",
+      "name": "confidence",
+      "type": "real",
+      "notNull": true,
+      "autoincrement": false,
+      "default": "0",
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "subscriptions",
+      "name": "created_at",
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "subscriptions",
+      "name": "frequency",
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "subscriptions",
+      "name": "id",
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "subscriptions",
+      "name": "last_charged_on",
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "subscriptions",
+      "name": "next_expected_on",
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "subscriptions",
+      "name": "notes",
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": "''",
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "subscriptions",
+      "name": "occurrence_count",
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": "0",
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "subscriptions",
+      "name": "payee_id",
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "subscriptions",
+      "name": "profile_id",
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "subscriptions",
+      "name": "status",
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "subscriptions",
+      "name": "status_changed_at",
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "subscriptions",
+      "name": "typical_base_minor",
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "subscriptions",
+      "name": "typical_currency",
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "subscriptions",
+      "name": "typical_minor",
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "subscriptions",
+      "name": "updated_at",
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "sync_run_rejections",
+      "name": "created_at",
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "sync_run_rejections",
+      "name": "detail",
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "sync_run_rejections",
+      "name": "external_id",
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "sync_run_rejections",
+      "name": "id",
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "sync_run_rejections",
+      "name": "reason",
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "sync_run_rejections",
+      "name": "run_id",
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "sync_runs",
+      "name": "chunk_index",
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": "0",
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "sync_runs",
+      "name": "failure_message",
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "sync_runs",
+      "name": "failure_tag",
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "sync_runs",
+      "name": "finished_at",
+      "type": "integer",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "sync_runs",
+      "name": "id",
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "sync_runs",
+      "name": "imported",
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": "0",
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "sync_runs",
+      "name": "kind",
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "sync_runs",
+      "name": "lease_expires_at",
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "sync_runs",
+      "name": "lease_owner",
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "sync_runs",
+      "name": "profile_id",
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "sync_runs",
+      "name": "provider_account_id",
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "sync_runs",
+      "name": "rejected",
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": "0",
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "sync_runs",
+      "name": "skipped",
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": "0",
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "sync_runs",
+      "name": "started_at",
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "sync_runs",
+      "name": "state",
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "sync_runs",
+      "name": "updated_at",
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "sync_runs",
+      "name": "window_from",
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "sync_runs",
+      "name": "window_to",
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "transactions",
+      "name": "applied_rule_id",
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "transactions",
+      "name": "base_currency",
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "transactions",
+      "name": "base_minor",
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "transactions",
+      "name": "categorization",
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": "'none'",
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "transactions",
+      "name": "category_id",
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "transactions",
+      "name": "classification",
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": "'none'",
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "transactions",
+      "name": "classification_rule_id",
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "transactions",
+      "name": "client_payee_id",
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "transactions",
+      "name": "counterpart_profile_id",
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "transactions",
+      "name": "created_at",
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "transactions",
+      "name": "direction",
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "transactions",
+      "name": "external_id",
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "transactions",
+      "name": "fee_currency",
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "transactions",
+      "name": "fee_minor",
+      "type": "integer",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "transactions",
+      "name": "id",
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "transactions",
+      "name": "import_run_id",
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "transactions",
+      "name": "note",
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": "''",
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "transactions",
+      "name": "occurred_at",
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "transactions",
+      "name": "payee_id",
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "transactions",
+      "name": "profile_id",
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "transactions",
+      "name": "provider_account_id",
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "transactions",
+      "name": "rate",
+      "type": "real",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "transactions",
+      "name": "rate_as_of",
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "transactions",
+      "name": "raw_description",
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": "''",
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "transactions",
+      "name": "raw_merchant",
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": "''",
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "transactions",
+      "name": "raw_reference",
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": "''",
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "transactions",
+      "name": "source_currency",
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "transactions",
+      "name": "source_minor",
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "transactions",
+      "name": "status",
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "transactions",
+      "name": "suggested_at",
+      "type": "integer",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "transactions",
+      "name": "suggestion_model",
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "transactions",
+      "name": "updated_at",
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "transactions",
+      "name": "value_date",
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "categories",
+      "name": "categories_profile_name_idx",
+      "columns": [
+        {
+          "value": "profile_id",
+          "isExpression": false
+        },
+        {
+          "value": "name",
+          "isExpression": false
+        }
+      ],
+      "isUnique": true,
+      "where": null,
+      "origin": "manual",
+      "entityType": "indexes"
+    },
+    {
+      "table": "categories",
+      "name": "categories_profile_id_idx",
+      "columns": [
+        {
+          "value": "profile_id",
+          "isExpression": false
+        },
+        {
+          "value": "id",
+          "isExpression": false
+        }
+      ],
+      "isUnique": true,
+      "where": null,
+      "origin": "manual",
+      "entityType": "indexes"
+    },
+    {
+      "table": "categories",
+      "name": "categories_profile_parent_idx",
+      "columns": [
+        {
+          "value": "profile_id",
+          "isExpression": false
+        },
+        {
+          "value": "parent_id",
+          "isExpression": false
+        }
+      ],
+      "isUnique": false,
+      "where": null,
+      "origin": "manual",
+      "entityType": "indexes"
+    },
+    {
+      "table": "exchange_rates",
+      "name": "exchange_rates_quote_as_of_idx",
+      "columns": [
+        {
+          "value": "quote_currency",
+          "isExpression": false
+        },
+        {
+          "value": "\"as_of\" DESC",
+          "isExpression": true
+        }
+      ],
+      "isUnique": false,
+      "where": null,
+      "origin": "manual",
+      "entityType": "indexes"
+    },
+    {
+      "table": "holdings",
+      "name": "holdings_symbol_idx",
+      "columns": [
+        {
+          "value": "profile_id",
+          "isExpression": false
+        },
+        {
+          "value": "platform_id",
+          "isExpression": false
+        },
+        {
+          "value": "symbol",
+          "isExpression": false
+        }
+      ],
+      "isUnique": true,
+      "where": null,
+      "origin": "manual",
+      "entityType": "indexes"
+    },
+    {
+      "table": "holdings",
+      "name": "holdings_profile_id_idx",
+      "columns": [
+        {
+          "value": "profile_id",
+          "isExpression": false
+        },
+        {
+          "value": "id",
+          "isExpression": false
+        }
+      ],
+      "isUnique": true,
+      "where": null,
+      "origin": "manual",
+      "entityType": "indexes"
+    },
+    {
+      "table": "holdings",
+      "name": "holdings_profile_state_idx",
+      "columns": [
+        {
+          "value": "profile_id",
+          "isExpression": false
+        },
+        {
+          "value": "state",
+          "isExpression": false
+        }
+      ],
+      "isUnique": false,
+      "where": null,
+      "origin": "manual",
+      "entityType": "indexes"
+    },
+    {
+      "table": "members",
+      "name": "members_profile_email_idx",
+      "columns": [
+        {
+          "value": "profile_id",
+          "isExpression": false
+        },
+        {
+          "value": "email",
+          "isExpression": false
+        }
+      ],
+      "isUnique": true,
+      "where": null,
+      "origin": "manual",
+      "entityType": "indexes"
+    },
+    {
+      "table": "members",
+      "name": "members_email_idx",
+      "columns": [
+        {
+          "value": "email",
+          "isExpression": false
+        }
+      ],
+      "isUnique": false,
+      "where": null,
+      "origin": "manual",
+      "entityType": "indexes"
+    },
+    {
+      "table": "merchant_aliases",
+      "name": "merchant_aliases_match_idx",
+      "columns": [
+        {
+          "value": "profile_id",
+          "isExpression": false
+        },
+        {
+          "value": "match_type",
+          "isExpression": false
+        },
+        {
+          "value": "pattern",
+          "isExpression": false
+        }
+      ],
+      "isUnique": true,
+      "where": null,
+      "origin": "manual",
+      "entityType": "indexes"
+    },
+    {
+      "table": "merchant_aliases",
+      "name": "merchant_aliases_pattern_idx",
+      "columns": [
+        {
+          "value": "profile_id",
+          "isExpression": false
+        },
+        {
+          "value": "pattern",
+          "isExpression": false
+        }
+      ],
+      "isUnique": false,
+      "where": null,
+      "origin": "manual",
+      "entityType": "indexes"
+    },
+    {
+      "table": "payees",
+      "name": "payees_profile_name_idx",
+      "columns": [
+        {
+          "value": "profile_id",
+          "isExpression": false
+        },
+        {
+          "value": "normalized_name",
+          "isExpression": false
+        }
+      ],
+      "isUnique": true,
+      "where": null,
+      "origin": "manual",
+      "entityType": "indexes"
+    },
+    {
+      "table": "payees",
+      "name": "payees_profile_id_idx",
+      "columns": [
+        {
+          "value": "profile_id",
+          "isExpression": false
+        },
+        {
+          "value": "id",
+          "isExpression": false
+        }
+      ],
+      "isUnique": true,
+      "where": null,
+      "origin": "manual",
+      "entityType": "indexes"
+    },
+    {
+      "table": "payees",
+      "name": "payees_profile_kind_idx",
+      "columns": [
+        {
+          "value": "profile_id",
+          "isExpression": false
+        },
+        {
+          "value": "kind",
+          "isExpression": false
+        }
+      ],
+      "isUnique": false,
+      "where": null,
+      "origin": "manual",
+      "entityType": "indexes"
+    },
+    {
+      "table": "profiles",
+      "name": "profiles_name_idx",
+      "columns": [
+        {
+          "value": "name",
+          "isExpression": false
+        }
+      ],
+      "isUnique": true,
+      "where": null,
+      "origin": "manual",
+      "entityType": "indexes"
+    },
+    {
+      "table": "profiles",
+      "name": "profiles_id_base_currency_idx",
+      "columns": [
+        {
+          "value": "id",
+          "isExpression": false
+        },
+        {
+          "value": "base_currency",
+          "isExpression": false
+        }
+      ],
+      "isUnique": true,
+      "where": null,
+      "origin": "manual",
+      "entityType": "indexes"
+    },
+    {
+      "table": "provider_accounts",
+      "name": "provider_accounts_account_idx",
+      "columns": [
+        {
+          "value": "profile_id",
+          "isExpression": false
+        },
+        {
+          "value": "provider_id",
+          "isExpression": false
+        },
+        {
+          "value": "external_id",
+          "isExpression": false
+        }
+      ],
+      "isUnique": true,
+      "where": null,
+      "origin": "manual",
+      "entityType": "indexes"
+    },
+    {
+      "table": "provider_accounts",
+      "name": "provider_accounts_profile_id_idx",
+      "columns": [
+        {
+          "value": "profile_id",
+          "isExpression": false
+        },
+        {
+          "value": "id",
+          "isExpression": false
+        }
+      ],
+      "isUnique": true,
+      "where": null,
+      "origin": "manual",
+      "entityType": "indexes"
+    },
+    {
+      "table": "provider_accounts",
+      "name": "provider_accounts_profile_idx",
+      "columns": [
+        {
+          "value": "profile_id",
+          "isExpression": false
+        }
+      ],
+      "isUnique": false,
+      "where": null,
+      "origin": "manual",
+      "entityType": "indexes"
+    },
+    {
+      "table": "rules",
+      "name": "rules_profile_priority_idx",
+      "columns": [
+        {
+          "value": "profile_id",
+          "isExpression": false
+        },
+        {
+          "value": "enabled",
+          "isExpression": false
+        },
+        {
+          "value": "\"priority\" DESC",
+          "isExpression": true
+        }
+      ],
+      "isUnique": false,
+      "where": null,
+      "origin": "manual",
+      "entityType": "indexes"
+    },
+    {
+      "table": "rules",
+      "name": "rules_profile_id_idx",
+      "columns": [
+        {
+          "value": "profile_id",
+          "isExpression": false
+        },
+        {
+          "value": "id",
+          "isExpression": false
+        }
+      ],
+      "isUnique": true,
+      "where": null,
+      "origin": "manual",
+      "entityType": "indexes"
+    },
+    {
+      "table": "rules",
+      "name": "rules_match_idx",
+      "columns": [
+        {
+          "value": "profile_id",
+          "isExpression": false
+        },
+        {
+          "value": "kind",
+          "isExpression": false
+        },
+        {
+          "value": "match_field",
+          "isExpression": false
+        },
+        {
+          "value": "match_type",
+          "isExpression": false
+        },
+        {
+          "value": "pattern",
+          "isExpression": false
+        },
+        {
+          "value": "direction",
+          "isExpression": false
+        },
+        {
+          "value": "coalesce(\"min_amount_minor\", -1)",
+          "isExpression": true
+        },
+        {
+          "value": "coalesce(\"max_amount_minor\", -1)",
+          "isExpression": true
+        }
+      ],
+      "isUnique": true,
+      "where": null,
+      "origin": "manual",
+      "entityType": "indexes"
+    },
+    {
+      "table": "run_logs",
+      "name": "run_logs_person_recent_idx",
+      "columns": [
+        {
+          "value": "person_id",
+          "isExpression": false
+        },
+        {
+          "value": "recorded_at",
+          "isExpression": false
+        },
+        {
+          "value": "id",
+          "isExpression": false
+        }
+      ],
+      "isUnique": false,
+      "where": null,
+      "origin": "manual",
+      "entityType": "indexes"
+    },
+    {
+      "table": "subscriptions",
+      "name": "subscriptions_payee_idx",
+      "columns": [
+        {
+          "value": "profile_id",
+          "isExpression": false
+        },
+        {
+          "value": "payee_id",
+          "isExpression": false
+        }
+      ],
+      "isUnique": true,
+      "where": null,
+      "origin": "manual",
+      "entityType": "indexes"
+    },
+    {
+      "table": "subscriptions",
+      "name": "subscriptions_profile_status_idx",
+      "columns": [
+        {
+          "value": "profile_id",
+          "isExpression": false
+        },
+        {
+          "value": "status",
+          "isExpression": false
+        }
+      ],
+      "isUnique": false,
+      "where": null,
+      "origin": "manual",
+      "entityType": "indexes"
+    },
+    {
+      "table": "sync_run_rejections",
+      "name": "sync_run_rejections_run_idx",
+      "columns": [
+        {
+          "value": "run_id",
+          "isExpression": false
+        }
+      ],
+      "isUnique": false,
+      "where": null,
+      "origin": "manual",
+      "entityType": "indexes"
+    },
+    {
+      "table": "sync_runs",
+      "name": "sync_runs_one_open_per_account",
+      "columns": [
+        {
+          "value": "provider_account_id",
+          "isExpression": false
+        }
+      ],
+      "isUnique": true,
+      "where": "\"sync_runs\".\"state\" IN ('running', 'chunk_done', 'categorizing')",
+      "origin": "manual",
+      "entityType": "indexes"
+    },
+    {
+      "table": "sync_runs",
+      "name": "sync_runs_one_open_without_account",
+      "columns": [
+        {
+          "value": "profile_id",
+          "isExpression": false
+        },
+        {
+          "value": "kind",
+          "isExpression": false
+        }
+      ],
+      "isUnique": true,
+      "where": "\"sync_runs\".\"provider_account_id\" IS NULL AND \"sync_runs\".\"state\" IN ('running', 'chunk_done', 'categorizing')",
+      "origin": "manual",
+      "entityType": "indexes"
+    },
+    {
+      "table": "sync_runs",
+      "name": "sync_runs_profile_id_idx",
+      "columns": [
+        {
+          "value": "profile_id",
+          "isExpression": false
+        },
+        {
+          "value": "id",
+          "isExpression": false
+        }
+      ],
+      "isUnique": true,
+      "where": null,
+      "origin": "manual",
+      "entityType": "indexes"
+    },
+    {
+      "table": "sync_runs",
+      "name": "sync_runs_profile_started_idx",
+      "columns": [
+        {
+          "value": "profile_id",
+          "isExpression": false
+        },
+        {
+          "value": "\"started_at\" DESC",
+          "isExpression": true
+        }
+      ],
+      "isUnique": false,
+      "where": null,
+      "origin": "manual",
+      "entityType": "indexes"
+    },
+    {
+      "table": "sync_runs",
+      "name": "sync_runs_state_lease_idx",
+      "columns": [
+        {
+          "value": "state",
+          "isExpression": false
+        },
+        {
+          "value": "lease_expires_at",
+          "isExpression": false
+        }
+      ],
+      "isUnique": false,
+      "where": null,
+      "origin": "manual",
+      "entityType": "indexes"
+    },
+    {
+      "table": "transactions",
+      "name": "transactions_account_external_idx",
+      "columns": [
+        {
+          "value": "provider_account_id",
+          "isExpression": false
+        },
+        {
+          "value": "external_id",
+          "isExpression": false
+        }
+      ],
+      "isUnique": true,
+      "where": null,
+      "origin": "manual",
+      "entityType": "indexes"
+    },
+    {
+      "table": "transactions",
+      "name": "transactions_profile_id_idx",
+      "columns": [
+        {
+          "value": "profile_id",
+          "isExpression": false
+        },
+        {
+          "value": "id",
+          "isExpression": false
+        }
+      ],
+      "isUnique": true,
+      "where": null,
+      "origin": "manual",
+      "entityType": "indexes"
+    },
+    {
+      "table": "transactions",
+      "name": "transactions_profile_recent_idx",
+      "columns": [
+        {
+          "value": "profile_id",
+          "isExpression": false
+        },
+        {
+          "value": "\"occurred_at\" DESC",
+          "isExpression": true
+        },
+        {
+          "value": "id",
+          "isExpression": false
+        }
+      ],
+      "isUnique": false,
+      "where": null,
+      "origin": "manual",
+      "entityType": "indexes"
+    },
+    {
+      "table": "transactions",
+      "name": "transactions_profile_direction_idx",
+      "columns": [
+        {
+          "value": "profile_id",
+          "isExpression": false
+        },
+        {
+          "value": "direction",
+          "isExpression": false
+        },
+        {
+          "value": "\"occurred_at\" DESC",
+          "isExpression": true
+        }
+      ],
+      "isUnique": false,
+      "where": null,
+      "origin": "manual",
+      "entityType": "indexes"
+    },
+    {
+      "table": "transactions",
+      "name": "transactions_profile_payee_idx",
+      "columns": [
+        {
+          "value": "profile_id",
+          "isExpression": false
+        },
+        {
+          "value": "payee_id",
+          "isExpression": false
+        },
+        {
+          "value": "\"occurred_at\" DESC",
+          "isExpression": true
+        }
+      ],
+      "isUnique": false,
+      "where": null,
+      "origin": "manual",
+      "entityType": "indexes"
+    },
+    {
+      "table": "transactions",
+      "name": "transactions_profile_category_idx",
+      "columns": [
+        {
+          "value": "profile_id",
+          "isExpression": false
+        },
+        {
+          "value": "category_id",
+          "isExpression": false
+        },
+        {
+          "value": "\"occurred_at\" DESC",
+          "isExpression": true
+        }
+      ],
+      "isUnique": false,
+      "where": null,
+      "origin": "manual",
+      "entityType": "indexes"
+    },
+    {
+      "table": "transactions",
+      "name": "transactions_profile_classification_idx",
+      "columns": [
+        {
+          "value": "profile_id",
+          "isExpression": false
+        },
+        {
+          "value": "classification",
+          "isExpression": false
+        },
+        {
+          "value": "\"occurred_at\" DESC",
+          "isExpression": true
+        }
+      ],
+      "isUnique": false,
+      "where": null,
+      "origin": "manual",
+      "entityType": "indexes"
+    },
+    {
+      "table": "transactions",
+      "name": "transactions_profile_merchant_idx",
+      "columns": [
+        {
+          "value": "profile_id",
+          "isExpression": false
+        },
+        {
+          "value": "raw_merchant",
+          "isExpression": false
+        }
+      ],
+      "isUnique": false,
+      "where": null,
+      "origin": "manual",
+      "entityType": "indexes"
+    },
+    {
+      "table": "app_setting",
+      "name": "fk_app_setting_primary_profile_id_profiles_id_fk",
+      "columns": ["primary_profile_id"],
+      "tableTo": "profiles",
+      "columnsTo": ["id"],
+      "onUpdate": "NO ACTION",
+      "onDelete": "NO ACTION",
+      "nameExplicit": false,
+      "entityType": "fks"
+    },
+    {
+      "table": "categories",
+      "name": "fk_categories_profile_id_profiles_id_fk",
+      "columns": ["profile_id"],
+      "tableTo": "profiles",
+      "columnsTo": ["id"],
+      "onUpdate": "NO ACTION",
+      "onDelete": "NO ACTION",
+      "nameExplicit": false,
+      "entityType": "fks"
+    },
+    {
+      "table": "categories",
+      "name": "fk_categories_profile_id_parent_id_categories_profile_id_id_fk",
+      "columns": ["profile_id", "parent_id"],
+      "tableTo": "categories",
+      "columnsTo": ["profile_id", "id"],
+      "onUpdate": "NO ACTION",
+      "onDelete": "NO ACTION",
+      "nameExplicit": false,
+      "entityType": "fks"
+    },
+    {
+      "table": "holdings",
+      "name": "fk_holdings_platform_id_investment_platforms_id_fk",
+      "columns": ["platform_id"],
+      "tableTo": "investment_platforms",
+      "columnsTo": ["id"],
+      "onUpdate": "NO ACTION",
+      "onDelete": "NO ACTION",
+      "nameExplicit": false,
+      "entityType": "fks"
+    },
+    {
+      "table": "holdings",
+      "name": "fk_holdings_profile_id_profiles_id_fk",
+      "columns": ["profile_id"],
+      "tableTo": "profiles",
+      "columnsTo": ["id"],
+      "onUpdate": "NO ACTION",
+      "onDelete": "NO ACTION",
+      "nameExplicit": false,
+      "entityType": "fks"
+    },
+    {
+      "table": "members",
+      "name": "fk_members_profile_id_profiles_id_fk",
+      "columns": ["profile_id"],
+      "tableTo": "profiles",
+      "columnsTo": ["id"],
+      "onUpdate": "NO ACTION",
+      "onDelete": "NO ACTION",
+      "nameExplicit": false,
+      "entityType": "fks"
+    },
+    {
+      "table": "merchant_aliases",
+      "name": "fk_merchant_aliases_profile_id_profiles_id_fk",
+      "columns": ["profile_id"],
+      "tableTo": "profiles",
+      "columnsTo": ["id"],
+      "onUpdate": "NO ACTION",
+      "onDelete": "NO ACTION",
+      "nameExplicit": false,
+      "entityType": "fks"
+    },
+    {
+      "table": "merchant_aliases",
+      "name": "fk_merchant_aliases_profile_id_payee_id_payees_profile_id_id_fk",
+      "columns": ["profile_id", "payee_id"],
+      "tableTo": "payees",
+      "columnsTo": ["profile_id", "id"],
+      "onUpdate": "NO ACTION",
+      "onDelete": "NO ACTION",
+      "nameExplicit": false,
+      "entityType": "fks"
+    },
+    {
+      "table": "payees",
+      "name": "fk_payees_profile_id_profiles_id_fk",
+      "columns": ["profile_id"],
+      "tableTo": "profiles",
+      "columnsTo": ["id"],
+      "onUpdate": "NO ACTION",
+      "onDelete": "NO ACTION",
+      "nameExplicit": false,
+      "entityType": "fks"
+    },
+    {
+      "table": "payees",
+      "name": "fk_payees_profile_id_default_category_id_categories_profile_id_id_fk",
+      "columns": ["profile_id", "default_category_id"],
+      "tableTo": "categories",
+      "columnsTo": ["profile_id", "id"],
+      "onUpdate": "NO ACTION",
+      "onDelete": "NO ACTION",
+      "nameExplicit": false,
+      "entityType": "fks"
+    },
+    {
+      "table": "provider_accounts",
+      "name": "fk_provider_accounts_profile_id_profiles_id_fk",
+      "columns": ["profile_id"],
+      "tableTo": "profiles",
+      "columnsTo": ["id"],
+      "onUpdate": "NO ACTION",
+      "onDelete": "NO ACTION",
+      "nameExplicit": false,
+      "entityType": "fks"
+    },
+    {
+      "table": "provider_accounts",
+      "name": "fk_provider_accounts_provider_id_providers_id_fk",
+      "columns": ["provider_id"],
+      "tableTo": "providers",
+      "columnsTo": ["id"],
+      "onUpdate": "NO ACTION",
+      "onDelete": "NO ACTION",
+      "nameExplicit": false,
+      "entityType": "fks"
+    },
+    {
+      "table": "rules",
+      "name": "fk_rules_counterpart_profile_id_profiles_id_fk",
+      "columns": ["counterpart_profile_id"],
+      "tableTo": "profiles",
+      "columnsTo": ["id"],
+      "onUpdate": "NO ACTION",
+      "onDelete": "NO ACTION",
+      "nameExplicit": false,
+      "entityType": "fks"
+    },
+    {
+      "table": "rules",
+      "name": "fk_rules_profile_id_profiles_id_fk",
+      "columns": ["profile_id"],
+      "tableTo": "profiles",
+      "columnsTo": ["id"],
+      "onUpdate": "NO ACTION",
+      "onDelete": "NO ACTION",
+      "nameExplicit": false,
+      "entityType": "fks"
+    },
+    {
+      "table": "rules",
+      "name": "fk_rules_profile_id_category_id_categories_profile_id_id_fk",
+      "columns": ["profile_id", "category_id"],
+      "tableTo": "categories",
+      "columnsTo": ["profile_id", "id"],
+      "onUpdate": "NO ACTION",
+      "onDelete": "NO ACTION",
+      "nameExplicit": false,
+      "entityType": "fks"
+    },
+    {
+      "table": "rules",
+      "name": "fk_rules_profile_id_client_payee_id_payees_profile_id_id_fk",
+      "columns": ["profile_id", "client_payee_id"],
+      "tableTo": "payees",
+      "columnsTo": ["profile_id", "id"],
+      "onUpdate": "NO ACTION",
+      "onDelete": "NO ACTION",
+      "nameExplicit": false,
+      "entityType": "fks"
+    },
+    {
+      "table": "subscriptions",
+      "name": "fk_subscriptions_profile_id_profiles_id_fk",
+      "columns": ["profile_id"],
+      "tableTo": "profiles",
+      "columnsTo": ["id"],
+      "onUpdate": "NO ACTION",
+      "onDelete": "NO ACTION",
+      "nameExplicit": false,
+      "entityType": "fks"
+    },
+    {
+      "table": "subscriptions",
+      "name": "fk_subscriptions_profile_id_payee_id_payees_profile_id_id_fk",
+      "columns": ["profile_id", "payee_id"],
+      "tableTo": "payees",
+      "columnsTo": ["profile_id", "id"],
+      "onUpdate": "NO ACTION",
+      "onDelete": "NO ACTION",
+      "nameExplicit": false,
+      "entityType": "fks"
+    },
+    {
+      "table": "subscriptions",
+      "name": "fk_subscriptions_profile_id_category_id_categories_profile_id_id_fk",
+      "columns": ["profile_id", "category_id"],
+      "tableTo": "categories",
+      "columnsTo": ["profile_id", "id"],
+      "onUpdate": "NO ACTION",
+      "onDelete": "NO ACTION",
+      "nameExplicit": false,
+      "entityType": "fks"
+    },
+    {
+      "table": "subscriptions",
+      "name": "fk_subscriptions_profile_id_base_currency_profiles_id_base_currency_fk",
+      "columns": ["profile_id", "base_currency"],
+      "tableTo": "profiles",
+      "columnsTo": ["id", "base_currency"],
+      "onUpdate": "NO ACTION",
+      "onDelete": "NO ACTION",
+      "nameExplicit": false,
+      "entityType": "fks"
+    },
+    {
+      "table": "sync_run_rejections",
+      "name": "fk_sync_run_rejections_run_id_sync_runs_id_fk",
+      "columns": ["run_id"],
+      "tableTo": "sync_runs",
+      "columnsTo": ["id"],
+      "onUpdate": "NO ACTION",
+      "onDelete": "NO ACTION",
+      "nameExplicit": false,
+      "entityType": "fks"
+    },
+    {
+      "table": "sync_runs",
+      "name": "fk_sync_runs_profile_id_profiles_id_fk",
+      "columns": ["profile_id"],
+      "tableTo": "profiles",
+      "columnsTo": ["id"],
+      "onUpdate": "NO ACTION",
+      "onDelete": "NO ACTION",
+      "nameExplicit": false,
+      "entityType": "fks"
+    },
+    {
+      "table": "sync_runs",
+      "name": "fk_sync_runs_profile_id_provider_account_id_provider_accounts_profile_id_id_fk",
+      "columns": ["profile_id", "provider_account_id"],
+      "tableTo": "provider_accounts",
+      "columnsTo": ["profile_id", "id"],
+      "onUpdate": "NO ACTION",
+      "onDelete": "NO ACTION",
+      "nameExplicit": false,
+      "entityType": "fks"
+    },
+    {
+      "table": "transactions",
+      "name": "fk_transactions_counterpart_profile_id_profiles_id_fk",
+      "columns": ["counterpart_profile_id"],
+      "tableTo": "profiles",
+      "columnsTo": ["id"],
+      "onUpdate": "NO ACTION",
+      "onDelete": "NO ACTION",
+      "nameExplicit": false,
+      "entityType": "fks"
+    },
+    {
+      "table": "transactions",
+      "name": "fk_transactions_profile_id_profiles_id_fk",
+      "columns": ["profile_id"],
+      "tableTo": "profiles",
+      "columnsTo": ["id"],
+      "onUpdate": "NO ACTION",
+      "onDelete": "NO ACTION",
+      "nameExplicit": false,
+      "entityType": "fks"
+    },
+    {
+      "table": "transactions",
+      "name": "fk_transactions_profile_id_category_id_categories_profile_id_id_fk",
+      "columns": ["profile_id", "category_id"],
+      "tableTo": "categories",
+      "columnsTo": ["profile_id", "id"],
+      "onUpdate": "NO ACTION",
+      "onDelete": "NO ACTION",
+      "nameExplicit": false,
+      "entityType": "fks"
+    },
+    {
+      "table": "transactions",
+      "name": "fk_transactions_profile_id_payee_id_payees_profile_id_id_fk",
+      "columns": ["profile_id", "payee_id"],
+      "tableTo": "payees",
+      "columnsTo": ["profile_id", "id"],
+      "onUpdate": "NO ACTION",
+      "onDelete": "NO ACTION",
+      "nameExplicit": false,
+      "entityType": "fks"
+    },
+    {
+      "table": "transactions",
+      "name": "fk_transactions_profile_id_client_payee_id_payees_profile_id_id_fk",
+      "columns": ["profile_id", "client_payee_id"],
+      "tableTo": "payees",
+      "columnsTo": ["profile_id", "id"],
+      "onUpdate": "NO ACTION",
+      "onDelete": "NO ACTION",
+      "nameExplicit": false,
+      "entityType": "fks"
+    },
+    {
+      "table": "transactions",
+      "name": "fk_transactions_profile_id_applied_rule_id_rules_profile_id_id_fk",
+      "columns": ["profile_id", "applied_rule_id"],
+      "tableTo": "rules",
+      "columnsTo": ["profile_id", "id"],
+      "onUpdate": "NO ACTION",
+      "onDelete": "NO ACTION",
+      "nameExplicit": false,
+      "entityType": "fks"
+    },
+    {
+      "table": "transactions",
+      "name": "fk_transactions_profile_id_classification_rule_id_rules_profile_id_id_fk",
+      "columns": ["profile_id", "classification_rule_id"],
+      "tableTo": "rules",
+      "columnsTo": ["profile_id", "id"],
+      "onUpdate": "NO ACTION",
+      "onDelete": "NO ACTION",
+      "nameExplicit": false,
+      "entityType": "fks"
+    },
+    {
+      "table": "transactions",
+      "name": "fk_transactions_profile_id_import_run_id_sync_runs_profile_id_id_fk",
+      "columns": ["profile_id", "import_run_id"],
+      "tableTo": "sync_runs",
+      "columnsTo": ["profile_id", "id"],
+      "onUpdate": "NO ACTION",
+      "onDelete": "NO ACTION",
+      "nameExplicit": false,
+      "entityType": "fks"
+    },
+    {
+      "table": "transactions",
+      "name": "fk_transactions_profile_id_provider_account_id_provider_accounts_profile_id_id_fk",
+      "columns": ["profile_id", "provider_account_id"],
+      "tableTo": "provider_accounts",
+      "columnsTo": ["profile_id", "id"],
+      "onUpdate": "NO ACTION",
+      "onDelete": "NO ACTION",
+      "nameExplicit": false,
+      "entityType": "fks"
+    },
+    {
+      "table": "transactions",
+      "name": "fk_transactions_profile_id_base_currency_profiles_id_base_currency_fk",
+      "columns": ["profile_id", "base_currency"],
+      "tableTo": "profiles",
+      "columnsTo": ["id", "base_currency"],
+      "onUpdate": "NO ACTION",
+      "onDelete": "NO ACTION",
+      "nameExplicit": false,
+      "entityType": "fks"
+    },
+    {
+      "table": "categories",
+      "name": "categories_pk",
+      "columns": ["id"],
+      "nameExplicit": false,
+      "entityType": "pks"
+    },
+    {
+      "table": "exchange_rates",
+      "name": "exchange_rates_pk",
+      "columns": ["base_currency", "quote_currency", "as_of"],
+      "nameExplicit": false,
+      "entityType": "pks"
+    },
+    {
+      "table": "holdings",
+      "name": "holdings_pk",
+      "columns": ["id"],
+      "nameExplicit": false,
+      "entityType": "pks"
+    },
+    {
+      "table": "investment_platforms",
+      "name": "investment_platforms_pk",
+      "columns": ["id"],
+      "nameExplicit": false,
+      "entityType": "pks"
+    },
+    {
+      "table": "members",
+      "name": "members_pk",
+      "columns": ["id"],
+      "nameExplicit": false,
+      "entityType": "pks"
+    },
+    {
+      "table": "merchant_aliases",
+      "name": "merchant_aliases_pk",
+      "columns": ["id"],
+      "nameExplicit": false,
+      "entityType": "pks"
+    },
+    {
+      "table": "payees",
+      "name": "payees_pk",
+      "columns": ["id"],
+      "nameExplicit": false,
+      "entityType": "pks"
+    },
+    {
+      "table": "profiles",
+      "name": "profiles_pk",
+      "columns": ["id"],
+      "nameExplicit": false,
+      "entityType": "pks"
+    },
+    {
+      "table": "provider_accounts",
+      "name": "provider_accounts_pk",
+      "columns": ["id"],
+      "nameExplicit": false,
+      "entityType": "pks"
+    },
+    {
+      "table": "providers",
+      "name": "providers_pk",
+      "columns": ["id"],
+      "nameExplicit": false,
+      "entityType": "pks"
+    },
+    {
+      "table": "rules",
+      "name": "rules_pk",
+      "columns": ["id"],
+      "nameExplicit": false,
+      "entityType": "pks"
+    },
+    {
+      "table": "run_logs",
+      "name": "run_logs_pk",
+      "columns": ["id"],
+      "nameExplicit": false,
+      "entityType": "pks"
+    },
+    {
+      "table": "subscriptions",
+      "name": "subscriptions_pk",
+      "columns": ["id"],
+      "nameExplicit": false,
+      "entityType": "pks"
+    },
+    {
+      "table": "sync_run_rejections",
+      "name": "sync_run_rejections_pk",
+      "columns": ["id"],
+      "nameExplicit": false,
+      "entityType": "pks"
+    },
+    {
+      "table": "sync_runs",
+      "name": "sync_runs_pk",
+      "columns": ["id"],
+      "nameExplicit": false,
+      "entityType": "pks"
+    },
+    {
+      "table": "transactions",
+      "name": "transactions_pk",
+      "columns": ["id"],
+      "nameExplicit": false,
+      "entityType": "pks"
+    },
+    {
+      "table": "app_setting",
+      "name": "app_setting_pk",
+      "columns": ["id"],
+      "nameExplicit": false,
+      "entityType": "pks"
+    },
+    {
+      "table": "app_setting",
+      "name": "app_setting_updated_at_integer_check",
+      "value": "typeof(\"updated_at\") = 'integer' AND \"updated_at\" BETWEEN -9007199254740991 AND 9007199254740991",
+      "entityType": "checks"
+    },
+    {
+      "table": "app_setting",
+      "name": "app_setting_singleton_check",
+      "value": "\"id\" = 1",
+      "entityType": "checks"
+    },
+    {
+      "table": "categories",
+      "name": "categories_archived_at_integer_check",
+      "value": "\"archived_at\" IS NULL OR (typeof(\"archived_at\") = 'integer' AND \"archived_at\" BETWEEN -9007199254740991 AND 9007199254740991)",
+      "entityType": "checks"
+    },
+    {
+      "table": "categories",
+      "name": "categories_created_at_integer_check",
+      "value": "typeof(\"created_at\") = 'integer' AND \"created_at\" BETWEEN -9007199254740991 AND 9007199254740991",
+      "entityType": "checks"
+    },
+    {
+      "table": "categories",
+      "name": "categories_spending_type_check",
+      "value": "\"spending_type\" IN ('personal', 'business', 'mixed')",
+      "entityType": "checks"
+    },
+    {
+      "table": "categories",
+      "name": "categories_parent_check",
+      "value": "\"parent_id\" IS NULL OR \"parent_id\" <> \"id\"",
+      "entityType": "checks"
+    },
+    {
+      "table": "exchange_rates",
+      "name": "exchange_rates_base_currency_code_check",
+      "value": "typeof(\"base_currency\") = 'text' AND length(\"base_currency\") = 3 AND instr(\"base_currency\", char(0)) = 0 AND \"base_currency\" GLOB '[A-Z][A-Z][A-Z]'",
+      "entityType": "checks"
+    },
+    {
+      "table": "exchange_rates",
+      "name": "exchange_rates_quote_currency_code_check",
+      "value": "typeof(\"quote_currency\") = 'text' AND length(\"quote_currency\") = 3 AND instr(\"quote_currency\", char(0)) = 0 AND \"quote_currency\" GLOB '[A-Z][A-Z][A-Z]'",
+      "entityType": "checks"
+    },
+    {
+      "table": "exchange_rates",
+      "name": "exchange_rates_fetched_at_integer_check",
+      "value": "typeof(\"fetched_at\") = 'integer' AND \"fetched_at\" BETWEEN -9007199254740991 AND 9007199254740991",
+      "entityType": "checks"
+    },
+    {
+      "table": "exchange_rates",
+      "name": "exchange_rates_as_of_date_check",
+      "value": "typeof(\"as_of\") = 'text' AND length(\"as_of\") = 10 AND \"as_of\" GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'",
+      "entityType": "checks"
+    },
+    {
+      "table": "exchange_rates",
+      "name": "exchange_rates_rate_check",
+      "value": "typeof(\"rate\") = 'real' AND \"rate\" > 0 AND \"rate\" < 1e300",
+      "entityType": "checks"
+    },
+    {
+      "table": "holdings",
+      "name": "holdings_currency_code_check",
+      "value": "typeof(\"currency\") = 'text' AND length(\"currency\") = 3 AND instr(\"currency\", char(0)) = 0 AND \"currency\" GLOB '[A-Z][A-Z][A-Z]'",
+      "entityType": "checks"
+    },
+    {
+      "table": "holdings",
+      "name": "holdings_cost_basis_currency_code_check",
+      "value": "\"cost_basis_currency\" IS NULL OR (typeof(\"cost_basis_currency\") = 'text' AND length(\"cost_basis_currency\") = 3 AND instr(\"cost_basis_currency\", char(0)) = 0 AND \"cost_basis_currency\" GLOB '[A-Z][A-Z][A-Z]')",
+      "entityType": "checks"
+    },
+    {
+      "table": "holdings",
+      "name": "holdings_last_price_currency_code_check",
+      "value": "\"last_price_currency\" IS NULL OR (typeof(\"last_price_currency\") = 'text' AND length(\"last_price_currency\") = 3 AND instr(\"last_price_currency\", char(0)) = 0 AND \"last_price_currency\" GLOB '[A-Z][A-Z][A-Z]')",
+      "entityType": "checks"
+    },
+    {
+      "table": "holdings",
+      "name": "holdings_cost_basis_minor_integer_check",
+      "value": "\"cost_basis_minor\" IS NULL OR (typeof(\"cost_basis_minor\") = 'integer' AND \"cost_basis_minor\" BETWEEN -9007199254740991 AND 9007199254740991)",
+      "entityType": "checks"
+    },
+    {
+      "table": "holdings",
+      "name": "holdings_created_at_integer_check",
+      "value": "typeof(\"created_at\") = 'integer' AND \"created_at\" BETWEEN -9007199254740991 AND 9007199254740991",
+      "entityType": "checks"
+    },
+    {
+      "table": "holdings",
+      "name": "holdings_last_price_minor_integer_check",
+      "value": "\"last_price_minor\" IS NULL OR (typeof(\"last_price_minor\") = 'integer' AND \"last_price_minor\" BETWEEN -9007199254740991 AND 9007199254740991)",
+      "entityType": "checks"
+    },
+    {
+      "table": "holdings",
+      "name": "holdings_priced_at_integer_check",
+      "value": "\"priced_at\" IS NULL OR (typeof(\"priced_at\") = 'integer' AND \"priced_at\" BETWEEN -9007199254740991 AND 9007199254740991)",
+      "entityType": "checks"
+    },
+    {
+      "table": "holdings",
+      "name": "holdings_quantity_micros_integer_check",
+      "value": "typeof(\"quantity_micros\") = 'integer' AND \"quantity_micros\" BETWEEN -9007199254740991 AND 9007199254740991",
+      "entityType": "checks"
+    },
+    {
+      "table": "holdings",
+      "name": "holdings_updated_at_integer_check",
+      "value": "typeof(\"updated_at\") = 'integer' AND \"updated_at\" BETWEEN -9007199254740991 AND 9007199254740991",
+      "entityType": "checks"
+    },
+    {
+      "table": "holdings",
+      "name": "holdings_opened_on_date_check",
+      "value": "typeof(\"opened_on\") = 'text' AND length(\"opened_on\") = 10 AND \"opened_on\" GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'",
+      "entityType": "checks"
+    },
+    {
+      "table": "holdings",
+      "name": "holdings_asset_type_check",
+      "value": "\"asset_type\" IN ('stock', 'etf', 'fund', 'crypto', 'cash')",
+      "entityType": "checks"
+    },
+    {
+      "table": "holdings",
+      "name": "holdings_state_check",
+      "value": "\"state\" IN ('active', 'pending', 'closed')",
+      "entityType": "checks"
+    },
+    {
+      "table": "holdings",
+      "name": "holdings_quantity_check",
+      "value": "\"quantity_micros\" >= 0",
+      "entityType": "checks"
+    },
+    {
+      "table": "holdings",
+      "name": "holdings_cost_basis_pair_check",
+      "value": "(\"cost_basis_minor\" IS NULL) = (\"cost_basis_currency\" IS NULL)",
+      "entityType": "checks"
+    },
+    {
+      "table": "holdings",
+      "name": "holdings_last_price_pair_check",
+      "value": "(\"last_price_minor\" IS NULL) = (\"last_price_currency\" IS NULL)",
+      "entityType": "checks"
+    },
+    {
+      "table": "holdings",
+      "name": "holdings_pending_price_check",
+      "value": "\"state\" <> 'pending' OR \"last_price_minor\" IS NULL",
+      "entityType": "checks"
+    },
+    {
+      "table": "investment_platforms",
+      "name": "investment_platforms_enabled_integer_check",
+      "value": "typeof(\"enabled\") = 'integer' AND \"enabled\" BETWEEN -9007199254740991 AND 9007199254740991",
+      "entityType": "checks"
+    },
+    {
+      "table": "investment_platforms",
+      "name": "investment_platforms_enabled_boolean_check",
+      "value": "\"enabled\" IN (0, 1)",
+      "entityType": "checks"
+    },
+    {
+      "table": "investment_platforms",
+      "name": "investment_platforms_connector_check",
+      "value": "\"connector\" IN ('trading212', 'manual')",
+      "entityType": "checks"
+    },
+    {
+      "table": "members",
+      "name": "members_created_at_integer_check",
+      "value": "typeof(\"created_at\") = 'integer' AND \"created_at\" BETWEEN -9007199254740991 AND 9007199254740991",
+      "entityType": "checks"
+    },
+    {
+      "table": "members",
+      "name": "members_email_check",
+      "value": "typeof(\"email\") = 'text' AND length(trim(\"email\", ' ' || char(9) || char(10) || char(13))) > 0",
+      "entityType": "checks"
+    },
+    {
+      "table": "members",
+      "name": "members_role_check",
+      "value": "\"role\" IN ('owner', 'viewer')",
+      "entityType": "checks"
+    },
+    {
+      "table": "merchant_aliases",
+      "name": "merchant_aliases_created_at_integer_check",
+      "value": "typeof(\"created_at\") = 'integer' AND \"created_at\" BETWEEN -9007199254740991 AND 9007199254740991",
+      "entityType": "checks"
+    },
+    {
+      "table": "merchant_aliases",
+      "name": "merchant_aliases_pattern_check",
+      "value": "typeof(\"pattern\") = 'text' AND length(trim(\"pattern\", ' ' || char(9) || char(10) || char(13))) > 0",
+      "entityType": "checks"
+    },
+    {
+      "table": "merchant_aliases",
+      "name": "merchant_aliases_match_type_check",
+      "value": "\"match_type\" IN ('exact', 'prefix', 'contains')",
+      "entityType": "checks"
+    },
+    {
+      "table": "payees",
+      "name": "payees_archived_at_integer_check",
+      "value": "\"archived_at\" IS NULL OR (typeof(\"archived_at\") = 'integer' AND \"archived_at\" BETWEEN -9007199254740991 AND 9007199254740991)",
+      "entityType": "checks"
+    },
+    {
+      "table": "payees",
+      "name": "payees_created_at_integer_check",
+      "value": "typeof(\"created_at\") = 'integer' AND \"created_at\" BETWEEN -9007199254740991 AND 9007199254740991",
+      "entityType": "checks"
+    },
+    {
+      "table": "payees",
+      "name": "payees_kind_check",
+      "value": "\"kind\" IN ('merchant', 'client', 'employer', 'tax_authority')",
+      "entityType": "checks"
+    },
+    {
+      "table": "profiles",
+      "name": "profiles_archived_at_integer_check",
+      "value": "\"archived_at\" IS NULL OR (typeof(\"archived_at\") = 'integer' AND \"archived_at\" BETWEEN -9007199254740991 AND 9007199254740991)",
+      "entityType": "checks"
+    },
+    {
+      "table": "profiles",
+      "name": "profiles_created_at_integer_check",
+      "value": "typeof(\"created_at\") = 'integer' AND \"created_at\" BETWEEN -9007199254740991 AND 9007199254740991",
+      "entityType": "checks"
+    },
+    {
+      "table": "profiles",
+      "name": "profiles_base_currency_code_check",
+      "value": "typeof(\"base_currency\") = 'text' AND length(\"base_currency\") = 3 AND instr(\"base_currency\", char(0)) = 0 AND \"base_currency\" GLOB '[A-Z][A-Z][A-Z]'",
+      "entityType": "checks"
+    },
+    {
+      "table": "profiles",
+      "name": "profiles_kind_check",
+      "value": "\"kind\" IN ('personal', 'business')",
+      "entityType": "checks"
+    },
+    {
+      "table": "provider_accounts",
+      "name": "provider_accounts_archived_at_integer_check",
+      "value": "\"archived_at\" IS NULL OR (typeof(\"archived_at\") = 'integer' AND \"archived_at\" BETWEEN -9007199254740991 AND 9007199254740991)",
+      "entityType": "checks"
+    },
+    {
+      "table": "provider_accounts",
+      "name": "provider_accounts_created_at_integer_check",
+      "value": "typeof(\"created_at\") = 'integer' AND \"created_at\" BETWEEN -9007199254740991 AND 9007199254740991",
+      "entityType": "checks"
+    },
+    {
+      "table": "provider_accounts",
+      "name": "provider_accounts_last_synced_at_integer_check",
+      "value": "\"last_synced_at\" IS NULL OR (typeof(\"last_synced_at\") = 'integer' AND \"last_synced_at\" BETWEEN -9007199254740991 AND 9007199254740991)",
+      "entityType": "checks"
+    },
+    {
+      "table": "provider_accounts",
+      "name": "provider_accounts_sync_start_date_date_check",
+      "value": "\"sync_start_date\" IS NULL OR (typeof(\"sync_start_date\") = 'text' AND length(\"sync_start_date\") = 10 AND \"sync_start_date\" GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]')",
+      "entityType": "checks"
+    },
+    {
+      "table": "provider_accounts",
+      "name": "provider_accounts_kind_check",
+      "value": "\"kind\" IN ('bank', 'investment', 'books', 'csv', 'manual')",
+      "entityType": "checks"
+    },
+    {
+      "table": "providers",
+      "name": "providers_enabled_integer_check",
+      "value": "typeof(\"enabled\") = 'integer' AND \"enabled\" BETWEEN -9007199254740991 AND 9007199254740991",
+      "entityType": "checks"
+    },
+    {
+      "table": "providers",
+      "name": "providers_enabled_boolean_check",
+      "value": "\"enabled\" IN (0, 1)",
+      "entityType": "checks"
+    },
+    {
+      "table": "providers",
+      "name": "providers_kind_check",
+      "value": "\"kind\" IN ('bank', 'investment', 'books', 'csv', 'manual')",
+      "entityType": "checks"
+    },
+    {
+      "table": "rules",
+      "name": "rules_created_at_integer_check",
+      "value": "typeof(\"created_at\") = 'integer' AND \"created_at\" BETWEEN -9007199254740991 AND 9007199254740991",
+      "entityType": "checks"
+    },
+    {
+      "table": "rules",
+      "name": "rules_enabled_integer_check",
+      "value": "typeof(\"enabled\") = 'integer' AND \"enabled\" BETWEEN -9007199254740991 AND 9007199254740991",
+      "entityType": "checks"
+    },
+    {
+      "table": "rules",
+      "name": "rules_max_amount_minor_integer_check",
+      "value": "\"max_amount_minor\" IS NULL OR (typeof(\"max_amount_minor\") = 'integer' AND \"max_amount_minor\" BETWEEN -9007199254740991 AND 9007199254740991)",
+      "entityType": "checks"
+    },
+    {
+      "table": "rules",
+      "name": "rules_min_amount_minor_integer_check",
+      "value": "\"min_amount_minor\" IS NULL OR (typeof(\"min_amount_minor\") = 'integer' AND \"min_amount_minor\" BETWEEN -9007199254740991 AND 9007199254740991)",
+      "entityType": "checks"
+    },
+    {
+      "table": "rules",
+      "name": "rules_priority_integer_check",
+      "value": "typeof(\"priority\") = 'integer' AND \"priority\" BETWEEN -9007199254740991 AND 9007199254740991",
+      "entityType": "checks"
+    },
+    {
+      "table": "rules",
+      "name": "rules_updated_at_integer_check",
+      "value": "typeof(\"updated_at\") = 'integer' AND \"updated_at\" BETWEEN -9007199254740991 AND 9007199254740991",
+      "entityType": "checks"
+    },
+    {
+      "table": "rules",
+      "name": "rules_enabled_boolean_check",
+      "value": "\"enabled\" IN (0, 1)",
+      "entityType": "checks"
+    },
+    {
+      "table": "rules",
+      "name": "rules_pattern_check",
+      "value": "typeof(\"pattern\") = 'text' AND length(trim(\"pattern\", ' ' || char(9) || char(10) || char(13))) > 0",
+      "entityType": "checks"
+    },
+    {
+      "table": "rules",
+      "name": "rules_kind_check",
+      "value": "\"kind\" IN ('categorize', 'self_transfer', 'refund', 'internal_transfer', 'exclude', 'income_client', 'tax_payment')",
+      "entityType": "checks"
+    },
+    {
+      "table": "rules",
+      "name": "rules_match_field_check",
+      "value": "\"match_field\" IN ('merchant', 'reference', 'description')",
+      "entityType": "checks"
+    },
+    {
+      "table": "rules",
+      "name": "rules_match_type_check",
+      "value": "\"match_type\" IN ('exact', 'contains', 'prefix', 'digits_only')",
+      "entityType": "checks"
+    },
+    {
+      "table": "rules",
+      "name": "rules_direction_check",
+      "value": "\"direction\" IN ('any', 'in', 'out')",
+      "entityType": "checks"
+    },
+    {
+      "table": "rules",
+      "name": "rules_amount_bounds_check",
+      "value": "(\"min_amount_minor\" IS NULL OR \"min_amount_minor\" >= 0) AND (\"max_amount_minor\" IS NULL OR \"max_amount_minor\" >= 0) AND (\"min_amount_minor\" IS NULL OR \"max_amount_minor\" IS NULL OR \"min_amount_minor\" <= \"max_amount_minor\")",
+      "entityType": "checks"
+    },
+    {
+      "table": "rules",
+      "name": "rules_target_check",
+      "value": "(\"kind\" = 'categorize' AND \"category_id\" IS NOT NULL AND \"client_payee_id\" IS NULL AND \"counterpart_profile_id\" IS NULL AND \"obligation_kind\" IS NULL) OR (\"kind\" = 'income_client' AND \"client_payee_id\" IS NOT NULL AND \"category_id\" IS NULL AND \"counterpart_profile_id\" IS NULL AND \"obligation_kind\" IS NULL) OR (\"kind\" = 'tax_payment' AND \"obligation_kind\" IS NOT NULL AND \"category_id\" IS NULL AND \"client_payee_id\" IS NULL AND \"counterpart_profile_id\" IS NULL) OR (\"kind\" = 'self_transfer' AND \"category_id\" IS NULL AND \"client_payee_id\" IS NULL AND \"obligation_kind\" IS NULL) OR (\"kind\" IN ('refund', 'internal_transfer', 'exclude') AND \"category_id\" IS NULL AND \"client_payee_id\" IS NULL AND \"counterpart_profile_id\" IS NULL AND \"obligation_kind\" IS NULL)",
+      "entityType": "checks"
+    },
+    {
+      "table": "run_logs",
+      "name": "run_logs_recorded_at_integer_check",
+      "value": "typeof(\"recorded_at\") = 'integer' AND \"recorded_at\" BETWEEN -9007199254740991 AND 9007199254740991",
+      "entityType": "checks"
+    },
+    {
+      "table": "run_logs",
+      "name": "run_logs_outcome_check",
+      "value": "\"outcome\" IN ('Succeeded', 'Failed')",
+      "entityType": "checks"
+    },
+    {
+      "table": "run_logs",
+      "name": "run_logs_failure_tag_check",
+      "value": "(\"outcome\" = 'Succeeded' AND \"failure_tag\" IS NULL) OR (\"outcome\" = 'Failed' AND \"failure_tag\" IS NOT NULL)",
+      "entityType": "checks"
+    },
+    {
+      "table": "subscriptions",
+      "name": "subscriptions_base_currency_code_check",
+      "value": "typeof(\"base_currency\") = 'text' AND length(\"base_currency\") = 3 AND instr(\"base_currency\", char(0)) = 0 AND \"base_currency\" GLOB '[A-Z][A-Z][A-Z]'",
+      "entityType": "checks"
+    },
+    {
+      "table": "subscriptions",
+      "name": "subscriptions_typical_currency_code_check",
+      "value": "typeof(\"typical_currency\") = 'text' AND length(\"typical_currency\") = 3 AND instr(\"typical_currency\", char(0)) = 0 AND \"typical_currency\" GLOB '[A-Z][A-Z][A-Z]'",
+      "entityType": "checks"
+    },
+    {
+      "table": "subscriptions",
+      "name": "subscriptions_created_at_integer_check",
+      "value": "typeof(\"created_at\") = 'integer' AND \"created_at\" BETWEEN -9007199254740991 AND 9007199254740991",
+      "entityType": "checks"
+    },
+    {
+      "table": "subscriptions",
+      "name": "subscriptions_occurrence_count_integer_check",
+      "value": "typeof(\"occurrence_count\") = 'integer' AND \"occurrence_count\" BETWEEN -9007199254740991 AND 9007199254740991",
+      "entityType": "checks"
+    },
+    {
+      "table": "subscriptions",
+      "name": "subscriptions_status_changed_at_integer_check",
+      "value": "typeof(\"status_changed_at\") = 'integer' AND \"status_changed_at\" BETWEEN -9007199254740991 AND 9007199254740991",
+      "entityType": "checks"
+    },
+    {
+      "table": "subscriptions",
+      "name": "subscriptions_typical_base_minor_integer_check",
+      "value": "typeof(\"typical_base_minor\") = 'integer' AND \"typical_base_minor\" BETWEEN -9007199254740991 AND 9007199254740991",
+      "entityType": "checks"
+    },
+    {
+      "table": "subscriptions",
+      "name": "subscriptions_typical_minor_integer_check",
+      "value": "typeof(\"typical_minor\") = 'integer' AND \"typical_minor\" BETWEEN -9007199254740991 AND 9007199254740991",
+      "entityType": "checks"
+    },
+    {
+      "table": "subscriptions",
+      "name": "subscriptions_updated_at_integer_check",
+      "value": "typeof(\"updated_at\") = 'integer' AND \"updated_at\" BETWEEN -9007199254740991 AND 9007199254740991",
+      "entityType": "checks"
+    },
+    {
+      "table": "subscriptions",
+      "name": "subscriptions_last_charged_on_date_check",
+      "value": "typeof(\"last_charged_on\") = 'text' AND length(\"last_charged_on\") = 10 AND \"last_charged_on\" GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'",
+      "entityType": "checks"
+    },
+    {
+      "table": "subscriptions",
+      "name": "subscriptions_next_expected_on_date_check",
+      "value": "typeof(\"next_expected_on\") = 'text' AND length(\"next_expected_on\") = 10 AND \"next_expected_on\" GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'",
+      "entityType": "checks"
+    },
+    {
+      "table": "subscriptions",
+      "name": "subscriptions_frequency_check",
+      "value": "\"frequency\" IN ('weekly', 'monthly', 'quarterly', 'annual')",
+      "entityType": "checks"
+    },
+    {
+      "table": "subscriptions",
+      "name": "subscriptions_status_check",
+      "value": "\"status\" IN ('detected', 'confirmed', 'dismissed', 'not_recurring', 'cancelled')",
+      "entityType": "checks"
+    },
+    {
+      "table": "subscriptions",
+      "name": "subscriptions_base_amount_check",
+      "value": "\"typical_currency\" <> \"base_currency\" OR \"typical_minor\" = \"typical_base_minor\"",
+      "entityType": "checks"
+    },
+    {
+      "table": "subscriptions",
+      "name": "subscriptions_confidence_check",
+      "value": "typeof(\"confidence\") = 'real' AND \"confidence\" >= 0 AND \"confidence\" <= 1",
+      "entityType": "checks"
+    },
+    {
+      "table": "subscriptions",
+      "name": "subscriptions_amount_cv_check",
+      "value": "typeof(\"amount_cv\") = 'real' AND \"amount_cv\" >= 0 AND \"amount_cv\" < 1e300",
+      "entityType": "checks"
+    },
+    {
+      "table": "sync_run_rejections",
+      "name": "sync_run_rejections_created_at_integer_check",
+      "value": "typeof(\"created_at\") = 'integer' AND \"created_at\" BETWEEN -9007199254740991 AND 9007199254740991",
+      "entityType": "checks"
+    },
+    {
+      "table": "sync_runs",
+      "name": "sync_runs_chunk_index_integer_check",
+      "value": "typeof(\"chunk_index\") = 'integer' AND \"chunk_index\" BETWEEN -9007199254740991 AND 9007199254740991",
+      "entityType": "checks"
+    },
+    {
+      "table": "sync_runs",
+      "name": "sync_runs_finished_at_integer_check",
+      "value": "\"finished_at\" IS NULL OR (typeof(\"finished_at\") = 'integer' AND \"finished_at\" BETWEEN -9007199254740991 AND 9007199254740991)",
+      "entityType": "checks"
+    },
+    {
+      "table": "sync_runs",
+      "name": "sync_runs_imported_integer_check",
+      "value": "typeof(\"imported\") = 'integer' AND \"imported\" BETWEEN -9007199254740991 AND 9007199254740991",
+      "entityType": "checks"
+    },
+    {
+      "table": "sync_runs",
+      "name": "sync_runs_lease_expires_at_integer_check",
+      "value": "typeof(\"lease_expires_at\") = 'integer' AND \"lease_expires_at\" BETWEEN -9007199254740991 AND 9007199254740991",
+      "entityType": "checks"
+    },
+    {
+      "table": "sync_runs",
+      "name": "sync_runs_rejected_integer_check",
+      "value": "typeof(\"rejected\") = 'integer' AND \"rejected\" BETWEEN -9007199254740991 AND 9007199254740991",
+      "entityType": "checks"
+    },
+    {
+      "table": "sync_runs",
+      "name": "sync_runs_skipped_integer_check",
+      "value": "typeof(\"skipped\") = 'integer' AND \"skipped\" BETWEEN -9007199254740991 AND 9007199254740991",
+      "entityType": "checks"
+    },
+    {
+      "table": "sync_runs",
+      "name": "sync_runs_started_at_integer_check",
+      "value": "typeof(\"started_at\") = 'integer' AND \"started_at\" BETWEEN -9007199254740991 AND 9007199254740991",
+      "entityType": "checks"
+    },
+    {
+      "table": "sync_runs",
+      "name": "sync_runs_updated_at_integer_check",
+      "value": "typeof(\"updated_at\") = 'integer' AND \"updated_at\" BETWEEN -9007199254740991 AND 9007199254740991",
+      "entityType": "checks"
+    },
+    {
+      "table": "sync_runs",
+      "name": "sync_runs_window_from_date_check",
+      "value": "\"window_from\" IS NULL OR (typeof(\"window_from\") = 'text' AND length(\"window_from\") = 10 AND \"window_from\" GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]')",
+      "entityType": "checks"
+    },
+    {
+      "table": "sync_runs",
+      "name": "sync_runs_window_to_date_check",
+      "value": "\"window_to\" IS NULL OR (typeof(\"window_to\") = 'text' AND length(\"window_to\") = 10 AND \"window_to\" GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]')",
+      "entityType": "checks"
+    },
+    {
+      "table": "sync_runs",
+      "name": "sync_runs_kind_check",
+      "value": "\"kind\" IN ('bank_sync', 'categorization')",
+      "entityType": "checks"
+    },
+    {
+      "table": "sync_runs",
+      "name": "sync_runs_state_check",
+      "value": "\"state\" IN ('running', 'chunk_done', 'categorizing', 'succeeded', 'failed', 'cancelled')",
+      "entityType": "checks"
+    },
+    {
+      "table": "sync_runs",
+      "name": "sync_runs_finished_check",
+      "value": "(\"state\" IN ('succeeded', 'failed', 'cancelled')) = (\"finished_at\" IS NOT NULL)",
+      "entityType": "checks"
+    },
+    {
+      "table": "sync_runs",
+      "name": "sync_runs_failure_check",
+      "value": "\"state\" <> 'failed' OR \"failure_tag\" IS NOT NULL",
+      "entityType": "checks"
+    },
+    {
+      "table": "transactions",
+      "name": "transactions_source_currency_code_check",
+      "value": "typeof(\"source_currency\") = 'text' AND length(\"source_currency\") = 3 AND instr(\"source_currency\", char(0)) = 0 AND \"source_currency\" GLOB '[A-Z][A-Z][A-Z]'",
+      "entityType": "checks"
+    },
+    {
+      "table": "transactions",
+      "name": "transactions_base_currency_code_check",
+      "value": "typeof(\"base_currency\") = 'text' AND length(\"base_currency\") = 3 AND instr(\"base_currency\", char(0)) = 0 AND \"base_currency\" GLOB '[A-Z][A-Z][A-Z]'",
+      "entityType": "checks"
+    },
+    {
+      "table": "transactions",
+      "name": "transactions_fee_currency_code_check",
+      "value": "\"fee_currency\" IS NULL OR (typeof(\"fee_currency\") = 'text' AND length(\"fee_currency\") = 3 AND instr(\"fee_currency\", char(0)) = 0 AND \"fee_currency\" GLOB '[A-Z][A-Z][A-Z]')",
+      "entityType": "checks"
+    },
+    {
+      "table": "transactions",
+      "name": "transactions_base_minor_integer_check",
+      "value": "typeof(\"base_minor\") = 'integer' AND \"base_minor\" BETWEEN -9007199254740991 AND 9007199254740991",
+      "entityType": "checks"
+    },
+    {
+      "table": "transactions",
+      "name": "transactions_created_at_integer_check",
+      "value": "typeof(\"created_at\") = 'integer' AND \"created_at\" BETWEEN -9007199254740991 AND 9007199254740991",
+      "entityType": "checks"
+    },
+    {
+      "table": "transactions",
+      "name": "transactions_fee_minor_integer_check",
+      "value": "\"fee_minor\" IS NULL OR (typeof(\"fee_minor\") = 'integer' AND \"fee_minor\" BETWEEN -9007199254740991 AND 9007199254740991)",
+      "entityType": "checks"
+    },
+    {
+      "table": "transactions",
+      "name": "transactions_occurred_at_integer_check",
+      "value": "typeof(\"occurred_at\") = 'integer' AND \"occurred_at\" BETWEEN -9007199254740991 AND 9007199254740991",
+      "entityType": "checks"
+    },
+    {
+      "table": "transactions",
+      "name": "transactions_source_minor_integer_check",
+      "value": "typeof(\"source_minor\") = 'integer' AND \"source_minor\" BETWEEN -9007199254740991 AND 9007199254740991",
+      "entityType": "checks"
+    },
+    {
+      "table": "transactions",
+      "name": "transactions_suggested_at_integer_check",
+      "value": "\"suggested_at\" IS NULL OR (typeof(\"suggested_at\") = 'integer' AND \"suggested_at\" BETWEEN -9007199254740991 AND 9007199254740991)",
+      "entityType": "checks"
+    },
+    {
+      "table": "transactions",
+      "name": "transactions_updated_at_integer_check",
+      "value": "typeof(\"updated_at\") = 'integer' AND \"updated_at\" BETWEEN -9007199254740991 AND 9007199254740991",
+      "entityType": "checks"
+    },
+    {
+      "table": "transactions",
+      "name": "transactions_rate_as_of_date_check",
+      "value": "\"rate_as_of\" IS NULL OR (typeof(\"rate_as_of\") = 'text' AND length(\"rate_as_of\") = 10 AND \"rate_as_of\" GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]')",
+      "entityType": "checks"
+    },
+    {
+      "table": "transactions",
+      "name": "transactions_value_date_date_check",
+      "value": "typeof(\"value_date\") = 'text' AND length(\"value_date\") = 10 AND \"value_date\" GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'",
+      "entityType": "checks"
+    },
+    {
+      "table": "transactions",
+      "name": "transactions_status_check",
+      "value": "\"status\" IN ('posted', 'pending', 'reversed')",
+      "entityType": "checks"
+    },
+    {
+      "table": "transactions",
+      "name": "transactions_direction_check",
+      "value": "\"direction\" IN ('in', 'out', 'neutral')",
+      "entityType": "checks"
+    },
+    {
+      "table": "transactions",
+      "name": "transactions_categorization_check",
+      "value": "\"categorization\" IN ('none', 'suggested', 'applied', 'confirmed')",
+      "entityType": "checks"
+    },
+    {
+      "table": "transactions",
+      "name": "transactions_classification_check",
+      "value": "\"classification\" IN ('none', 'income', 'refund', 'self_transfer', 'internal_transfer', 'excluded', 'tax_payment')",
+      "entityType": "checks"
+    },
+    {
+      "table": "transactions",
+      "name": "transactions_categorization_category_check",
+      "value": "(\"category_id\" IS NULL) = (\"categorization\" = 'none')",
+      "entityType": "checks"
+    },
+    {
+      "table": "transactions",
+      "name": "transactions_suggested_check",
+      "value": "(\"categorization\" = 'suggested' AND \"suggestion_model\" IS NOT NULL AND \"suggested_at\" IS NOT NULL) OR (\"categorization\" <> 'suggested' AND \"suggestion_model\" IS NULL AND \"suggested_at\" IS NULL)",
+      "entityType": "checks"
+    },
+    {
+      "table": "transactions",
+      "name": "transactions_applied_rule_check",
+      "value": "(\"categorization\" = 'applied') = (\"applied_rule_id\" IS NOT NULL)",
+      "entityType": "checks"
+    },
+    {
+      "table": "transactions",
+      "name": "transactions_income_payee_check",
+      "value": "(\"classification\" = 'income') = (\"client_payee_id\" IS NOT NULL)",
+      "entityType": "checks"
+    },
+    {
+      "table": "transactions",
+      "name": "transactions_classification_rule_check",
+      "value": "(\"classification\" = 'none') = (\"classification_rule_id\" IS NULL)",
+      "entityType": "checks"
+    },
+    {
+      "table": "transactions",
+      "name": "transactions_counterpart_profile_check",
+      "value": "\"counterpart_profile_id\" IS NULL OR \"classification\" = 'self_transfer'",
+      "entityType": "checks"
+    },
+    {
+      "table": "transactions",
+      "name": "transactions_base_amount_check",
+      "value": "\"source_currency\" <> \"base_currency\" OR \"source_minor\" = \"base_minor\"",
+      "entityType": "checks"
+    },
+    {
+      "table": "transactions",
+      "name": "transactions_rate_check",
+      "value": "(\"source_currency\" = \"base_currency\" AND \"rate\" IS NULL AND \"rate_as_of\" IS NULL) OR (\"source_currency\" <> \"base_currency\" AND typeof(\"rate\") = 'real' AND \"rate\" > 0 AND \"rate\" < 1e300 AND \"rate_as_of\" IS NOT NULL)",
+      "entityType": "checks"
+    },
+    {
+      "table": "transactions",
+      "name": "transactions_rate_amount_check",
+      "value": "\"source_currency\" = \"base_currency\" OR abs(\"base_minor\" - (CASE (CASE \"base_currency\" WHEN 'BHD' THEN 3 WHEN 'BIF' THEN 0 WHEN 'CLF' THEN 4 WHEN 'CLP' THEN 0 WHEN 'DJF' THEN 0 WHEN 'GNF' THEN 0 WHEN 'IQD' THEN 3 WHEN 'ISK' THEN 0 WHEN 'JOD' THEN 3 WHEN 'JPY' THEN 0 WHEN 'KMF' THEN 0 WHEN 'KRW' THEN 0 WHEN 'KWD' THEN 3 WHEN 'LYD' THEN 3 WHEN 'OMR' THEN 3 WHEN 'PYG' THEN 0 WHEN 'RWF' THEN 0 WHEN 'TND' THEN 3 WHEN 'UGX' THEN 0 WHEN 'UYI' THEN 0 WHEN 'UYW' THEN 4 WHEN 'VND' THEN 0 WHEN 'VUV' THEN 0 WHEN 'XAF' THEN 0 WHEN 'XOF' THEN 0 WHEN 'XPF' THEN 0 ELSE 2 END) - (CASE \"source_currency\" WHEN 'BHD' THEN 3 WHEN 'BIF' THEN 0 WHEN 'CLF' THEN 4 WHEN 'CLP' THEN 0 WHEN 'DJF' THEN 0 WHEN 'GNF' THEN 0 WHEN 'IQD' THEN 3 WHEN 'ISK' THEN 0 WHEN 'JOD' THEN 3 WHEN 'JPY' THEN 0 WHEN 'KMF' THEN 0 WHEN 'KRW' THEN 0 WHEN 'KWD' THEN 3 WHEN 'LYD' THEN 3 WHEN 'OMR' THEN 3 WHEN 'PYG' THEN 0 WHEN 'RWF' THEN 0 WHEN 'TND' THEN 3 WHEN 'UGX' THEN 0 WHEN 'UYI' THEN 0 WHEN 'UYW' THEN 4 WHEN 'VND' THEN 0 WHEN 'VUV' THEN 0 WHEN 'XAF' THEN 0 WHEN 'XOF' THEN 0 WHEN 'XPF' THEN 0 ELSE 2 END) WHEN -4 THEN (\"source_minor\" * \"rate\") / 10000 WHEN -3 THEN (\"source_minor\" * \"rate\") / 1000 WHEN -2 THEN (\"source_minor\" * \"rate\") / 100 WHEN -1 THEN (\"source_minor\" * \"rate\") / 10 WHEN 0 THEN (\"source_minor\" * \"rate\") * 1 WHEN 1 THEN (\"source_minor\" * \"rate\") * 10 WHEN 2 THEN (\"source_minor\" * \"rate\") * 100 WHEN 3 THEN (\"source_minor\" * \"rate\") * 1000 WHEN 4 THEN (\"source_minor\" * \"rate\") * 10000 ELSE \"source_minor\" * \"rate\" END)) <= 1",
+      "entityType": "checks"
+    },
+    {
+      "table": "transactions",
+      "name": "transactions_rate_amount_bound_check",
+      "value": "\"source_currency\" = \"base_currency\" OR (abs(\"source_minor\") <= 1000000000000 AND abs(\"base_minor\") <= 1000000000000)",
+      "entityType": "checks"
+    },
+    {
+      "table": "transactions",
+      "name": "transactions_fee_currency_check",
+      "value": "\"fee_currency\" IS NULL OR \"fee_currency\" = \"source_currency\"",
+      "entityType": "checks"
+    },
+    {
+      "table": "transactions",
+      "name": "transactions_fee_pair_check",
+      "value": "(\"fee_minor\" IS NULL) = (\"fee_currency\" IS NULL)",
+      "entityType": "checks"
+    }
+  ],
+  "renames": []
+}

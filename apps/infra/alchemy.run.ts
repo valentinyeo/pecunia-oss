@@ -10,9 +10,11 @@ import * as Layer from "effect/Layer";
 import * as Redacted from "effect/Redacted";
 import * as Schema from "effect/Schema";
 
+import McpEndpoint from "../api/src/mcp-worker.js";
 import privateAuth from "../site/src/auth/private-worker.js";
 import Mischief from "../site/src/worker.js";
 import Workshop from "../site/src/workshop-worker.js";
+import SyncWorker from "../sync/src/sync-worker.js";
 import { Website } from "../web/src/website.js";
 import { ratstackState } from "./src/state-store.js";
 
@@ -154,6 +156,10 @@ export default Alchemy.Stack(
 
     const mischief = yield* Mischief;
 
+    const sync = yield* SyncWorker;
+
+    const mcp = yield* McpEndpoint;
+
     yield* Workshop;
     yield* turboCache;
 
@@ -163,7 +169,12 @@ export default Alchemy.Stack(
       ],
     });
 
-    return { mischiefUrl: mischief.url, websiteUrl: website.url };
+    return {
+      mcpUrl: mcp.url,
+      mischiefUrl: mischief.url,
+      syncWorkerName: sync.workerName,
+      websiteUrl: website.url,
+    };
   }).pipe(
     Effect.provide(
       Layer.unwrap(
