@@ -7,7 +7,9 @@ EVIDENCE_ROOT="$REPO_ROOT/skills/verify-pecunia/evidence"
 FEATURES=(accounts-and-bank-lines categories-and-rules dashboard-sums subscriptions investments fx-conversion tax invoices)
 FEATURE=all
 LABEL_ARG=
+LIST_STEPS=0
 IMPORT_FEATURES=" all accounts-and-bank-lines "
+source "$SCRIPT_DIR/lib/steps.sh"
 
 fence_failure() {
   printf '%s. Fix: %s.\n' "$1" "$2" >&2
@@ -31,8 +33,12 @@ while [ "$#" -gt 0 ]; do
       EVIDENCE_ROOT=$2
       shift 2
       ;;
+    --list-steps)
+      LIST_STEPS=1
+      shift
+      ;;
     --help)
-      printf 'Usage: %s [--feature <%s|all>] [--label <name>] [--evidence-root <dir>]\n' "$0" "${FEATURES[*]}"
+      printf 'Usage: %s [--feature <%s|all>] [--label <name>] [--evidence-root <dir>] [--list-steps]\n' "$0" "${FEATURES[*]}"
       exit 0
       ;;
     *)
@@ -49,12 +55,24 @@ if [ "$FEATURE" != all ]; then
   [ "$known" -eq 1 ] || fence_failure "The feature $FEATURE has no page in the feature map" "pass one of all ${FEATURES[*]}"
 fi
 
-LABEL=${LABEL_ARG:-$FEATURE}
-if [ -n "$LABEL_ARG" ]; then
-  LABEL_FLAG=" --label $LABEL_ARG"
-else
-  LABEL_FLAG=" --label $LABEL"
+steps_declare_table() {
+  case "$FEATURE" in
+    all) steps_declare seed log seed; steps_declare build log build; steps_declare feature-map checks map; steps_declare generic checks ""; steps_declare accounts-and-bank-lines checks bank-import; steps_declare categories-and-rules checks ""; steps_declare dashboard-sums checks ""; steps_declare subscriptions checks ""; steps_declare investments checks ""; steps_declare fx-conversion checks ""; steps_declare tax checks ""; steps_declare invoices checks "" ;;
+    accounts-and-bank-lines) steps_declare seed log seed; steps_declare build log build; steps_declare feature-map checks map; steps_declare generic checks ""; steps_declare accounts-and-bank-lines checks bank-import ;;
+    *) steps_declare seed log seed; steps_declare feature-map checks map; steps_declare generic checks ""; steps_declare "$FEATURE" checks "" ;;
+  esac
+}
+
+if [ "$LIST_STEPS" -eq 1 ]; then
+  steps_declare_table
+  steps_list
+  exit 0
 fi
+
+steps_declare_table
+
+LABEL=${LABEL_ARG:-$FEATURE}
+LABEL_FLAG=" --label $LABEL"
 RUN_DATE=$(date -u +%Y-%m-%d)
 EVIDENCE_DIR="$EVIDENCE_ROOT/$RUN_DATE-$LABEL"
 PROOF_PATH="$EVIDENCE_DIR/PROOF.md"
@@ -69,15 +87,14 @@ command -v pnpm >/dev/null || fence_failure "pnpm is not on PATH" "install Node 
 
 SCRATCH=$(mktemp -d "${TMPDIR:-/tmp}/pecunia-verify-XXXXXX")
 DATABASE="$SCRATCH/demo.sqlite"
-RESULTS="$SCRATCH/results.jsonl"
 SEED_LOG="$SCRATCH/seed.log"
 BUILD_LOG="$SCRATCH/build.log"
 MAP_LOG="$SCRATCH/feature-map.log"
 DRIVE_JSON="$SCRATCH/bank-import-drive.json"
 BUILD_COMMAND="pnpm turbo run build --filter=@pecunia/bank-import..."
-CHECKS=0
-FAILURES=0
 ACTIVE_FEATURE=all
+
+steps_init "$SCRATCH/steps"
 
 cleanup() {
   rm -rf "$SCRATCH"
@@ -92,23 +109,21 @@ value() {
   sql "$1" | jq -r '(.[0] // {}) | to_entries[0].value // ""'
 }
 
-check() {
-  id=$1
-  title=$2
-  expected=$3
-  actual=$4
-  if [ "$actual" = "$expected" ]; then
-    status=PASS
-  else
-    status=FAIL
-    FAILURES=$((FAILURES + 1))
+step_feature_map() {
+  ACTIVE_FEATURE=all
+  local map_line unnamed unexported planned mismatched problems exit_status
+  map_line=$(steps_run_command map node "$SCRIPT_DIR/check-feature-map.mjs" 2> "$MAP_LOG")
+  if [ -s "$MAP_LOG" ]; then
+    cat "$MAP_LOG" >&2
   fi
-  CHECKS=$((CHECKS + 1))
-  jq -n --arg id "$id" --arg title "$title" --arg feature "$ACTIVE_FEATURE" --arg status "$status" --arg expected "$expected" --arg actual "$actual" '{id: $id, title: $title, feature: $feature, passed: ($status == "PASS"), expected: $expected, actual: $actual}' >> "$RESULTS"
-  printf '%s %s\n' "$status" "$id"
+  read -r unnamed unexported planned mismatched <<< "$(printf '%s\n' "$map_line" | sed -E 's/^SUMMARY unnamed=([0-9]+) unexported=([0-9]+) planned=([0-9]+) status=([0-9]+).*/\1 \2 \3 \4/')"
+  check feature-map-matches-capabilities "Every capability is on a feature page or declared not money" "0 unnamed, 0 unexported, 0 planned with a capability, 0 status mismatches" "${unnamed:-missing} unnamed, ${unexported:-missing} unexported, ${planned:-missing} planned with a capability, ${mismatched:-missing} status mismatches"
+  problems=$(printf '%s\n' "$map_line" | sed -E 's/^SUMMARY .* problems=([0-9]+).*/\1/')
+  exit_status=$(steps_command_status map)
+  check feature-map-reports-no-problems "The map check counts every problem it prints and exits non-zero for each" "problems=0 exit=0" "problems=${problems:-missing} exit=${exit_status:-missing}"
 }
 
-check_generic() {
+step_generic() {
   ACTIVE_FEATURE=all
   local wrong_declarations=0 wrong_storage=0 money_columns=0 currency_columns=0 wrong_currency=0
   local table name declaration rows
@@ -151,16 +166,9 @@ check_generic() {
   emails=$(value "SELECT COUNT(*) AS total FROM members WHERE email NOT LIKE '%@example.com'")
   names=$(value "SELECT group_concat(name, ',') AS names FROM (SELECT name FROM profiles ORDER BY name)")
   check demo-book-holds-made-up-identities "The demo book holds made-up identities only" "0 non-placeholder emails, Demo Person,Example Ltd" "$emails non-placeholder emails, $names"
-
-  local map_line unnamed unexported planned mismatched
-  if ! map_line=$(node "$SCRIPT_DIR/check-feature-map.mjs" 2> "$MAP_LOG"); then
-    cat "$MAP_LOG" >&2
-  fi
-  read -r unnamed unexported planned mismatched <<< "$(printf '%s\n' "$map_line" | sed -E 's/^SUMMARY unnamed=([0-9]+) unexported=([0-9]+) planned=([0-9]+) status=([0-9]+).*/\1 \2 \3 \4/')"
-  check feature-map-matches-capabilities "Every capability is on a feature page or declared not money" "0 unnamed, 0 unexported, 0 planned with a capability, 0 status mismatches" "${unnamed:-missing} unnamed, ${unexported:-missing} unexported, ${planned:-missing} planned with a capability, ${mismatched:-missing} status mismatches"
 }
 
-check_accounts_and_bank_lines() {
+step_accounts_and_bank_lines() {
   ACTIVE_FEATURE=accounts-and-bank-lines
   local cross_profile duplicates labels runs written failed_tag rejects
   cross_profile=$(value "SELECT COUNT(*) AS total FROM transactions t JOIN provider_accounts a ON a.id = t.provider_account_id WHERE a.profile_id <> t.profile_id")
@@ -180,8 +188,10 @@ check_accounts_and_bank_lines() {
   check sync-rejections-match-count "The failed sync quarantines the number of lines it reports" 1 "$rejects"
 
   local listed imported replayed broken unknown
-  if ! node "$SCRIPT_DIR/drive-bank-import.mjs" --database "$DATABASE" > "$DRIVE_JSON"; then
-    fence_failure "The bank import capability drive failed" "run `node skills/verify-pecunia/scripts/drive-bank-import.mjs --database <demo.sqlite>` and fix the failure it prints"
+  steps_run_command bank-import node "$SCRIPT_DIR/drive-bank-import.mjs" --database "$DATABASE" > "$DRIVE_JSON"
+  if [ ! -s "$DRIVE_JSON" ]; then
+    check import-drive-writes-observations "The bank import drive writes its observations" "observations" "none"
+    return 0
   fi
   listed=$(jq -r '[.listed[] | "\(.label) kind=\(.kind) base=\(.baseCurrency) provider=\(.providerLabel)"] | join("; ")' "$DRIVE_JSON")
   imported=$(jq -r '"imported=\(.imported.imported) alreadyImported=\(.imported.alreadyImported) rejected=\(.imported.rejected | length)"' "$DRIVE_JSON")
@@ -196,7 +206,7 @@ check_accounts_and_bank_lines() {
   check import-refuses-unknown-account "An import refuses an account the profile does not hold" ImportAccountNotFound "$unknown"
 }
 
-check_categories_and_rules() {
+step_categories_and_rules() {
   ACTIVE_FEATURE=categories-and-rules
   local wrong_category wrong_classification wrong_target wrong_alias swept
   wrong_category=$(value "SELECT COUNT(*) AS total FROM transactions t JOIN rules r ON r.id = t.applied_rule_id WHERE r.kind <> 'categorize' OR r.category_id IS NOT t.category_id")
@@ -212,7 +222,7 @@ check_categories_and_rules() {
   check demo-rule-sweeps-its-line "The demo Cloud rule swept the demo Cloud line" "0192f0c1-0015-727a-8b92-b929ac9448a7 category-match=1 priority=10 enabled=1" "$swept"
 }
 
-check_dashboard_sums() {
+step_dashboard_sums() {
   ACTIVE_FEATURE=dashboard-sums
   local business spend income transfers excluded pending cloud software lines
   business=$(value "SELECT id AS id FROM profiles WHERE kind = 'business'")
@@ -235,7 +245,7 @@ check_dashboard_sums() {
   check dashboard-parent-category "Software includes its Cloud child" 299000 "$software"
 }
 
-check_subscriptions() {
+step_subscriptions() {
   ACTIVE_FEATURE=subscriptions
   local active missing cancelled annual
   active=$(value "SELECT COUNT(*) AS total FROM subscriptions WHERE status IN ('confirmed', 'detected')")
@@ -249,7 +259,7 @@ check_subscriptions() {
   check subscriptions-cancelled "The cancelled demo subscription stays out" 1 "$cancelled"
 }
 
-check_investments() {
+step_investments() {
   ACTIVE_FEATURE=investments
   local priced pending known exact platforms
   priced=$(value "SELECT group_concat(name || ' value=' || (quantity_micros * last_price_minor / 1000000) || ' gain=' || (quantity_micros * last_price_minor / 1000000 - cost_basis_minor), '; ') AS priced FROM (SELECT * FROM holdings WHERE last_price_minor IS NOT NULL ORDER BY name)")
@@ -265,7 +275,7 @@ check_investments() {
   check holdings-platforms "Every holding's platform exists" 0 "$platforms"
 }
 
-check_fx_conversion() {
+step_fx_conversion() {
   ACTIVE_FEATURE=fx-conversion
   local conversions rounding same_currency months
   conversions=$(value "SELECT group_concat(external_id || ' ' || source_minor || ' ' || source_currency || ' -> ' || base_minor || ' ' || base_currency || ' at ' || rate, '; ') AS conversions FROM (SELECT * FROM transactions WHERE source_currency <> base_currency ORDER BY occurred_at)")
@@ -279,7 +289,7 @@ check_fx_conversion() {
   check conversion-recorded-lines "The demo book records both foreign lines" "transaction-demo-03 2999 USD -> 2765 EUR at 0.922; transaction-demo-05 12000 GBP -> 14040 EUR at 1.17" "$conversions"
 }
 
-check_tax() {
+step_tax() {
   ACTIVE_FEATURE=tax
   local settlement orphans paid unpaid tax_year
   settlement=$(value "SELECT COUNT(*) AS total FROM tax_obligations o JOIN transactions t ON t.id = o.settled_transaction_id WHERE o.status = 'paid' AND (o.amount_minor <> t.base_minor OR o.amount_currency <> t.base_currency OR t.classification <> 'tax_payment')")
@@ -295,7 +305,7 @@ check_tax() {
   check tax-year "The demo tax year starts on 6 April" "GB 4-6" "$tax_year"
 }
 
-check_invoices() {
+step_invoices() {
   ACTIVE_FEATURE=invoices
   local wrong_amount exception unarchived archived vendors
   wrong_amount=$(value "SELECT COUNT(*) AS total FROM invoice_documents d JOIN transactions t ON t.id = d.transaction_id WHERE d.amount_minor <> t.base_minor OR d.amount_currency <> t.base_currency")
@@ -313,12 +323,27 @@ check_invoices() {
   check invoice-archive-states "Every archive state carries the columns it promises" 0 "$archive_states"
 }
 
-printf 'Seeding the demo book into %s\n' "$DATABASE"
-if ! pnpm --filter @pecunia/database db:seed:demo "$DATABASE" > "$SEED_LOG" 2>&1; then
-  cat "$SEED_LOG" >&2
-  fence_failure "The demo seed failed" "run \`pnpm --filter @pecunia/database db:seed:demo /tmp/demo.sqlite\` and fix the failure it prints"
-fi
+step_seed() {
+  printf 'Seeding the demo book into %s\n' "$DATABASE"
+  steps_run_command seed pnpm --filter @pecunia/database db:seed:demo "$DATABASE" > "$SEED_LOG" 2>&1
+  if [ "$(steps_command_status seed)" != 0 ]; then
+    cat "$SEED_LOG" >&2
+    fence_failure "The demo seed failed" "run \`pnpm --filter @pecunia/database db:seed:demo /tmp/demo.sqlite\` and fix the failure it prints"
+  fi
+  steps_require_file "$SEED_LOG"
+  steps_require_file "$DATABASE"
+}
 
+step_build() {
+  steps_run_command build pnpm turbo run build --filter=@pecunia/bank-import... > "$BUILD_LOG" 2>&1
+  if [ "$(steps_command_status build)" != 0 ]; then
+    cat "$BUILD_LOG" >&2
+    fence_failure "The bank import packages did not build" "run `$BUILD_COMMAND` and fix the failure it prints"
+  fi
+  steps_require_file "$BUILD_LOG"
+}
+
+steps_run_step seed
 SEED_COMMAND="pnpm --filter @pecunia/database db:seed:demo $DATABASE"
 SEED_ROWS=$(grep -E ': [0-9]+ rows$' "$SEED_LOG" | sed -E 's/^.*INFO \([^)]*\): //' || true)
 DEMO_SHA=$(sha256sum "$DATABASE" | cut -d' ' -f1)
@@ -326,26 +351,23 @@ BRANCH=$(git -C "$REPO_ROOT" rev-parse --abbrev-ref HEAD)
 COMMIT=$(git -C "$REPO_ROOT" rev-parse --short HEAD)
 
 case "$IMPORT_FEATURES" in
-  *" $FEATURE "*)
-    if ! pnpm turbo run build --filter=@pecunia/bank-import... > "$BUILD_LOG" 2>&1; then
-      cat "$BUILD_LOG" >&2
-      fence_failure "The bank import packages did not build" "run `$BUILD_COMMAND` and fix the failure it prints"
-    fi
-    ;;
+  *" $FEATURE "*) steps_run_step build ;;
 esac
 
-check_generic
+steps_run_step feature-map
+steps_run_step generic
 if [ "$FEATURE" = all ]; then
-  check_accounts_and_bank_lines
-  check_categories_and_rules
-  check_dashboard_sums
-  check_subscriptions
-  check_investments
-  check_fx_conversion
-  check_tax
-  check_invoices
+  for candidate in "${FEATURES[@]}"; do
+    steps_run_step "$candidate"
+  done
 else
-  "check_${FEATURE//-/_}"
+  steps_run_step "$FEATURE"
+fi
+
+if steps_finish; then
+  VERDICT_STATUS=0
+else
+  VERDICT_STATUS=1
 fi
 
 mkdir -p "$EVIDENCE_DIR"
@@ -368,18 +390,24 @@ fi
   esac
   printf '%s\n' "$SEED_COMMAND"
   printf 'bash skills/verify-pecunia/scripts/prove-demo-book.sh --feature %s%s\n' "$FEATURE" "$LABEL_FLAG"
+  printf 'node skills/verify-pecunia/scripts/replay-proof.mjs --only %s\n' "$LABEL"
   printf '```\n\n'
-  printf '## Seeded tables\n\n```text\n%s\n```\n\n' "$SEED_ROWS"
+  printf '## Steps\n\n| Step | Exit | Checks |\n| --- | --- | --- |\n'
+  awk -F'\t' '$1 == "step" { print $2 "\t" $3 }' "$STEP_LEDGER" | while IFS=$'\t' read -r step_name step_exit; do
+    step_checks=$(jq -s --arg step "$step_name" '[.[] | select(.step == $step)] | length' "$STEP_RESULTS")
+    printf '| `%s` | %s | %s |\n' "$step_name" "$step_exit" "$step_checks"
+  done
+  printf '\n## Seeded tables\n\n```text\n%s\n```\n\n' "$SEED_ROWS"
 printf '## Checks\n\n| Check | Result | Expected | Observed |\n| --- | --- | --- | --- |\n'
-  jq -r '"| `\(.id)` \(.title) | \(if .passed then "PASS" else "FAIL" end) | `\(.expected)` | `\(.actual)` |"' "$RESULTS"
+  jq -r '"| `\(.id)` \(.title) | \(if .passed then "PASS" else "FAIL" end) | `\(.expected)` | `\(.actual)` |"' "$STEP_RESULTS"
   if [ -s "$DRIVE_JSON" ]; then
     printf '\n## Bank import drive\n\n`bank-import-drive.json` holds the capability drive: the listed import targets, the first import, the replay, the rejected line, and the refusal for an unknown account.\n'
   fi
   printf '\n## Verdict\n\n'
-  if [ "$FAILURES" -eq 0 ]; then
-    printf 'PASS: %s checks held against the seeded demo book.\n' "$CHECKS"
+  if [ "$VERDICT_STATUS" -eq 0 ]; then
+    printf 'PASS: %s steps ran, %s checks held against the seeded demo book.\n' "${#STEP_NAMES[@]}" "$CHECK_TOTAL"
   else
-    printf 'FAIL: %s of %s checks failed.\n' "$FAILURES" "$CHECKS"
+    printf 'FAIL: %s problems, %s of %s checks failed.\n' "${#STEP_FAILURES[@]}" "$CHECK_FAILED" "$CHECK_TOTAL"
   fi
   printf '\n## What this proves\n\n'
   printf -- '- The migrations and the demo seed fill a real SQLite database with the demo book.\n'
@@ -399,8 +427,8 @@ printf '## Checks\n\n| Check | Result | Expected | Observed |\n| --- | --- | ---
   fi
 } > "$PROOF_PATH"
 
-jq -n --arg feature "$FEATURE" --arg branch "$BRANCH" --arg commit "$COMMIT" --arg node_version "$(node --version)" --arg demo_sha "$DEMO_SHA" --arg seed_command "$SEED_COMMAND" --arg ran_at "$(date -u +%Y-%m-%dT%H:%M:%SZ)" --argjson failures "$FAILURES" --argjson checks_count "$CHECKS" --slurpfile checks "$RESULTS" '{feature: $feature, branch: $branch, commit: $commit, node: $node_version, ranAt: $ran_at, seed: {command: $seed_command}, demoBookSha256: $demo_sha, passed: ($failures == 0), failed: $failures, total: $checks_count, checks: $checks}' > "$EVIDENCE_DIR/proof.json"
+jq -n --arg feature "$FEATURE" --arg branch "$BRANCH" --arg commit "$COMMIT" --arg node_version "$(node --version)" --arg demo_sha "$DEMO_SHA" --arg seed_command "$SEED_COMMAND" --arg ran_at "$(date -u +%Y-%m-%dT%H:%M:%SZ)" --argjson failures "$CHECK_FAILED" --argjson checks_count "$CHECK_TOTAL" --argjson steps "${#STEP_NAMES[@]}" --argjson step_failures "${#STEP_FAILURES[@]}" --slurpfile checks "$STEP_RESULTS" '{feature: $feature, branch: $branch, commit: $commit, node: $node_version, ranAt: $ran_at, seed: {command: $seed_command}, demoBookSha256: $demo_sha, passed: ($step_failures == 0 and $failures == 0), failed: $failures, total: $checks_count, steps: $steps, failedSteps: $step_failures, checks: $checks}' > "$EVIDENCE_DIR/proof.json"
 
-printf '\n%s checks, %s failed.\nProof: %s\n' "$CHECKS" "$FAILURES" "$PROOF_PATH"
-
-[ "$FAILURES" -eq 0 ]
+printf '\nProof: %s\n' "$PROOF_PATH"
+steps_verdict
+[ "$VERDICT_STATUS" -eq 0 ]
