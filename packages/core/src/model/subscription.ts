@@ -1,5 +1,6 @@
 import { Schema } from "effect";
 
+import { closedUnion } from "./closed-union.js";
 import { AmountsSchema } from "./money.js";
 import {
   CategoryIdSchema,
@@ -19,13 +20,13 @@ export const FrequencySchema = Schema.Literals([
 
 export type Frequency = typeof FrequencySchema.Type;
 
-export const SubscriptionStatusSchema = Schema.TaggedUnion({
-  Cancelled: { at: TimestampSchema },
-  Confirmed: { at: TimestampSchema },
-  Detected: { at: TimestampSchema },
-  Dismissed: { at: TimestampSchema },
-  NotRecurring: { at: TimestampSchema },
-});
+export const SubscriptionStatusSchema = closedUnion([
+  Schema.TaggedStruct("Cancelled", { at: TimestampSchema }),
+  Schema.TaggedStruct("Confirmed", { at: TimestampSchema }),
+  Schema.TaggedStruct("Detected", { at: TimestampSchema }),
+  Schema.TaggedStruct("Dismissed", { at: TimestampSchema }),
+  Schema.TaggedStruct("NotRecurring", { at: TimestampSchema }),
+]).pipe(Schema.toTaggedUnion("_tag"));
 
 export type SubscriptionStatus = typeof SubscriptionStatusSchema.Type;
 

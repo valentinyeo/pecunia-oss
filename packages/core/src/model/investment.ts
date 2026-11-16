@@ -1,5 +1,6 @@
 import { Option, Schema, SchemaGetter } from "effect";
 
+import { closedUnion } from "./closed-union.js";
 import { strictParseOptions } from "./parse-options.js";
 import {
   CurrencyCodeSchema,
@@ -67,7 +68,7 @@ export const PricedHoldingSchema = Schema.Struct({
   state: Schema.Literals(["active", "closed"]),
 });
 
-const DecodedHoldingSchema = Schema.Union([
+const DecodedHoldingSchema = closedUnion([
   PendingHoldingSchema,
   PricedHoldingSchema,
 ]);

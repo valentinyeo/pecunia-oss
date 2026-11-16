@@ -6,9 +6,8 @@ import {
   SchemaGetter,
   SchemaIssue,
 } from "effect";
-import type { SchemaAST } from "effect";
 
-import { BaseAmount, baseAmountFields } from "./base-amount.js";
+import { BaseAmount } from "./base-amount.js";
 import type { ConversionInputInvalid } from "./conversion-input-invalid.js";
 import type { ConversionOverflow } from "./conversion-overflow.js";
 import type {
@@ -147,56 +146,25 @@ const decodedConvertedAmount = (
 const encodedConvertedAmount = (amount: ConvertedAmount): StoredConversion =>
   StoredConvertedAmountSchema.make({
     asOf: amount.asOf,
-    base: { currency: amount.base.currency, minor: amount.base.minor },
+    base: amount.base,
     rate: amount.rate,
     source: amount.source,
   });
 
-const convertedAmountFields = ["_tag", "asOf", "base", "rate", "source"];
-
-const strayField = (
-  value: BaseAmount | ConvertedAmount,
-  allowed: readonly string[]
-): string | undefined =>
-  Object.keys(value).find((key) => !allowed.includes(key));
-
-const unexpectedField = (
-  field: string,
-  input: BaseAmount | ConvertedAmount,
-  options: SchemaAST.ParseOptions
-): SchemaIssue.Issue =>
-  new SchemaIssue.InvalidValue(
-    { message: `unexpected field "${field}"` },
-    input,
-    options
-  );
-
 const convertedAmountEncode = SchemaGetter.transformEffect<
   StoredConversion,
   ConvertedAmount
->((amount, options) => {
-  const stray = strayField(amount, convertedAmountFields);
-
-  if (stray !== undefined) {
-    return Effect.fail(unexpectedField(stray, amount, options));
-  }
-
-  if (!BaseAmount.isBaseAmount(amount.base)) {
-    return Effect.fail(
-      new SchemaIssue.InvalidValue(
-        { message: "base must be a converted base amount" },
-        amount,
-        options
-      )
-    );
-  }
-
-  const baseStray = strayField(amount.base, baseAmountFields);
-
-  return baseStray === undefined
+>((amount, options) =>
+  BaseAmount.isBaseAmount(amount.base)
     ? Effect.succeed(encodedConvertedAmount(amount))
-    : Effect.fail(unexpectedField(baseStray, amount.base, options));
-});
+    : Effect.fail(
+        new SchemaIssue.InvalidValue(
+          { message: "base must be a converted base amount" },
+          amount,
+          options
+        )
+      )
+);
 
 export const ConvertedAmountSchema = StoredConvertedAmountSchema.pipe(
   Schema.decodeTo(

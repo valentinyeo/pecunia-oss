@@ -1,5 +1,6 @@
 import { Option, Schema } from "effect";
 
+import { closedUnion } from "./closed-union.js";
 import { AmountsSchema, sourceAmount } from "./money.js";
 import type { Amounts } from "./money.js";
 import type { Money } from "./primitives.js";
@@ -19,70 +20,47 @@ export const DirectionSchema = Schema.Literals(["in", "neutral", "out"]);
 
 export type Direction = typeof DirectionSchema.Type;
 
-const noCategorizationDetail = {
-  at: Schema.optionalKey(Schema.Never),
-  categoryId: Schema.optionalKey(Schema.Never),
-  model: Schema.optionalKey(Schema.Never),
-  ruleId: Schema.optionalKey(Schema.Never),
-} as const;
-
-export const CategorizationSchema = Schema.TaggedUnion({
-  Applied: {
-    ...noCategorizationDetail,
+export const CategorizationSchema = closedUnion([
+  Schema.TaggedStruct("Applied", {
     at: TimestampSchema,
     categoryId: CategoryIdSchema,
     ruleId: RuleIdSchema,
-  },
-  Confirmed: {
-    ...noCategorizationDetail,
+  }),
+  Schema.TaggedStruct("Confirmed", {
     at: TimestampSchema,
     categoryId: CategoryIdSchema,
-  },
-  None: { ...noCategorizationDetail },
-  Suggested: {
-    ...noCategorizationDetail,
+  }),
+  Schema.TaggedStruct("None", {}),
+  Schema.TaggedStruct("Suggested", {
     at: TimestampSchema,
     categoryId: CategoryIdSchema,
     model: Schema.NonEmptyString,
-  },
-});
+  }),
+]).pipe(Schema.toTaggedUnion("_tag"));
 
 export type Categorization = typeof CategorizationSchema.Type;
 
-const noClassificationTarget = {
-  clientPayeeId: Schema.optionalKey(Schema.Never),
-  counterpartProfileId: Schema.optionalKey(Schema.Never),
-  obligationKind: Schema.optionalKey(Schema.Never),
-  ofPayeeId: Schema.optionalKey(Schema.Never),
-} as const;
-
-const classified = { ...noClassificationTarget, ruleId: RuleIdSchema } as const;
-
-export const ClassificationSchema = Schema.TaggedUnion({
-  Excluded: { ...classified },
-  Income: {
-    ...noClassificationTarget,
+export const ClassificationSchema = closedUnion([
+  Schema.TaggedStruct("Excluded", { ruleId: RuleIdSchema }),
+  Schema.TaggedStruct("Income", {
     clientPayeeId: PayeeIdSchema,
     ruleId: RuleIdSchema,
-  },
-  InternalTransfer: { ...classified },
-  None: { ...noClassificationTarget, ruleId: Schema.optionalKey(Schema.Never) },
-  Refund: {
-    ...noClassificationTarget,
+  }),
+  Schema.TaggedStruct("InternalTransfer", { ruleId: RuleIdSchema }),
+  Schema.TaggedStruct("None", {}),
+  Schema.TaggedStruct("Refund", {
     ofPayeeId: Schema.OptionFromNullishOr(PayeeIdSchema),
     ruleId: RuleIdSchema,
-  },
-  SelfTransfer: {
-    ...noClassificationTarget,
+  }),
+  Schema.TaggedStruct("SelfTransfer", {
     counterpartProfileId: Schema.OptionFromNullishOr(ProfileIdSchema),
     ruleId: RuleIdSchema,
-  },
-  TaxPayment: {
-    ...noClassificationTarget,
+  }),
+  Schema.TaggedStruct("TaxPayment", {
     obligationKind: Schema.NonEmptyString,
     ruleId: RuleIdSchema,
-  },
-});
+  }),
+]).pipe(Schema.toTaggedUnion("_tag"));
 
 export type Classification = typeof ClassificationSchema.Type;
 

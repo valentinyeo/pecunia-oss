@@ -1,5 +1,6 @@
 import { Option, Schema } from "effect";
 
+import { closedUnion } from "./closed-union.js";
 import {
   CategoryIdSchema,
   MinorUnitsSchema,
@@ -44,51 +45,37 @@ const ruleFields = {
   profileId: ProfileIdSchema,
 } as const;
 
-const noRuleTarget = {
-  categoryId: Schema.optionalKey(Schema.Never),
-  clientPayeeId: Schema.optionalKey(Schema.Never),
-  counterpartProfileId: Schema.optionalKey(Schema.Never),
-  obligationKind: Schema.optionalKey(Schema.Never),
-} as const;
-
-const RuleUnion = Schema.Union([
+const RuleUnion = closedUnion([
   Schema.Struct({
     ...ruleFields,
-    ...noRuleTarget,
     categoryId: CategoryIdSchema,
     kind: Schema.Literal("categorize"),
   }),
   Schema.Struct({
     ...ruleFields,
-    ...noRuleTarget,
     clientPayeeId: PayeeIdSchema,
     kind: Schema.Literal("income_client"),
   }),
   Schema.Struct({
     ...ruleFields,
-    ...noRuleTarget,
     counterpartProfileId: Schema.OptionFromNullishOr(ProfileIdSchema),
     kind: Schema.Literal("self_transfer"),
   }),
   Schema.Struct({
     ...ruleFields,
-    ...noRuleTarget,
     kind: Schema.Literal("tax_payment"),
     obligationKind: Schema.NonEmptyString,
   }),
   Schema.Struct({
     ...ruleFields,
-    ...noRuleTarget,
     kind: Schema.Literal("refund"),
   }),
   Schema.Struct({
     ...ruleFields,
-    ...noRuleTarget,
     kind: Schema.Literal("internal_transfer"),
   }),
   Schema.Struct({
     ...ruleFields,
-    ...noRuleTarget,
     kind: Schema.Literal("exclude"),
   }),
 ]);

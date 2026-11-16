@@ -1,5 +1,6 @@
 import { Schema } from "effect";
 
+import { closedUnion } from "./closed-union.js";
 import {
   ArchiveTargetIdSchema,
   DateOnlySchema,
@@ -31,28 +32,19 @@ export const DocumentSourceSchema = Schema.Literals([
 
 export type DocumentSource = typeof DocumentSourceSchema.Type;
 
-const noArchiveDetail = {
-  archivedAt: Schema.optionalKey(Schema.Never),
-  fileId: Schema.optionalKey(Schema.Never),
-  reason: Schema.optionalKey(Schema.Never),
-  targetId: Schema.optionalKey(Schema.Never),
-} as const;
-
-export const ArchiveStateSchema = Schema.TaggedUnion({
-  Archived: {
-    ...noArchiveDetail,
+export const ArchiveStateSchema = closedUnion([
+  Schema.TaggedStruct("Archived", {
     archivedAt: TimestampSchema,
     fileId: Schema.NonEmptyString,
     targetId: ArchiveTargetIdSchema,
-  },
-  Failed: { ...noArchiveDetail, reason: Schema.NonEmptyString },
-  Reserved: {
-    ...noArchiveDetail,
+  }),
+  Schema.TaggedStruct("Failed", { reason: Schema.NonEmptyString }),
+  Schema.TaggedStruct("Reserved", {
     fileId: Schema.NonEmptyString,
     targetId: ArchiveTargetIdSchema,
-  },
-  Unarchived: { ...noArchiveDetail },
-});
+  }),
+  Schema.TaggedStruct("Unarchived", {}),
+]).pipe(Schema.toTaggedUnion("_tag"));
 
 export type ArchiveState = typeof ArchiveStateSchema.Type;
 

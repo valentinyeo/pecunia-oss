@@ -1,5 +1,6 @@
 import { Schema } from "effect";
 
+import { closedUnion } from "./closed-union.js";
 import {
   DateOnlySchema,
   MoneySchema,
@@ -10,22 +11,14 @@ import {
   TransactionIdSchema,
 } from "./primitives.js";
 
-const noObligationDetail = {
-  at: Schema.optionalKey(Schema.Never),
-  booksStatus: Schema.optionalKey(Schema.Never),
-  reason: Schema.optionalKey(Schema.Never),
-  settledBy: Schema.optionalKey(Schema.Never),
-} as const;
-
-export const TaxObligationStatusSchema = Schema.TaggedUnion({
-  Estimated: { ...noObligationDetail, booksStatus: Schema.String },
-  Paid: {
-    ...noObligationDetail,
+export const TaxObligationStatusSchema = closedUnion([
+  Schema.TaggedStruct("Estimated", { booksStatus: Schema.String }),
+  Schema.TaggedStruct("Paid", {
     at: TimestampSchema,
     settledBy: TransactionIdSchema,
-  },
-  WrittenOff: { ...noObligationDetail, reason: Schema.NonEmptyString },
-});
+  }),
+  Schema.TaggedStruct("WrittenOff", { reason: Schema.NonEmptyString }),
+]).pipe(Schema.toTaggedUnion("_tag"));
 
 export type TaxObligationStatus = typeof TaxObligationStatusSchema.Type;
 

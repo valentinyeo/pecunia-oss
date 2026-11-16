@@ -1,5 +1,6 @@
 import { Schema } from "effect";
 
+import { closedUnion } from "./closed-union.js";
 import {
   DateOnlySchema,
   ProfileIdSchema,
@@ -23,22 +24,23 @@ export const SyncCountsSchema = Schema.Struct({
 
 export type SyncCounts = typeof SyncCountsSchema.Type;
 
-const noRunDetail = {
-  at: Schema.optionalKey(Schema.Never),
-  chunk: Schema.optionalKey(Schema.Never),
-  counts: Schema.optionalKey(Schema.Never),
-  startedAt: Schema.optionalKey(Schema.Never),
-  tag: Schema.optionalKey(Schema.Never),
-} as const;
-
-export const SyncRunStateSchema = Schema.TaggedUnion({
-  Cancelled: { ...noRunDetail, at: TimestampSchema },
-  Categorizing: { ...noRunDetail, at: TimestampSchema },
-  ChunkDone: { ...noRunDetail, at: TimestampSchema, chunk: Schema.Int },
-  Failed: { ...noRunDetail, at: TimestampSchema, tag: Schema.NonEmptyString },
-  Running: { ...noRunDetail, chunk: Schema.Int, startedAt: TimestampSchema },
-  Succeeded: { ...noRunDetail, at: TimestampSchema, counts: SyncCountsSchema },
-});
+export const SyncRunStateSchema = closedUnion([
+  Schema.TaggedStruct("Cancelled", { at: TimestampSchema }),
+  Schema.TaggedStruct("Categorizing", { at: TimestampSchema }),
+  Schema.TaggedStruct("ChunkDone", { at: TimestampSchema, chunk: Schema.Int }),
+  Schema.TaggedStruct("Failed", {
+    at: TimestampSchema,
+    tag: Schema.NonEmptyString,
+  }),
+  Schema.TaggedStruct("Running", {
+    chunk: Schema.Int,
+    startedAt: TimestampSchema,
+  }),
+  Schema.TaggedStruct("Succeeded", {
+    at: TimestampSchema,
+    counts: SyncCountsSchema,
+  }),
+]).pipe(Schema.toTaggedUnion("_tag"));
 
 export type SyncRunState = typeof SyncRunStateSchema.Type;
 
