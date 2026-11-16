@@ -1,10 +1,10 @@
 # Verification proof: all
 
 - Run label: `all`
-- Run at: 2026-11-16T21:45:34Z
-- Branch: `verify-skill` at `6eef8918`
+- Run at: 2026-11-16T22:13:11Z
+- Branch: `verify-skill` at `2c85018a`
 - Node: `v24.18.0`
-- Demo seed: `pnpm --filter @pecunia/database db:seed:demo /tmp/pecunia-verify-qLxpIh/demo.sqlite`
+- Demo seed: `pnpm --filter @pecunia/database db:seed:demo /tmp/pecunia-verify-x7ARGM/demo.sqlite`
 - Demo book SHA-256: `527991d3898ec8fdce1029ee97f92a7c25f955c54e2375b38566f95f32537191`
 - The scratch database is deleted after the run; `proof.json` holds every observation.
 
@@ -13,7 +13,7 @@
 ```sh
 pnpm turbo run build --filter=@pecunia/bank-import...
 pnpm turbo run build --filter=@pecunia/bank-lines...
-pnpm --filter @pecunia/database db:seed:demo /tmp/pecunia-verify-qLxpIh/demo.sqlite
+pnpm --filter @pecunia/database db:seed:demo /tmp/pecunia-verify-x7ARGM/demo.sqlite
 bash skills/verify-pecunia/scripts/prove-demo-book.sh --feature all --label all
 node skills/verify-pecunia/scripts/replay-proof.mjs --only all
 ```

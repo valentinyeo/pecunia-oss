@@ -586,7 +586,7 @@
       "step": "invoices"
     }
   ],
-  "commit": "6eef8918",
+  "commit": "2c85018a",
   "declared": 73,
   "demoBookSha256": "527991d3898ec8fdce1029ee97f92a7c25f955c54e2375b38566f95f32537191",
   "evaluated": 73,
@@ -596,9 +596,9 @@
   "feature": "all",
   "node": "v24.18.0",
   "passed": true,
-  "ranAt": "2026-11-16T21:45:34Z",
+  "ranAt": "2026-11-16T22:13:11Z",
   "seed": {
-    "command": "pnpm --filter @pecunia/database db:seed:demo /tmp/pecunia-verify-qLxpIh/demo.sqlite"
+    "command": "pnpm --filter @pecunia/database db:seed:demo /tmp/pecunia-verify-x7ARGM/demo.sqlite"
   },
   "stepExpectations": {
     "feature-map": 1,
