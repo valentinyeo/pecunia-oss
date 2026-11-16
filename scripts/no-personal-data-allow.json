@@ -83,16 +83,6 @@
       "path": "packages/database/demo/seed.sql",
       "value": "12000000",
       "reason": "A holding quantity in the seeded demo database. It is a round made-up number, not an account number, and the sort-code-shaped field beside it is a cost basis in minor units."
-    },
-    {
-      "path": "packages/database/migrations/d1/20261116120150_providers/snapshot.json",
-      "value": "be5324dd-2aee-4c21",
-      "reason": "The opening group of a UUID in a generated D1 migration snapshot. Sixteen of its characters fit the Belgian IBAN length and the hyphen ends it, but it names a schema, not a bank."
-    },
-    {
-      "path": "packages/database/migrations/d1/20261116120151_ledger/snapshot.json",
-      "value": "be5324dd-2aee-4c21",
-      "reason": "The parent migration UUID quoted in a generated D1 migration snapshot. Sixteen of its characters fit the Belgian IBAN length, but it names a schema, not a bank."
     }
   ]
 }

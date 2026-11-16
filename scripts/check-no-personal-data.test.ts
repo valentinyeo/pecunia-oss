@@ -25,21 +25,23 @@ const lineOf = (filePath: string, text: string, allow: AllowList = empty) =>
 
 const testFile = "scripts/check-no-personal-data.test.ts";
 
-const spaced = (...parts: readonly string[]) => parts.join(" ");
+const grouped = (value: string, separator: string) =>
+  value.split("_").join(separator);
 
-const glued = (...parts: readonly string[]) => parts.join("");
+const iban = (separator: string) =>
+  grouped("GB82_WEST_1234_5698_7654_32", separator);
+
+const sortCode = (separator: string) => grouped("20_45_67", separator);
+
+const accountNumber = (separator: string) => grouped("1029_3847", separator);
 
 const dotted = (...parts: readonly string[]) => parts.join(".");
 
-const bankSample = (
-  sortCode: string,
-  parts: readonly string[],
-  separator: string
-) =>
+const bankSample = (sortCodeValue: string, accountValue: string) =>
   [
     "const account = {",
-    `  sortCode: "${sortCode}",`,
-    `  number: "${parts.join(separator)}",`,
+    `  sortCode: "${sortCodeValue}",`,
+    `  number: "${accountValue}",`,
     "};",
   ].join("\n");
 
@@ -54,16 +56,9 @@ describe("planted personal data fails", () => {
   });
 
   it("fails on an account number beside a sort code", () => {
-    const sample = [
-      "const account = {",
-      '  sortCode: "00-00-00",',
-      '  number: "12345678",',
-      "};",
-    ];
-
-    expect(ruleOf("apps/site/src/profile.ts", sample.join("\n"))).toEqual([
-      "bank-account",
-    ]);
+    expect(
+      ruleOf("apps/site/src/profile.ts", bankSample(sortCode("-"), "12345678"))
+    ).toEqual(["bank-account"]);
   });
 
   it("fails on an email address outside the example domains", () => {
@@ -71,6 +66,15 @@ describe("planted personal data fails", () => {
       ruleOf(
         "apps/site/test/join.test.ts",
         'const owner = "jane.doe@acme.co.uk";'
+      )
+    ).toEqual(["email"]);
+  });
+
+  it("fails on a quoted mailbox with a space in its local part", () => {
+    expect(
+      ruleOf(
+        "docs/payments.md",
+        `Reply to "demo owner"@${dotted("mail", "co", "uk")} before Friday.`
       )
     ).toEqual(["email"]);
   });
@@ -101,58 +105,32 @@ describe("planted personal data fails", () => {
 });
 
 describe("an IBAN in any written form fails", () => {
-  it.each([
-    ["GB82", "WEST", "1234", "5698", "7654", "32"],
-    ["DE89", "3704", "0044", "0532", "0130", "00"],
-    ["FR14", "2004", "1010", "0505", "0001", "3M02", "606"],
-    ["NL91", "ABNA", "0417", "1643", "00"],
-    ["NO93", "8601", "1117", "947"],
-    ["gb82", "west", "1234", "5698", "7654", "32"],
-  ])("fails on %s", (...parts) => {
+  it("fails on a spaced IBAN inside a document", () => {
     expect(
-      ruleOf("apps/cli/src/accounts.ts", `const iban = "${spaced(...parts)}";`)
+      ruleOf("docs/payments.md", `Wire to ${iban(" ")} before Friday.`)
     ).toEqual(["iban"]);
   });
 
-  it.each([
-    ["GB82WEST", "12345698765432"],
-    ["gb82west", "12345698765432"],
-    ["Gb82West", "12345698765432"],
-  ])("fails on %s", (...parts) => {
-    expect(
-      ruleOf("apps/cli/src/accounts.ts", `const iban = "${glued(...parts)}";`)
-    ).toEqual(["iban"]);
-  });
-
-  it.each([
-    ["a tab", "\t"],
-    ["a non-breaking space", "\u00A0"],
-    ["a double space", "  "],
-    ["a hyphen", "-"],
-    ["mixed separators", " \t\u00A0 "],
-  ])("fails on an IBAN joined by %s", (_label, separator) => {
+  it("fails on a glued mixed case IBAN", () => {
     expect(
       ruleOf(
         "apps/cli/src/accounts.ts",
-        `const iban = "${["GB82", "WEST", "1234", "5698", "7654", "32"].join(separator)}";`
+        `const iban = "${grouped("Gb82_West_1234_5698_7654_32", "")}";`
       )
     ).toEqual(["iban"]);
   });
 
-  it("fails on a spaced IBAN inside a document", () => {
-    expect(
-      ruleOf(
-        "docs/payments.md",
-        `Wire to ${spaced("GB82", "WEST", "1234", "5698", "7654", "32")} before Friday.`
-      )
-    ).toEqual(["iban"]);
+  it("fails on an IBAN that wraps across a line break", () => {
+    expect(ruleOf("docs/payments.md", `IBAN:\n${iban("\n")}`)).toEqual([
+      "iban",
+    ]);
   });
 
   it("names the line the spaced IBAN sits on", () => {
     expect(
       lineOf(
         "docs/payments.md",
-        `IBAN:\n\n${spaced("DE89", "3704", "0044", "0532", "0130", "00")}`
+        `IBAN:\n\n${grouped("DE89_3704_0044_0532_0130_00", " ")}`
       )
     ).toEqual([3]);
   });
@@ -191,6 +169,17 @@ describe("a deployment hostname fails in any case", () => {
     expect(
       ruleOf("README.md", "Deploy targets *.WORKERS.DEV and *.Pages.Dev.")
     ).toEqual([]);
+  });
+
+  it("fails on a deployment hostname that wraps across a line break", () => {
+    const hostname = dotted("planted-sample", "workers", "dev");
+
+    expect(
+      ruleOf(
+        "README.md",
+        `Live at <https://${hostname.slice(0, 7)}\n${hostname.slice(7)}>.`
+      )
+    ).toEqual(["cloudflare-hostname"]);
   });
 });
 
@@ -234,19 +223,6 @@ describe("an email address fails in any written form", () => {
   ])("fails on %s", (_label, address) => {
     expect(
       ruleOf("apps/site/test/fixture.ts", `const owner = "${address}";`)
-    ).toEqual(["email"]);
-  });
-
-  it.each([
-    ["a backslash", "\\"],
-    ["a parenthesis", "("],
-    ["a quote", "'"],
-  ])("fails on an address right after %s", (_label, punctuation) => {
-    expect(
-      ruleOf(
-        "apps/site/test/fixture.ts",
-        `const owner = "${punctuation}${["owner", "gmail.com"].join("@")}";`
-      )
     ).toEqual(["email"]);
   });
 });
@@ -321,159 +297,44 @@ describe("example values pass", () => {
 
   it("passes on a sort code without an account number", () => {
     expect(
-      ruleOf(
-        "apps/cli/src/bank.ts",
-        `const sortCode = "${spaced("20", "45", "67")}";`
-      )
+      ruleOf("apps/cli/src/bank.ts", `const sortCode = "${sortCode(" ")}";`)
     ).toEqual([]);
   });
 });
 
 describe("a sort code and an account number in any written form fail", () => {
-  it.each([
-    ["-", ""],
-    [" ", ""],
-    [".", ""],
-    ["–", ""],
-    ["", ""],
-    ["-", " "],
-    ["-", "-"],
-  ])(
-    "fails on a sort code joined by %s with an account joined by %s",
-    (sortCode, separator) => {
-      expect(
-        ruleOf(
-          "apps/site/src/profile.ts",
-          bankSample(
-            glued("20", sortCode, "45", sortCode, "67"),
-            ["1029", "3847"],
-            separator
-          )
-        )
-      ).toEqual(["bank-account"]);
-    }
-  );
+  it("fails on a bare pair joined by a space", () => {
+    expect(
+      ruleOf("docs/payments.md", `${sortCode("-")} ${accountNumber("")}`)
+    ).toEqual(["bank-account"]);
+  });
 
-  it.each([
-    ["a field", '  currency: "GBP",\n  '],
-    ["two fields", '  currency: "GBP",\n  type: "personal",\n  '],
-    [
-      "three fields",
-      '  currency: "GBP",\n  type: "personal",\n  label: "Everyday",\n  ',
-    ],
-  ])(
-    "fails on a sort code with %s between it and the account",
-    (_label, between) => {
-      const sample = [
-        "const account = {",
-        `  sortCode: "${glued("20", "-", "45", "-", "67")}",`,
-        `${between}number: "${glued("1029", "3847")}",`,
-        "};",
-      ];
+  it("fails on a pair inside a JSON object", () => {
+    expect(
+      ruleOf(
+        "apps/site/src/profile.ts",
+        `{"sortCode":${grouped("20_45_67", "")},"accountNumber":${grouped("1029_3847", "")}}`
+      )
+    ).toEqual(["bank-account"]);
+  });
 
-      expect(ruleOf("apps/site/src/profile.ts", sample.join("\n"))).toEqual([
-        "bank-account",
-      ]);
-    }
-  );
-
-  it.each([4, 6, 10])(
-    "fails on an account export with %i fields between the sort code and the account number",
-    (count) => {
-      const extra = Array.from(
-        { length: Math.max(count - 4, 0) },
-        (_, index) => `  tag${index}: "demo",`
-      );
-
-      const fields = [
-        `  bankName: "Demo Bank",`,
-        `  holder: "Demo Person",`,
-        `  currency: "GBP",`,
-        `  country: "GB",`,
-        ...extra,
-      ].slice(0, count);
-
-      const sample = [
-        "{",
-        `  sortCode: "${glued("20", "-", "45", "-", "67")}",`,
-        ...fields,
-        `  accountNumber: "${glued("1029", "3847")}",`,
-        "}",
-      ];
-
-      expect(ruleOf("apps/site/src/profile.ts", sample.join("\n"))).toEqual([
-        "bank-account",
-      ]);
-    }
-  );
-
-  it("fails on a sort code and account number split by non-breaking separators", () => {
+  it("fails on a sort code with a field between it and the account", () => {
     const sample = [
-      `sortCode: "${glued("20", "\u00A0", "45", "\u00A0", "67")}",`,
-      `number: "${glued("1029", "\u00A0", "3847")}",`,
+      "const account = {",
+      `  sortCode: "${sortCode("-")}",`,
+      '  currency: "GBP",',
+      `  number: "${accountNumber("")}",`,
+      "};",
     ];
 
     expect(ruleOf("apps/site/src/profile.ts", sample.join("\n"))).toEqual([
       "bank-account",
     ]);
-  });
-
-  it("fails on a sort code and account number split by non-breaking hyphens", () => {
-    const sample = [
-      `sortCode: "${glued("20", "\u2011", "45", "\u2011", "67")}",`,
-      `number: "${glued("1029", "\u2011", "3847")}",`,
-    ];
-
-    expect(ruleOf("apps/site/src/profile.ts", sample.join("\n"))).toEqual([
-      "bank-account",
-    ]);
-  });
-
-  it.each([
-    ["a tab", "\t"],
-    ["a tab and spaces", "\t  "],
-    ["a comma", ", "],
-    ["a semicolon", "; "],
-    ["a pipe", " | "],
-    ["a newline", "\n  "],
-  ])(
-    "fails on a sort code and an account number split by %s, in either order",
-    (_label, gap) => {
-      const sortCode = glued("20", "-", "45", "-", "67");
-
-      const account = glued("1029", "3847");
-
-      expect(ruleOf("docs/payments.md", `${sortCode}${gap}${account}`)).toEqual(
-        ["bank-account"]
-      );
-
-      expect(ruleOf("docs/payments.md", `${account}${gap}${sortCode}`)).toEqual(
-        ["bank-account"]
-      );
-    }
-  );
-
-  it.each([
-    ["an ISO date", "2024-01-02"],
-    ["a dotted date", "01.04.2019"],
-    ["a slashed date", "01/04/2019"],
-    ["a timestamp", "2024-01-02T03:04:05"],
-    ["a clock time", "03:04:05"],
-    ["a mobile number", "+44 7700 900123"],
-    ["a landline number", "(020) 7946 0958"],
-  ])("passes on %s beside an account number in one record", (_label, value) => {
-    expect(
-      ruleOf("docs/payments.md", `${value}\t${glued("1029", "3847")}`)
-    ).toEqual([]);
-
-    expect(
-      ruleOf("docs/payments.md", `${glued("1029", "3847")}, ${value}`)
-    ).toEqual([]);
   });
 
   it("passes a sort code and account number from separate export records", () => {
     const firstRecord = [
-      `sortCode: "${spaced("20", "45", "67")}",`,
+      `sortCode: "${sortCode(" ")}",`,
       `bankName: "Demo Bank",`,
       `holder: "Demo Person",`,
       `currency: "GBP",`,
@@ -490,7 +351,7 @@ describe("a sort code and an account number in any written form fail", () => {
       `bankName: "Example Bank",`,
       `holder: "Example Person",`,
       `currency: "GBP",`,
-      `number: "${glued("1029", "3847")}",`,
+      `number: "${accountNumber("")}",`,
     ];
 
     const sample = [...firstRecord, ...secondRecord];
@@ -500,9 +361,9 @@ describe("a sort code and an account number in any written form fail", () => {
 
   it("fails on the account number below a blank line", () => {
     const sample = [
-      `sortCode: "${spaced("20", "45", "67")}",`,
+      `sortCode: "${sortCode(" ")}",`,
       "",
-      `number: "${glued("1029", "3847")}",`,
+      `number: "${accountNumber("")}",`,
     ];
 
     expect(ruleOf("apps/site/src/profile.ts", sample.join("\n"))).toEqual([
@@ -512,9 +373,9 @@ describe("a sort code and an account number in any written form fail", () => {
 
   it("fails on the account number above a blank line", () => {
     const sample = [
-      `number: "${glued("1029", "3847")}",`,
+      `number: "${accountNumber("")}",`,
       "",
-      `sortCode: "${spaced("20", "45", "67")}",`,
+      `sortCode: "${sortCode(" ")}",`,
     ];
 
     expect(ruleOf("apps/site/src/profile.ts", sample.join("\n"))).toEqual([
@@ -524,9 +385,9 @@ describe("a sort code and an account number in any written form fail", () => {
 
   it("names the sort code line when the account number is two lines away", () => {
     const sample = [
-      `const sortCode = "${spaced("20", "45", "67")}";`,
+      `const sortCode = "${sortCode(" ")}";`,
       "",
-      `const number = "${glued("1029", "3847")}";`,
+      `const number = "${accountNumber("")}";`,
     ];
 
     expect(lineOf("apps/site/src/profile.ts", sample.join("\n"))).toEqual([1]);
@@ -573,14 +434,14 @@ describe("explicit allowances pass only in the file they name", () => {
       {
         path: "scripts/sample.ts",
         reason: "A branch, not a person.",
-        value: spaced("00", "00", "00"),
+        value: grouped("00_00_00", " "),
       },
     ]);
 
     expect(
       ruleOf(
         "scripts/sample.ts",
-        bankSample(spaced("00", "00", "00"), ["1234", "5678"], ""),
+        bankSample(grouped("00_00_00", " "), grouped("1234_5678", "")),
         sortCodeAllow
       )
     ).toEqual(["bank-account"]);

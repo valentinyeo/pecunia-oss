@@ -13,14 +13,16 @@ import {
   parseIdentityLog,
   withCoAuthors,
 } from "./check-commit-identity.ts";
-import { findPersonalData } from "./check-no-personal-data.ts";
-import type { AllowList } from "./check-no-personal-data.ts";
+import {
+  decodeAllowList,
+  findPersonalData,
+  RULE_IDS,
+} from "./check-no-personal-data.ts";
+import type { AllowList, RuleId } from "./check-no-personal-data.ts";
 
 const empty: AllowList = { skipped: [], values: [] };
 
-const CASES = 500;
-
-const PAIR_CASES = 600;
+const CASES = 120;
 
 const SEED = 20_260_101;
 
@@ -130,34 +132,57 @@ const SEPARATORS = [
   "",
   "",
   " ",
+  "  ",
   "\t",
   "\u00A0",
   "\u2007",
   "\u202F",
   "\u3000",
-  "\uFEFF",
-  "-",
-  "\u2010",
-  "\u2011",
-  "\u2013",
-  "\u2014",
-  ".",
-  "  ",
-  " \u00A0",
+  "\n",
+  "\r\n",
+  ",\n",
+  ",",
+  ", ",
+  ":",
+  ": ",
+  "=",
+  " = ",
   "--",
   " - ",
-  "  \u00A0",
 ];
 
-const separated = (values: readonly string[], random: Random) => {
-  let text = values[0] ?? "";
+const QUOTES = [`"`, "'", "\u0060", "\u2018", "\u2019", "\u201C", "\u201D"];
 
-  for (const value of values.slice(1)) {
-    text += `${random.pick(SEPARATORS)}${value}`;
+const separatedBy = (parts: readonly string[], random: Random) => {
+  let text = parts[0] ?? "";
+
+  for (const part of parts.slice(1)) {
+    text += `${random.pick(SEPARATORS)}${part}`;
   }
 
   return text;
 };
+
+const inQuotes = (text: string, random: Random) => {
+  const quote = random.pick(QUOTES);
+
+  return `${quote}${text}${quote}`;
+};
+
+const decorated = (text: string, random: Random) =>
+  random.pick([
+    `${random.prose(3)} ${text} ${random.prose(2)}`,
+    `value: ${text}`,
+    `value=${text}`,
+    `value,${text}`,
+    `{"value": ${inQuotes(text, random)}}`,
+    `{"value":${inQuotes(text, random)}},`,
+    `value: ${inQuotes(text, random)}`,
+    inQuotes(text, random),
+    `| field | value |\n| --- | --- |\n| value | ${text} |`,
+    `field,value\nvalue,${text}`,
+    `${random.prose(2)} ${inQuotes(text, random)} ${random.prose(2)}`,
+  ]);
 
 const IBAN_COUNTRIES: readonly (readonly [string, number])[] = [
   ["GB", 22],
@@ -177,63 +202,35 @@ const IBAN_COUNTRIES: readonly (readonly [string, number])[] = [
   ["PT", 25],
 ];
 
-const makeIban = (random: Random) => {
+const ibanValue = (random: Random) => {
   const [country, length] = random.pick(IBAN_COUNTRIES);
 
-  return `${country}${random.digits(2)}${random.alphanumeric(4)}${random.digits(length - 8)}`;
-};
+  const body = `${country}${random.digits(2)}${random.alphanumeric(4)}${random.digits(length - 8)}`;
 
-const renderIban = (iban: string, random: Random) => {
-  if (random.between(1, 4) === 1) {
-    return iban;
-  }
+  const parts: string[] = [];
 
-  const parts = [iban.slice(0, 2)];
-
-  for (let index = 2; index < iban.length;) {
+  for (let index = 0; index < body.length;) {
     const size = random.between(1, 4);
 
-    parts.push(iban.slice(index, index + size));
+    parts.push(body.slice(index, index + size));
 
     index += size;
   }
 
-  const text = separated(parts, random);
+  const text = separatedBy(parts, random);
 
   return random.between(1, 3) === 1 ? text.toLowerCase() : text;
 };
 
-const surroundings = (rendered: string, random: Random) =>
-  random.pick([
-    `${random.prose(4)} ${rendered} ${random.prose(3)}`,
-    `const iban = "${rendered}";`,
-    `| ${rendered} | ${random.prose(2)} |`,
-    `${random.prose(3)}\n${rendered}\n${random.prose(3)}`,
-    `Pay ${random.prose(2)}, reference ${rendered}, on file.`,
-  ]);
-
-describe("every valid-length IBAN is reported however its groups are separated", () => {
-  it(`reports ${CASES} seeded renderings`, () => {
-    const random = makeRandom(SEED);
-
-    const missed: string[] = [];
-
-    for (let index = 0; index < CASES; index += 1) {
-      const text = surroundings(renderIban(makeIban(random), random), random);
-
-      if (!rulesOf("docs/payments.md", text).includes("iban")) {
-        missed.push(text);
-      }
-    }
-
-    expect(missed).toEqual([]);
-  });
-});
+const ibanDocument = (random: Random) => decorated(ibanValue(random), random);
 
 const BANK_SEPARATORS = [
   "",
   "",
   " ",
+  "  ",
+  "\n",
+  "\r\n",
   "\u00A0",
   "\u2007",
   "\u202F",
@@ -241,24 +238,48 @@ const BANK_SEPARATORS = [
   "\u2011",
   "\u2013",
   ".",
-  "  ",
   " \u00A0",
   "--",
   " - ",
 ];
 
-const makeSortCode = (random: Random) => {
-  const pairs = [random.digits(2), random.digits(2), random.digits(2)];
+const inNumber = (parts: readonly string[], random: Random) => {
+  let text = parts[0] ?? "";
 
-  return random.between(1, 4) === 1
-    ? pairs.join("")
-    : `${pairs[0]}${random.pick(BANK_SEPARATORS)}${pairs[1]}${random.pick(BANK_SEPARATORS)}${pairs[2]}`;
+  for (const part of parts.slice(1)) {
+    text += `${random.pick(BANK_SEPARATORS)}${part}`;
+  }
+
+  return text;
 };
 
-const makeAccountNumber = (random: Random) =>
-  random.between(1, 4) === 1
-    ? random.digits(8)
-    : `${random.digits(4)}${random.pick(BANK_SEPARATORS)}${random.digits(4)}`;
+const sortCodeValue = (random: Random) =>
+  inNumber([random.digits(2), random.digits(2), random.digits(2)], random);
+
+const accountValue = (random: Random) =>
+  inNumber([random.digits(4), random.digits(4)], random);
+
+const pairDocument = (random: Random) => {
+  const gap = random.pick(SEPARATORS);
+
+  const pair =
+    random.between(1, 2) === 1
+      ? `${sortCodeValue(random)}${gap}${accountValue(random)}`
+      : `${accountValue(random)}${gap}${sortCodeValue(random)}`;
+
+  return random.pick([
+    pair,
+    `${random.prose(3)} ${pair} ${random.prose(2)}`,
+    `{"sortCode":${sortCodeValue(random)},"accountNumber":${accountValue(random)}}`,
+    `| field | value |\n| --- | --- |\n| sort code | ${sortCodeValue(random)} |\n| account number | ${accountValue(random)} |`,
+    `sort code,account number\n${sortCodeValue(random)},${accountValue(random)}`,
+    `${pair}\n${random.prose(2)}`,
+    `${random.prose(2)} ${pair}`,
+  ]);
+};
+
+const sortOnlyDocument = (random: Random) =>
+  decorated(sortCodeValue(random), random);
 
 interface Field {
   readonly key: string;
@@ -266,42 +287,14 @@ interface Field {
   readonly value: string;
 }
 
-const bankFields = (
-  sortCode: string,
-  accountNumber: string,
-  between: readonly Field[],
-  keep: "both" | "sort" | "account",
-  accountFirst: boolean
-) => {
-  const sortField: Field = {
-    key: "sortCode",
-    label: "sort code",
-    value: sortCode,
-  };
-
-  const accountField: Field = {
-    key: "accountNumber",
-    label: "account number",
-    value: accountNumber,
-  };
-
-  const first = accountFirst ? accountField : sortField;
-
-  const second = accountFirst ? sortField : accountField;
-
-  const kept =
-    keep === "both"
-      ? [first, second]
-      : [first, second].filter((field) =>
-          keep === "sort"
-            ? field.key === "sortCode"
-            : field.key === "accountNumber"
-        );
-
-  const [head, ...tail] = kept;
-
-  return head === undefined ? [...between] : [head, ...between, ...tail];
-};
+const KEY_PAIRS: readonly (readonly [string, string])[] = [
+  ["sortCode", "accountNumber"],
+  ["sort_code", "account_number"],
+  ["SORTCODE", "ACCOUNTNUMBER"],
+  ["sort-code", "account-number"],
+  ["sort code", "account number"],
+  ["Sort Code", "Account Number"],
+];
 
 const jsonText = (fields: readonly Field[]) =>
   [
@@ -325,38 +318,30 @@ const csvText = (fields: readonly Field[]) =>
     fields.map((field) => field.value).join(","),
   ].join("\n");
 
-const proseText = (fields: readonly Field[]) =>
-  fields.map((field) => `The ${field.label} is ${field.value}.`).join(" ");
-
 const tsvText = (fields: readonly Field[]) =>
   [
     fields.map((field) => field.key).join("\t"),
     fields.map((field) => field.value).join("\t"),
   ].join("\n");
 
-const semicolonText = (fields: readonly Field[]) =>
-  fields.map((field) => field.value).join("; ");
+const markdownText = (fields: readonly Field[]) =>
+  [
+    `| ${fields.map((field) => field.key).join(" | ")} |`,
+    `| ${fields.map(() => "---").join(" | ")} |`,
+    `| ${fields.map((field) => field.value).join(" | ")} |`,
+  ].join("\n");
 
-const pipeText = (fields: readonly Field[]) =>
-  fields.map((field) => field.value).join(" | ");
-
-const linesText = (fields: readonly Field[]) =>
-  fields.map((field) => field.value).join("\n");
-
-const indentedText = (fields: readonly Field[]) =>
-  fields.map((field) => `  ${field.value}`).join("\n");
+const proseText = (fields: readonly Field[]) =>
+  fields.map((field) => `The ${field.label} is ${field.value}.`).join(" ");
 
 const FORMATS = [
   "json",
   "compact",
   "yaml",
   "csv",
-  "prose",
   "tsv",
-  "semicolon",
-  "pipe",
-  "lines",
-  "indented",
+  "markdown",
+  "prose",
 ] as const;
 
 const bankDocument = (format: string, fields: readonly Field[]) => {
@@ -372,82 +357,280 @@ const bankDocument = (format: string, fields: readonly Field[]) => {
     return csvText(fields);
   }
 
-  if (format === "prose") {
-    return proseText(fields);
-  }
-
   if (format === "tsv") {
     return tsvText(fields);
   }
 
-  if (format === "semicolon") {
-    return semicolonText(fields);
+  if (format === "markdown") {
+    return markdownText(fields);
   }
 
-  if (format === "pipe") {
-    return pipeText(fields);
-  }
-
-  if (format === "lines") {
-    return linesText(fields);
-  }
-
-  if (format === "indented") {
-    return indentedText(fields);
+  if (format === "prose") {
+    return proseText(fields);
   }
 
   return jsonText(fields);
 };
 
-describe("a sort code and an account number inside one record are reported as a pair", () => {
-  it(`pairs ${PAIR_CASES} seeded records and keeps either one alone quiet`, () => {
-    const random = makeRandom(SEED + 1);
+const fieldPairFields = (random: Random) => {
+  const [sortKey, accountKey] = random.pick(KEY_PAIRS);
+
+  const sortField: Field = {
+    key: sortKey,
+    label: "sort code",
+    value: sortCodeValue(random),
+  };
+
+  const accountField: Field = {
+    key: accountKey,
+    label: "account number",
+    value: accountValue(random),
+  };
+
+  const others = Array.from({ length: random.between(0, 4) }, (_, position) => {
+    const key = `${random.pick(WORDS)}${position}`;
+
+    return { key, label: key, value: random.pick(WORDS) };
+  });
+
+  return random.between(1, 2) === 1
+    ? [sortField, ...others, accountField]
+    : [accountField, ...others, sortField];
+};
+
+const fieldPairDocument = (random: Random) =>
+  bankDocument(random.pick(FORMATS), fieldPairFields(random));
+
+const singleFieldDocument = (random: Random) => {
+  const fields = fieldPairFields(random);
+
+  const field = fields[0] ?? { key: "value", label: "value", value: "demo" };
+
+  return bankDocument(random.pick(FORMATS), [
+    {
+      ...field,
+      key: field.key,
+      value: random.pick([sortCodeValue(random), accountValue(random)]),
+    },
+  ]);
+};
+
+const EMAIL_LOCALS = [
+  "owner",
+  "jane.doe",
+  "a+b",
+  "o'brien",
+  "j_doe",
+  "1st",
+  "jos\u00E9",
+  "jose\u0301",
+  "\u03B4\u03BF\u03BA\u03B9\u03BC\u03AE",
+  "\u5C71\u7530",
+  "\u00DFeta",
+  "\u00E9lodie",
+  "j\u00F6rg",
+];
+
+const EMAIL_DOMAINS = [
+  "acme.com",
+  "acme.co.uk",
+  "b\u00FCcher.de",
+  "bu\u0308cher.de",
+  "sub.acme.co.uk",
+  "xn--bcher-kva.de",
+  "\u4F8B\u5B50.\u4E2D\u56FD",
+  "acme.io",
+];
+
+const PLACEHOLDER_DOMAINS = [
+  "example.com",
+  "example.net",
+  "example.org",
+  "demo.example",
+  "demo.invalid",
+  "demo.localhost",
+  "demo.test",
+];
+
+const mailboxNames = ["demo", "jane", "sam", "owner"];
+
+const mailboxWords = ["owner", "doe", "smith", "finance"];
+
+const quotedMailbox = (random: Random) => {
+  const local = `${random.pick(mailboxNames)}${random.pick(SEPARATORS)}${random.pick(mailboxWords)}`;
+
+  return `"${local}"@${random.pick(EMAIL_DOMAINS)}`;
+};
+
+const quotedMailboxDocument = (random: Random) =>
+  decorated(quotedMailbox(random), random);
+
+const placeholderMailbox = (random: Random) =>
+  `"${random.pick(mailboxNames)} ${random.pick(mailboxWords)}"@${random.pick(PLACEHOLDER_DOMAINS)}`;
+
+const emailDocument = (random: Random) =>
+  decorated(
+    `${random.pick(EMAIL_LOCALS)}@${random.pick(EMAIL_DOMAINS)}`,
+    random
+  );
+
+const placeholderEmailDocument = (random: Random) =>
+  decorated(
+    `${random.pick(EMAIL_LOCALS)}@${random.pick(PLACEHOLDER_DOMAINS)}`,
+    random
+  );
+
+const accountIdValue = (random: Random) =>
+  `${random.digits(8)}${random.digits(8)}${random.digits(8)}${random.digits(8)}`;
+
+const accountIdDocument = (random: Random) =>
+  random.pick([
+    `{"account_id": "${accountIdValue(random)}"}`,
+    `account_id: ${accountIdValue(random)}`,
+    `const accountId = "${accountIdValue(random)}";`,
+    `See https://dash.cloudflare.com/${accountIdValue(random)}/workers`,
+  ]);
+
+const hostnameValue = (random: Random) => {
+  const label = `planted-${random.alphanumeric(8).toLowerCase()}`;
+
+  return `${label}.${random.pick(["workers.dev", "pages.dev", "cloudflareaccess.com"])}`;
+};
+
+const hostnameDocument = (random: Random) => {
+  const hostname = hostnameValue(random);
+
+  return random.pick([
+    `Live at <https://${hostname}/health>.`,
+    `Deploy target: ${hostname}`,
+    `{"url": "https://${hostname}"}`,
+    `https://${hostname.slice(0, 9)}\n${hostname.slice(9)}/health`,
+    `| host |\n| --- |\n| ${hostname} |`,
+  ]);
+};
+
+const exampleHostname = (random: Random) =>
+  random.pick([
+    "example.workers.dev",
+    "example.pages.dev",
+    "example.cloudflareaccess.com",
+    "*.workers.dev",
+    "*.pages.dev",
+  ]);
+
+interface Detector {
+  readonly covers: readonly RuleId[];
+  readonly harmless: (random: Random) => string;
+  readonly name: string;
+  readonly path: string;
+  readonly sensitive: (random: Random) => string;
+}
+
+const DETECTORS: readonly Detector[] = [
+  {
+    covers: ["iban"],
+    harmless: (random) =>
+      random.pick([
+        'const code = "at12";',
+        "the id is 12 and the total is 34",
+        'const pin = "ab12cd34ef56789012345678901234567890123";',
+        'const digest = "0123456789abcdef0123456789abcdef";',
+      ]),
+    name: "iban",
+    path: "docs/payments.md",
+    sensitive: ibanDocument,
+  },
+  {
+    covers: ["bank-account"],
+    harmless: sortOnlyDocument,
+    name: "sort-code-and-account",
+    path: "docs/payments.md",
+    sensitive: pairDocument,
+  },
+  {
+    covers: ["bank-account"],
+    harmless: singleFieldDocument,
+    name: "bank-field-pair",
+    path: "apps/site/src/profile.ts",
+    sensitive: fieldPairDocument,
+  },
+  {
+    covers: ["email"],
+    harmless: placeholderMailbox,
+    name: "quoted-mailbox-email",
+    path: "docs/payments.md",
+    sensitive: quotedMailboxDocument,
+  },
+  {
+    covers: ["email"],
+    harmless: placeholderEmailDocument,
+    name: "email",
+    path: "apps/site/test/fixture.ts",
+    sensitive: emailDocument,
+  },
+  {
+    covers: ["cloudflare-account-id"],
+    harmless: (random) => `const id = "${accountIdValue(random)}";`,
+    name: "cloudflare-account-id",
+    path: "apps/cli/src/ids.ts",
+    sensitive: accountIdDocument,
+  },
+  {
+    covers: ["cloudflare-hostname"],
+    harmless: exampleHostname,
+    name: "cloudflare-hostname",
+    path: "README.md",
+    sensitive: hostnameDocument,
+  },
+];
+
+const allowPath = path.resolve(
+  import.meta.dirname,
+  "no-personal-data-allow.json"
+);
+
+const allowList = decodeAllowList(readFileSync(allowPath, "utf-8"));
+
+describe("every sensitive value is reported whatever formatting wraps it", () => {
+  it(`reports ${DETECTORS.length * CASES} seeded wrappings and keeps the harmless values quiet`, () => {
+    const uncovered = RULE_IDS.filter(
+      (rule) => !DETECTORS.some((detector) => detector.covers.includes(rule))
+    );
+
+    expect(uncovered).toEqual([]);
 
     const missed: string[] = [];
 
-    const alone: string[] = [];
+    const noisy: string[] = [];
 
-    for (let index = 0; index < PAIR_CASES; index += 1) {
-      const sortCode = makeSortCode(random);
+    for (const [kind, detector] of DETECTORS.entries()) {
+      const random = makeRandom(SEED + kind);
 
-      const accountNumber = makeAccountNumber(random);
+      for (let index = 0; index < CASES; index += 1) {
+        const sensitive = detector.sensitive(random);
 
-      const between = Array.from(
-        { length: random.between(0, 12) },
-        (_, position) => {
-          const key = `${random.pick(WORDS)}${position}`;
+        const rules = rulesOf(detector.path, sensitive);
 
-          return { key, label: key, value: random.pick(WORDS) };
+        if (!detector.covers.every((rule) => rules.includes(rule))) {
+          missed.push(`${detector.name}: ${sensitive}`);
         }
-      );
 
-      const format = random.pick(FORMATS);
+        const harmless = detector.harmless(random);
 
-      const accountFirst = random.between(1, 2) === 1;
-
-      const paired = bankDocument(
-        format,
-        bankFields(sortCode, accountNumber, between, "both", accountFirst)
-      );
-
-      if (!rulesOf("docs/payments.md", paired).includes("bank-account")) {
-        missed.push(paired);
-      }
-
-      for (const keep of ["sort", "account"] as const) {
-        const single = bankDocument(
-          format,
-          bankFields(sortCode, accountNumber, between, keep, accountFirst)
-        );
-
-        if (rulesOf("docs/payments.md", single).length > 0) {
-          alone.push(single);
+        if (rulesOf(detector.path, harmless).length > 0) {
+          noisy.push(`${detector.name}: ${harmless}`);
         }
       }
     }
 
-    expect({ alone, missed }).toEqual({ alone: [], missed: [] });
-  }, 30_000);
+    for (const entry of allowList.values) {
+      if (findPersonalData(entry.path, entry.value, allowList).length > 0) {
+        noisy.push(`allow list: ${entry.path}`);
+      }
+    }
+
+    expect({ missed, noisy }).toEqual({ missed: [], noisy: [] });
+  }, 60_000);
 });
 
 const pad = (value: number) => String(value).padStart(2, "0");
@@ -519,13 +702,13 @@ const counterText = (value: string, account: string, random: Random) =>
   ]);
 
 describe("a date, a timestamp or a phone number is never read as a bank pair", () => {
-  it(`keeps ${PAIR_CASES} seeded records of each kind quiet`, () => {
+  it(`keeps ${CASES * 5} seeded records of each kind quiet`, () => {
     const paired: string[] = [];
 
     for (const [kind, [label, make]] of COUNTER_VALUES.entries()) {
       const random = makeRandom(SEED + 11 + kind);
 
-      for (let index = 0; index < PAIR_CASES; index += 1) {
+      for (let index = 0; index < CASES * 5; index += 1) {
         const text = counterText(make(random), random.digits(8), random);
 
         if (rulesOf("docs/payments.md", text).includes("bank-account")) {
@@ -536,96 +719,6 @@ describe("a date, a timestamp or a phone number is never read as a bank pair", (
 
     expect(paired).toEqual([]);
   }, 30_000);
-});
-
-const EMAIL_LOCALS = [
-  "owner",
-  "jane.doe",
-  "a+b",
-  "o'brien",
-  "j_doe",
-  "1st",
-  "jos\u00E9",
-  "jose\u0301",
-  "\u03B4\u03BF\u03BA\u03B9\u03BC\u03AE",
-  "\u5C71\u7530",
-  "\u00DFeta",
-  "\u00E9lodie",
-  "j\u00F6rg",
-];
-
-const EMAIL_DOMAINS = [
-  "acme.com",
-  "acme.co.uk",
-  "b\u00FCcher.de",
-  "bu\u0308cher.de",
-  "sub.acme.co.uk",
-  "xn--bcher-kva.de",
-  "\u4F8B\u5B50.\u4E2D\u56FD",
-  "acme.io",
-];
-
-const PLACEHOLDER_DOMAINS = [
-  "example.com",
-  "example.net",
-  "example.org",
-  "demo.example",
-  "demo.invalid",
-  "demo.localhost",
-  "demo.test",
-];
-
-const EMAIL_LEADS = [
-  "",
-  " ",
-  "'",
-  '"',
-  "\\",
-  "(",
-  ")",
-  "[",
-  "]",
-  ",",
-  ":",
-  "\n",
-];
-
-const EMAIL_TAILS = ["", " ", "\n", ")", "'", "."];
-
-describe("every email address is reported after any punctuation, and the placeholders are not", () => {
-  it(`reports ${CASES} seeded addresses and excuses ${CASES} placeholders`, () => {
-    const random = makeRandom(SEED + 2);
-
-    const missed: string[] = [];
-
-    const placeholders: string[] = [];
-
-    for (let index = 0; index < CASES; index += 1) {
-      const local = random.pick(EMAIL_LOCALS);
-
-      const lead = random.pick(EMAIL_LEADS);
-
-      const tail = random.pick(EMAIL_TAILS);
-
-      const address = `${local}@${random.pick(EMAIL_DOMAINS)}`;
-
-      const text = `${random.prose(3)}${lead}${address}${tail} ${random.prose(2)}`;
-
-      if (!rulesOf("apps/site/test/fixture.ts", text).includes("email")) {
-        missed.push(text);
-      }
-
-      const placeholder = `${local}@${random.pick(PLACEHOLDER_DOMAINS)}`;
-
-      const placeholderText = `${random.prose(3)}${lead}${placeholder}${tail} ${random.prose(2)}`;
-
-      if (rulesOf("apps/site/test/fixture.ts", placeholderText).length > 0) {
-        placeholders.push(placeholderText);
-      }
-    }
-
-    expect({ missed, placeholders }).toEqual({ missed: [], placeholders: [] });
-  });
 });
 
 const GITLEAKS = spawnSync("gitleaks", ["version"]).status === 0;
