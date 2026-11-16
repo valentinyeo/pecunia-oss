@@ -1,4 +1,5 @@
 import {
+  DuplicateProfileId,
   ProfileIdSchema,
   ProfileNameTaken,
   UnknownProfile,
@@ -34,17 +35,49 @@ const withCurrency = (profile: Profile, settings: SettingsSave): Profile =>
     ? { ...profile, baseCurrency: settings.baseCurrency }
     : profile;
 
+const firstRepeatedProfileId = (profiles: readonly Profile[]) => {
+  const seen = new Set<string>();
+
+  return profiles.find((profile) => {
+    if (seen.has(profile.id)) {
+      return true;
+    }
+
+    seen.add(profile.id);
+
+    return false;
+  })?.id;
+};
+
+const unusedProfileSequence = (profiles: readonly Profile[]) => {
+  const taken = new Set<string>(profiles.map((profile) => profile.id));
+  let sequence = profiles.length + 1;
+
+  while (taken.has(`profile-${sequence}`)) {
+    sequence += 1;
+  }
+
+  return sequence;
+};
+
 export const memorySettingsLayer = (seed: SettingsSeed = emptySettings) =>
   Layer.effect(
     SettingsStore,
     Effect.gen(function* makeMemorySettings() {
+      const repeatedId = firstRepeatedProfileId(seed.profiles);
+
+      if (repeatedId !== undefined) {
+        return yield* Effect.die(
+          new DuplicateProfileId({ profileId: repeatedId })
+        );
+      }
+
       const state = yield* Ref.make<SettingsSeed>({
         profiles: seed.profiles,
         setting: seed.setting,
       });
 
       const writes = yield* Semaphore.make(1);
-      const nextProfile = yield* Ref.make(1);
 
       const readSetup = Effect.fn("SettingsStore.readSetup")(
         function* readSetup() {
@@ -101,13 +134,8 @@ export const memorySettingsLayer = (seed: SettingsSeed = emptySettings) =>
                 });
               }
 
-              const sequence = yield* Ref.updateAndGet(
-                nextProfile,
-                (count) => count + 1
-              );
-
               const id = yield* Schema.decodeEffect(ProfileIdSchema)(
-                `profile-${sequence}`
+                `profile-${unusedProfileSequence(current.profiles)}`
               ).pipe(Effect.orDie);
 
               const created: Profile = { ...profile, id };

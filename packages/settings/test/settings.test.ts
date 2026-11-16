@@ -2,12 +2,14 @@ import { expect, it } from "@effect/vitest";
 import {
   createProfileContract,
   CurrencyCodeSchema,
+  DuplicateProfileId,
   LocaleSchema,
+  ProfileSchema,
   saveSettingsContract,
   TimeZoneSchema,
 } from "@pecunia/core/settings";
-import type { NewProfile, SettingsSave } from "@pecunia/core/settings";
-import { Effect, Predicate, Result, Schema } from "effect";
+import type { NewProfile, Profile, SettingsSave } from "@pecunia/core/settings";
+import { Cause, Effect, Exit, Predicate, Result, Schema } from "effect";
 
 import { createProfile, readSetup, saveSettings } from "../src/capabilities.js";
 import { memorySettingsLayer } from "../src/settings-memory.js";
@@ -247,4 +249,167 @@ it.effect(
         ).toBe(true);
       }
     })
+);
+
+const PROFILE_CASES = 600;
+
+const SEED_ID_POOL = [
+  "profile-1",
+  "profile-2",
+  "profile-3",
+  "profile-10",
+  "demo",
+  "0192f0c1-0002-7f50-85ff-5ffb4c3ef459",
+] as const;
+
+const SEED_CURRENCIES = ["EUR", "GBP", "USD", "JPY", "CHF"] as const;
+
+const SEED_KINDS = ["business", "personal"] as const;
+
+interface ProfileCase {
+  readonly createdNames: readonly string[];
+  readonly seed: readonly Profile[];
+  readonly targetIndex: number;
+}
+
+const uniqueSeedId = (
+  random: () => number,
+  used: Set<string>,
+  hint: number
+): string => {
+  const base = pick(SEED_ID_POOL, random);
+  let candidate: string = base;
+  let suffix = hint;
+
+  while (used.has(candidate)) {
+    candidate = `${base}-${suffix}`;
+    suffix += 1;
+  }
+
+  used.add(candidate);
+
+  return candidate;
+};
+
+const profileCases = (): readonly ProfileCase[] => {
+  const random = seededRandom(20_260_107);
+
+  return Array.from({ length: PROFILE_CASES }, (unusedCase, caseIndex) => {
+    const used = new Set<string>();
+    const seedCount = Math.floor(random() * 9);
+
+    const seed = Array.from({ length: seedCount }, (unusedSlot, seedIndex) =>
+      Schema.decodeSync(ProfileSchema)({
+        baseCurrency: pick(SEED_CURRENCIES, random),
+        id: uniqueSeedId(random, used, seedIndex),
+        kind: pick(SEED_KINDS, random),
+        name: `Seed ${caseIndex}-${seedIndex}`,
+      })
+    );
+
+    const createCount = 1 + Math.floor(random() * 4);
+
+    return {
+      createdNames: Array.from(
+        { length: createCount },
+        (unusedCreated, createIndex) => `Added ${caseIndex}-${createIndex}`
+      ),
+      seed,
+      targetIndex: Math.floor(random() * createCount) % createCount,
+    };
+  });
+};
+
+it.effect(
+  "creating profiles after any seed keeps every id unique and a save touches one profile, over 600 seeded draws",
+  () =>
+    Effect.forEach(
+      profileCases(),
+      (oneCase) =>
+        Effect.gen(function* keepIdsUnique() {
+          const before = yield* readSetup.handler({});
+
+          const created = yield* Effect.forEach(
+            oneCase.createdNames,
+            (name) => createProfile.handler(profile(name)),
+            { concurrency: 1 }
+          );
+
+          const afterCreate = yield* readSetup.handler({});
+          const ids = afterCreate.profiles.map((stored) => stored.id);
+
+          expect(new Set(ids).size).toBe(ids.length);
+          expect(afterCreate.profiles).toHaveLength(
+            before.profiles.length + created.length
+          );
+          expect(new Set(created.map((stored) => stored.id)).size).toBe(
+            created.length
+          );
+
+          const target = created[oneCase.targetIndex];
+
+          if (target === undefined) {
+            throw new Error("the profile case created no profile to save");
+          }
+
+          yield* saveSettings.handler(settingsFor(target.id, "KWD"));
+
+          const afterSave = yield* readSetup.handler({});
+
+          const savedCurrencies = afterSave.profiles.map(
+            (stored) => stored.baseCurrency
+          );
+
+          const expectedCurrencies = afterCreate.profiles.map((stored) =>
+            stored.id === target.id ? "KWD" : stored.baseCurrency
+          );
+
+          expect(savedCurrencies).toEqual(expectedCurrencies);
+          expect(
+            afterSave.profiles.filter((stored) => stored.baseCurrency === "KWD")
+          ).toHaveLength(1);
+          expect(afterSave.setting?.primaryProfileId).toBe(target.id);
+        }).pipe(
+          Effect.provide(
+            memorySettingsLayer({ profiles: oneCase.seed, setting: undefined })
+          )
+        ),
+      { concurrency: 1 }
+    )
+);
+
+it.effect("a seed with a repeated profile id is refused by name", () =>
+  Effect.gen(function* refuseRepeatedSeedId() {
+    const first = yield* Schema.decodeEffect(ProfileSchema)({
+      baseCurrency: "EUR",
+      id: "profile-2",
+      kind: "business",
+      name: "Example Ltd",
+    });
+
+    const second = yield* Schema.decodeEffect(ProfileSchema)({
+      baseCurrency: "GBP",
+      id: "profile-2",
+      kind: "personal",
+      name: "Demo Person",
+    });
+
+    const exit = yield* readSetup
+      .handler({})
+      .pipe(
+        Effect.provide(
+          memorySettingsLayer({ profiles: [first, second], setting: undefined })
+        ),
+        Effect.exit
+      );
+
+    const defect = Exit.isFailure(exit)
+      ? Result.getOrThrow(Cause.findDefect(exit.cause))
+      : undefined;
+
+    expect(Predicate.isTagged(defect, "DuplicateProfileId")).toBe(true);
+    expect(
+      Schema.is(DuplicateProfileId)(defect) ? defect.profileId : undefined
+    ).toBe("profile-2");
+  })
 );
