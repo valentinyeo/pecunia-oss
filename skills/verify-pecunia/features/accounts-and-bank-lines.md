@@ -59,26 +59,47 @@ Checks this drive runs, on top of the five cross-cutting checks:
 - `import-names-a-rejected-line`: a file with one good line and one bad date imports one row, rejects one, and names `bad-date`.
 - `import-refuses-unknown-account`: an account the profile does not hold fails with `ImportAccountNotFound`.
 
+The three bank-line capabilities have their own steps, so a run that skips one is a failed proof by name:
+
+- `bank-line-list-returns-the-demo-book`: the listing returns all 12 demo lines, 2 of them awaiting review.
+- `bank-line-list-orders-newest-first`: the listing orders by occurred time, newest first.
+- `bank-line-list-filters-by-direction`: an `out` filter returns the 8 out lines and nothing else.
+- `bank-line-list-pages-without-repeats`: two pages of 5 lines share no line.
+- `bank-line-edit-sets-category-and-note`: an edit writes the category and the note.
+- `bank-line-edit-keeps-the-line-in-its-profile`: the edit returns the same line in the same profile.
+- `bank-line-edit-refuses-an-unknown-line`: an edit of a missing line fails with `UnknownBankLine`.
+- `bank-line-edit-refuses-a-foreign-category`: an edit to a category outside the profile fails with `UnknownCategory`.
+- `bank-line-review-marks-the-line`: a review returns the line with a recorded review time.
+- `bank-line-review-shows-in-the-list`: the reviewed line reads back as `Reviewed` from the listing.
+- `bank-line-review-refuses-a-viewer`: a read-only member cannot review a line and gets `Forbidden`.
+
 Read a failure with `jq '.checks[] | select(.passed | not)' skills/verify-pecunia/evidence/<date>-<label>/proof.json`.
 
-## Driving the import capability by hand
+## Driving the capability handlers by hand
 
 ```sh
 pnpm turbo run build --filter=@pecunia/bank-import...
+pnpm turbo run build --filter=@pecunia/bank-lines...
 bash skills/verify-pecunia/scripts/prove-demo-book.sh --feature accounts-and-bank-lines
 node skills/verify-pecunia/scripts/drive-bank-import.mjs --database /tmp/pecunia-verify/demo.sqlite
+node skills/verify-pecunia/scripts/drive-bank-lines.mjs --capability list
+node skills/verify-pecunia/scripts/drive-bank-lines.mjs --capability edit
+node skills/verify-pecunia/scripts/drive-bank-lines.mjs --capability review
 ```
 
-The last command reads the seeded demo book for its import targets, then drives `listImportTargets` and `importBankFile` through the package handlers with the memory ledger and the demo CSV fixture. It prints one JSON object: the listed targets, the first import summary, the replay summary, the rejected line, and the unknown-account refusal. The helper writes the same object to `bank-import-drive.json` next to `proof.json`.
+`drive-bank-import.mjs` reads the seeded demo book for its import targets, then drives `listImportTargets` and `importBankFile` through the package handlers with the memory ledger and the demo CSV fixture. It prints one JSON object: the listed targets, the first import summary, the replay summary, the rejected line, and the unknown-account refusal. The helper writes the same object to `bank-import-drive.json` next to `proof.json`.
+
+`drive-bank-lines.mjs` drives one bank-line capability per run against the demo seed with the memory store. `list` prints the total, the awaiting count, the ordering, the filtered count, and the two pages. `edit` prints the edited category and note, the profile check, and the two refusals. `review` prints the review time, the list read-back, and the viewer refusal. The helper writes each object to `bank-line-<capability>-drive.json` next to `proof.json`.
 
 ## Proof a pull request must attach
 
-1. The demo-book run for this feature with a fresh label, and its `PROOF.md`, `proof.json`, and `bank-import-drive.json` committed.
+1. The demo-book run for this feature with a fresh label, and its `PROOF.md`, `proof.json`, `bank-import-drive.json`, `bank-line-list-drive.json`, `bank-line-edit-drive.json`, and `bank-line-review-drive.json` committed.
 2. For an import change: the drive output showing five imported, zero on replay, the rejected line named, and the unknown account refused; plus the focused test at the capability seam. If the change adds persistence or a transport, the stored rows read back and the route, tool, or command response.
-3. The user path, once the screen or transport lands: the list or detail HTML from the running app, the RPC request and response for an edit, and the row read back from the database after the edit.
-4. A focused test at the new seam. A property test over generated filters if the slice adds filtering: a filtered list is always a subset of the unfiltered list, and paging never repeats or drops a line.
-5. If the change adds the reviewed state, the numbered migration and the run again on the migrated demo book.
-6. No schema edit to an applied migration.
+3. For a listing, edit, or review change: the drive output for that capability, plus its check ids in `PROOF.md`. A capability removed from the step table fails the run by name.
+4. The user path, once the screen or transport lands: the list or detail HTML from the running app, the RPC request and response for an edit, and the row read back from the database after the edit.
+5. A focused test at the new seam. A property test over generated filters if the slice adds filtering: a filtered list is always a subset of the unfiltered list, and paging never repeats or drops a line.
+6. If the change adds the reviewed state, the numbered migration and the run again on the migrated demo book.
+7. No schema edit to an applied migration.
 
 ## Gotchas
 
