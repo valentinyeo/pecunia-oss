@@ -42,6 +42,7 @@ export {
   MatchFieldSchema,
   MatchTypeSchema,
   RuleDirectionSchema,
+  RuleDraftSchema,
   RuleSchema,
 } from "./rule.js";
 
@@ -55,6 +56,19 @@ export type {
   RuleDraft,
   RuleKind,
 } from "./rule.js";
+
+export {
+  exclusiveStructUnion,
+  exclusiveTaggedUnion,
+  exclusiveUnion,
+  exclusiveUnionTables,
+} from "./exclusive-union.js";
+
+export type {
+  ExclusiveUnionTable,
+  UnionFields,
+  UnionMembers,
+} from "./exclusive-union.js";
 
 export {
   aliasOrder,

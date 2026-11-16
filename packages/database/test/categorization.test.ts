@@ -294,6 +294,66 @@ const testLayer = Layer.unwrap(
   })
 );
 
+const forbiddenRuleRow: PersistedRuleRow = {
+  categoryId: cloudCategory,
+  clientPayeeId: null,
+  counterpartProfileId: null,
+  createdAt: 1_735_722_000_000,
+  direction: "any",
+  enabled: 1,
+  id: absentRule,
+  kind: "refund",
+  matchField: "merchant",
+  matchType: "contains",
+  maxAmountMinor: null,
+  minAmountMinor: null,
+  obligationKind: null,
+  pattern: "Demo Rail",
+  priority: 50,
+  profileId: business,
+  updatedAt: 1_735_722_000_000,
+};
+
+const forbiddenRuleOperations: CategorizationOperations = {
+  insertAlias: () => Effect.void,
+  insertCategory: () => Effect.void,
+  insertPayee: () => Effect.void,
+  insertRule: () => Effect.succeed(forbiddenRuleRow),
+  listAliases: () => Effect.succeed([]),
+  listCategories: () => Effect.succeed([]),
+  listPayees: () => Effect.succeed([]),
+  listRules: () => Effect.succeed([forbiddenRuleRow]),
+  replaceRule: () => Effect.succeed(forbiddenRuleRow),
+};
+
+const forbiddenRuleLayer = Layer.provideMerge(
+  categorizationLayer(Effect.succeed(forbiddenRuleOperations)),
+  Layer.mergeAll(NodeServices.layer, NodeCrypto.layerSecureRandom)
+);
+
+it.layer(forbiddenRuleLayer)(
+  "Categorization over a rule row the domain forbids",
+  (test) => {
+    test.effect(
+      "refuses to read a stored refund rule that carries a category",
+      () =>
+        Effect.gen(function* refuseStoredSiblingTarget() {
+          const categorization = yield* Categorization;
+
+          const listed = yield* Effect.flip(categorization.snapshot(business));
+
+          expect(listed).toBeInstanceOf(CategorizationError);
+
+          const decided = yield* Effect.flip(
+            categorization.decide(business, railLine)
+          );
+
+          expect(decided).toBeInstanceOf(CategorizationError);
+        })
+    );
+  }
+);
+
 it.layer(testLayer)("Categorization over the migrated D1 schema", (test) => {
   test.effect("reads only the profile it is asked for", () =>
     Effect.gen(function* readProfiles() {
@@ -582,6 +642,43 @@ it.layer(testLayer)("Categorization over the migrated D1 schema", (test) => {
       );
 
       expect(error).toBeInstanceOf(RuleNotFound);
+    })
+  );
+
+  test.effect("refuses a refund draft that carries a category", () =>
+    Effect.gen(function* refuseSiblingTarget() {
+      const categorization = yield* Categorization;
+      const before = yield* categorization.snapshot(business);
+
+      const draft = {
+        direction: "any",
+        enabled: true,
+        kind: "refund",
+        matchField: "merchant",
+        matchType: "contains",
+        maxAmount: Option.none(),
+        minAmount: Option.none(),
+        pattern: "Demo Rail",
+        priority: 20,
+      } as const satisfies RuleDraft;
+
+      const withCategory = { ...draft, categoryId: travelCategory };
+
+      const created = yield* Effect.flip(
+        categorization.createRule(business, withCategory)
+      );
+
+      expect(created).toBeInstanceOf(InvalidCategorizationInput);
+
+      const updated = yield* Effect.flip(
+        categorization.updateRule(business, cloudRule, withCategory)
+      );
+
+      expect(updated).toBeInstanceOf(InvalidCategorizationInput);
+
+      const after = yield* categorization.snapshot(business);
+
+      expect(after.rules).toEqual(before.rules);
     })
   );
 

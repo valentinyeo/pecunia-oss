@@ -3,6 +3,7 @@ import {
   CategoryIdSchema,
   DisplayNameSchema,
   PayeeIdSchema,
+  RuleDraftSchema,
   RuleIdSchema,
   RuleSchema,
   normalizeName,
@@ -162,7 +163,23 @@ const ruleFromDraft = (
   draft: RuleDraft,
   operation: CategorizationOperation
 ): Effect.Effect<Rule, InvalidCategorizationInput> =>
-  decodeInput(RuleSchema, encodeDraft(profileId, ruleId, draft), operation);
+  decodeInput(
+    RuleDraftSchema,
+    {
+      ...draft,
+      maxAmount: Option.getOrNull(draft.maxAmount),
+      minAmount: Option.getOrNull(draft.minAmount),
+    },
+    operation
+  ).pipe(
+    Effect.flatMap((validated) =>
+      decodeInput(
+        RuleSchema,
+        encodeDraft(profileId, ruleId, validated),
+        operation
+      )
+    )
+  );
 
 const makeCategorizationService = (
   store: ReturnType<typeof categorizationRepository>,

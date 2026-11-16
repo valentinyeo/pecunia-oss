@@ -200,18 +200,30 @@ export const sortLine = (
       ? ClassificationSchema.cases.None.make({})
       : classificationOf(classificationRule);
 
-  const categorization =
-    categorizationRule === undefined ||
-    Predicate.isTagged(classification, "Excluded")
-      ? CategorizationSchema.cases.None.make({})
-      : CategorizationSchema.cases.Applied.make({
-          categoryId: categorizationRule.categoryId,
-          ruleId: categorizationRule.id,
-        });
+  const payeeId = Option.getOrNull(payeeForLine(line, catalog.aliases));
+
+  if (Predicate.isTagged(classification, "Excluded")) {
+    return {
+      categorization: CategorizationSchema.cases.None.make({}),
+      classification,
+      payeeId,
+    };
+  }
+
+  if (categorizationRule === undefined) {
+    return {
+      categorization: CategorizationSchema.cases.None.make({}),
+      classification,
+      payeeId,
+    };
+  }
 
   return {
-    categorization,
+    categorization: CategorizationSchema.cases.Applied.make({
+      categoryId: categorizationRule.categoryId,
+      ruleId: categorizationRule.id,
+    }),
     classification,
-    payeeId: Option.getOrNull(payeeForLine(line, catalog.aliases)),
+    payeeId,
   };
 };

@@ -228,13 +228,12 @@ const aliasFromRow = (row: PersistedAliasRow): MerchantAlias => ({
   profileId: row.profileId,
 });
 
-const ruleCandidate = (
-  row: PersistedRuleRow
-): Schema.Codec.Encoded<typeof RuleSchema> | undefined => {
+const ruleCandidate = (row: PersistedRuleRow) => {
   const base = {
     direction: row.direction,
     enabled: row.enabled === 1,
     id: row.id,
+    kind: row.kind,
     matchField: row.matchField,
     matchType: row.matchType,
     maxAmount: row.maxAmountMinor,
@@ -244,43 +243,24 @@ const ruleCandidate = (
     profileId: row.profileId,
   };
 
-  switch (row.kind) {
-    case "categorize": {
-      return row.categoryId === null
-        ? undefined
-        : { ...base, categoryId: row.categoryId, kind: row.kind };
-    }
+  const withCategory =
+    row.categoryId === null ? base : { ...base, categoryId: row.categoryId };
 
-    case "income_client": {
-      return row.clientPayeeId === null
-        ? undefined
-        : { ...base, clientPayeeId: row.clientPayeeId, kind: row.kind };
-    }
+  const withPayee =
+    row.clientPayeeId === null
+      ? withCategory
+      : { ...withCategory, clientPayeeId: row.clientPayeeId };
 
-    case "self_transfer": {
-      return {
-        ...base,
-        counterpartProfileId: row.counterpartProfileId,
-        kind: row.kind,
-      };
-    }
+  const keepsProfileField =
+    row.counterpartProfileId === null && row.kind !== "self_transfer";
 
-    case "tax_payment": {
-      return row.obligationKind === null
-        ? undefined
-        : { ...base, kind: row.kind, obligationKind: row.obligationKind };
-    }
+  const withProfile = keepsProfileField
+    ? withPayee
+    : { ...withPayee, counterpartProfileId: row.counterpartProfileId };
 
-    case "exclude":
-    case "internal_transfer":
-    case "refund": {
-      return { ...base, kind: row.kind };
-    }
-
-    default: {
-      return row.kind satisfies never;
-    }
-  }
+  return row.obligationKind === null
+    ? withProfile
+    : { ...withProfile, obligationKind: row.obligationKind };
 };
 
 const decodeRows = <RowSchema extends Schema.Constraint, Entity>(
@@ -308,20 +288,11 @@ const decodeRule = (
 ): Effect.Effect<Rule, CategorizationError> =>
   Schema.decodeUnknownEffect(PersistedRuleRowSchema)(row).pipe(
     Effect.mapError(failed(operation)),
-    Effect.flatMap((persisted) => {
-      const candidate = ruleCandidate(persisted);
-
-      return candidate === undefined
-        ? Effect.fail(
-            new CategorizationError({
-              cause: new Error("Stored rule has no target for its kind"),
-              operation,
-            })
-          )
-        : Schema.decodeEffect(RuleSchema)(candidate).pipe(
-            Effect.mapError(failed(operation))
-          );
-    })
+    Effect.flatMap((persisted) =>
+      Schema.decodeUnknownEffect(RuleSchema)(ruleCandidate(persisted)).pipe(
+        Effect.mapError(failed(operation))
+      )
+    )
   );
 
 export interface CategorizationRepository {
