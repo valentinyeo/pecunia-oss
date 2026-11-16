@@ -392,10 +392,10 @@ printf '## Checks\n\n| Check | Result | Expected | Observed |\n| --- | --- | ---
   printf '## What this does not prove\n\n'
   if [ -s "$DRIVE_JSON" ]; then
     printf -- '- The import capability runs on the package memory ledger against the seeded demo book; a persistent import store and the RPC, MCP, and CLI projections are not exercised.\n'
-    printf -- '- The other money features still have no user surface, so their checks read the demo book at the data layer.\n\n'
+    printf -- '- The other money features still have no user surface, so their checks read the demo book at the data layer.\n'
   else
     printf -- '- No finance screen, capability, CLI command, or MCP tool reaches this feature, so this run drives the demo book at the data layer.\n'
-    printf -- '- A green run does not prove a new capability reads the same rows the same way; the pull request that adds the surface still needs its own proof.\n\n'
+    printf -- '- A green run does not prove a new capability reads the same rows the same way; the pull request that adds the surface still needs its own proof.\n'
   fi
 } > "$PROOF_PATH"
 
