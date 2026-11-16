@@ -452,9 +452,9 @@ const scriptAllowlist = {
   "pnpm typecheck && pnpm lint && pnpm test":
     "The starter example runs typecheck, its own lint, then its tests, so the sample keeps the full gate.",
   "node scripts/generate-content.ts":
-    "The site generate script runs the content build, which reads the debt-ledger config and cannot turn a repo rule off.",
+    "The site generate script builds content, and the debt-ledger Oxlint run inside it is not the repo lint gate.",
   "apps/site/scripts/generate-content.ts":
-    "The site content build runs Oxlint itself with the debt-ledger config, so it names the tool without weakening the repo fence.",
+    "The content build runs Oxlint with the debt-ledger config, which turns every rule but the debt rule off on purpose.",
 } satisfies ScriptAllowlist;
 
 const lintWordPattern = /oxlint|ultracite|oxfmt|lint/iu;
