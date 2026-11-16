@@ -39,6 +39,9 @@ The base Effect plugin owns diagnostic severity. Child configs may add exact `al
 - **`@pecunia/auth`**:
   - Path: `packages/auth`
   - Role: Better Auth cartridge over the chosen `DatabaseVendor`: `Auth`, `CurrentPerson`, and the RPC middleware that provides it; only `Unauthenticated` crosses the wire. `@pecunia/auth/devtools` adds `runAsPerson`, the dev-only `rat_test_person` capability, and `testPersonLayer`
+- **`@pecunia/bank-lines`**:
+  - Path: `packages/bank-lines`
+  - Role: Bank line cartridge: the `BankLine` model (integer minor units, newest-first position, explicit review state), `BankLineStore` port with the in-memory and demo adapters, the `selectBankLines` filter, search and keyset paging rules, cursors bound to a filter fingerprint, `BankLineService`, and the `listBankLines`, `editBankLine` and `reviewBankLine` contracts. `readScopeOf` and `writeScopeOf` wrap `authorize` from `@pecunia/access` so the service accepts no unscoped query and no viewer write. A D1 store over `transactions` is the next adapter
 - **`@pecunia/settings`**:
   - Path: `packages/settings`
   - Role: Settings cartridge: the language, time zone, and profile base currency a new install sets up without code changes. Core owns the `Profile`, `AppSetting`, and `Setup` schemas, the `readSetup`, `saveSettings`, and `createProfile` contracts, and the `UnknownProfile`, `ProfileNameTaken`, `DuplicateProfileId`, and `SettingsUnavailable` failures. `SettingsStore` is the port; `@pecunia/settings/memory` is the reference adapter. A locale, time zone, or currency code is parsed and branded before it reaches the store
