@@ -1,12 +1,19 @@
 import { describe, expect, it } from "vitest";
 
-import { findPersonalData } from "./check-no-personal-data.ts";
+import {
+  findPersonalData,
+  GUARD_RULES,
+  PERSONAL_DATA_MATRIX,
+  RULE_IDS,
+  VIEW_IDS,
+} from "./check-no-personal-data.ts";
 import type { AllowList } from "./check-no-personal-data.ts";
 
 const empty: AllowList = { skipped: [], values: [] };
 
 const withValues = (
   entries: readonly {
+    readonly column?: string;
     readonly path: string;
     readonly reason: string;
     readonly value: string;
@@ -25,12 +32,13 @@ const lineOf = (filePath: string, text: string, allow: AllowList = empty) =>
 
 const testFile = "scripts/check-no-personal-data.test.ts";
 
-const grouped = (value: string, separator: string) =>
-  value.split("_").join(separator);
+const grouped = (parts: readonly string[], separator: string) =>
+  parts.join(separator);
 
-const sortCode = (separator: string) => grouped("20_45_67", separator);
+const sortCode = (separator: string) => grouped(["20", "45", "67"], separator);
 
-const accountNumber = (separator: string) => grouped("1029_3847", separator);
+const accountNumber = (separator: string) =>
+  grouped(["1029", "3847"], separator);
 
 const dotted = (...parts: readonly string[]) => parts.join(".");
 
@@ -158,7 +166,7 @@ describe("an IBAN fails in any written form", () => {
     expect(
       lineOf(
         "docs/payments.md",
-        `IBAN:\n\n${grouped("DE89_3704_0044_0532_0130_00", " ")}`
+        `IBAN:\n\n${grouped(["DE89", "3704", "0044", "0532", "0130", "00"], " ")}`
       )
     ).toEqual([3]);
   });
@@ -444,13 +452,13 @@ describe("explicit allowances pass only in the file they name", () => {
       {
         path: "scripts/sample.ts",
         reason: "A made-up amount in cents, not a branch.",
-        value: grouped("00_00_00", " "),
+        value: grouped(["00", "00", "00"], " "),
       },
     ]);
 
     const sample = bankSample(
-      grouped("00_00_00", " "),
-      grouped("1234_5678", "")
+      grouped(["00", "00", "00"], " "),
+      grouped(["1234", "5678"], "")
     );
 
     expect(ruleOf("scripts/sample.ts", sample, sortCodeAllow)).toEqual([]);
@@ -471,5 +479,158 @@ describe("explicit allowances pass only in the file they name", () => {
     expect(
       ruleOf("pnpm-lock.yaml", 'resolution: "GB82WEST12345698765432"', skipped)
     ).toEqual([]);
+  });
+});
+
+describe("the rule and view matrix covers every cell", () => {
+  it("runs every rule on every view it declares, and declares the rest", () => {
+    expect(GUARD_RULES).toEqual([...RULE_IDS]);
+
+    expect(Object.keys(PERSONAL_DATA_MATRIX).toSorted()).toEqual(
+      [...RULE_IDS].toSorted()
+    );
+
+    const faults = RULE_IDS.flatMap((rule) =>
+      VIEW_IDS.flatMap((view) => {
+        const declared = PERSONAL_DATA_MATRIX[rule][view];
+
+        if (declared === undefined) {
+          return [`${rule}/${view} is missing from the matrix`];
+        }
+
+        if (declared.reason.trim().length === 0) {
+          return [`${rule}/${view} has no reason`];
+        }
+
+        return declared.applies ? [] : [];
+      })
+    );
+
+    expect(faults).toEqual([]);
+
+    expect(Object.values(PERSONAL_DATA_MATRIX).flatMap(Object.keys)).toEqual(
+      RULE_IDS.flatMap(() => [...VIEW_IDS])
+    );
+  });
+
+  it("gives every rule and every view something to do", () => {
+    const idleRules = RULE_IDS.filter(
+      (rule) =>
+        !VIEW_IDS.some((view) => PERSONAL_DATA_MATRIX[rule][view].applies)
+    );
+
+    const idleViews = VIEW_IDS.filter(
+      (view) =>
+        !RULE_IDS.some((rule) => PERSONAL_DATA_MATRIX[rule][view].applies)
+    );
+
+    expect({ idleRules, idleViews }).toEqual({ idleRules: [], idleViews: [] });
+  });
+});
+
+describe("the fourth verdict's reproductions fail", () => {
+  it("fails on a date written between a sort code and an account number", () => {
+    expect(
+      ruleOf(
+        "docs/payments.md",
+        "Sort code: 23-45-67; Last synced: 2026-11-16; Account number: 98765432"
+      )
+    ).toEqual(["bank-account"]);
+  });
+
+  it("fails on an IBAN split by markdown emphasis", () => {
+    expect(
+      ruleOf("docs/payments.md", "IBAN: **GB82** WEST **1234** 5698 7654 32")
+    ).toEqual(["iban"]);
+  });
+
+  it("fails on a mailbox written as quoted-printable", () => {
+    expect(
+      ruleOf("docs/mail-export.md", "To: demo.person=40mailhost.co.uk")
+    ).toEqual(["email"]);
+  });
+
+  it("fails on a mailbox written as standard base64", () => {
+    const encoded = "ZGVtby5wZXJzb25AbWFpbGhvc3QuY28udWs=";
+
+    expect(
+      ruleOf(
+        "docs/mail-export.md",
+        `Content-Transfer-Encoding: base64\n\n${encoded}`
+      )
+    ).toEqual(["email"]);
+  });
+
+  it("fails on a mailbox written as url-alphabet base64", () => {
+    const encoded = "ZGVtby5wZXJzb25AbWFpbGhvc3QuY28udWs";
+
+    expect(ruleOf("docs/mail-export.md", encoded)).toEqual(["email"]);
+  });
+
+  it("fails on a bank pair written as base64", () => {
+    const encoded = "c29ydF9jb2RlIDIzIDQ1IDY3IGFjY291bnQgbnVtYmVyIDk4NzY1NDMy";
+
+    expect(ruleOf("docs/mail-export.md", encoded)).toEqual(["bank-account"]);
+  });
+
+  it("fails on a Cloudflare account id written as JSON escapes", () => {
+    expect(
+      ruleOf(
+        "apps/infra/wrangler.json",
+        '{"account_id":"\\u0030123456789abcdef0123456789abcdef"}'
+      )
+    ).toEqual(["cloudflare-account-id"]);
+  });
+
+  it("keeps an undecodable base64 run quiet", () => {
+    expect(
+      ruleOf(
+        "docs/notes.md",
+        "checksum Xk3Qw9Zt5Lb7Nc2Md4Pf6Rg8Sh1Vj0Wa3Ye5Ui7a"
+      )
+    ).toEqual([]);
+  });
+});
+
+describe("an amount allowance excuses only the amount column of its file", () => {
+  const path = "packages/bank-import/fixtures/demo-bank.csv";
+
+  const header = "date,description,amount_minor,currency,reference";
+
+  const amountAllow = withValues([
+    {
+      column: "amount_minor",
+      path,
+      reason:
+        "A made-up amount in cents, and six digits make it sort-code shaped.",
+      value: "480000",
+    },
+  ]);
+
+  it("passes on the amount cell of a demo row", () => {
+    const csv = [
+      header,
+      "2026-01-06,Sort code transfer,480000,EUR,98765432",
+    ].join("\n");
+
+    expect(ruleOf(path, csv, amountAllow)).toEqual([]);
+  });
+
+  it("fails on the same digits in a column that is not the amount column", () => {
+    const csv = [
+      header,
+      "2026-01-06,Sort code transfer 480000,116100,EUR,98765432",
+    ].join("\n");
+
+    expect(ruleOf(path, csv, amountAllow)).toEqual(["bank-account"]);
+  });
+
+  it("fails on a sort code the allowance names when it sits beside a real account", () => {
+    const csv = [
+      header,
+      "2026-01-06,Sort code transfer,116100,EUR,98765432",
+    ].join("\n");
+
+    expect(ruleOf(path, csv, amountAllow)).toEqual(["bank-account"]);
   });
 });

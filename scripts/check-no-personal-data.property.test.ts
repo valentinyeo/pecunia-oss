@@ -627,10 +627,11 @@ const DETECTORS: readonly Detector[] = [
   },
   {
     covers: ["cloudflare-account-id"],
-    harmless: (random) => `const id = "${accountIdValue(random)}";`,
+    harmless: (random) =>
+      asCodePointEscapes(`const id = "${accountIdValue(random)}";`),
     name: "cloudflare-account-id",
     path: "apps/cli/src/ids.ts",
-    sensitive: accountIdDocument,
+    sensitive: (random) => asCodePointEscapes(accountIdDocument(random)),
   },
   {
     covers: ["cloudflare-hostname"],
@@ -794,6 +795,44 @@ interface Encoder {
   readonly name: string;
 }
 
+const asQuotedPrintable = (text: string) =>
+  text.replaceAll(/[@.]/gu, (character) => {
+    const [byte] = new TextEncoder().encode(character);
+
+    return `=${(byte ?? 0).toString(16).toUpperCase().padStart(2, "0")}`;
+  });
+
+const BASE64_MINIMUM = 16;
+
+const asBase64 = (text: string) => {
+  const encoded = Buffer.from(text, "utf-8").toString("base64");
+
+  return encoded.length < BASE64_MINIMUM ? text : encoded;
+};
+
+const asBase64Url = (text: string) => {
+  const encoded = Buffer.from(text, "utf-8").toString("base64url");
+
+  return encoded.length < BASE64_MINIMUM ? text : encoded;
+};
+
+const EMPHASIS_MARKERS = ["**", "__", "~~", "`"];
+
+const withEmphasis = (text: string, random: Random) => {
+  const parts = text.split(" ");
+
+  return parts
+    .map((part) =>
+      part.length === 0 || random.between(1, 3) !== 1
+        ? part
+        : `${random.pick(EMPHASIS_MARKERS)}${part}${random.pick(EMPHASIS_MARKERS)}`
+    )
+    .join(" ");
+};
+
+const asCodePointEscapes = (text: string) =>
+  text.replaceAll(/[0-9]/gu, (digit) => `\\u003${digit}`);
+
 const COMPOSABLE_ENCODERS: readonly Encoder[] = [
   { encode: (text) => text, name: "identity" },
   { encode: asJsonString, name: "json-string" },
@@ -804,6 +843,10 @@ const COMPOSABLE_ENCODERS: readonly Encoder[] = [
   { encode: withZeroWidth, name: "zero-width" },
   { encode: asFullWidth, name: "full-width-digits" },
   { encode: inHref, name: "href-attribute" },
+  { encode: asQuotedPrintable, name: "quoted-printable" },
+  { encode: asBase64, name: "base64" },
+  { encode: asBase64Url, name: "base64-url" },
+  { encode: withEmphasis, name: "emphasis" },
 ];
 
 interface ComposableLeak {
@@ -853,9 +896,14 @@ const nonChecksumIban = (random: Random) => {
   }
 };
 
+const NOT_ON_A_VALUE = new Set(["identity", "tag-between", "href-attribute"]);
+
 const VALUE_ENCODERS: readonly Encoder[] = COMPOSABLE_ENCODERS.filter(
-  (encoder) =>
-    !["identity", "tag-between", "href-attribute"].includes(encoder.name)
+  (encoder) => !NOT_ON_A_VALUE.has(encoder.name) && encoder.name !== "emphasis"
+);
+
+const DIGIT_ENCODERS: readonly Encoder[] = COMPOSABLE_ENCODERS.filter(
+  (encoder) => !NOT_ON_A_VALUE.has(encoder.name)
 );
 
 const WRAPPERS: readonly Encoder[] = COMPOSABLE_ENCODERS.filter((encoder) =>
@@ -865,7 +913,7 @@ const WRAPPERS: readonly Encoder[] = COMPOSABLE_ENCODERS.filter((encoder) =>
 const COMPOSABLE_LEAKS: readonly ComposableLeak[] = [
   {
     document: (value) => `Payments:\nIBAN: ${value}`,
-    encoders: VALUE_ENCODERS,
+    encoders: DIGIT_ENCODERS,
     name: "iban",
     path: "docs/payments.md",
     rules: ["iban"],
@@ -876,14 +924,16 @@ const COMPOSABLE_LEAKS: readonly ComposableLeak[] = [
   },
   {
     document: (value) => `Payments: sort code ${value}`,
-    encoders: VALUE_ENCODERS,
+    encoders: DIGIT_ENCODERS,
     name: "bank-pair",
     path: "docs/payments.md",
     rules: ["bank-account"],
     twin: (random) => `sort code ${sortCodeValue(random)}`,
     twinDocument: (value) => `Payments: ${value}`,
     value: (random) =>
-      `${sortCodeValue(random)} account number ${accountValue(random)}`,
+      random.between(1, 2) === 1
+        ? `${sortCodeValue(random)} account number ${accountValue(random)}`
+        : `${sortCodeValue(random)} Last synced: ${makeDate(random)} Account number: ${accountValue(random)}`,
     wrappers: WRAPPERS,
   },
   {
@@ -924,6 +974,10 @@ const COMPOSABLE_LEAKS: readonly ComposableLeak[] = [
   },
 ];
 
+const MAX_STEPS = 3;
+
+const LAYERED_ENCODERS = new Set(["base64", "base64-url"]);
+
 describe("a leak survives any random composition of encodings", () => {
   it(`reads ${COMPOSED_CASES} seeded compositions and keeps every twin quiet`, () => {
     const random = makeRandom(COMPOSED_SEED);
@@ -949,9 +1003,17 @@ describe("a leak survives any random composition of encodings", () => {
     for (let index = 0; index < COMPOSED_CASES; index += 1) {
       const leak = random.pick(COMPOSABLE_LEAKS);
 
-      const steps = Array.from({ length: random.between(1, 4) }, () =>
-        random.pick(leak.encoders)
-      );
+      const steps: Encoder[] = [];
+
+      for (let count = random.between(1, MAX_STEPS); count > 0; count -= 1) {
+        const pool = leak.encoders.filter(
+          (encoder) =>
+            !LAYERED_ENCODERS.has(encoder.name) ||
+            !steps.some((step) => LAYERED_ENCODERS.has(step.name))
+        );
+
+        steps.push(random.pick(pool));
+      }
 
       const wrapper =
         leak.wrappers.length === 0 || random.between(1, 2) === 1
