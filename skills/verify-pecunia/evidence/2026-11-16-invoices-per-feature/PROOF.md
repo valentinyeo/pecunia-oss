@@ -20,12 +20,12 @@ node skills/verify-pecunia/scripts/replay-proof.mjs --only invoices-per-feature
 
 ## Steps
 
-| Step | Exit | Commands | Expectations |
-| --- | --- | --- | --- |
-| `seed` | 0 | `seed` 0 | 0 |
-| `feature-map` | 0 | `map` 0 | 1 |
-| `generic` | 0 |  | 4 |
-| `invoices` | 0 |  | 6 |
+| Step          | Exit | Commands | Expectations |
+| ------------- | ---- | -------- | ------------ |
+| `seed`        | 0    | `seed` 0 | 0            |
+| `feature-map` | 0    | `map` 0  | 1            |
+| `generic`     | 0    |          | 4            |
+| `invoices`    | 0    |          | 6            |
 
 Total: 11 expectations across 4 steps, 11 declared, 11 evaluated.
 
