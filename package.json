@@ -36,6 +36,7 @@
     "git-snapshot": "node apps/site/scripts/generate-content.ts --git-snapshot && oxfmt .brain/data/git-snapshot.json",
     "sources:fetch": "node apps/site/scripts/fetch-code-sources.ts",
     "test": "pnpm test:security-audit && turbo run test",
+    "test:scripts": "vitest run",
     "test:security-audit": "node --test skills/security-audit/*.test.cjs",
     "typecheck": "turbo run typecheck typecheck-scripts",
     "typecheck:tsc": "turbo run typecheck:tsc typecheck:tsc-scripts",
