@@ -58,6 +58,7 @@ const repoIgnorePatterns = [
   "scripts/hooks/**",
   "tools/oxlint/anti-slop/**",
   "skills/security-audit/**",
+  "skills/verify-pecunia/scripts/**",
 ] as const;
 
 const allowedExtends: NonNullable<OxlintConfig["extends"]> = [core];
