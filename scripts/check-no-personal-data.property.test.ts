@@ -209,3 +209,151 @@ describe("every valid-length IBAN is reported however its groups are separated",
     expect(missed).toEqual([]);
   });
 });
+
+const BANK_SEPARATORS = [
+  "",
+  " ",
+  "-",
+  "\t",
+  "\u00A0",
+  "\u2007",
+  "  ",
+  " - ",
+  "-\t",
+];
+
+const makeSortCode = (random: Random) => {
+  const pairs = [random.digits(2), random.digits(2), random.digits(2)];
+
+  return random.between(1, 4) === 1
+    ? pairs.join("")
+    : `${pairs[0]}${random.pick(BANK_SEPARATORS)}${pairs[1]}${random.pick(BANK_SEPARATORS)}${pairs[2]}`;
+};
+
+const makeAccountNumber = (random: Random) =>
+  random.between(1, 4) === 1
+    ? random.digits(8)
+    : `${random.digits(4)}${random.pick(BANK_SEPARATORS)}${random.digits(4)}`;
+
+interface Field {
+  readonly key: string;
+  readonly label: string;
+  readonly value: string;
+}
+
+const bankFields = (
+  sortCode: string,
+  accountNumber: string,
+  between: readonly Field[],
+  keep: "both" | "sort" | "account"
+) => {
+  const sortField: Field = {
+    key: "sortCode",
+    label: "sort code",
+    value: sortCode,
+  };
+
+  const accountField: Field = {
+    key: "accountNumber",
+    label: "account number",
+    value: accountNumber,
+  };
+
+  const head = keep === "account" ? [] : [sortField];
+
+  const tail = keep === "sort" ? [] : [accountField];
+
+  return [...head, ...between, ...tail];
+};
+
+const jsonText = (fields: readonly Field[]) =>
+  [
+    "{",
+    ...fields.map(
+      (field, index) =>
+        `  "${field.key}": "${field.value}"${index === fields.length - 1 ? "" : ","}`
+    ),
+    "}",
+  ].join("\n");
+
+const compactJsonText = (fields: readonly Field[]) =>
+  `{${fields.map((field) => `"${field.key}":"${field.value}"`).join(",")}}`;
+
+const yamlText = (fields: readonly Field[]) =>
+  fields.map((field) => `${field.key}: "${field.value}"`).join("\n");
+
+const csvText = (fields: readonly Field[]) =>
+  [
+    fields.map((field) => field.key).join(","),
+    fields.map((field) => field.value).join(","),
+  ].join("\n");
+
+const proseText = (fields: readonly Field[]) =>
+  fields.map((field) => `The ${field.label} is ${field.value}.`).join(" ");
+
+const FORMATS = ["json", "compact", "yaml", "csv", "prose"] as const;
+
+const bankDocument = (format: string, fields: readonly Field[]) => {
+  if (format === "compact") {
+    return compactJsonText(fields);
+  }
+
+  if (format === "yaml") {
+    return yamlText(fields);
+  }
+
+  if (format === "csv") {
+    return csvText(fields);
+  }
+
+  return format === "prose" ? proseText(fields) : jsonText(fields);
+};
+
+describe("a sort code and an account number inside one record are reported as a pair", () => {
+  it(`pairs ${CASES} seeded records and keeps either one alone quiet`, () => {
+    const random = makeRandom(SEED + 1);
+
+    const missed: string[] = [];
+
+    const alone: string[] = [];
+
+    for (let index = 0; index < CASES; index += 1) {
+      const sortCode = makeSortCode(random);
+
+      const accountNumber = makeAccountNumber(random);
+
+      const between = Array.from(
+        { length: random.between(0, 12) },
+        (_, position) => {
+          const key = `${random.pick(WORDS)}${position}`;
+
+          return { key, label: key, value: random.pick(WORDS) };
+        }
+      );
+
+      const format = random.pick(FORMATS);
+
+      const paired = bankDocument(
+        format,
+        bankFields(sortCode, accountNumber, between, "both")
+      );
+
+      if (!rulesOf("docs/payments.md", paired).includes("bank-account")) {
+        missed.push(paired);
+      }
+
+      for (const keep of ["sort", "account"] as const) {
+        const single = bankDocument(
+          format,
+          bankFields(sortCode, accountNumber, between, keep)
+        );
+
+        if (rulesOf("docs/payments.md", single).length > 0) {
+          alone.push(single);
+        }
+      }
+    }
+
+    expect({ alone, missed }).toEqual({ alone: [], missed: [] });
+  });
+});

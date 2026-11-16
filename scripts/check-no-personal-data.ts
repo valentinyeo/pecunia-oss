@@ -73,7 +73,7 @@ const NO_REPLY_SENDERS = new Set([
 
 const NO_REPLY_DOMAIN = "users.noreply.github.com";
 
-const SEPARATOR = String.raw`\s\u2010-\u2015-`;
+const SEPARATOR = String.raw`\t\v\f \u00A0\u1680\u2000-\u200A\u202F\u205F\u3000\uFEFF\u2010-\u2015.-`;
 
 const SEPARATOR_ANY = `[${SEPARATOR}]*`;
 
@@ -199,20 +199,19 @@ const CLOUDFLARE_ACCOUNT_NAMED = /account[ _-]?id|dash\.cloudflare\.com/iu;
 const CLOUDFLARE_HOSTNAME =
   /\b(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+(?:pages\.dev|workers\.dev|cloudflareaccess\.com)\b/giu;
 
-const SORT_CODE = /\b(?:\d{6}|\d{2}[-.–— ]\d{2}[-.–— ]\d{2})\b/gu;
+const SORT_CODE = new RegExp(
+  `(?<![\\p{L}\\p{N}_])(?:\\d{6}|\\d{2}[${SEPARATOR}]*\\d{2}[${SEPARATOR}]*\\d{2})(?![\\p{L}\\p{N}_])(?![${SEPARATOR}]*\\d)`,
+  "gu"
+);
 
-const ACCOUNT_NUMBER = /\b\d{4}[ -]?\d{4}\b/gu;
+const ACCOUNT_NUMBER = new RegExp(
+  `(?<![\\p{L}\\p{N}_])(?:\\d{8}|\\d{4}[${SEPARATOR}]*\\d{4})(?![\\p{L}\\p{N}_])(?![${SEPARATOR}]*\\d)`,
+  "gu"
+);
 
 const ACCOUNT_DISTANCE = 400;
 
 const ACCOUNT_CONTEXT = 3;
-
-const SPACING = /[\t\u00A0\u2007\u202F]+| {2,}/gu;
-
-const NON_BREAKING_HYPHENS = /[\u2010-\u2015]+/gu;
-
-const spaced = (text: string) =>
-  text.replaceAll(SPACING, " ").replaceAll(NON_BREAKING_HYPHENS, "-");
 
 const unescaped = (text: string) => text.replaceAll(/\\[nrtbfv0]/gu, " ");
 
@@ -358,10 +357,7 @@ const bankAccountFindings = (
   lines: readonly string[],
   allow: AllowList
 ): readonly PersonalDataFinding[] => {
-  const dense: readonly DenseLine[] = denseLines(lines).map((entry) => ({
-    index: entry.index,
-    text: spaced(entry.text),
-  }));
+  const dense: readonly DenseLine[] = denseLines(lines);
 
   return dense.flatMap((entry, position) => {
     const [sortCode] = matchesIn(SORT_CODE, entry.text);
