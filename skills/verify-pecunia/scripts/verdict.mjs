@@ -10,6 +10,8 @@ import {
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { canonicalRecords, parseRecordSet } from "./lib/records.mjs";
+
 const SCRIPT_DIR = fileURLToPath(new URL(".", import.meta.url));
 const DEFAULT_TABLE = join(SCRIPT_DIR, "step-table.json");
 const DEFAULT_FEATURES = join(SCRIPT_DIR, "..", "features");
@@ -18,6 +20,7 @@ const FAIL = "FAIL";
 const PREDICATES = [
   "equals",
   "equalsDemoNumber",
+  "equalsRecords",
   "contains",
   "countEquals",
   "isTrue",
@@ -161,7 +164,90 @@ const judgeEntries = ({ declared, fail, kind, recorded, step }) => {
   }
 };
 
-export const evaluate = ({ demoNumbers, expectation, value }) => {
+const fieldDifference = (expected, actual, where) => {
+  const fields = [
+    ...new Set([...Object.keys(expected), ...Object.keys(actual ?? {})]),
+  ].sort();
+
+  for (const field of fields) {
+    const before = JSON.stringify(expected[field] ?? null);
+    const after = JSON.stringify(actual?.[field] ?? null);
+
+    if (before !== after) {
+      return {
+        actual: `record ${where} field ${field} ${after}`,
+        expected: `record ${where} field ${field} ${before}`,
+      };
+    }
+  }
+
+  return undefined;
+};
+
+const keyFieldOf = (rows) => {
+  if (rows.every((row) => typeof row?.id === "string")) {
+    return "id";
+  }
+
+  if (rows.every((row) => typeof row?.fingerprint === "string")) {
+    return "fingerprint";
+  }
+
+  return undefined;
+};
+
+const recordDifference = (expected, actual) => {
+  if (expected.length !== actual.length) {
+    return {
+      actual: `${actual.length} records`,
+      expected: `${expected.length} records`,
+    };
+  }
+
+  const keyField = keyFieldOf(expected);
+  const keyed = keyField !== undefined;
+
+  if (keyed) {
+    const observed = actual.flatMap((row) =>
+      typeof row?.[keyField] === "string" ? [row[keyField]] : []
+    );
+    const missing = expected
+      .map((row) => row[keyField])
+      .filter((key) => !observed.includes(key));
+    const extra = observed.filter(
+      (key) => !expected.some((row) => row[keyField] === key)
+    );
+
+    if (missing.length > 0 || extra.length > 0) {
+      return {
+        actual: `record ${keyField} ${extra.join(",") === "" ? "missing" : extra.join(",")}`,
+        expected: `record ${keyField} ${missing.join(",") === "" ? "unexpected" : missing.join(",")}`,
+      };
+    }
+  }
+
+  for (const [index, expectedRow] of expected.entries()) {
+    const key = keyed ? expectedRow[keyField] : undefined;
+    const actualRow = keyed
+      ? actual.find((row) => row[keyField] === key)
+      : actual[index];
+    const where = key === undefined ? index + 1 : key;
+    const difference = fieldDifference(expectedRow, actualRow, where);
+
+    if (difference !== undefined) {
+      return difference;
+    }
+  }
+
+  return undefined;
+};
+
+export const evaluate = ({
+  demoNumbers,
+  expectation,
+  readbackRecords,
+  value,
+}) => {
   const declared = PREDICATES.filter((key) => expectation[key] !== undefined);
 
   if (declared.length !== 1) {
@@ -199,6 +285,44 @@ export const evaluate = ({ demoNumbers, expectation, value }) => {
     };
   }
 
+  if (predicate === "equalsRecords") {
+    const expectedRows = (readbackRecords ?? {})[expectation.equalsRecords];
+
+    if (expectedRows === undefined) {
+      return {
+        actual: value,
+        expected: `readback records ${expectation.equalsRecords} (not declared)`,
+        ok: false,
+        problem: `expectation ${expectation.id} names readback records ${expectation.equalsRecords}, which the step table does not declare`,
+      };
+    }
+
+    let observedRows;
+
+    try {
+      observedRows = parseRecordSet(value);
+    } catch {
+      return {
+        actual: "not a record set",
+        expected: `${expectedRows.length} records`,
+        ok: false,
+        problem: `expectation ${expectation.id} expects a record set and observed ${value}`,
+      };
+    }
+
+    const difference = recordDifference(expectedRows, observedRows);
+
+    if (difference !== undefined) {
+      return { ...difference, ok: false };
+    }
+
+    return {
+      actual: `${observedRows.length} records`,
+      expected: `${expectedRows.length} records`,
+      ok: canonicalRecords(observedRows) === canonicalRecords(expectedRows),
+    };
+  }
+
   if (predicate === "contains") {
     return {
       actual: value,
@@ -226,9 +350,35 @@ export const evaluate = ({ demoNumbers, expectation, value }) => {
   };
 };
 
+const judgeReadbackOperation = ({ fail, found, expectation, step }) => {
+  if (expectation.readback !== true) {
+    return;
+  }
+
+  const operation = found.operation;
+
+  if (typeof expectation.readOperation !== "string") {
+    return;
+  }
+
+  if (asArray(step.writeOperations).includes(operation)) {
+    fail(
+      `step ${step.id} readback expectation ${expectation.id} observed through the write operation ${operation}`
+    );
+    return;
+  }
+
+  if (operation !== expectation.readOperation) {
+    fail(
+      `step ${step.id} readback expectation ${expectation.id} observed through operation ${typeof operation === "string" && operation.length > 0 ? operation : "none"}, which is not the declared read operation ${expectation.readOperation}`
+    );
+  }
+};
+
 const judgeExpectations = ({
   demoNumbers,
   fail,
+  readbackRecords,
   record,
   step,
   expectations,
@@ -298,9 +448,11 @@ const judgeExpectations = ({
       typeof found[0].value === "string"
         ? found[0].value
         : JSON.stringify(found[0].value ?? null);
+    judgeReadbackOperation({ fail, found: found[0], expectation, step });
     const result = evaluate({
       demoNumbers,
       expectation,
+      readbackRecords,
       value,
     });
 
@@ -336,7 +488,7 @@ const judgeExpectations = ({
   return declared.size;
 };
 
-const judgeWriteReadbacks = ({ fail, planned, ran, steps }) => {
+const judgeWriteReadbacks = ({ fail, planned, ran, records, steps }) => {
   for (const id of planned) {
     const step = steps.get(id);
 
@@ -353,8 +505,48 @@ const judgeWriteReadbacks = ({ fail, planned, ran, steps }) => {
     const readbacks = asArray(step.expectations).filter(
       (expectation) => expectation.readback === true
     );
+    const writes = asArray(step.writeOperations);
+    const recorded = asArray(records).find((entry) => entry.step === id);
+    const mutatingCalls = recorded?.mutatingCalls ?? 0;
+
+    if (typeof mutatingCalls !== "number") {
+      fail(
+        `step ${id} recorded mutating calls ${JSON.stringify(mutatingCalls)}, which is not a number`
+      );
+      continue;
+    }
+
+    if (mutatingCalls > 0) {
+      if (step.writes !== true) {
+        fail(
+          `step ${id} recorded ${mutatingCalls} mutating calls but is not marked as writing`
+        );
+      }
+
+      if (writes.length === 0) {
+        fail(
+          `step ${id} recorded ${mutatingCalls} mutating calls but declares no write operation`
+        );
+      }
+
+      if (readbacks.length === 0) {
+        fail(
+          `step ${id} recorded ${mutatingCalls} mutating calls but declares no readback expectation`
+        );
+      }
+    }
 
     if (step.writes === true) {
+      if (writes.length > 0) {
+        for (const name of writes) {
+          if (typeof name !== "string" || name.length === 0) {
+            fail(`step ${id} declares a write operation that is not a name`);
+          }
+        }
+      } else if (ran.has(id)) {
+        fail(`step ${id} writes but declares no write operation`);
+      }
+
       if (ran.has(id) && readbacks.length === 0) {
         fail(`step ${id} writes but declares no readback expectation`);
       }
@@ -366,6 +558,34 @@ const judgeWriteReadbacks = ({ fail, planned, ran, steps }) => {
       fail(
         `step ${id} is not marked as writing but declares readback expectation ${expectation.id}`
       );
+    }
+  }
+
+  for (const record of asArray(records)) {
+    const mutatingCalls = record.mutatingCalls ?? 0;
+    const step = steps.get(record.step);
+
+    if (step === undefined || typeof mutatingCalls !== "number") {
+      continue;
+    }
+
+    const readbacks = asArray(step.expectations).filter(
+      (expectation) => expectation.readback === true
+    );
+
+    for (const expectation of readbacks) {
+      if (typeof expectation.readOperation !== "string") {
+        fail(
+          `step ${record.step} readback expectation ${expectation.id} names no read operation`
+        );
+        continue;
+      }
+
+      if (asArray(step.writeOperations).includes(expectation.readOperation)) {
+        fail(
+          `step ${record.step} readback expectation ${expectation.id} reads back through the write operation ${expectation.readOperation}`
+        );
+      }
     }
   }
 };
@@ -502,6 +722,7 @@ export const judge = ({
       expectations,
       fail,
       observed: asArray(record.observations),
+      readbackRecords: table.readbackRecords ?? {},
       record,
       seen,
       step,
@@ -517,7 +738,7 @@ export const judge = ({
   }
 
   judgeCoverage({ capabilities, fail, feature, planned, ran, table });
-  judgeWriteReadbacks({ fail, planned, ran, steps });
+  judgeWriteReadbacks({ fail, planned, ran, records: listed, steps });
 
   const pages = pageExpectations ?? { crossCutting: [], pages: new Map() };
   const featurePages =

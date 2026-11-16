@@ -13,6 +13,7 @@ import { dirname, join } from "node:path";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 
+import { canonicalRecords } from "./lib/records.mjs";
 import {
   evaluate,
   judge,
@@ -69,6 +70,14 @@ const satisfyingValue = (expectation) => {
   return expectation.isTrue === true ? "true" : "false";
 };
 
+const passingValue = (expectation) => {
+  if (expectation.equalsRecords !== undefined) {
+    return canonicalRecords(table.readbackRecords[expectation.equalsRecords]);
+  }
+
+  return satisfyingValue(expectation);
+};
+
 const passingRecords = (feature = FEATURE) =>
   table.features[feature].map((id) => {
     const step = stepsById.get(id);
@@ -83,9 +92,11 @@ const passingRecords = (feature = FEATURE) =>
       data: {},
       exit: 0,
       feature,
+      mutatingCalls: step.writes === true ? 1 : 0,
       observations: step.expectations.map((expectation) => ({
         id: expectation.id,
-        value: satisfyingValue(expectation),
+        operation: expectation.readOperation ?? "",
+        value: passingValue(expectation),
       })),
       outputs: step.outputs.map((name) => ({ found: true, name })),
       step: id,
@@ -120,8 +131,59 @@ const writtenSteps = (records) =>
 const readbacksOf = (step) =>
   step.expectations.filter((expectation) => expectation.readback === true);
 
+const readbackFields = {
+  "accounts-and-bank-lines": [
+    "amountMinor",
+    "currency",
+    "date",
+    "description",
+    "fingerprint",
+    "reference",
+  ],
+  "bank-line-edit": [
+    "id",
+    "amount",
+    "category",
+    "note",
+    "occurredAt",
+    "status",
+  ],
+  "bank-line-review": [
+    "id",
+    "amount",
+    "category",
+    "note",
+    "valueDate",
+    "review",
+  ],
+};
+
+const corruptField = (row, field) => {
+  const next = structuredClone(row);
+
+  if (field === "amount") {
+    next.amount = { ...next.amount, minor: next.amount.minor + 1 };
+  } else if (field === "review") {
+    next.review = { _tag: "Awaiting" };
+  } else if (field === "category") {
+    next.category = { value: "0192f0c1-00ff-7000-8000-000000000000" };
+  } else if (typeof next[field] === "number") {
+    next[field] = next[field] + 1;
+  } else {
+    next[field] = `${next[field]}-corrupt`;
+  }
+
+  return next;
+};
+
+const corruptRecords = (text, field) => {
+  const rows = JSON.parse(text);
+
+  return canonicalRecords([corruptField(rows[0], field), ...rows.slice(1)]);
+};
+
 const mutate = (records, random) => {
-  const kind = Math.floor(random() * 20);
+  const kind = Math.floor(random() * 24);
   const withObservations = observedRecords(records);
   const record = pick(random, withObservations);
   const observation = pick(random, record.observations);
@@ -360,6 +422,7 @@ const mutate = (records, random) => {
     for (const predicate of [
       "equals",
       "equalsDemoNumber",
+      "equalsRecords",
       "contains",
       "countEquals",
       "isTrue",
@@ -437,6 +500,81 @@ const mutate = (records, random) => {
 
     return {
       cause: readback.id,
+      records: next,
+      table,
+      pages: pageExpectations,
+    };
+  }
+
+  if (kind === 20) {
+    const written = pick(random, writtenSteps(records));
+    const readback = pick(random, readbacksOf(written));
+    const field = pick(random, readbackFields[written.id]);
+    const next = mutated(records);
+    const observation = next
+      .find((entry) => entry.step === written.id)
+      .observations.find((entry) => entry.id === readback.id);
+
+    observation.value = corruptRecords(observation.value, field);
+
+    return {
+      cause: field,
+      records: next,
+      table,
+      pages: pageExpectations,
+    };
+  }
+
+  if (kind === 21) {
+    const written = pick(random, writtenSteps(records));
+    const readback = pick(random, readbacksOf(written));
+    const next = mutated(records);
+    const target = next.find((entry) => entry.step === written.id);
+    const readbackIds = new Set(readbacksOf(written).map((entry) => entry.id));
+    const reply = target.observations.find(
+      (entry) => !readbackIds.has(entry.id)
+    );
+
+    target.observations.find((entry) => entry.id === readback.id).value =
+      reply.value;
+
+    return {
+      cause: readback.id,
+      records: next,
+      table,
+      pages: pageExpectations,
+    };
+  }
+
+  if (kind === 22) {
+    const written = pick(random, writtenSteps(records));
+    const readback = pick(random, readbacksOf(written));
+    const next = mutated(records);
+
+    next
+      .find((entry) => entry.step === written.id)
+      .observations.find((entry) => entry.id === readback.id).operation =
+      written.writeOperations[0];
+
+    return {
+      cause: readback.id,
+      records: next,
+      table,
+      pages: pageExpectations,
+    };
+  }
+
+  if (kind === 23) {
+    const silent = records.filter(
+      (entry) => stepsById.get(entry.step)?.writes !== true
+    );
+    const target = pick(random, silent);
+    const next = mutated(records);
+
+    next.find((entry) => entry.step === target.step).mutatingCalls = 1;
+
+    return {
+      cause: target.step,
       records: next,
       table,
       pages: pageExpectations,
@@ -783,6 +921,180 @@ test("the repository feature map reports no problems", () => {
 
   assert.equal(result.status, 0, result.stderr);
   assert.match(result.stdout, /problems=0/u);
+});
+
+test("a readback that differs in one field of one row fails and names the field", () => {
+  const fields = new Map([
+    ["accounts-and-bank-lines", "import-stores-every-line"],
+    ["bank-line-edit", "bank-line-edit-stores-category-and-note"],
+    ["bank-line-review", "bank-line-review-shows-in-the-list"],
+  ]);
+
+  for (const [step, id] of fields) {
+    for (const field of readbackFields[step]) {
+      const records = passingRecords();
+      const observation = records
+        .find((record) => record.step === step)
+        .observations.find((entry) => entry.id === id);
+
+      observation.value = corruptRecords(observation.value, field);
+
+      const result = judgeRecords(records);
+      const text = result.failures.join("\n");
+      const line = result.failures.find(
+        (entry) => entry.includes(id) && entry.includes("observed")
+      );
+
+      assert.equal(result.passed, false, `${step} ${field} passed: ${text}`);
+      assert.ok(
+        line !== undefined && line.includes(field),
+        `${step} ${field} did not name the field: ${text}`
+      );
+    }
+  }
+});
+
+test("the v60 reproduction fails: zero amounts and USD currencies in the ledger", () => {
+  const records = passingRecords();
+  const observation = records
+    .find((record) => record.step === "accounts-and-bank-lines")
+    .observations.find((entry) => entry.id === "import-stores-every-line");
+  const rows = JSON.parse(observation.value).map((row) => ({
+    ...row,
+    amountMinor: 0,
+    currency: "USD",
+  }));
+
+  observation.value = canonicalRecords(rows);
+
+  const result = judgeRecords(records);
+  const text = result.failures.join("\n");
+
+  assert.equal(result.passed, false, text);
+  assert.ok(text.includes("amountMinor"), text);
+  const total = table.features[FEATURE].flatMap(
+    (id) => stepsById.get(id).expectations
+  ).length;
+
+  assert.equal(result.expectations.length, total, text);
+  assert.equal(
+    result.expectations.filter((expectation) => expectation.passed).length,
+    total - 1,
+    text
+  );
+
+  const currencyOnly = passingRecords();
+  const stored = currencyOnly
+    .find((record) => record.step === "accounts-and-bank-lines")
+    .observations.find((entry) => entry.id === "import-stores-every-line");
+
+  stored.value = canonicalRecords(
+    JSON.parse(stored.value).map((row) => ({ ...row, currency: "USD" }))
+  );
+
+  const currencies = judgeRecords(currencyOnly);
+  const currencyText = currencies.failures.join("\n");
+
+  assert.equal(currencies.passed, false, currencyText);
+  assert.ok(currencyText.includes("EUR"), currencyText);
+  assert.ok(currencyText.includes("USD"), currencyText);
+});
+
+test("a readback replaced by the write response fails", () => {
+  const records = passingRecords();
+  const step = records.find((record) => record.step === "bank-line-edit");
+  const readback = step.observations.find(
+    (entry) => entry.id === "bank-line-edit-stores-category-and-note"
+  );
+  const reply = step.observations.find(
+    (entry) => entry.id === "bank-line-edit-sets-category-and-note"
+  );
+
+  readback.value = reply.value;
+
+  const result = judgeRecords(records);
+  const text = result.failures.join("\n");
+
+  assert.equal(result.passed, false, text);
+  assert.ok(text.includes("bank-line-edit-stores-category-and-note"), text);
+  assert.match(text, /expects a record set and observed/u);
+});
+
+test("a readback through the write operation, or with no read operation, fails", () => {
+  const records = passingRecords();
+  const step = records.find((record) => record.step === "bank-line-review");
+  const readback = step.observations.find(
+    (entry) => entry.id === "bank-line-review-shows-in-the-list"
+  );
+
+  readback.operation = "reviewBankLine";
+
+  const throughWrite = judgeRecords(records);
+  const text = throughWrite.failures.join("\n");
+
+  assert.equal(throughWrite.passed, false, text);
+  assert.match(
+    text,
+    /bank-line-review-shows-in-the-list observed through the write operation reviewBankLine/u
+  );
+
+  const unnamed = passingRecords();
+  const unnamedStep = unnamed.find(
+    (record) => record.step === "bank-line-review"
+  );
+
+  unnamedStep.observations.find(
+    (entry) => entry.id === "bank-line-review-shows-in-the-list"
+  ).operation = "";
+
+  const wrong = judgeRecords(unnamed);
+
+  assert.equal(wrong.passed, false);
+  assert.match(
+    wrong.failures.join("\n"),
+    /bank-line-review-shows-in-the-list observed through operation none/u
+  );
+
+  const unreadable = structuredClone(table);
+  const expectations = unreadable.steps.find(
+    (entry) => entry.id === "bank-line-review"
+  ).expectations;
+
+  delete expectations.find(
+    (entry) => entry.id === "bank-line-review-shows-in-the-list"
+  ).readOperation;
+
+  const missing = judgeRecords(passingRecords(), unreadable);
+
+  assert.equal(missing.passed, false);
+  assert.match(
+    missing.failures.join("\n"),
+    /bank-line-review-shows-in-the-list names no read operation/u
+  );
+});
+
+test("a careless write step fails by name when the marks are removed", () => {
+  const caseTable = structuredClone(table);
+  const step = caseTable.steps.find((entry) => entry.id === "bank-line-edit");
+
+  delete step.writes;
+
+  for (const expectation of step.expectations) {
+    delete expectation.readback;
+  }
+
+  const records = passingRecords();
+
+  records.find((entry) => entry.step === "bank-line-edit").mutatingCalls = 2;
+
+  const result = judgeRecords(records, caseTable);
+  const text = result.failures.join("\n");
+
+  assert.equal(result.passed, false, text);
+  assert.match(
+    text,
+    /step bank-line-edit recorded 2 mutating calls but is not marked as writing/u
+  );
 });
 
 test("the map check counts and fails every removed capability", () => {

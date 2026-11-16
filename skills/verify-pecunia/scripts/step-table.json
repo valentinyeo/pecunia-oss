@@ -9,16 +9,13 @@
     "demoSyncRuns": "2",
     "importTargets": "label=Demo Bank kind=bank base=EUR provider=Wise",
     "importWrites": "imported=5 alreadyImported=0 rejected=0",
-    "importStored": "stored=5 imported=5",
     "importReplay": "imported=0 alreadyImported=5",
-    "importReplayStored": "stored=5 alreadyImported=5",
     "importRejectedLine": "imported=1 rejected=1 reason=bad-date",
     "importUnknownAccount": "ImportAccountNotFound",
     "bankLineListReturns": "total=12 demoLines=12 awaiting=2",
     "bankLineListFilters": "lines=8 allOut=true bookOut=8",
     "bankLineListPages": "first=5 second=5 overlap=0",
     "editCategory": "category=0192f0c1-000d-75e9-8fd7-fd7e43c901ee note=Demo note written by the verify drive",
-    "editStored": "category=0192f0c1-000d-75e9-8fd7-fd7e43c901ee note=Demo note written by the verify drive",
     "editLineProfile": "lineId=0192f0c1-0027-7c11-8261-2619d29e6868 profileId=0192f0c1-0001-702d-8484-48490b729601",
     "demoRuleSweep": "0192f0c1-0015-727a-8b92-b929ac9448a7 category-match=1 priority=10 enabled=1",
     "dashboardSpend": "328955",
@@ -76,33 +73,75 @@
       "generic",
       "categories-and-rules"
     ],
-    "dashboard-sums": ["seed", "feature-map", "generic", "dashboard-sums"],
-    "subscriptions": ["seed", "feature-map", "generic", "subscriptions"],
-    "investments": ["seed", "feature-map", "generic", "investments"],
-    "fx-conversion": ["seed", "feature-map", "generic", "fx-conversion"],
-    "tax": ["seed", "feature-map", "generic", "tax"],
-    "invoices": ["seed", "feature-map", "generic", "invoices"]
+    "dashboard-sums": [
+      "seed",
+      "feature-map",
+      "generic",
+      "dashboard-sums"
+    ],
+    "subscriptions": [
+      "seed",
+      "feature-map",
+      "generic",
+      "subscriptions"
+    ],
+    "investments": [
+      "seed",
+      "feature-map",
+      "generic",
+      "investments"
+    ],
+    "fx-conversion": [
+      "seed",
+      "feature-map",
+      "generic",
+      "fx-conversion"
+    ],
+    "tax": [
+      "seed",
+      "feature-map",
+      "generic",
+      "tax"
+    ],
+    "invoices": [
+      "seed",
+      "feature-map",
+      "generic",
+      "invoices"
+    ]
   },
   "steps": [
     {
       "id": "seed",
-      "commands": ["seed"],
-      "outputs": ["seed-log", "demo-book"],
+      "commands": [
+        "seed"
+      ],
+      "outputs": [
+        "seed-log",
+        "demo-book"
+      ],
       "artifacts": [],
       "capabilities": [],
       "expectations": []
     },
     {
       "id": "build",
-      "commands": ["build-import", "build-lines"],
-      "outputs": ["build-log"],
+      "commands": [
+        "build-import",
+        "build-lines"
+      ],
+      "outputs": [
+        "build-log"
+      ],
       "artifacts": [],
       "capabilities": [],
       "expectations": []
     },
     {
       "id": "feature-map",
-      "commands": ["map"],
+      "commands": [
+        "map"
+      ],
       "outputs": [],
       "artifacts": [],
       "capabilities": [],
@@ -140,10 +179,17 @@
     },
     {
       "id": "accounts-and-bank-lines",
-      "commands": ["bank-import"],
+      "commands": [
+        "bank-import"
+      ],
       "outputs": [],
-      "artifacts": ["bank-import-drive.json"],
-      "capabilities": ["listImportTargets", "importBankFile"],
+      "artifacts": [
+        "bank-import-drive.json"
+      ],
+      "capabilities": [
+        "listImportTargets",
+        "importBankFile"
+      ],
       "writes": true,
       "expectations": [
         {
@@ -186,8 +232,9 @@
         },
         {
           "id": "import-stores-every-line",
-          "equalsDemoNumber": "importStored",
-          "readback": true
+          "readback": true,
+          "readOperation": "storedLines",
+          "equalsRecords": "importStoredLines"
         },
         {
           "id": "import-replay-adds-nothing",
@@ -195,8 +242,9 @@
         },
         {
           "id": "import-replay-stores-nothing",
-          "equalsDemoNumber": "importReplayStored",
-          "readback": true
+          "readback": true,
+          "readOperation": "storedLines",
+          "equalsRecords": "importStoredLines"
         },
         {
           "id": "import-names-a-rejected-line",
@@ -206,14 +254,23 @@
           "id": "import-refuses-unknown-account",
           "equalsDemoNumber": "importUnknownAccount"
         }
+      ],
+      "writeOperations": [
+        "importBankFile"
       ]
     },
     {
       "id": "bank-line-list",
-      "commands": ["bank-line-list"],
+      "commands": [
+        "bank-line-list"
+      ],
       "outputs": [],
-      "artifacts": ["bank-line-list-drive.json"],
-      "capabilities": ["listBankLines"],
+      "artifacts": [
+        "bank-line-list-drive.json"
+      ],
+      "capabilities": [
+        "listBankLines"
+      ],
       "expectations": [
         {
           "id": "bank-line-list-returns-the-demo-book",
@@ -236,10 +293,16 @@
     },
     {
       "id": "bank-line-edit",
-      "commands": ["bank-line-edit"],
+      "commands": [
+        "bank-line-edit"
+      ],
       "outputs": [],
-      "artifacts": ["bank-line-edit-drive.json"],
-      "capabilities": ["editBankLine"],
+      "artifacts": [
+        "bank-line-edit-drive.json"
+      ],
+      "capabilities": [
+        "editBankLine"
+      ],
       "writes": true,
       "expectations": [
         {
@@ -249,8 +312,9 @@
         },
         {
           "id": "bank-line-edit-stores-category-and-note",
-          "equalsDemoNumber": "editStored",
-          "readback": true
+          "readback": true,
+          "readOperation": "listBankLines",
+          "equalsRecords": "editStoredLines"
         },
         {
           "id": "bank-line-edit-keeps-the-line-in-its-profile",
@@ -264,14 +328,23 @@
           "id": "bank-line-edit-refuses-a-foreign-category",
           "equals": "UnknownCategory"
         }
+      ],
+      "writeOperations": [
+        "editBankLine"
       ]
     },
     {
       "id": "bank-line-review",
-      "commands": ["bank-line-review"],
+      "commands": [
+        "bank-line-review"
+      ],
       "outputs": [],
-      "artifacts": ["bank-line-review-drive.json"],
-      "capabilities": ["reviewBankLine"],
+      "artifacts": [
+        "bank-line-review-drive.json"
+      ],
+      "capabilities": [
+        "reviewBankLine"
+      ],
       "writes": true,
       "expectations": [
         {
@@ -281,13 +354,17 @@
         },
         {
           "id": "bank-line-review-shows-in-the-list",
-          "equals": "Reviewed",
-          "readback": true
+          "readback": true,
+          "readOperation": "listBankLines",
+          "equalsRecords": "reviewStoredLines"
         },
         {
           "id": "bank-line-review-refuses-a-viewer",
           "equals": "Forbidden"
         }
+      ],
+      "writeOperations": [
+        "reviewBankLine"
       ]
     },
     {
@@ -501,5 +578,750 @@
         }
       ]
     }
-  ]
+  ],
+  "readbackRecords": {
+    "importStoredLines": [
+      {
+        "amountMinor": -12000,
+        "currency": "EUR",
+        "date": "2026-02-03",
+        "description": "Demo Rail ticket",
+        "fingerprint": "csv-c98c919682c411243879183144f83dd048fcc0157861274dd116cff9e7588320",
+        "reference": "DEMO-2026-0004"
+      },
+      {
+        "amountMinor": -29900,
+        "currency": "EUR",
+        "date": "2026-01-09",
+        "description": "Demo Cloud Hosting, monthly",
+        "fingerprint": "csv-9f0ab9b845f92b8d8eefc1ba380e7e3035b4eb9602157290b8e7b8ba8d1ee81a",
+        "reference": "DEMO-2026-0002"
+      },
+      {
+        "amountMinor": 3500,
+        "currency": "EUR",
+        "date": "2026-02-17",
+        "description": "Refund from Demo Design Tool",
+        "fingerprint": "csv-2bed9b6e42fe51830e3cc3dcd3a1d0c0a8bef7106e49a2140b816f16391a85d0",
+        "reference": "DEMO-2026-0005"
+      },
+      {
+        "amountMinor": 4250,
+        "currency": "EUR",
+        "date": "2026-01-12",
+        "description": "Demo Coffee",
+        "fingerprint": "csv-2776d142c8af23c8a90b64b1fc00e39d80cced9f7836753966424607c85d8f8f",
+        "reference": ""
+      },
+      {
+        "amountMinor": 480000,
+        "currency": "EUR",
+        "date": "2026-01-06",
+        "description": "Invoice payment from Example Ltd",
+        "fingerprint": "csv-65fce43f1786bfb10b732417e2e523a41c5ca43403b5a2d07e1be8752d513c77",
+        "reference": "DEMO-2026-0001"
+      }
+    ],
+    "editStoredLines": [
+      {
+        "accountId": "0192f0c1-0006-7b7b-8ffd-ffde623dd8df",
+        "amount": {
+          "currency": "EUR",
+          "minor": 100000
+        },
+        "baseAmount": {
+          "currency": "EUR",
+          "minor": 100000
+        },
+        "category": {},
+        "direction": "neutral",
+        "id": "0192f0c1-002c-7e06-8db2-db29cc906e10",
+        "note": "",
+        "occurredAt": 1749978000000,
+        "profileId": "0192f0c1-0001-702d-8484-48490b729601",
+        "raw": {
+          "description": "Moved to Demo Savings",
+          "merchant": "",
+          "reference": ""
+        },
+        "review": {
+          "_tag": "Awaiting"
+        },
+        "status": "posted",
+        "valueDate": "2025-06-15"
+      },
+      {
+        "accountId": "0192f0c1-0006-7b7b-8ffd-ffde623dd8df",
+        "amount": {
+          "currency": "EUR",
+          "minor": 1500
+        },
+        "baseAmount": {
+          "currency": "EUR",
+          "minor": 1500
+        },
+        "category": {},
+        "direction": "out",
+        "id": "0192f0c1-002e-70b6-8abf-abfcf0a3117a",
+        "note": "",
+        "occurredAt": 1754298000000,
+        "profileId": "0192f0c1-0001-702d-8484-48490b729601",
+        "raw": {
+          "description": "Internal demo movement",
+          "merchant": "",
+          "reference": "0000123"
+        },
+        "review": {
+          "_tag": "Reviewed",
+          "at": 1754384400000
+        },
+        "status": "posted",
+        "valueDate": "2025-08-04"
+      },
+      {
+        "accountId": "0192f0c1-0006-7b7b-8ffd-ffde623dd8df",
+        "amount": {
+          "currency": "EUR",
+          "minor": 250000
+        },
+        "baseAmount": {
+          "currency": "EUR",
+          "minor": 250000
+        },
+        "category": {},
+        "direction": "out",
+        "id": "0192f0c1-002f-7574-8f47-f477afee2375",
+        "note": "",
+        "occurredAt": 1756803600000,
+        "profileId": "0192f0c1-0001-702d-8484-48490b729601",
+        "raw": {
+          "description": "Demo VAT payment",
+          "merchant": "Demo Tax Office",
+          "reference": "TAX-VAT-2025"
+        },
+        "review": {
+          "_tag": "Reviewed",
+          "at": 1757235600000
+        },
+        "status": "posted",
+        "valueDate": "2025-09-02"
+      },
+      {
+        "accountId": "0192f0c1-0006-7b7b-8ffd-ffde623dd8df",
+        "amount": {
+          "currency": "EUR",
+          "minor": 299000
+        },
+        "baseAmount": {
+          "currency": "EUR",
+          "minor": 299000
+        },
+        "category": {
+          "value": "0192f0c1-000e-7d8a-8a87-a87dd2b6c1ba"
+        },
+        "direction": "out",
+        "id": "0192f0c1-0028-7018-8357-3578945c907b",
+        "note": "Renewed after the demo renewal reminder",
+        "occurredAt": 1738573200000,
+        "profileId": "0192f0c1-0001-702d-8484-48490b729601",
+        "raw": {
+          "description": "Cloud hosting",
+          "merchant": "Demo Cloud Hosting",
+          "reference": ""
+        },
+        "review": {
+          "_tag": "Reviewed",
+          "at": 1738746000000
+        },
+        "status": "posted",
+        "valueDate": "2025-02-03"
+      },
+      {
+        "accountId": "0192f0c1-0006-7b7b-8ffd-ffde623dd8df",
+        "amount": {
+          "currency": "EUR",
+          "minor": 3500
+        },
+        "baseAmount": {
+          "currency": "EUR",
+          "minor": 3500
+        },
+        "category": {},
+        "direction": "in",
+        "id": "0192f0c1-0030-7085-8d2f-d2f021323f32",
+        "note": "",
+        "occurredAt": 1759741200000,
+        "profileId": "0192f0c1-0001-702d-8484-48490b729601",
+        "raw": {
+          "description": "Refund from Demo Design Tool",
+          "merchant": "Demo Design Tool",
+          "reference": ""
+        },
+        "review": {
+          "_tag": "Reviewed",
+          "at": 1760000400000
+        },
+        "status": "posted",
+        "valueDate": "2025-10-06"
+      },
+      {
+        "accountId": "0192f0c1-0006-7b7b-8ffd-ffde623dd8df",
+        "amount": {
+          "currency": "EUR",
+          "minor": 4250
+        },
+        "baseAmount": {
+          "currency": "EUR",
+          "minor": 4250
+        },
+        "category": {
+          "value": "0192f0c1-0011-79f9-8c9a-c9af5a7eff0d"
+        },
+        "direction": "out",
+        "id": "0192f0c1-002a-7549-8811-8111b948c159",
+        "note": "Client lunch",
+        "occurredAt": 1743584400000,
+        "profileId": "0192f0c1-0001-702d-8484-48490b729601",
+        "raw": {
+          "description": "Client lunch",
+          "merchant": "Demo Coffee",
+          "reference": ""
+        },
+        "review": {
+          "_tag": "Reviewed",
+          "at": 1743670800000
+        },
+        "status": "posted",
+        "valueDate": "2025-04-02"
+      },
+      {
+        "accountId": "0192f0c1-0006-7b7b-8ffd-ffde623dd8df",
+        "amount": {
+          "currency": "EUR",
+          "minor": 480000
+        },
+        "baseAmount": {
+          "currency": "EUR",
+          "minor": 480000
+        },
+        "category": {
+          "value": "0192f0c1-000d-75e9-8fd7-fd7e43c901ee"
+        },
+        "direction": "in",
+        "id": "0192f0c1-0027-7c11-8261-2619d29e6868",
+        "note": "Demo note written by the verify drive",
+        "occurredAt": 1736154000000,
+        "profileId": "0192f0c1-0001-702d-8484-48490b729601",
+        "raw": {
+          "description": "Invoice payment",
+          "merchant": "Example Ltd",
+          "reference": ""
+        },
+        "review": {
+          "_tag": "Reviewed",
+          "at": 1736240400000
+        },
+        "status": "posted",
+        "valueDate": "2025-01-06"
+      },
+      {
+        "accountId": "0192f0c1-0006-7b7b-8ffd-ffde623dd8df",
+        "amount": {
+          "currency": "EUR",
+          "minor": 5200
+        },
+        "baseAmount": {
+          "currency": "EUR",
+          "minor": 5200
+        },
+        "category": {
+          "value": "0192f0c1-000e-7d8a-8a87-a87dd2b6c1ba"
+        },
+        "direction": "out",
+        "id": "0192f0c1-0032-754e-8db8-db8922229d3c",
+        "note": "",
+        "occurredAt": 1765184400000,
+        "profileId": "0192f0c1-0001-702d-8484-48490b729601",
+        "raw": {
+          "description": "Cloud hosting",
+          "merchant": "Demo Cloud Hosting",
+          "reference": ""
+        },
+        "review": {
+          "_tag": "Reviewed",
+          "at": 1765270800000
+        },
+        "status": "pending",
+        "valueDate": "2025-12-08"
+      },
+      {
+        "accountId": "0192f0c1-0006-7b7b-8ffd-ffde623dd8df",
+        "amount": {
+          "currency": "EUR",
+          "minor": 60000
+        },
+        "baseAmount": {
+          "currency": "EUR",
+          "minor": 60000
+        },
+        "category": {},
+        "direction": "neutral",
+        "id": "0192f0c1-002d-72a8-8fd3-fd3ae1482dc5",
+        "note": "",
+        "occurredAt": 1751360400000,
+        "profileId": "0192f0c1-0001-702d-8484-48490b729601",
+        "raw": {
+          "description": "Transfer to Demo Person",
+          "merchant": "",
+          "reference": ""
+        },
+        "review": {
+          "_tag": "Reviewed",
+          "at": 1751533200000
+        },
+        "status": "posted",
+        "valueDate": "2025-07-01"
+      },
+      {
+        "accountId": "0192f0c1-0006-7b7b-8ffd-ffde623dd8df",
+        "amount": {
+          "currency": "EUR",
+          "minor": 8900
+        },
+        "baseAmount": {
+          "currency": "EUR",
+          "minor": 8900
+        },
+        "category": {
+          "value": "0192f0c1-0011-79f9-8c9a-c9af5a7eff0d"
+        },
+        "direction": "out",
+        "id": "0192f0c1-0031-7ab6-8c3b-c3bb339364f8",
+        "note": "Team breakfast",
+        "occurredAt": 1762160400000,
+        "profileId": "0192f0c1-0001-702d-8484-48490b729601",
+        "raw": {
+          "description": "Team breakfast",
+          "merchant": "Demo Coffee",
+          "reference": ""
+        },
+        "review": {
+          "_tag": "Awaiting"
+        },
+        "status": "posted",
+        "valueDate": "2025-11-03"
+      },
+      {
+        "accountId": "0192f0c1-0006-7b7b-8ffd-ffde623dd8df",
+        "amount": {
+          "currency": "GBP",
+          "minor": 12000
+        },
+        "baseAmount": {
+          "currency": "EUR",
+          "minor": 14040
+        },
+        "category": {
+          "value": "0192f0c1-0010-744d-827c-27cf38c20ebb"
+        },
+        "direction": "out",
+        "id": "0192f0c1-002b-79a6-8b1a-b1ab7e790030",
+        "note": "",
+        "occurredAt": 1746781200000,
+        "profileId": "0192f0c1-0001-702d-8484-48490b729601",
+        "raw": {
+          "description": "Demo Rail ticket",
+          "merchant": "Demo Rail",
+          "reference": ""
+        },
+        "review": {
+          "_tag": "Reviewed",
+          "at": 1747126800000
+        },
+        "status": "posted",
+        "valueDate": "2025-05-09"
+      },
+      {
+        "accountId": "0192f0c1-0006-7b7b-8ffd-ffde623dd8df",
+        "amount": {
+          "currency": "USD",
+          "minor": 2999
+        },
+        "baseAmount": {
+          "currency": "EUR",
+          "minor": 2765
+        },
+        "category": {
+          "value": "0192f0c1-000f-755b-8ae4-ae47d20b52cf"
+        },
+        "direction": "out",
+        "id": "0192f0c1-0029-768c-8adb-adbefc188d19",
+        "note": "",
+        "occurredAt": 1741683600000,
+        "profileId": "0192f0c1-0001-702d-8484-48490b729601",
+        "raw": {
+          "description": "Design subscription",
+          "merchant": "Demo Design Tool",
+          "reference": ""
+        },
+        "review": {
+          "_tag": "Reviewed",
+          "at": 1741942800000
+        },
+        "status": "posted",
+        "valueDate": "2025-03-11"
+      }
+    ],
+    "reviewStoredLines": [
+      {
+        "accountId": "0192f0c1-0006-7b7b-8ffd-ffde623dd8df",
+        "amount": {
+          "currency": "EUR",
+          "minor": 100000
+        },
+        "baseAmount": {
+          "currency": "EUR",
+          "minor": 100000
+        },
+        "category": {},
+        "direction": "neutral",
+        "id": "0192f0c1-002c-7e06-8db2-db29cc906e10",
+        "note": "",
+        "occurredAt": 1749978000000,
+        "profileId": "0192f0c1-0001-702d-8484-48490b729601",
+        "raw": {
+          "description": "Moved to Demo Savings",
+          "merchant": "",
+          "reference": ""
+        },
+        "review": {
+          "_tag": "Reviewed",
+          "at": 1767225600000
+        },
+        "status": "posted",
+        "valueDate": "2025-06-15"
+      },
+      {
+        "accountId": "0192f0c1-0006-7b7b-8ffd-ffde623dd8df",
+        "amount": {
+          "currency": "EUR",
+          "minor": 1500
+        },
+        "baseAmount": {
+          "currency": "EUR",
+          "minor": 1500
+        },
+        "category": {},
+        "direction": "out",
+        "id": "0192f0c1-002e-70b6-8abf-abfcf0a3117a",
+        "note": "",
+        "occurredAt": 1754298000000,
+        "profileId": "0192f0c1-0001-702d-8484-48490b729601",
+        "raw": {
+          "description": "Internal demo movement",
+          "merchant": "",
+          "reference": "0000123"
+        },
+        "review": {
+          "_tag": "Reviewed",
+          "at": 1754384400000
+        },
+        "status": "posted",
+        "valueDate": "2025-08-04"
+      },
+      {
+        "accountId": "0192f0c1-0006-7b7b-8ffd-ffde623dd8df",
+        "amount": {
+          "currency": "EUR",
+          "minor": 250000
+        },
+        "baseAmount": {
+          "currency": "EUR",
+          "minor": 250000
+        },
+        "category": {},
+        "direction": "out",
+        "id": "0192f0c1-002f-7574-8f47-f477afee2375",
+        "note": "",
+        "occurredAt": 1756803600000,
+        "profileId": "0192f0c1-0001-702d-8484-48490b729601",
+        "raw": {
+          "description": "Demo VAT payment",
+          "merchant": "Demo Tax Office",
+          "reference": "TAX-VAT-2025"
+        },
+        "review": {
+          "_tag": "Reviewed",
+          "at": 1757235600000
+        },
+        "status": "posted",
+        "valueDate": "2025-09-02"
+      },
+      {
+        "accountId": "0192f0c1-0006-7b7b-8ffd-ffde623dd8df",
+        "amount": {
+          "currency": "EUR",
+          "minor": 299000
+        },
+        "baseAmount": {
+          "currency": "EUR",
+          "minor": 299000
+        },
+        "category": {
+          "value": "0192f0c1-000e-7d8a-8a87-a87dd2b6c1ba"
+        },
+        "direction": "out",
+        "id": "0192f0c1-0028-7018-8357-3578945c907b",
+        "note": "Renewed after the demo renewal reminder",
+        "occurredAt": 1738573200000,
+        "profileId": "0192f0c1-0001-702d-8484-48490b729601",
+        "raw": {
+          "description": "Cloud hosting",
+          "merchant": "Demo Cloud Hosting",
+          "reference": ""
+        },
+        "review": {
+          "_tag": "Reviewed",
+          "at": 1738746000000
+        },
+        "status": "posted",
+        "valueDate": "2025-02-03"
+      },
+      {
+        "accountId": "0192f0c1-0006-7b7b-8ffd-ffde623dd8df",
+        "amount": {
+          "currency": "EUR",
+          "minor": 3500
+        },
+        "baseAmount": {
+          "currency": "EUR",
+          "minor": 3500
+        },
+        "category": {},
+        "direction": "in",
+        "id": "0192f0c1-0030-7085-8d2f-d2f021323f32",
+        "note": "",
+        "occurredAt": 1759741200000,
+        "profileId": "0192f0c1-0001-702d-8484-48490b729601",
+        "raw": {
+          "description": "Refund from Demo Design Tool",
+          "merchant": "Demo Design Tool",
+          "reference": ""
+        },
+        "review": {
+          "_tag": "Reviewed",
+          "at": 1760000400000
+        },
+        "status": "posted",
+        "valueDate": "2025-10-06"
+      },
+      {
+        "accountId": "0192f0c1-0006-7b7b-8ffd-ffde623dd8df",
+        "amount": {
+          "currency": "EUR",
+          "minor": 4250
+        },
+        "baseAmount": {
+          "currency": "EUR",
+          "minor": 4250
+        },
+        "category": {
+          "value": "0192f0c1-0011-79f9-8c9a-c9af5a7eff0d"
+        },
+        "direction": "out",
+        "id": "0192f0c1-002a-7549-8811-8111b948c159",
+        "note": "Client lunch",
+        "occurredAt": 1743584400000,
+        "profileId": "0192f0c1-0001-702d-8484-48490b729601",
+        "raw": {
+          "description": "Client lunch",
+          "merchant": "Demo Coffee",
+          "reference": ""
+        },
+        "review": {
+          "_tag": "Reviewed",
+          "at": 1743670800000
+        },
+        "status": "posted",
+        "valueDate": "2025-04-02"
+      },
+      {
+        "accountId": "0192f0c1-0006-7b7b-8ffd-ffde623dd8df",
+        "amount": {
+          "currency": "EUR",
+          "minor": 480000
+        },
+        "baseAmount": {
+          "currency": "EUR",
+          "minor": 480000
+        },
+        "category": {
+          "value": "0192f0c1-0013-703c-80e5-0e5bbe77367b"
+        },
+        "direction": "in",
+        "id": "0192f0c1-0027-7c11-8261-2619d29e6868",
+        "note": "",
+        "occurredAt": 1736154000000,
+        "profileId": "0192f0c1-0001-702d-8484-48490b729601",
+        "raw": {
+          "description": "Invoice payment",
+          "merchant": "Example Ltd",
+          "reference": ""
+        },
+        "review": {
+          "_tag": "Reviewed",
+          "at": 1736240400000
+        },
+        "status": "posted",
+        "valueDate": "2025-01-06"
+      },
+      {
+        "accountId": "0192f0c1-0006-7b7b-8ffd-ffde623dd8df",
+        "amount": {
+          "currency": "EUR",
+          "minor": 5200
+        },
+        "baseAmount": {
+          "currency": "EUR",
+          "minor": 5200
+        },
+        "category": {
+          "value": "0192f0c1-000e-7d8a-8a87-a87dd2b6c1ba"
+        },
+        "direction": "out",
+        "id": "0192f0c1-0032-754e-8db8-db8922229d3c",
+        "note": "",
+        "occurredAt": 1765184400000,
+        "profileId": "0192f0c1-0001-702d-8484-48490b729601",
+        "raw": {
+          "description": "Cloud hosting",
+          "merchant": "Demo Cloud Hosting",
+          "reference": ""
+        },
+        "review": {
+          "_tag": "Reviewed",
+          "at": 1765270800000
+        },
+        "status": "pending",
+        "valueDate": "2025-12-08"
+      },
+      {
+        "accountId": "0192f0c1-0006-7b7b-8ffd-ffde623dd8df",
+        "amount": {
+          "currency": "EUR",
+          "minor": 60000
+        },
+        "baseAmount": {
+          "currency": "EUR",
+          "minor": 60000
+        },
+        "category": {},
+        "direction": "neutral",
+        "id": "0192f0c1-002d-72a8-8fd3-fd3ae1482dc5",
+        "note": "",
+        "occurredAt": 1751360400000,
+        "profileId": "0192f0c1-0001-702d-8484-48490b729601",
+        "raw": {
+          "description": "Transfer to Demo Person",
+          "merchant": "",
+          "reference": ""
+        },
+        "review": {
+          "_tag": "Reviewed",
+          "at": 1751533200000
+        },
+        "status": "posted",
+        "valueDate": "2025-07-01"
+      },
+      {
+        "accountId": "0192f0c1-0006-7b7b-8ffd-ffde623dd8df",
+        "amount": {
+          "currency": "EUR",
+          "minor": 8900
+        },
+        "baseAmount": {
+          "currency": "EUR",
+          "minor": 8900
+        },
+        "category": {
+          "value": "0192f0c1-0011-79f9-8c9a-c9af5a7eff0d"
+        },
+        "direction": "out",
+        "id": "0192f0c1-0031-7ab6-8c3b-c3bb339364f8",
+        "note": "Team breakfast",
+        "occurredAt": 1762160400000,
+        "profileId": "0192f0c1-0001-702d-8484-48490b729601",
+        "raw": {
+          "description": "Team breakfast",
+          "merchant": "Demo Coffee",
+          "reference": ""
+        },
+        "review": {
+          "_tag": "Awaiting"
+        },
+        "status": "posted",
+        "valueDate": "2025-11-03"
+      },
+      {
+        "accountId": "0192f0c1-0006-7b7b-8ffd-ffde623dd8df",
+        "amount": {
+          "currency": "GBP",
+          "minor": 12000
+        },
+        "baseAmount": {
+          "currency": "EUR",
+          "minor": 14040
+        },
+        "category": {
+          "value": "0192f0c1-0010-744d-827c-27cf38c20ebb"
+        },
+        "direction": "out",
+        "id": "0192f0c1-002b-79a6-8b1a-b1ab7e790030",
+        "note": "",
+        "occurredAt": 1746781200000,
+        "profileId": "0192f0c1-0001-702d-8484-48490b729601",
+        "raw": {
+          "description": "Demo Rail ticket",
+          "merchant": "Demo Rail",
+          "reference": ""
+        },
+        "review": {
+          "_tag": "Reviewed",
+          "at": 1747126800000
+        },
+        "status": "posted",
+        "valueDate": "2025-05-09"
+      },
+      {
+        "accountId": "0192f0c1-0006-7b7b-8ffd-ffde623dd8df",
+        "amount": {
+          "currency": "USD",
+          "minor": 2999
+        },
+        "baseAmount": {
+          "currency": "EUR",
+          "minor": 2765
+        },
+        "category": {
+          "value": "0192f0c1-000f-755b-8ae4-ae47d20b52cf"
+        },
+        "direction": "out",
+        "id": "0192f0c1-0029-768c-8adb-adbefc188d19",
+        "note": "",
+        "occurredAt": 1741683600000,
+        "profileId": "0192f0c1-0001-702d-8484-48490b729601",
+        "raw": {
+          "description": "Design subscription",
+          "merchant": "Demo Design Tool",
+          "reference": ""
+        },
+        "review": {
+          "_tag": "Reviewed",
+          "at": 1741942800000
+        },
+        "status": "posted",
+        "valueDate": "2025-03-11"
+      }
+    ]
+  }
 }

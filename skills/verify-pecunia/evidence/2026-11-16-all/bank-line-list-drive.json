@@ -16,5 +16,6 @@
       "id": "bank-line-list-pages-without-repeats",
       "value": "first=5 second=5 overlap=0"
     }
-  ]
+  ],
+  "mutatingCalls": 0
 }

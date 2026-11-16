@@ -13,6 +13,8 @@ import {
   listImportTargets,
 } from "../../../packages/bank-import/dist/index.js";
 import { memoryImportLedgerLayer } from "../../../packages/bank-import/dist/ledger-memory.js";
+import { countingLayer, mutationRecorder } from "./lib/mutating-adapter.mjs";
+import { canonicalRecords } from "./lib/records.mjs";
 
 const SCRIPT_DIR = fileURLToPath(new URL(".", import.meta.url));
 const REPO_ROOT = join(SCRIPT_DIR, "..", "..", "..");
@@ -65,8 +67,14 @@ if (targets.length === 0) {
 const profileId = targets[0].profileId;
 const target = targets.find((entry) => entry.profileId === profileId);
 const content = readFileSync(FIXTURE, "utf8");
+const recorder = mutationRecorder();
 const layer = Layer.mergeAll(
-  memoryImportLedgerLayer(targets),
+  countingLayer({
+    layer: memoryImportLedgerLayer(targets),
+    mutations: ["record"],
+    recorder,
+    service: ImportLedger,
+  }),
   Digest.layerWebCrypto.pipe(Layer.provide(WebCrypto.layer(globalThis.crypto)))
 );
 
@@ -112,7 +120,8 @@ const observations = await Effect.runPromise(
         },
         {
           id: "import-stores-every-line",
-          value: `stored=${storedOnce.length} imported=${imported.imported}`,
+          operation: "storedLines",
+          value: canonicalRecords(storedOnce),
         },
         {
           id: "import-replay-adds-nothing",
@@ -120,7 +129,8 @@ const observations = await Effect.runPromise(
         },
         {
           id: "import-replay-stores-nothing",
-          value: `stored=${storedReplay.length} alreadyImported=${replayed.alreadyImported}`,
+          operation: "storedLines",
+          value: canonicalRecords(storedReplay),
         },
         {
           id: "import-names-a-rejected-line",
@@ -135,4 +145,6 @@ const observations = await Effect.runPromise(
   }).pipe(Effect.provide(layer))
 );
 
-process.stdout.write(`${JSON.stringify(observations, null, 2)}\n`);
+process.stdout.write(
+  `${JSON.stringify({ ...observations, mutatingCalls: recorder.total() }, null, 2)}\n`
+);

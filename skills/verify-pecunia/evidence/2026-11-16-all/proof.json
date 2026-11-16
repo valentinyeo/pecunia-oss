@@ -114,8 +114,8 @@
       "step": "accounts-and-bank-lines"
     },
     {
-      "actual": "stored=5 imported=5",
-      "expected": "stored=5 imported=5",
+      "actual": "5 records",
+      "expected": "5 records",
       "feature": "all",
       "id": "import-stores-every-line",
       "passed": true,
@@ -130,8 +130,8 @@
       "step": "accounts-and-bank-lines"
     },
     {
-      "actual": "stored=5 alreadyImported=5",
-      "expected": "stored=5 alreadyImported=5",
+      "actual": "5 records",
+      "expected": "5 records",
       "feature": "all",
       "id": "import-replay-stores-nothing",
       "passed": true,
@@ -194,8 +194,8 @@
       "step": "bank-line-edit"
     },
     {
-      "actual": "category=0192f0c1-000d-75e9-8fd7-fd7e43c901ee note=Demo note written by the verify drive",
-      "expected": "category=0192f0c1-000d-75e9-8fd7-fd7e43c901ee note=Demo note written by the verify drive",
+      "actual": "12 records",
+      "expected": "12 records",
       "feature": "all",
       "id": "bank-line-edit-stores-category-and-note",
       "passed": true,
@@ -234,8 +234,8 @@
       "step": "bank-line-review"
     },
     {
-      "actual": "Reviewed",
-      "expected": "Reviewed",
+      "actual": "12 records",
+      "expected": "12 records",
       "feature": "all",
       "id": "bank-line-review-shows-in-the-list",
       "passed": true,
@@ -546,7 +546,7 @@
       "step": "invoices"
     }
   ],
-  "commit": "1fb6b3bc",
+  "commit": "5341d8e6",
   "declared": 68,
   "demoBookSha256": "527991d3898ec8fdce1029ee97f92a7c25f955c54e2375b38566f95f32537191",
   "evaluated": 68,
@@ -556,9 +556,9 @@
   "feature": "all",
   "node": "v24.18.0",
   "passed": true,
-  "ranAt": "2026-11-16T20:40:17Z",
+  "ranAt": "2026-11-16T21:17:18Z",
   "seed": {
-    "command": "pnpm --filter @pecunia/database db:seed:demo /tmp/pecunia-verify-LJT25w/demo.sqlite"
+    "command": "pnpm --filter @pecunia/database db:seed:demo /tmp/pecunia-verify-d6QKjm/demo.sqlite"
   },
   "stepExpectations": {
     "feature-map": 1,

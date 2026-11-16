@@ -6,6 +6,7 @@ STEPS_COMMANDS_FILE=
 STEPS_OUTPUTS_FILE=
 STEPS_ARTIFACTS_FILE=
 STEPS_OBSERVATIONS_FILE=
+STEPS_MUTATIONS_FILE=
 STEPS_CURRENT=
 
 steps_init() {
@@ -28,10 +29,12 @@ steps_reset_step() {
   STEPS_OUTPUTS_FILE=$STEPS_STATE_DIR/outputs.tsv
   STEPS_ARTIFACTS_FILE=$STEPS_STATE_DIR/artifacts.tsv
   STEPS_OBSERVATIONS_FILE=$STEPS_STATE_DIR/observations.tsv
+  STEPS_MUTATIONS_FILE=$STEPS_STATE_DIR/mutations.tsv
   : > "$STEPS_COMMANDS_FILE"
   : > "$STEPS_OUTPUTS_FILE"
   : > "$STEPS_ARTIFACTS_FILE"
   : > "$STEPS_OBSERVATIONS_FILE"
+  : > "$STEPS_MUTATIONS_FILE"
 }
 
 steps_run_command() {
@@ -64,19 +67,29 @@ steps_keep_artifact() {
 }
 
 steps_observe() {
-  local id=$1 value=$2
-  printf '%s\t%s\n' "$id" "$(printf '%s' "$value" | tr '\t\n' '  ')" >> "$STEPS_OBSERVATIONS_FILE"
+  local id=$1 value=$2 operation=${3:-}
+  printf '%s\t%s\t%s\n' "$id" "$operation" "$(printf '%s' "$value" | tr '\t\n' '  ')" >> "$STEPS_OBSERVATIONS_FILE"
   printf 'observation %s=%s\n' "$id" "$value"
   return 0
 }
 
 steps_observe_json() {
-  local path=$1 id value
-  while IFS=$'\t' read -r id value; do
+  local path=$1 id value operation
+  while IFS=$'\x1f' read -r id operation value; do
     [ -n "$id" ] || continue
-    steps_observe "$id" "$value"
-  done < <(jq -r '(.observations // [])[] | [.id, .value] | @tsv' "$path" 2>/dev/null || true)
+    steps_observe "$id" "$value" "$operation"
+  done < <(jq -r '(.observations // [])[] | [.id, (.operation // ""), .value] | join("\u001f")' "$path" 2>/dev/null || true)
   return 0
+}
+
+steps_count_mutations() {
+  printf '%s\t%s\n' "$(date +%s%N)" "$1" >> "$STEPS_MUTATIONS_FILE"
+  printf 'mutating calls %s\n' "$1"
+  return 0
+}
+
+steps_mutating_calls() {
+  awk -F'\t' '{ total += $2 } END { print total + 0 }' "$STEPS_MUTATIONS_FILE" 2>/dev/null || printf '0\n'
 }
 
 steps_write_record() {
@@ -89,15 +102,17 @@ steps_write_record() {
     --rawfile outputs "$STEPS_OUTPUTS_FILE" \
     --rawfile artifacts "$STEPS_ARTIFACTS_FILE" \
     --rawfile observations "$STEPS_OBSERVATIONS_FILE" \
+    --rawfile mutations "$STEPS_MUTATIONS_FILE" \
     --slurpfile meta "$STEPS_META_FILE" \
     '{
       step: $step,
       exit: $exit,
       feature: $feature,
+      mutatingCalls: ([$mutations | split("\n")[] | select(length > 0) | split("\t") | .[1] | tonumber] | add // 0),
       commands: [$commands | split("\n")[] | select(length > 0) | split("\t") | {id: .[0], exit: (.[1] | tonumber)}],
       outputs: [$outputs | split("\n")[] | select(length > 0) | split("\t") | {name: .[0], found: (.[1] == "yes")}],
       artifacts: [$artifacts | split("\n")[] | select(length > 0) | split("\t") | {name: .[0], found: (.[1] == "yes"), path: .[2]}],
-      observations: [$observations | split("\n")[] | select(length > 0) | split("\t") | {id: .[0], value: (.[1:] | join("\t"))}],
+      observations: [$observations | split("\n")[] | select(length > 0) | split("\t") | {id: .[0], operation: .[1], value: (.[2:] | join("\t"))}],
       data: ($meta | from_entries)
     }' >> "$STEPS_RECORDS"
 }

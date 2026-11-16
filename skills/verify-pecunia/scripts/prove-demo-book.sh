@@ -199,6 +199,7 @@ step_accounts_and_bank_lines() {
 
   steps_run_command bank-import node "$SCRIPT_DIR/drive-bank-import.mjs" --database "$DATABASE" > "$DRIVE_JSON"
   steps_keep_artifact bank-import-drive.json "$DRIVE_JSON"
+  steps_count_mutations "$(jq -r '.mutatingCalls // 0' "$DRIVE_JSON" 2>/dev/null || printf '0')"
   steps_observe_json "$DRIVE_JSON"
 }
 
@@ -213,6 +214,7 @@ step_bank_line_edit() {
   local drive=$SCRATCH/bank-line-edit-drive.json
   steps_run_command bank-line-edit node "$SCRIPT_DIR/drive-bank-lines.mjs" --capability edit > "$drive"
   steps_keep_artifact bank-line-edit-drive.json "$drive"
+  steps_count_mutations "$(jq -r '.mutatingCalls // 0' "$drive" 2>/dev/null || printf '0')"
   steps_observe_json "$drive"
 }
 
@@ -220,6 +222,7 @@ step_bank_line_review() {
   local drive=$SCRATCH/bank-line-review-drive.json
   steps_run_command bank-line-review node "$SCRIPT_DIR/drive-bank-lines.mjs" --capability review > "$drive"
   steps_keep_artifact bank-line-review-drive.json "$drive"
+  steps_count_mutations "$(jq -r '.mutatingCalls // 0' "$drive" 2>/dev/null || printf '0')"
   steps_observe_json "$drive"
 }
 

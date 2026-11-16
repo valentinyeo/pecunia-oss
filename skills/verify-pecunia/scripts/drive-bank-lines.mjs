@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import { Effect, Layer, Option, Schema } from "effect";
+import { Clock } from "effect";
 
 import {
   CurrentPerson,
@@ -24,6 +25,9 @@ import {
   ReviewFilterSchema,
 } from "../../../packages/bank-lines/dist/model.js";
 import { BankLineService } from "../../../packages/bank-lines/dist/service.js";
+import { BankLineStore } from "../../../packages/bank-lines/dist/store.js";
+import { countingLayer, mutationRecorder } from "./lib/mutating-adapter.mjs";
+import { canonicalRecords } from "./lib/records.mjs";
 
 const fence = (message) => {
   process.stderr.write(`${message}\n`);
@@ -44,6 +48,18 @@ if (!["list", "edit", "review"].includes(capability)) {
 const foreignCategory = "0192f0c1-00ff-7000-8000-000000000000";
 const missingLine = "line-missing";
 const writtenNote = "Demo note written by the verify drive";
+const reviewedAt = 1_767_225_600_000;
+const recorder = mutationRecorder();
+
+const fixedClock = {
+  currentTimeMillis: Effect.succeed(reviewedAt),
+  currentTimeMillisUnsafe: () => reviewedAt,
+  currentTimeNanos: Effect.succeed(BigInt(reviewedAt) * 1_000_000n),
+  currentTimeNanosUnsafe: () => BigInt(reviewedAt) * 1_000_000n,
+  monotonicTimeNanos: Effect.succeed(0n),
+  monotonicTimeNanosUnsafe: () => 0n,
+  sleep: () => Effect.void,
+};
 
 const viewerPerson = Schema.decodeSync(PersonSchema)({
   email: "viewer@example.com",
@@ -55,9 +71,14 @@ const layerFor = (person) =>
   Layer.mergeAll(
     BankLineService.layer.pipe(
       Layer.provide(
-        memoryBankLineStoreLayer({
-          categories: demoCategories,
-          lines: demoBankLines,
+        countingLayer({
+          layer: memoryBankLineStoreLayer({
+            categories: demoCategories,
+            lines: demoBankLines,
+          }),
+          mutations: ["patch"],
+          recorder,
+          service: BankLineStore,
         })
       )
     ),
@@ -177,7 +198,6 @@ const editObservations = () =>
         )
         .pipe(Effect.result);
       const page = yield* listBankLines.handler(request({}));
-      const stored = page.lines.find((line) => line.id === target.id);
       const unknownCategory = yield* editBankLine
         .handler(
           editRequest({
@@ -198,10 +218,8 @@ const editObservations = () =>
           },
           {
             id: "bank-line-edit-stores-category-and-note",
-            value:
-              stored === undefined
-                ? "missing"
-                : `category=${Option.isSome(stored.category) ? stored.category.value : "none"} note=${stored.note}`,
+            operation: "listBankLines",
+            value: canonicalRecords(page.lines),
           },
           {
             id: "bank-line-edit-keeps-the-line-in-its-profile",
@@ -228,22 +246,25 @@ const reviewObservations = async () => {
   }
 
   const reviewed = await Effect.runPromise(
-    Effect.gen(function* reviewOneLine() {
-      const marked = yield* reviewBankLine.handler(
-        reviewRequest({ lineId: target.id })
-      );
-      const page = yield* listBankLines.handler(request({}));
-      const listed = page.lines.find((line) => line.id === target.id);
+    Effect.provideService(
+      Effect.gen(function* reviewOneLine() {
+        const marked = yield* reviewBankLine.handler(
+          reviewRequest({ lineId: target.id })
+        );
+        const page = yield* listBankLines.handler(request({}));
 
-      return {
-        at:
-          marked.review._tag === "Reviewed" &&
-          typeof marked.review.at === "number",
-        lineId: marked.id,
-        listed: listed === undefined ? "missing" : listed.review._tag,
-        tag: marked.review._tag,
-      };
-    }).pipe(Effect.provide(ownerLayer))
+        return {
+          at:
+            marked.review._tag === "Reviewed" &&
+            typeof marked.review.at === "number",
+          lineId: marked.id,
+          lines: canonicalRecords(page.lines),
+          tag: marked.review._tag,
+        };
+      }),
+      Clock.Clock,
+      fixedClock
+    ).pipe(Effect.provide(ownerLayer))
   );
   const viewer = await runResult(
     reviewBankLine.handler(reviewRequest({ lineId: target.id })),
@@ -256,7 +277,11 @@ const reviewObservations = async () => {
         id: "bank-line-review-marks-the-line",
         value: `tag=${reviewed.tag} hasTime=${reviewed.at}`,
       },
-      { id: "bank-line-review-shows-in-the-list", value: reviewed.listed },
+      {
+        id: "bank-line-review-shows-in-the-list",
+        operation: "listBankLines",
+        value: reviewed.lines,
+      },
       { id: "bank-line-review-refuses-a-viewer", value: failureTag(viewer) },
     ],
   };
@@ -268,4 +293,6 @@ const observations = await {
   review: reviewObservations,
 }[capability]();
 
-process.stdout.write(`${JSON.stringify(observations, null, 2)}\n`);
+process.stdout.write(
+  `${JSON.stringify({ ...observations, mutatingCalls: recorder.total() }, null, 2)}\n`
+);
