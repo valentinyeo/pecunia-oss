@@ -1,96 +1,165 @@
-// @effect-diagnostics nodeBuiltinImport:off -- This test reads the repository's lint config, package manifest, and tracked source files.
+// @effect-diagnostics nodeBuiltinImport:off -- This test reads the repository's lint config, package manifests, and tracked source files.
 import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 
 import { Schema } from "effect";
-import type { DummyRule, OxlintConfig } from "oxlint";
+import type {
+  AllowWarnDeny,
+  DummyRule,
+  OxlintConfig,
+  OxlintOverride,
+} from "oxlint";
 import { describe, expect, it } from "vitest";
 
 import lintConfig from "../oxlint.config.ts";
 
 const repoRoot = path.resolve(import.meta.dirname, "..");
 
-const offRuleReasons = {
-  "foldkit/command-binding-matches-name":
-    "Foldkit program rules describe runtime UI construction, and a test file builds no program or view.",
-  "foldkit/command-define-pascal-const":
-    "Foldkit program rules describe runtime UI construction, and a test file builds no program or view.",
-  "foldkit/got-prefix-requires-submodel-payload":
-    "Foldkit program rules describe runtime UI construction, and a test file builds no program or view.",
-  "foldkit/got-submodel-message-name":
-    "Foldkit program rules describe runtime UI construction, and a test file builds no program or view.",
-  "foldkit/got-wrapper-carries-only-routing":
-    "Foldkit program rules describe runtime UI construction, and a test file builds no program or view.",
-  "foldkit/keyed-required-for-mapped-rows":
-    "Foldkit program rules describe runtime UI construction, and a test file builds no program or view.",
-  "foldkit/lazy-view-stable-references":
-    "Foldkit program rules describe runtime UI construction, and a test file builds no program or view.",
-  "foldkit/mount-factory-must-use-element":
-    "Foldkit program rules describe runtime UI construction, and a test file builds no program or view.",
-  "foldkit/no-array-index-view-keys":
-    "Foldkit program rules describe runtime UI construction, and a test file builds no program or view.",
-  "foldkit/no-child-message-construction-in-root":
-    "Foldkit program rules describe runtime UI construction, and a test file builds no program or view.",
-  "foldkit/no-direct-submodel-state-update":
-    "Foldkit program rules describe runtime UI construction, and a test file builds no program or view.",
-  "foldkit/no-disabling-dev-guardrails":
-    "Foldkit program rules describe runtime UI construction, and a test file builds no program or view.",
-  "foldkit/no-duplicate-onmount-per-element":
-    "Foldkit program rules describe runtime UI construction, and a test file builds no program or view.",
-  "foldkit/no-empty-children-array":
-    "Foldkit program rules describe runtime UI construction, and a test file builds no program or view.",
-  "foldkit/no-empty-commands-array":
-    "Foldkit program rules describe runtime UI construction, and a test file builds no program or view.",
-  "foldkit/no-empty-object-tagged-call":
-    "Foldkit program rules describe runtime UI construction, and a test file builds no program or view.",
-  "foldkit/no-empty-to-parent-out-message":
-    "Foldkit program rules describe runtime UI construction, and a test file builds no program or view.",
-  "foldkit/no-hand-rolled-command-struct":
-    "Foldkit program rules describe runtime UI construction, and a test file builds no program or view.",
-  "foldkit/no-hardcoded-route-strings":
-    "Foldkit program rules describe runtime UI construction, and a test file builds no program or view.",
-  "foldkit/no-impure-call-at-decision-time":
-    "Foldkit entry modules read the environment while starting up, so the rule would report the one place those reads belong.",
-  "foldkit/no-module-level-mutable-state":
-    "Foldkit program rules describe runtime UI construction, and a test file builds no program or view.",
-  "foldkit/no-nonportable-server-globals":
-    "The web app keeps browser and server modules in one source tree, so the server-globals check would fire on browser code.",
-  "foldkit/no-noop-message":
-    "Foldkit program rules describe runtime UI construction, and a test file builds no program or view.",
-  "foldkit/no-prevent-default-in-stream-operator":
-    "Foldkit program rules describe runtime UI construction, and a test file builds no program or view.",
-  "foldkit/no-raw-dom-event-attributes":
-    "Foldkit program rules describe runtime UI construction, and a test file builds no program or view.",
-  "foldkit/no-route-query-constructor-default":
-    "Foldkit program rules describe runtime UI construction, and a test file builds no program or view.",
-  "foldkit/no-spread-in-modify-fields":
-    "Foldkit program rules describe runtime UI construction, and a test file builds no program or view.",
-  "foldkit/prefer-callable-message-constructor":
-    "Foldkit program rules describe runtime UI construction, and a test file builds no program or view.",
-  "foldkit/prefer-command-mapmessage":
-    "Foldkit program rules describe runtime UI construction, and a test file builds no program or view.",
-  "foldkit/prefer-option-over-nullable-in-model":
-    "Foldkit program rules describe runtime UI construction, and a test file builds no program or view.",
-  "foldkit/require-fold-for-child-update-result":
-    "Foldkit program rules describe runtime UI construction, and a test file builds no program or view.",
-  "foldkit/require-rel-for-external-link":
-    "Foldkit program rules describe runtime UI construction, and a test file builds no program or view.",
-  "foldkit/selection-submodel-factory-at-module-scope":
-    "Foldkit program rules describe runtime UI construction, and a test file builds no program or view.",
-  "foldkit/wrap-child-output-in-got-message":
-    "Foldkit program rules describe runtime UI construction, and a test file builds no program or view.",
-  "jsdoc/require-param-description":
-    "Plain JS files keep JSDoc blocks made only of type tags, so a parameter has no prose description to require.",
-  "jsdoc/require-returns-description":
-    "Plain JS files keep JSDoc blocks made only of type tags, so a return value has no prose description to require.",
-  "promise/prefer-await-to-then":
-    "Test files build promise-shaped doubles and request fixtures that the name-based check misreads.",
-  "typescript/promise-function-async":
-    "It demands async on every promise-returning callback, and Effect handlers and platform methods return promises without it.",
-  "unicorn/throw-new-error":
-    "Schema.TaggedError construction looks like a thrown value to the rule.",
+type Severity = "off" | "warn" | "error";
+
+type RuleScope =
+  | { readonly kind: "global" }
+  | {
+      readonly kind: "files";
+      readonly files: readonly string[];
+      readonly excludeFiles?: readonly string[];
+    };
+
+interface AllowlistEntry {
+  readonly reason: string;
+  readonly scopes: readonly RuleScope[];
+}
+
+const globalScope: RuleScope = { kind: "global" };
+
+const foldkitTestFiles = [
+  "apps/web/src/**/*.test.ts",
+  "apps/web/src/**/*.test.tsx",
+  "apps/web/src/**/*.spec.ts",
+  "apps/web/src/**/*.spec.tsx",
+] as const;
+
+const foldkitTestScope: RuleScope = {
+  kind: "files",
+  files: foldkitTestFiles,
 };
+
+const testFileGlobs = [
+  "**/*.{test,spec,test-d,spec-d}.{ts,tsx,js,jsx,mts,cts,mjs,cjs}",
+  "**/__tests__/**/*.{ts,tsx,js,jsx,mts,cts,mjs,cjs}",
+] as const;
+
+const testFilesScope: RuleScope = { kind: "files", files: testFileGlobs };
+
+const foldkitProgramReason =
+  "Foldkit program rules describe runtime UI construction, and a test file builds no program or view.";
+
+const foldkitTestOnly: AllowlistEntry = {
+  reason: foldkitProgramReason,
+  scopes: [foldkitTestScope],
+};
+
+type Allowlist = Readonly<Record<string, AllowlistEntry>>;
+
+const offRuleAllowlist = {
+  "foldkit/command-binding-matches-name": foldkitTestOnly,
+  "foldkit/command-define-pascal-const": foldkitTestOnly,
+  "foldkit/got-prefix-requires-submodel-payload": foldkitTestOnly,
+  "foldkit/got-submodel-message-name": foldkitTestOnly,
+  "foldkit/got-wrapper-carries-only-routing": foldkitTestOnly,
+  "foldkit/keyed-required-for-mapped-rows": foldkitTestOnly,
+  "foldkit/lazy-view-stable-references": foldkitTestOnly,
+  "foldkit/mount-factory-must-use-element": foldkitTestOnly,
+  "foldkit/no-array-index-view-keys": foldkitTestOnly,
+  "foldkit/no-child-message-construction-in-root": foldkitTestOnly,
+  "foldkit/no-direct-submodel-state-update": foldkitTestOnly,
+  "foldkit/no-disabling-dev-guardrails": foldkitTestOnly,
+  "foldkit/no-duplicate-onmount-per-element": foldkitTestOnly,
+  "foldkit/no-empty-children-array": foldkitTestOnly,
+  "foldkit/no-empty-commands-array": foldkitTestOnly,
+  "foldkit/no-empty-object-tagged-call": foldkitTestOnly,
+  "foldkit/no-empty-to-parent-out-message": foldkitTestOnly,
+  "foldkit/no-hand-rolled-command-struct": foldkitTestOnly,
+  "foldkit/no-hardcoded-route-strings": foldkitTestOnly,
+  "foldkit/no-impure-call-at-decision-time": {
+    reason:
+      "Foldkit entry modules read the environment while starting up, so the rule would report the one place those reads belong.",
+    scopes: [
+      {
+        kind: "files",
+        files: [
+          "apps/web/src/**/entry.server.ts",
+          "apps/web/src/**/entry.server.tsx",
+          "apps/web/src/**/server/**/*.ts",
+          "apps/web/src/**/server/**/*.tsx",
+          "apps/web/src/**/prerender.ts",
+          "apps/web/src/**/prerender.tsx",
+        ],
+        excludeFiles: foldkitTestFiles,
+      },
+      {
+        kind: "files",
+        files: [
+          "apps/web/src/**/entry.ts",
+          "apps/web/src/**/entry.tsx",
+          "apps/web/src/**/entry.client.ts",
+          "apps/web/src/**/entry.client.tsx",
+          "apps/web/src/**/entry.server.ts",
+          "apps/web/src/**/entry.server.tsx",
+        ],
+        excludeFiles: foldkitTestFiles,
+      },
+      foldkitTestScope,
+    ],
+  },
+  "foldkit/no-module-level-mutable-state": foldkitTestOnly,
+  "foldkit/no-nonportable-server-globals": {
+    reason:
+      "The web app keeps browser and server modules in one source tree, so the server-globals check would fire on browser code.",
+    scopes: [
+      { kind: "files", files: ["apps/web/src/**/*.ts"] },
+      foldkitTestScope,
+    ],
+  },
+  "foldkit/no-noop-message": foldkitTestOnly,
+  "foldkit/no-prevent-default-in-stream-operator": foldkitTestOnly,
+  "foldkit/no-raw-dom-event-attributes": foldkitTestOnly,
+  "foldkit/no-route-query-constructor-default": foldkitTestOnly,
+  "foldkit/no-spread-in-modify-fields": foldkitTestOnly,
+  "foldkit/prefer-callable-message-constructor": foldkitTestOnly,
+  "foldkit/prefer-command-mapmessage": foldkitTestOnly,
+  "foldkit/prefer-option-over-nullable-in-model": foldkitTestOnly,
+  "foldkit/require-fold-for-child-update-result": foldkitTestOnly,
+  "foldkit/require-rel-for-external-link": foldkitTestOnly,
+  "foldkit/selection-submodel-factory-at-module-scope": foldkitTestOnly,
+  "foldkit/wrap-child-output-in-got-message": foldkitTestOnly,
+  "jsdoc/require-param-description": {
+    reason:
+      "Plain JS files keep JSDoc blocks made only of type tags, so a parameter has no prose description to require.",
+    scopes: [globalScope],
+  },
+  "jsdoc/require-returns-description": {
+    reason:
+      "Plain JS files keep JSDoc blocks made only of type tags, so a return value has no prose description to require.",
+    scopes: [globalScope],
+  },
+  "promise/prefer-await-to-then": {
+    reason:
+      "Test files build promise-shaped doubles and request fixtures that the name-based check misreads.",
+    scopes: [testFilesScope],
+  },
+  "typescript/promise-function-async": {
+    reason:
+      "It demands async on every promise-returning callback, and Effect handlers and platform methods return promises without it.",
+    scopes: [globalScope],
+  },
+  "unicorn/throw-new-error": {
+    reason:
+      "Schema.TaggedError construction looks like a thrown value to the rule.",
+    scopes: [globalScope],
+  },
+} satisfies Allowlist;
 
 const fenceRuleNames = [
   "no-comments/directive-reason",
@@ -118,40 +187,164 @@ const rationalePattern = /\s--\s+\S/u;
 
 const maxWarningsPattern = /--max-warnings(?:=|\s+)(?<count>\d+)/u;
 
+const weakeningFlagPattern = /--quiet\b|--disable\b|--allow\b/u;
+
 const PackageManifest = Schema.fromJsonString(
-  Schema.Struct({ scripts: Schema.Record(Schema.String, Schema.String) })
+  Schema.Struct({
+    scripts: Schema.optional(Schema.Record(Schema.String, Schema.String)),
+  })
 );
 
 const emptyRules: OxlintConfig["rules"] = {};
+
+const severityBySpelling = new Map<AllowWarnDeny, Severity>([
+  [0, "off"],
+  [1, "warn"],
+  [2, "error"],
+  ["off", "off"],
+  ["allow", "off"],
+  ["warn", "warn"],
+  ["error", "error"],
+  ["deny", "error"],
+]);
+
+const severityOfSpelling = (spelling: AllowWarnDeny): Severity => {
+  const severity = severityBySpelling.get(spelling);
+
+  if (severity === undefined) {
+    throw new Error(
+      `Oxlint severity ${String(spelling)} is not 0, 1, 2, off, allow, warn, error, or deny. Fix: normalise the new spelling in severityBySpelling in scripts/lint-fence.test.ts.`
+    );
+  }
+
+  return severity;
+};
+
+const normalizeSeverity = (
+  setting: DummyRule | undefined
+): Severity | "unset" => {
+  if (setting === undefined) {
+    return "unset";
+  }
+
+  return severityOfSpelling(Array.isArray(setting) ? setting[0] : setting);
+};
 
 const rulesOf = (
   rules: OxlintConfig["rules"]
 ): readonly (readonly [string, DummyRule | undefined])[] =>
   Object.entries(rules ?? emptyRules);
 
-const severityOf = (setting: DummyRule | undefined): string => {
-  if (setting === undefined) {
-    return "unset";
-  }
+const scopeOfOverride = (override: OxlintOverride): RuleScope => ({
+  kind: "files",
+  files: override.files,
+  excludeFiles: override.excludeFiles,
+});
 
-  return Array.isArray(setting) ? String(setting[0]) : String(setting);
+const addScope = (
+  scopes: Map<string, RuleScope[]>,
+  rule: string,
+  scope: RuleScope
+): void => {
+  scopes.set(rule, [...(scopes.get(rule) ?? []), scope]);
 };
 
-const allRuleEntries = (
+const offScopes = (
   config: OxlintConfig
-): readonly (readonly [string, DummyRule | undefined])[] => [
-  ...rulesOf(config.rules),
-  ...(config.overrides ?? []).flatMap((override) => rulesOf(override.rules)),
-];
+): ReadonlyMap<string, readonly RuleScope[]> => {
+  const scopes = new Map<string, RuleScope[]>();
 
-const offRuleNames = (config: OxlintConfig): readonly string[] =>
+  for (const [rule, setting] of rulesOf(config.rules)) {
+    if (normalizeSeverity(setting) === "off") {
+      addScope(scopes, rule, globalScope);
+    }
+  }
+
+  for (const override of config.overrides ?? []) {
+    for (const [rule, setting] of rulesOf(override.rules)) {
+      if (normalizeSeverity(setting) === "off") {
+        addScope(scopes, rule, scopeOfOverride(override));
+      }
+    }
+  }
+
+  return scopes;
+};
+
+const weakRuleNames = (config: OxlintConfig): readonly string[] =>
   [
-    ...new Set(
-      allRuleEntries(config).flatMap(([name, setting]) =>
-        severityOf(setting) === "off" ? [name] : []
-      )
-    ),
+    ...new Set([
+      ...rulesOf(config.rules).flatMap(([rule, setting]) =>
+        normalizeSeverity(setting) === "warn" ? [rule] : []
+      ),
+      ...(config.overrides ?? []).flatMap((override) =>
+        rulesOf(override.rules).flatMap(([rule, setting]) =>
+          normalizeSeverity(setting) === "warn" ? [rule] : []
+        )
+      ),
+    ]),
   ].toSorted();
+
+const globKey = (globs: readonly string[]): string =>
+  [...new Set(globs)].toSorted().join("\u0000");
+
+const sameScope = (pinned: RuleScope, found: RuleScope): boolean => {
+  if (pinned.kind === "global" || found.kind === "global") {
+    return pinned.kind === found.kind;
+  }
+
+  return (
+    globKey(pinned.files) === globKey(found.files) &&
+    globKey(pinned.excludeFiles ?? []) === globKey(found.excludeFiles ?? [])
+  );
+};
+
+const describeScope = (scope: RuleScope): string => {
+  if (scope.kind === "global") {
+    return "every file (global)";
+  }
+
+  const excluded = scope.excludeFiles ?? [];
+
+  return `${scope.files.join(", ")}${excluded.length === 0 ? "" : ` except ${excluded.join(", ")}`}`;
+};
+
+const offRuleProblems = (
+  config: OxlintConfig,
+  allowlist: Allowlist
+): readonly string[] =>
+  [...offScopes(config)].flatMap(([rule, scopes]) => {
+    const pinned = allowlist[rule];
+
+    if (pinned === undefined) {
+      return scopes.map(
+        (scope) =>
+          `${rule} is off for ${describeScope(scope)}, and offRuleAllowlist has no entry for it. Fix: turn ${rule} back on in oxlint.config.ts, or add it to offRuleAllowlist in scripts/lint-fence.test.ts with a reason and the exact scope it may be off for.`
+      );
+    }
+
+    return scopes.flatMap((scope) =>
+      pinned.scopes.some((allowed) => sameScope(allowed, scope))
+        ? []
+        : [
+            `${rule} is off for ${describeScope(scope)}, which the allowlist does not pin (pinned: ${pinned.scopes.map(describeScope).join(" ; ")}). Fix: turn ${rule} back on outside the pinned scope, or record a reason for this wider scope in offRuleAllowlist in scripts/lint-fence.test.ts.`,
+          ]
+    );
+  });
+
+const weakRuleProblems = (config: OxlintConfig): readonly string[] =>
+  weakRuleNames(config).map(
+    (rule) =>
+      `${rule} is set to warn, which lets its findings pass. Fix: set it to error in oxlint.config.ts, or record an explicit off rule with a reason and scope in offRuleAllowlist in scripts/lint-fence.test.ts.`
+  );
+
+const ruleFenceProblems = (
+  config: OxlintConfig,
+  allowlist: Allowlist
+): readonly string[] => [
+  ...weakRuleProblems(config),
+  ...offRuleProblems(config, allowlist),
+];
 
 const blockCommentText = (comment: string): string =>
   comment
@@ -206,10 +399,18 @@ const trackedSourceFiles = (): readonly string[] =>
     .split("\0")
     .filter(isScannedSource);
 
-const readScripts = (): Readonly<Record<string, string>> =>
+const trackedManifests = (): readonly string[] =>
+  execFileSync("git", ["ls-files", "-z", "*package.json"], {
+    cwd: repoRoot,
+    encoding: "utf-8",
+  })
+    .split("\0")
+    .filter((file) => file !== "");
+
+const scriptsOf = (file: string): Readonly<Record<string, string>> =>
   Schema.decodeSync(PackageManifest)(
-    readFileSync(path.join(repoRoot, "package.json"), "utf-8")
-  ).scripts;
+    readFileSync(path.join(repoRoot, file), "utf-8")
+  ).scripts ?? {};
 
 const warnsAboveZero = (command: string): boolean => {
   const match = maxWarningsPattern.exec(command);
@@ -218,68 +419,121 @@ const warnsAboveZero = (command: string): boolean => {
 };
 
 const weakenedScripts = (
+  file: string,
   scripts: Readonly<Record<string, string>>
 ): readonly string[] =>
   Object.entries(scripts).flatMap(([name, command]) =>
-    /--quiet\b/u.test(command) ||
-    /--disable\b/u.test(command) ||
-    /--allow\b/u.test(command) ||
-    warnsAboveZero(command)
-      ? [`${name}: ${command}`]
+    weakeningFlagPattern.test(command) || warnsAboveZero(command)
+      ? [`${file} script "${name}": ${command}`]
       : []
   );
 
-const optionsOf = (config: OxlintConfig): OxlintConfig["options"] =>
-  config.options;
+const allWeakenedScripts = (): readonly string[] =>
+  trackedManifests().flatMap((file) => weakenedScripts(file, scriptsOf(file)));
+
+const severitySpellings: readonly {
+  readonly spelling: AllowWarnDeny;
+  readonly severity: Severity;
+}[] = [
+  { spelling: 0, severity: "off" },
+  { spelling: 1, severity: "warn" },
+  { spelling: 2, severity: "error" },
+  { spelling: "off", severity: "off" },
+  { spelling: "allow", severity: "off" },
+  { spelling: "warn", severity: "warn" },
+  { spelling: "error", severity: "error" },
+  { spelling: "deny", severity: "error" },
+];
+
+const ruleForms: readonly ((spelling: AllowWarnDeny) => DummyRule)[] = [
+  (spelling) => spelling,
+  (spelling) => [spelling],
+  (spelling) => [spelling, { ignore: ["then"] }],
+  (spelling) => [spelling, { ignore: ["then"] }, { allow: true }],
+];
+
+const generatedRules = [
+  "generated/no-debugger",
+  "generated/no-empty-function",
+  "generated/prefer-await-to-then",
+] as const;
+
+const seededRandom = (seed: number): (() => number) => {
+  const modulus = 2_147_483_647;
+  let state = (seed % (modulus - 1)) + 1;
+
+  return () => {
+    state = (state * 48_271) % modulus;
+
+    return (state - 1) / (modulus - 1);
+  };
+};
+
+const pick = <Item>(random: () => number, items: readonly Item[]): Item => {
+  const index = Math.min(items.length - 1, Math.floor(random() * items.length));
+
+  const item = items[index];
+
+  if (item === undefined) {
+    throw new Error("Fix: the generator picked from an empty list.");
+  }
+
+  return item;
+};
+
+const configWith = (
+  placement: "global" | "files",
+  rule: string,
+  setting: DummyRule
+): OxlintConfig =>
+  placement === "global"
+    ? { rules: { [rule]: setting } }
+    : {
+        overrides: [{ files: ["**/*.ts"], rules: { [rule]: setting } }],
+      };
 
 describe("lint fence", () => {
-  const declaredOff = offRuleNames(lintConfig);
-  const lintOptions = optionsOf(lintConfig);
-  const declaredOffSet = new Set(declaredOff);
+  const declaredOff = new Set(offScopes(lintConfig).keys());
+  const lintOptions = lintConfig.options;
 
-  it("turns off only rules the allowlist explains", () => {
-    const unexplained = declaredOff.flatMap((name) =>
-      Object.hasOwn(offRuleReasons, name) ? [] : [name]
-    );
+  it("turns off only rules the allowlist explains, at the pinned scope", () => {
+    const unexplained = offRuleProblems(lintConfig, offRuleAllowlist);
 
-    const stale = Object.keys(offRuleReasons).flatMap((name) =>
-      declaredOffSet.has(name) ? [] : [name]
+    const stale = Object.keys(offRuleAllowlist).flatMap((name) =>
+      declaredOff.has(name) ? [] : [name]
     );
 
     expect(
       unexplained,
-      "A rule is off with no reason in offRuleReasons. Fix: add the rule to offRuleReasons in scripts/lint-fence.test.ts with a one-sentence reason, or turn it back on in oxlint.config.ts."
+      "A rule is off somewhere offRuleAllowlist does not cover, or at a wider scope than its reason explains. Fix: turn it back on in oxlint.config.ts, or add the rule to offRuleAllowlist in scripts/lint-fence.test.ts with a reason and the exact scope it may be off for."
     ).toEqual([]);
     expect(
       stale,
-      "offRuleReasons lists a rule that oxlint.config.ts no longer turns off. Fix: delete that allowlist entry, or turn the rule back off only if Rat Stack really needs it."
+      "offRuleAllowlist lists a rule that oxlint.config.ts no longer turns off. Fix: delete that allowlist entry, or turn the rule back off only if Rat Stack really needs it."
     ).toEqual([]);
   });
 
   it("gives every allowlisted rule a plain sentence", () => {
-    const thin = Object.entries(offRuleReasons).flatMap(([name, reason]) =>
-      reason.trim().endsWith(".") && reason.trim().length >= 20 ? [] : [name]
+    const thin = Object.entries(offRuleAllowlist).flatMap(
+      ([name, { reason }]) =>
+        reason.trim().endsWith(".") && reason.trim().length >= 20 ? [] : [name]
     );
 
     expect(
       thin,
-      "Every offRuleReasons value must be one plain sentence of at least 20 characters ending in a period, because the reason is what a reader checks when the rule hides a mistake."
+      "Every offRuleAllowlist reason must be one plain sentence of at least 20 characters ending in a period, because the reason is what a reader checks when the rule hides a mistake."
     ).toEqual([]);
   });
 
   it("keeps every rule at error and the fence rules enabled", () => {
-    const weak = allRuleEntries(lintConfig).flatMap(([name, setting]) =>
-      ["warn", "allow"].includes(severityOf(setting)) ? [name] : []
-    );
-
     expect(
-      weak,
-      "A rule is set to warn or allow, which lets its findings pass. Fix: set it to error in oxlint.config.ts, or record an explicit off rule with a reason in offRuleReasons."
+      weakRuleProblems(lintConfig),
+      "A rule is set to warn, which lets its findings pass. Fix: set it to error in oxlint.config.ts, or record an explicit off rule with a reason and scope in offRuleAllowlist in scripts/lint-fence.test.ts."
     ).toEqual([]);
 
     for (const name of fenceRuleNames) {
       expect(
-        severityOf(lintConfig.rules?.[name]),
+        normalizeSeverity(lintConfig.rules?.[name]),
         `${name} must stay at error (options allowed) so the fence still reports. Fix: restore it in the rules map in oxlint.config.ts.`
       ).toBe("error");
     }
@@ -296,9 +550,9 @@ describe("lint fence", () => {
     ).toEqual([]);
   });
 
-  it("keeps lint running at full strength", () => {
-    const scripts = readScripts();
-    const lintScript = scripts.lint ?? "";
+  it("keeps lint running at full strength in every package.json", () => {
+    const rootScripts = scriptsOf("package.json");
+    const lintScript = rootScripts.lint ?? "";
 
     expect(
       lintScript,
@@ -309,7 +563,11 @@ describe("lint fence", () => {
       "The lint script no longer runs `oxfmt --check`. Fix: restore the format check in the lint script in package.json."
     ).toContain("oxfmt --check");
     expect(
-      weakenedScripts(scripts),
+      trackedManifests(),
+      "The script scan did not see the workspace manifests. Fix: make trackedManifests in scripts/lint-fence.test.ts list every tracked package.json, so a workspace script cannot weaken lint unseen."
+    ).toContain("packages/core/package.json");
+    expect(
+      allWeakenedScripts(),
       "A package.json script passes a flag that hides lint findings (--quiet, --disable, --allow, or --max-warnings above 0). Fix: remove the flag so every finding still fails the run."
     ).toEqual([]);
     expect(
@@ -320,5 +578,108 @@ describe("lint fence", () => {
       lintOptions?.maxWarnings ?? 0,
       "Oxlint must not allow warnings past zero. Fix: remove maxWarnings from oxlint.config.ts, or set it to 0."
     ).toBe(0);
+  });
+
+  it("fails a rule turned off wider than its pin", () => {
+    const globalOff = offRuleProblems(
+      { rules: { "promise/prefer-await-to-then": "off" } },
+      offRuleAllowlist
+    );
+
+    expect(
+      globalOff.length,
+      "Turning promise/prefer-await-to-then off globally must fail, because its reason covers test files only."
+    ).toBe(1);
+    expect(globalOff[0]).toContain("promise/prefer-await-to-then");
+    expect(globalOff[0]).toContain("every file (global)");
+  });
+
+  it("fails a workspace script that weakens lint", () => {
+    expect(
+      weakenedScripts("packages/core/package.json", {
+        lint: "oxlint --quiet",
+      }),
+      "A --quiet flag in a workspace package.json must fail, because every workspace script runs in CI too."
+    ).toEqual(['packages/core/package.json script "lint": oxlint --quiet']);
+  });
+
+  it("classifies every severity spelling by its normalised meaning", () => {
+    const random = seededRandom(20_260_214);
+    const cases = 512;
+
+    for (let index = 0; index < cases; index += 1) {
+      const { spelling, severity } = pick(random, severitySpellings);
+      const setting = pick(random, ruleForms)(spelling);
+      const rule = pick(random, generatedRules);
+      const placement = random() < 0.5 ? "global" : "files";
+      const config = configWith(placement, rule, setting);
+
+      const scope: RuleScope =
+        placement === "global"
+          ? globalScope
+          : { kind: "files", files: ["**/*.ts"] };
+
+      const label = `case ${index}: ${rule} set to ${JSON.stringify(setting)} for ${describeScope(scope)}`;
+      const offProblems = offRuleProblems(config, offRuleAllowlist);
+
+      expect(
+        normalizeSeverity(setting),
+        `${label} must normalise to ${severity}.`
+      ).toBe(severity);
+      expect(
+        weakRuleNames(config),
+        `${label} must count as weak only when it warns.`
+      ).toEqual(severity === "warn" ? [rule] : []);
+      expect(
+        offProblems.length,
+        `${label} must fail when off and stay silent when error or warn.`
+      ).toBe(severity === "off" ? 1 : 0);
+      expect(
+        ruleFenceProblems(config, offRuleAllowlist).length > 0,
+        `${label} must fail when off or warn, since ${rule} is not in offRuleAllowlist.`
+      ).toBe(severity !== "error");
+
+      if (severity === "off") {
+        expect(offProblems[0], `${label} must name the rule.`).toContain(rule);
+        expect(
+          offProblems[0],
+          `${label} must name ${describeScope(scope)} as the scope it was found off for.`
+        ).toContain(describeScope(scope));
+      }
+    }
+
+    for (const { spelling, severity } of severitySpellings) {
+      for (const form of ruleForms) {
+        const setting = form(spelling);
+
+        const pinnedConfig: OxlintConfig = {
+          overrides: [
+            {
+              files: testFileGlobs,
+              rules: { "promise/prefer-await-to-then": setting },
+            },
+          ],
+        };
+
+        const widerConfig = configWith(
+          "global",
+          "promise/prefer-await-to-then",
+          setting
+        );
+
+        expect(
+          ruleFenceProblems(pinnedConfig, offRuleAllowlist),
+          `promise/prefer-await-to-then set to ${JSON.stringify(setting)} inside its pinned scope must fail only when it warns.`
+        ).toEqual(
+          severity === "warn"
+            ? [expect.stringContaining("promise/prefer-await-to-then")]
+            : []
+        );
+        expect(
+          offRuleProblems(widerConfig, offRuleAllowlist).length,
+          `promise/prefer-await-to-then set to ${JSON.stringify(setting)} globally must fail whenever it normalises to off.`
+        ).toBe(severity === "off" ? 1 : 0);
+      }
+    }
   });
 });
