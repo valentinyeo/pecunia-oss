@@ -246,10 +246,10 @@ describe("example values pass", () => {
   });
 });
 
-describe("a token on the indented line below its key fails", () => {
-  const token = "Xk3Qw9Zt5Lb7Nc2Md4Pf6Rg8Sh1Vj0Wa3Ye5Ui7a";
+describe("a block scalar value below its key fails", () => {
+  const planted = "Xk3Qw9Zt5Lb7Nc2Md4Pf6Rg8Sh1Vj0Wa3Ye5Ui7a";
 
-  it("names the line the token sits on", () => {
+  it("names the line the value sits on", () => {
     expect(
       lineOf(
         "apps/infra/wrangler.yaml",
@@ -257,7 +257,7 @@ describe("a token on the indented line below its key fails", () => {
           "services:",
           "  demo:",
           "    CLOUDFLARE_API_TOKEN: |-",
-          `      ${token}`,
+          `      ${planted}`,
         ].join("\n")
       )
     ).toEqual([4]);
@@ -265,7 +265,7 @@ describe("a token on the indented line below its key fails", () => {
 
   it("fails on a block scalar value in quotes", () => {
     expect(
-      ruleOf("apps/infra/wrangler.yaml", `api_secret: >-\n  "${token}"`)
+      ruleOf("apps/infra/wrangler.yaml", `api_secret: >-\n  "${planted}"`)
     ).toEqual(["secret-block-scalar"]);
   });
 
