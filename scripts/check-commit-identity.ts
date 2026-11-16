@@ -14,8 +14,16 @@ const IDENTITY_FORMAT = "--format=%H%x09%ae%x09%ce";
 
 const BODY_FORMAT = "--format=%x1e%H%x09%B";
 
-const CO_AUTHOR =
-  /^co-authored-by:\s*(?:.*?<(?<bracketed>[^<>\s]+)>|(?<bare>[^\s<>]+))\s*$/iu;
+const TRAILER = /^\s*(?<token>[^:\s][^:]*?)\s*:\s*(?<value>.*)$/u;
+
+const ADDRESS = /[A-Za-z0-9._%+'-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/gu;
+
+const CO_AUTHOR_KEY = "coauthoredby";
+
+const CONTINUATION = /^\s+\S/u;
+
+const trailerKey = (token: string) =>
+  token.toLowerCase().replaceAll(/[^a-z0-9]/gu, "");
 
 export type IdentityField = "author" | "co-author" | "committer";
 
@@ -59,14 +67,46 @@ export const isAllowedIdentityEmail = (address: string) => {
   return NO_REPLY_SENDERS.has(email) || domainOf(email) === NO_REPLY_DOMAIN;
 };
 
-export const coAuthorEmailsIn = (body: string): readonly string[] =>
-  body.split("\n").flatMap((line) => {
-    const groups = CO_AUTHOR.exec(line)?.groups;
+export const coAuthorEmailsIn = (body: string): readonly string[] => {
+  const values: string[] = [];
 
-    const email = groups?.bracketed ?? groups?.bare;
+  let open: string | undefined;
 
-    return email === undefined ? [] : [email];
-  });
+  const close = () => {
+    if (open !== undefined) {
+      values.push(open);
+    }
+
+    open = undefined;
+  };
+
+  for (const line of body.split("\n")) {
+    if (open !== undefined && CONTINUATION.test(line)) {
+      open = `${open} ${line.trim()}`;
+
+      continue;
+    }
+
+    close();
+
+    const groups = TRAILER.exec(line)?.groups;
+
+    if (
+      groups === undefined ||
+      trailerKey(groups.token ?? "") !== CO_AUTHOR_KEY
+    ) {
+      continue;
+    }
+
+    open = groups.value ?? "";
+  }
+
+  close();
+
+  return values.flatMap((value) =>
+    [...value.matchAll(ADDRESS)].map((match) => match[0])
+  );
+};
 
 export const parseIdentityLog = (log: string): readonly CommitIdentity[] =>
   log
@@ -144,7 +184,9 @@ export const identityOffenders = (
   );
 
 export const offenderMessage = (offender: IdentityOffender) =>
-  `commit ${offender.commit.slice(0, 12)} (${offender.field}): commit author or committer uses a real email address on ${offender.domain}. Commits are public, so a real address names a person. Fix: set \`git config user.email <id>+<login>@users.noreply.github.com\` and recommit.`;
+  offender.field === "co-author"
+    ? `commit ${offender.commit.slice(0, 12)} (co-author): a Co-authored-by trailer uses a real email address on ${offender.domain}. Commit trailers are public, so a real address names a person. Fix: drop the trailer with \`git interpret-trailers --in-place --trim-empty --trailer "Co-authored-by:" <message-file>\` and recommit.`
+    : `commit ${offender.commit.slice(0, 12)} (${offender.field}): commit author or committer uses a real email address on ${offender.domain}. Commits are public, so a real address names a person. Fix: set \`git config user.email <id>+<login>@users.noreply.github.com\` and recommit.`;
 
 const log = (range: string, format: string) =>
   execFileSync("git", ["log", format, range], { encoding: "utf-8" });

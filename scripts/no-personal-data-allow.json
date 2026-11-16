@@ -1,5 +1,5 @@
 {
-  "generated": [
+  "skipped": [
     {
       "path": "pnpm-lock.yaml",
       "reason": "pnpm writes this lockfile; its integrity hashes and tarball URLs describe packages, not people."
@@ -7,48 +7,62 @@
     {
       "path": ".brain/data/git-snapshot.json",
       "reason": "The content build regenerates this map of file contents, and every string in it comes from a file the guard already reads."
+    },
+    {
+      "path": "scripts/no-personal-data-allow.json",
+      "reason": "The guard's own declaration file. It holds every excused value so the reason can be read beside it, and each value is excused only in the path its entry names."
     }
   ],
   "values": [
     {
+      "path": ".brain/data/cafe/projects.json",
       "value": "beautiful-mermaid-viewer.sunwrobert.workers.dev",
       "reason": "A third-party project hostname in the imported public cafe dataset, not the owner's deployment."
     },
     {
+      "path": ".brain/resources/lore/code-snippets.svx",
       "value": "rehype-pretty.pages.dev",
       "reason": "The public docs hostname of the rehype-pretty project, quoted in a resource note."
     },
     {
+      "path": "apps/infra/alchemy.run.ts",
       "value": "workshop@ratstack.sh",
       "reason": "The project's own role inbox on the project domain; a mailbox, not a person."
     },
     {
+      "path": "apps/site/test/negotiation.test.ts",
       "value": "claudebot@anthropic.com",
       "reason": "The public ClaudeBot user agent, copied into a negotiation test."
     },
     {
+      "path": "packages/intake-live/test/contact-shapes.ts",
       "value": "a.b+tag@mail.co.uk",
       "reason": "A contact-shape fixture that proves the intake parser accepts plus tags on a multi-label domain."
     },
     {
+      "path": "scripts/check-no-personal-data.test.ts",
       "value": "GB00DEMO12345678901234",
-      "reason": "The planted IBAN in the guard's own test; it must fail there and must never appear outside it."
+      "reason": "The planted IBAN in the guard's own test; it must fail there and nowhere else."
     },
     {
-      "value": "00-00-00",
-      "reason": "The fake sort code in the guard's own test; a sort code names a branch, so only the account number beside it leaks a person."
-    },
-    {
+      "path": "scripts/check-no-personal-data.test.ts",
       "value": "jane.doe@acme.co.uk",
-      "reason": "The planted email address in the guard's own test; it must fail there and must never appear outside it."
+      "reason": "The planted email address in the guard's own test; it must fail there and nowhere else."
     },
     {
+      "path": "scripts/check-no-personal-data.test.ts",
       "value": "0123456789abcdef0123456789abcdef",
-      "reason": "The planted Cloudflare account id in the guard's own test; it must fail there and must never appear outside it."
+      "reason": "The planted Cloudflare account id in the guard's own test; it must fail there and nowhere else."
     },
     {
+      "path": "scripts/check-no-personal-data.test.ts",
       "value": "planted-sample.workers.dev",
-      "reason": "The planted deployment hostname in the guard's own test; it must fail there and must never appear outside it."
+      "reason": "The planted deployment hostname in the guard's own test; it must fail there and nowhere else."
+    },
+    {
+      "path": "scripts/check-no-personal-data.test.ts",
+      "value": "12345678",
+      "reason": "The planted account number in the guard's own test; it must fail there and nowhere else."
     }
   ]
 }

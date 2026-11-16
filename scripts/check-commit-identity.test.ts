@@ -133,6 +133,28 @@ describe("the failure message", () => {
     expect(message).not.toContain("jane");
     expect(message).toContain("acme.test");
   });
+
+  describe("for a co-author", () => {
+    const trailerMessage = offenderMessage({
+      commit: "0f1e2d3c4b5a69788796a5b4c3d2e1f00f1e2d3c",
+      domain: "acme.test",
+      field: "co-author",
+    });
+
+    it("names the trailer that leaks", () => {
+      expect(trailerMessage).toContain("Co-authored-by");
+      expect(trailerMessage).toContain("acme.test");
+    });
+
+    it("says how to remove the trailer", () => {
+      expect(trailerMessage).toContain("git interpret-trailers");
+      expect(trailerMessage).not.toContain("git config user.email");
+    });
+
+    it("never prints the address", () => {
+      expect(trailerMessage).not.toContain("ada");
+    });
+  });
 });
 
 describe("git output", () => {
@@ -163,6 +185,49 @@ describe("git output", () => {
     expect(coAuthorEmailsIn("Subject\n\nNo trailers here.\n")).toEqual([]);
   });
 
+  describe("a co-author trailer in any written form is read", () => {
+    const address = "ada@acme.test";
+
+    it.each([
+      ["with a name", `Co-authored-by: Ada <${address}>`],
+      ["with a leading space", `  Co-authored-by: Ada <${address}>`],
+      [
+        "with text after the address",
+        `Co-authored-by: Ada <${address}> thanks`,
+      ],
+      ["in lower case", `co-authored-by: Ada <${address}>`],
+      ["in upper case", `CO-AUTHORED-BY: Ada <${address}>`],
+      ["with underscores", `Co_Authored_By: Ada <${address}>`],
+      ["with a space in the key", `Co Authored By: Ada <${address}>`],
+      ["with a space before the colon", `Co-authored-by : Ada <${address}>`],
+      ["bare", `Co-authored-by: ${address}`],
+      ["with trailing spaces", `Co-authored-by: Ada <${address}>   `],
+      ["with a tab", `\tCo-authored-by: Ada <${address}>`],
+    ])("reads a trailer %s", (_label, trailer) => {
+      expect(coAuthorEmailsIn(`Subject\n\n${trailer}\n`)).toEqual([address]);
+    });
+
+    it("reads a trailer folded onto the line below it", () => {
+      expect(
+        coAuthorEmailsIn(`Subject\n\nCo-authored-by: Ada\n <${address}>\n`)
+      ).toEqual([address]);
+    });
+
+    it("reads a trailer after another trailer", () => {
+      expect(
+        coAuthorEmailsIn(
+          `Subject\n\nSigned-off-by: Ada <${address}>\nCo-authored-by: Bob <bob@acme.test>\n`
+        )
+      ).toEqual(["bob@acme.test"]);
+    });
+
+    it("leaves a prose line with an address alone", () => {
+      expect(
+        coAuthorEmailsIn(`Subject\n\nContact ${address} for details.\n`)
+      ).toEqual([]);
+    });
+  });
+
   it("joins bodies to the commits they belong to", () => {
     const commits = parseIdentityLog(
       "0f1e2d3c4b5a69788796a5b4c3d2e1f00f1e2d3c\tnoreply@github.com\tnoreply@github.com\n"
@@ -180,5 +245,25 @@ describe("git output", () => {
         committerEmail: "noreply@github.com",
       },
     ]);
+  });
+
+  it.each([
+    ["a leading space", `  Co-authored-by: Ada <ada@acme.test>`],
+    ["text after the address", `Co-authored-by: Ada <ada@acme.test> thanks`],
+    ["a folded line", `Co-authored-by: Ada\n <ada@acme.test>`],
+  ])("fails a commit whose co-author trailer has %s", (_label, trailer) => {
+    const sha = "0f1e2d3c4b5a69788796a5b4c3d2e1f00f1e2d3c";
+
+    const commits = parseIdentityLog(
+      `${sha}\tnoreply@github.com\tnoreply@github.com\n`
+    );
+
+    const bodies = parseBodyLog(`\u001E${sha}\tSubject\n\n${trailer}\n`);
+
+    expect(
+      identityOffenders(withCoAuthors(commits, bodies)).map(
+        (offender) => offender.field
+      )
+    ).toEqual(["co-author"]);
   });
 });

@@ -10,7 +10,7 @@ Anything that names a person, a company, a merchant, an account, an amount, or a
 - Never paste a real statement, account number, sort code, IBAN, or email address into a commit, a PR, an issue, or `.brain/`. The value is public the second it lands.
 - Migrations seed catalog rows only. Demo data ships outside numbered migrations.
 
-`pnpm check` runs `scripts/check-no-personal-data.ts`, which fails on an IBAN, a sort code beside an account number, an email address outside the example domains, a Cloudflare account id in a config file, and a real `*.pages.dev` or `*.workers.dev` hostname. Every exception is one entry with a reason in `scripts/no-personal-data-allow.json`. CI runs the same guard plus [gitleaks](https://github.com/gitleaks/gitleaks) over the pushed range.
+`pnpm check` runs `scripts/check-no-personal-data.ts`, which fails on an IBAN in any written form, a sort code beside an account number, an email address outside the example domains, a Cloudflare account id in a config file or beside an account name, and a real `*.pages.dev` or `*.workers.dev` hostname in any letter case. Every exception is one entry with a reason in `scripts/no-personal-data-allow.json`, plus the path it is excused in, so an entry never hides the same value in another file. CI runs the same guard plus [gitleaks](https://github.com/gitleaks/gitleaks) over the pushed range.
 
 ## Set a no-reply commit address
 
@@ -20,7 +20,7 @@ Commits are public, so a real email address in one is a leak. Point Git at the a
 git config user.email "<id>+<login>@users.noreply.github.com"
 ```
 
-`scripts/check-commit-identity.ts` fails on any author, committer, or `Co-authored-by:` trailer outside `@users.noreply.github.com`, `noreply@github.com`, and `noreply@anthropic.com`. It reads the range you pass (`node scripts/check-commit-identity.ts origin/main..HEAD`) and defaults to every commit reachable from `HEAD`.
+`scripts/check-commit-identity.ts` fails on any author, committer, or `Co-authored-by:` trailer outside `@users.noreply.github.com`, `noreply@github.com`, and `noreply@anthropic.com`. It reads the trailer the way Git does, so a leading space, a folded line, or text after the address does not hide one. It reads the range you pass (`node scripts/check-commit-identity.ts origin/main..HEAD`) and defaults to every commit reachable from `HEAD`.
 
 ## Run the gate
 

@@ -1,27 +1,35 @@
 [extend]
 useDefault = true
 
-# A git commit SHA is not a key, but two default rules read one: gitleaks' sourcegraph rule reads
-# any bare 40-character hex run, and a 40-character value next to a Cloudflare word looks like a
-# token. The peer study notes and the peer refresh data quote upstream commit SHAs constantly, so
-# both rules are restated here with the same regex, entropy and keywords, plus an allowlist for
-# that rule only. A finding drops when the SHA sits in a documented commit place: a JSON commit
-# field, a GitHub tree/blob/commit URL path, backticks right after commit or sha, an `at `<sha>`
-# citation, or a repo pin `owner/repo#<sha>`. A 40-hex value anywhere else still blocks, and every
-# other rule still runs unchanged on these lines.
+# A git commit SHA is not a key, but the default sourcegraph rule reads any bare 40-character hex
+# run as one. The peer study notes and the peer refresh data quote upstream commit SHAs constantly,
+# so that one rule is restated here with the same regex, entropy and keywords, plus an allowlist that
+# applies to a bare hex value only. A finding drops when that value sits in a documented commit
+# place: a JSON commit field, a GitHub tree/blob/commit URL path, backticks right after commit or
+# sha, an `at `<sha>`` citation, or a repo pin `owner/repo#<sha>`. Every prefixed Sourcegraph token
+# is caught by the rule below, which carries no allowlist, so a pin can never excuse one.
 [[rules]]
 id = "sourcegraph-access-token"
-description = "Sourcegraph is a code search and navigation engine."
-regex = '''(?i)\b(\b(sgp_(?:[a-fA-F0-9]{16}|local)_[a-fA-F0-9]{40}|sgp_[a-fA-F0-9]{40}|[a-fA-F0-9]{40})\b)(?:[\x60'"\s;]|\\[nr]|$)'''
+description = "A bare 40 character hex value outside a documented commit place."
+regex = '''(?i)\b([a-fA-F0-9]{40})\b(?:[\x60'"\s;]|\\[nr]|$)'''
 entropy = 3
 keywords = ["sgp_", "sourcegraph"]
 [[rules.allowlists]]
-description = "A git commit SHA quoted in a commit place is not a Sourcegraph token"
+description = "A git commit SHA quoted in a commit place is not a secret"
 condition = "AND"
 regexTarget = "line"
 regexes = [
   '''"(?:sha|commit|commits|previousCommit|previousSha|sourceCommit|provenanceCommit|pinnedCommit|mergeCommit|headCommit)"\s*:\s*"[0-9a-f]{40}"|/(?:tree|commits?|blob)/[0-9a-f]{40}(?:[\x60'"\s)#,/]|$)|(?:^|[^A-Za-z0-9_-])(?:commit|sha)(?:\s+sha)?:? \x60[0-9a-f]{40}\x60|(?:^|[^A-Za-z0-9_-])at \x60[0-9a-f]{40}\x60|[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+#[0-9a-f]{40}''',
 ]
+
+# A Sourcegraph access token always starts with sgp_, so it is caught wherever it sits. The rule
+# carries no allowlist: a token pinned next to owner/repo#<sha> is still a token.
+[[rules]]
+id = "sourcegraph-access-token-prefixed"
+description = "Sourcegraph access token with the sgp_ prefix"
+regex = '''\b(sgp_(?:[a-fA-F0-9]{16}|local)_[a-fA-F0-9]{40}|sgp_[a-fA-F0-9]{40})\b'''
+entropy = 3
+keywords = ["sgp_", "sourcegraph"]
 
 # The default rules missed a Cloudflare token written as `value <token>` in a markdown table, so a
 # 40-character token near a Cloudflare word counts as a key.
@@ -51,6 +59,7 @@ keywords = ["token", "secret", "key", "password"]
 
 # The crash tests plant a made-up JWT to prove that crash traces redact credentials. It is a
 # fixture, not a token: the header decodes to {"alg":"HS256"} and the signature is a placeholder.
+# The allowlist tests the finding itself, so a second JWT on the same line is still reported.
 [[rules]]
 id = "jwt"
 description = "Uncovered a JSON Web Token, which may lead to unauthorized access to web applications and sensitive user data."
@@ -60,7 +69,7 @@ keywords = ["ey"]
 [[rules.allowlists]]
 description = "The planted fixture JWT in the crash redaction tests"
 condition = "AND"
-regexTarget = "line"
+regexTarget = "match"
 regexes = [
   '''eyJhbGciOiJIUzI1NiJ9\.eyJzdWIiOiIxMjM0NTY3ODkwIn0\.signatureValue''',
 ]
