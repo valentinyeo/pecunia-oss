@@ -3,7 +3,7 @@
 
 import { Effect, Result, Schema } from "effect";
 
-import { assertNoForeignKeys, parse } from "./codec.js";
+import { assertNoForeignKeys, nestedRefusal, parse } from "./codec.js";
 import type { Handle } from "./codec.js";
 import type { CurrencyCode, DateOnly, Money } from "./primitives.js";
 import {
@@ -118,6 +118,7 @@ const guardedCallback = (
 };
 
 const guarded = (
+  name: string,
   specs: readonly ArgumentSpec[],
   args: readonly unknown[]
 ): Guarded => {
@@ -132,7 +133,10 @@ const guarded = (
       continue;
     }
 
-    const failure = assertNoForeignKeys(argument, handleOf(spec));
+    const failure = nestedRefusal(argument, handleOf(spec), {
+      domain: spec.domain,
+      where: `${name} argument ${String(index + 1)}`,
+    });
 
     if (failure !== undefined) {
       return { failure };
@@ -186,7 +190,7 @@ export const effectOperation = <Args extends readonly unknown[], A, E>(
     "effect",
     spec,
     (...args: Args): Effect.Effect<A, E | Schema.SchemaError> => {
-      const outcome = guarded(spec.arguments, args);
+      const outcome = guarded(spec.name, spec.arguments, args);
 
       if ("failure" in outcome) {
         return Effect.fail(outcome.failure);
@@ -224,7 +228,7 @@ export const resultOperation = <Args extends readonly unknown[], A, E>(
     "result",
     spec,
     (...args: Args): Result.Result<A, E | Schema.SchemaError> => {
-      const outcome = guarded(spec.arguments, args);
+      const outcome = guarded(spec.name, spec.arguments, args);
 
       if ("failure" in outcome) {
         return Result.fail(outcome.failure);
@@ -258,7 +262,7 @@ export const valueOperation = <Args extends readonly unknown[], A>(
   spec: ValueSpec<Args, A>
 ): Operation<Args, A> =>
   entryOf(spec.name, "throwing", spec, (...args: Args): A => {
-    const outcome = guarded(spec.arguments, args);
+    const outcome = guarded(spec.name, spec.arguments, args);
 
     if ("failure" in outcome) {
       throw outcome.failure;
