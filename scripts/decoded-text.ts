@@ -394,52 +394,177 @@ type Step = (input: DecodedText) => DecodedText;
 
 const LINE_BREAK = /\r\n|\r|\n/gu;
 
-const WRAPPED_CONTAINER = "[ \\t]*(?:>>?|#|\\/\\/|\\||\\*|-)?[ \\t]*";
-
-const CONTAINER_HEAD = "[ \\t]*(?:>>?|#|\\/\\/|\\||\\*|-)[ \\t]*";
-
 const LINE_BREAK_SOURCE = "(?:\\r\\n|\\r|\\n)";
+
+const WRAPPED_LINE_SOURCE = `[^A-Za-z0-9\\r\\n]`;
 
 const JOIN_HINT = new RegExp(
   [
-    `\\S=[ \\t]*${LINE_BREAK_SOURCE}[ \\t]*\\S`,
-    `(?:^|${LINE_BREAK_SOURCE})${WRAPPED_CONTAINER}[A-Za-z0-9+/_-]{8,}={0,2}[ \\t]*${LINE_BREAK_SOURCE}${WRAPPED_CONTAINER}[A-Za-z0-9+/_-]+`,
-    `(?:^|${LINE_BREAK_SOURCE})${CONTAINER_HEAD}[^\\r\\n]*(?:%[0-9A-Fa-f]{2}|&#[0-9]|\\\\u[0-9A-Fa-f]{4}|=[0-9A-Fa-f]{2})`,
-    `[A-Za-z0-9+/_-]{24,}={0,2}[ \\t]*${LINE_BREAK_SOURCE}[ \\t]*(?:[>#|*/\\-]+[ \\t]*)?[A-Za-z0-9+/_-]+`,
+    `[^\\s]=[^A-Za-z0-9\\r\\n]{0,8}${LINE_BREAK_SOURCE}`,
+    `[A-Za-z0-9+/_-]{8,}={0,2}[ \\t]*${LINE_BREAK_SOURCE}[ \\t]*${WRAPPED_LINE_SOURCE}[^A-Za-z0-9+/_\\r\\n]{0,80}[ \\t]*[A-Za-z0-9+/_-]+`,
+    `[A-Za-z0-9+/_-]{16,}={0,2}\\r(?!\\n)[A-Za-z0-9+/_-]{4,}`,
+    `<[A-Za-z/!][^>\\r\\n]*${LINE_BREAK_SOURCE}[ \\t]*${WRAPPED_LINE_SOURCE}`,
   ].join("|"),
   "u"
 );
 
-const LEADING_SPACE = /^[ \t]*/u;
-
-const CONTAINER_PREFIX =
-  /^(?:>>[ \t]*|>[ \t]*|\/\/[ \t]*|#[ \t]*|\|[ \t]*|\*[ \t]+|-[ \t]+)/u;
-
-const QUOTE_EDGE = new Set(['"', "'"]);
-
 const TRAILING_SPACE = /[ \t]+$/u;
+
+const ENCODED_LEAD =
+  /^(?:=[0-9A-Fa-f]{2}|%[0-9A-Fa-f]{2}|&#[0-9]+;|\\u[0-9A-Fa-f]{4}|\\["/\\bfnrt])/u;
+
+const BASE64_LEAD = new Set(["+", "/", "-", "_"]);
+
+const CONTINUATION_LEAD = new Set(["+", "/", "-"]);
+
+const BASE64_LINE = /^[A-Za-z0-9+/_-]{8,}={0,2}$/u;
+
+const ORDINAL_LEAD = /^\d{1,4}[.)][ \t]+/u;
+
+const MARKUP_LEAD = /^<[A-Za-z/!][^<>]*>/u;
+
+const CELL_BREAK = /[|\t]/gu;
+
+const LETTER_OR_DIGIT_CHARACTER = /[\p{L}\p{N}]/u;
+
+const CONNECTOR_LEAD = /^\.[^ \t]/u;
+
+const readsAsBase64Run = (run: string) =>
+  BASE64_LINE.test(run) && base64Bytes(run) !== undefined;
+
+const layerLength = (
+  line: string,
+  index: number,
+  continuation: boolean
+): number => {
+  const rest = line.slice(index);
+
+  const markup = MARKUP_LEAD.exec(rest);
+
+  if (markup !== null) {
+    return markup[0].length;
+  }
+
+  const ordinal = ORDINAL_LEAD.exec(rest);
+
+  if (ordinal !== null) {
+    return ordinal[0].length;
+  }
+
+  const head = rest[0] ?? "";
+
+  if (head.length === 0 || head === "|") {
+    return 0;
+  }
+
+  if (LETTER_OR_DIGIT_CHARACTER.test(head)) {
+    return 0;
+  }
+
+  if (continuation && CONNECTOR_LEAD.test(rest)) {
+    return 0;
+  }
+
+  if (ENCODED_LEAD.test(rest)) {
+    return 0;
+  }
+
+  if (
+    BASE64_LEAD.has(head) &&
+    readsAsBase64Run(rest.replace(TRAILING_SPACE, ""))
+  ) {
+    return 0;
+  }
+
+  if (
+    CONTINUATION_LEAD.has(head) &&
+    LETTER_OR_DIGIT_CHARACTER.test(rest[1] ?? "")
+  ) {
+    return 0;
+  }
+
+  return 1;
+};
+
+const payloadStart = (line: string, continuation: boolean): number => {
+  let index = 0;
+
+  for (;;) {
+    const step = layerLength(line, index, continuation);
+
+    if (step === 0) {
+      return index;
+    }
+
+    index += step;
+  }
+};
 
 interface LineBounds {
   readonly end: number;
   readonly start: number;
 }
 
-const contentBounds = (line: string): LineBounds => {
-  let start = LEADING_SPACE.exec(line)?.[0].length ?? 0;
+const cellBounds = (line: string, from: number): LineBounds | undefined => {
+  let chosen: LineBounds | undefined;
 
-  start += CONTAINER_PREFIX.exec(line.slice(start))?.[0].length ?? 0;
+  let cursor = from + 1;
 
-  if (QUOTE_EDGE.has(line[start] ?? "")) {
-    start += 1;
+  for (;;) {
+    CELL_BREAK.lastIndex = cursor;
+
+    const breakAt = CELL_BREAK.exec(line);
+
+    const end = breakAt?.index ?? line.length;
+
+    const cell = line.slice(cursor, end);
+
+    const start = cursor + payloadStart(cell, false);
+
+    const content = cell.slice(start - cursor).replace(TRAILING_SPACE, "");
+
+    if (content.length > 0) {
+      chosen = { end: start + content.length, start };
+    }
+
+    if (breakAt === null) {
+      return chosen;
+    }
+
+    cursor = end + 1;
   }
+};
 
-  let end = line.length - (TRAILING_SPACE.exec(line)?.[0].length ?? 0);
+const contentBounds = (line: string, continuation: boolean): LineBounds => {
+  let start = payloadStart(line, continuation);
 
-  if (end > start && QUOTE_EDGE.has(line[end - 1] ?? "")) {
-    end -= 1;
+  let end = line.length;
+
+  if (line[start] === "|") {
+    const cell = cellBounds(line, start);
+
+    if (cell === undefined) {
+      return { end: start, start };
+    }
+
+    const cellEnd = cell.end;
+
+    ({ start } = cell);
+
+    start += payloadStart(line.slice(start, cellEnd), continuation);
+
+    end = cellEnd;
   }
 
   return { end, start };
+};
+
+export const containerContent = (line: string): string => {
+  const trimmed = line.replace(TRAILING_SPACE, "");
+
+  const { end, start } = contentBounds(trimmed, false);
+
+  return trimmed.slice(start, end);
 };
 
 const stripContainers = (text: string): DecodedText | undefined => {
@@ -453,6 +578,8 @@ const stripContainers = (text: string): DecodedText | undefined => {
 
   let position = 0;
 
+  let continuation = false;
+
   for (;;) {
     LINE_BREAK.lastIndex = position;
 
@@ -460,9 +587,9 @@ const stripContainers = (text: string): DecodedText | undefined => {
 
     const lineEnd = lineBreak?.index ?? text.length;
 
-    const line = text.slice(position, lineEnd);
+    const line = text.slice(position, lineEnd).replace(TRAILING_SPACE, "");
 
-    const { end, start } = contentBounds(line);
+    const { end, start } = contentBounds(line, continuation);
 
     const content = line.slice(start, end);
 
@@ -479,6 +606,8 @@ const stripContainers = (text: string): DecodedText | undefined => {
     parts.push("\n");
 
     origins.push(lineBreak.index + lineBreak[0].length - 1);
+
+    continuation = content.replace(TRAILING_SPACE, "").endsWith("=");
 
     position = lineBreak.index + lineBreak[0].length;
   }
