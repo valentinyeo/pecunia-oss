@@ -16,12 +16,9 @@ const SCRIPT_DIR = import.meta.dirname;
 
 const REPO_ROOT = path.join(SCRIPT_DIR, "..", "..", "..");
 
-const EVIDENCE_ROOT = path.join(
-  REPO_ROOT,
-  "skills",
-  "verify-pecunia",
-  "evidence"
-);
+const EVIDENCE_ROOT =
+  process.env.PECUNIA_REPLAY_EVIDENCE_ROOT ??
+  path.join(REPO_ROOT, "skills", "verify-pecunia", "evidence");
 
 const RUNNER =
   /^bash\s+(?<command>skills\/verify-pecunia\/scripts\/prove-demo-book\.sh\b.*)$/mu;
@@ -160,7 +157,7 @@ try {
     for (const check of saved.checks) {
       const again = replayedById.get(check.id);
 
-      if (again === null) {
+      if (again === undefined) {
         missingChecks += 1;
         fail(`${directory} saved ${check.id}, which the replay no longer runs`);
         continue;
