@@ -1,6 +1,6 @@
 // oxlint-disable anti-slop/no-unknown-parameters, anti-slop/no-unknown-returns, anti-slop/no-unsafe-dictionary-type, anti-slop/no-manual-tagged-construction, anti-slop/no-reflect-apply, anti-slop/no-known-value-widening, anti-slop-effect/no-manual-tagged-construction, typescript/no-unsafe-type-assertion, typescript/no-misused-spread -- the adversarial property test builds wire fixtures and untrusted inputs by hand
 
-// oxlint-disable anti-slop/require-safety-comment-for-type-assertion, eslint/prefer-object-spread, eslint/prefer-destructuring, typescript/no-unnecessary-type-assertion -- the adversarial property test injects strays through untyped handles by design
+// oxlint-disable anti-slop/require-safety-comment-for-type-assertion, eslint/prefer-object-spread, eslint/prefer-destructuring, typescript/no-unnecessary-type-assertion, effect-tests/no-manual-effect-runtime-in-tests -- the adversarial property test injects strays through untyped handles by design
 // oxlint-disable anti-slop/no-object-parameters, anti-slop/no-runtime-typeof, anti-slop/no-reflect-get -- the adversarial property test walks untrusted decoded trees on purpose
 
 import { expect, it } from "@effect/vitest";
@@ -13,7 +13,9 @@ import type { ModelCodec } from "../../src/model/codec.js";
 import { codecs } from "../../src/model/codecs.js";
 import { ConvertedAmount } from "../../src/model/converted-amount.js";
 import * as model from "../../src/model/index.js";
+import type { OperationEntry } from "../../src/model/operation.js";
 import { exemptOperations, operations } from "../../src/model/operations.js";
+import { madeAs } from "../../src/model/registry.js";
 
 interface Handle {
   readonly name: string;
@@ -2135,6 +2137,8 @@ describe("every node rejects a foreign own key attached any way", () => {
           );
 
           if (restore === undefined) {
+            cases += 3;
+
             continue;
           }
 
@@ -3068,5 +3072,416 @@ describe("the sixty-seventh verdict doors stay shut", () => {
     }
 
     expect(cases).toBeGreaterThanOrEqual(650);
+  });
+});
+
+const sealSamples: ReadonlyMap<unknown, readonly unknown[]> = new Map<
+  unknown,
+  readonly unknown[]
+>([
+  ...fixtures.map((fixture) => [fixture.schema, fixture.wires] as const),
+  [codecs.aliasId, [str(20)]],
+  [codecs.archiveTargetId, [str(21)]],
+  [codecs.assetType, ["etf"]],
+  [codecs.categoryId, [str(4)]],
+  [codecs.currencyCode, ["EUR"]],
+  [codecs.dateOnly, ["2024-01-30"]],
+  [codecs.direction, ["out"]],
+  [codecs.documentId, [str(22)]],
+  [codecs.documentSource, ["upload"]],
+  [codecs.documentType, ["invoice"]],
+  [codecs.frequency, ["monthly"]],
+  [codecs.holdingId, [str(9)]],
+  [codecs.invoiceSourceId, [str(11)]],
+  [codecs.matchField, ["merchant"]],
+  [codecs.matchType, ["contains"]],
+  [codecs.memberId, [str(2)]],
+  [codecs.minorUnits, [1000]],
+  [codecs.payeeId, [str(5)]],
+  [codecs.payeeKind, ["merchant"]],
+  [codecs.pendingHolding, [holdingWire("pending")]],
+  [codecs.platformId, ["demo-broker"]],
+  [codecs.pricedHolding, [holdingWire("active")]],
+  [codecs.profileId, [str(1)]],
+  [codecs.profileKind, ["business"]],
+  [codecs.providerAccountId, [str(3)]],
+  [codecs.providerId, ["wise"]],
+  [codecs.providerKind, ["bank"]],
+  [codecs.quantity, [2]],
+  [codecs.rate, ["0.85"]],
+  [codecs.reportId, [str(17)]],
+  [codecs.role, ["owner"]],
+  [codecs.ruleDirection, ["any"]],
+  [codecs.ruleId, [str(7)]],
+  [codecs.spendingType, ["personal"]],
+  [codecs.subscriptionId, [str(8)]],
+  [codecs.syncRunId, [str(16)]],
+  [codecs.syncRunKind, ["bank_sync"]],
+  [codecs.taxObligationId, [str(15)]],
+  [codecs.taxProfileId, [str(14)]],
+  [codecs.timestamp, [at]],
+  [codecs.transactionId, [str(13)]],
+  [codecs.amounts, [sameCurrencyWire, convertedWire]],
+  [codecs.convertedAmount, [convertedWire]],
+  [codecs.holding, [holdingWire("pending"), holdingWire("active")]],
+]);
+
+const SEAL_SEED = 0x73_5e_a1_09;
+
+const sealedKinds = (): ReadonlySet<string> =>
+  new Set<string>([
+    ...Object.values(codecs).map((handle) => handle.name),
+    "BaseAmount",
+    "ConvertedAmount",
+  ]);
+
+const sealWalk = (
+  value: unknown,
+  path: string,
+  label: string,
+  kinds: ReadonlySet<string>
+): number => {
+  if (typeof value !== "object" || value === null) {
+    return 0;
+  }
+
+  if (DateTime.isDateTime(value)) {
+    return 0;
+  }
+
+  if (Option.isOption(value)) {
+    expect(
+      Option.isNone(value) || Object.isFrozen(value),
+      `${label} ${path} is not frozen`
+    ).toBe(true);
+
+    return Option.isSome(value)
+      ? sealWalk(value.value, `${path}.value`, label, kinds)
+      : 0;
+  }
+
+  expect(Object.isFrozen(value), `${label} ${path} is not frozen`).toBe(true);
+
+  if (Array.isArray(value)) {
+    return (value as readonly unknown[]).reduce<number>(
+      (count, entry, index) =>
+        count + sealWalk(entry, `${path}[${String(index)}]`, label, kinds),
+      0
+    );
+  }
+
+  const kind = madeAs(value);
+
+  expect(kind, `${label} ${path} is not registry-made`).toBeDefined();
+  expect(
+    kinds.has(kind ?? ""),
+    `${label} ${path} is made as ${String(kind)}`
+  ).toBe(true);
+
+  return (
+    1 +
+    Reflect.ownKeys(value).reduce(
+      (count, key) =>
+        count +
+        sealWalk(
+          Reflect.get(value, key),
+          `${path}.${String(key)}`,
+          label,
+          kinds
+        ),
+      0
+    )
+  );
+};
+
+const refusalIn = (
+  entry: OperationEntry,
+  args: readonly unknown[]
+): unknown => {
+  try {
+    const outcome = entry.invoke(args);
+
+    if (entry.channel === "effect") {
+      const settled = Effect.runSync(
+        Effect.result(
+          outcome as Effect.Effect<unknown, { readonly message: string }>
+        )
+      );
+
+      return Result.isFailure(settled) ? settled.failure : undefined;
+    }
+
+    return Result.isFailure(outcome as Result.Result<unknown, unknown>)
+      ? (outcome as { readonly failure: unknown }).failure
+      : undefined;
+  } catch (error) {
+    return error;
+  }
+};
+
+const slotMatches = (
+  handle: Handle,
+  domain: string,
+  sampleKind: string | undefined,
+  valueKind: string | undefined
+): boolean =>
+  sampleKind === valueKind ||
+  handle.name === `${domain}Schema` ||
+  (domain === "Amounts" &&
+    (handle === (codecs.amounts as Handle) ||
+      handle === (codecs.convertedAmount as Handle)));
+
+describe("every value is sealed where the model built it", () => {
+  it("has a valid sample for every codec in the table", () => {
+    const missing = Object.entries(codecs)
+      .filter(([, handle]) => !sealSamples.has(handle))
+      .map(([key]) => key);
+
+    expect(
+      missing,
+      `codecs with no valid sample: ${missing.join(", ")}`
+    ).toStrictEqual([]);
+    expect(Object.keys(codecs)).toHaveLength(80);
+  });
+
+  it("seals every decoded node, round-trips it and is accepted by every slot of its kind, seeded", () => {
+    const kinds = sealedKinds();
+    const keys = Object.keys(codecs) as readonly (keyof typeof codecs)[];
+    let made = 0;
+    let cases = 0;
+
+    for (let step = 0; step < 1400; step += 1) {
+      const key = keys[step % keys.length] ?? "money";
+      const handle: Handle = codecs[key];
+      const wires = sealSamples.get(handle) ?? [];
+      const input = wires[step % wires.length];
+      const label = `seed ${String(SEAL_SEED)} step ${String(step)} ${key}`;
+      const decoded = handle.decode(input);
+
+      expect(
+        Result.isSuccess(decoded),
+        `${label} rejects its own valid sample`
+      ).toBe(true);
+
+      if (Result.isFailure(decoded)) {
+        continue;
+      }
+
+      cases += 1;
+      made += sealWalk(decoded.success, "$", label, kinds);
+
+      const encoded = handle.encode(decoded.success as never);
+
+      expect(
+        Result.isSuccess(encoded),
+        `${label} does not encode its own value`
+      ).toBe(true);
+
+      if (Result.isSuccess(encoded)) {
+        const again = handle.decode(encoded.success);
+
+        expect(
+          Result.isSuccess(again) ? again.success : undefined,
+          `${label} does not round-trip`
+        ).toStrictEqual(decoded.success);
+      }
+
+      const valueKind = madeAs(decoded.success as object);
+
+      if (valueKind === undefined) {
+        cases += 1;
+
+        continue;
+      }
+
+      for (const entry of Object.values(operations)) {
+        for (const [index, spec] of entry.arguments.entries()) {
+          if (spec.kind !== "carries") {
+            continue;
+          }
+
+          const call = [...entry.samples()];
+
+          if (
+            !slotMatches(
+              handle,
+              spec.domain,
+              madeAs(spec.sample() as object),
+              valueKind
+            )
+          ) {
+            continue;
+          }
+
+          call[index] = decoded.success;
+
+          const failure = refusalIn(entry, call);
+
+          expect(
+            failure instanceof Schema.SchemaError ? failure.message : undefined,
+            `${label} ${entry.name} argument ${String(index + 1)} refuses its own ${valueKind}`
+          ).toBeUndefined();
+          cases += 1;
+        }
+      }
+    }
+
+    expect(made).toBeGreaterThanOrEqual(700);
+    expect(cases).toBeGreaterThanOrEqual(700);
+  });
+
+  it("accepts an invoice amount that arrived inside an Option, as the seventy-third door refused", () => {
+    const invoice = parse(codecs.invoiceDocument, invoiceWire(true));
+    const amount = invoice.amount;
+
+    expect(Option.isSome(amount)).toBe(true);
+
+    if (Option.isNone(amount)) {
+      return;
+    }
+
+    expect(Object.isFrozen(amount.value), "invoice amount is frozen").toBe(
+      true
+    );
+    expect(madeAs(amount.value), "invoice amount kind").toBe("MoneySchema");
+
+    const sum = Effect.runSync(model.addMoney(amount.value, amount.value));
+
+    expect(Result.isSuccess(codecs.money.encode(amount.value))).toBe(true);
+    expect(render(codecs.money, amount.value)).toStrictEqual({
+      currency: "EUR",
+      minor: 120_000,
+    });
+    expect(render(codecs.money, sum)).toStrictEqual({
+      currency: "EUR",
+      minor: 240_000,
+    });
+  });
+
+  it("refuses a caller-supplied schema at the public parse, as the seventy-third door showed", () => {
+    const money = moneyOf("EUR", 1000);
+    const map = new Map([["rate", money]]);
+    const smuggled = Object.assign(map, rateOf("0.85"));
+
+    expect(() =>
+      parse(
+        Schema.ReadonlyMap(Schema.String, Schema.Unknown) as never,
+        map as never
+      )
+    ).toThrow(/model codec handle/u);
+    expect(() => parse(Schema.Unknown as never, map as never)).toThrow(
+      /model codec handle/u
+    );
+    expect(() =>
+      parse(
+        Schema.Struct({ rate: Schema.String, minor: Schema.Finite }) as never,
+        { minor: 1000, rate: "0.85" } as never
+      )
+    ).toThrow(/model codec handle/u);
+
+    const refusal = ((): string => {
+      try {
+        model.rateText(smuggled as never);
+
+        return "accepted";
+      } catch (error) {
+        return error instanceof Error ? error.message : String(error);
+      }
+    })();
+
+    expect(refusal).toContain("Rate");
+    expect(refusal).toContain("Map");
+    expect(refusal).not.toContain("object Map");
+  });
+});
+
+const sealRefusal = (
+  entry: OperationEntry,
+  args: readonly unknown[]
+): string => {
+  const failure = refusalIn(entry, args);
+
+  if (failure === undefined) {
+    return "accepted";
+  }
+
+  return failure instanceof Error
+    ? failure.message
+    : ((failure as { readonly message?: string }).message ?? "refused");
+};
+
+describe("the verdict reproductions stay refused, naming the argument and the kind", () => {
+  const money = moneyOf("EUR", 1000);
+
+  it("refuses a structurally equal literal at the fifty-seventh door", () => {
+    const message = sealRefusal(operations.addMoney, [
+      { currency: "EUR", minor: 1000 } as never,
+      money,
+    ]);
+
+    expect(message).toContain("addMoney argument 1");
+    expect(message).toContain("Money");
+  });
+
+  it("refuses a Map at the fifty-eighth door", () => {
+    const message = sealRefusal(operations.addMoney, [
+      new Map(Object.entries(money)) as never,
+      money,
+    ]);
+
+    expect(message).toContain("addMoney argument 1");
+    expect(message).toContain("Map");
+    expect(message).toContain("Money");
+  });
+
+  it("refuses a function at the sixty-third door", () => {
+    const message = sealRefusal(operations.addMoney, [
+      Object.assign(() => null, money) as never,
+      money,
+    ]);
+
+    expect(message).toContain("addMoney argument 1");
+    expect(message).toContain("function");
+  });
+
+  it("refuses a null-prototype object at the sixty-fifth door", () => {
+    const message = sealRefusal(operations.addMoney, [
+      Object.assign(Object.create(null), money) as never,
+      money,
+    ]);
+
+    expect(message).toContain("addMoney argument 1");
+    expect(message).toContain("null-prototype");
+  });
+
+  it("refuses an assign copy at the sixty-seventh door", () => {
+    const forged = Object.assign({}, model.sameCurrencyAmount(money));
+    const message = sealRefusal(operations.sourceAmount, [forged as never]);
+
+    expect(message).toContain("sourceAmount argument 1");
+    expect(message).toContain("Amounts");
+  });
+
+  it("refuses a Map around a rate at the seventieth door", () => {
+    const smuggled = Object.assign(new Map([["rate", money]]), rateOf("0.85"));
+    const message = sealRefusal(operations.rateText, [smuggled as never]);
+
+    expect(message).toContain("Rate");
+    expect(message).toContain("Map");
+    expect(message).not.toContain("object Map");
+  });
+
+  it("refuses a late attach on every made value", () => {
+    const invoice = parse(codecs.invoiceDocument, invoiceWire(true));
+
+    expect(() => Object.assign(invoice, { rate: rateOf("0.85") })).toThrow(
+      /rate/u
+    );
+    expect(() => Object.assign(money, { rate: rateOf("0.85") })).toThrow(
+      /rate/u
+    );
+    expect(() =>
+      Object.assign(model.sameCurrencyAmount(money), { rate: "0.85" })
+    ).toThrow(/rate/u);
   });
 });
