@@ -9,13 +9,13 @@ import {
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
-import { dirname, join } from "node:path";
+import nodePath from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { test } from "node:test";
-import { fileURLToPath } from "node:url";
 
 import { observe } from "./lib/observation.mjs";
 import { canonicalRecords } from "./lib/records.mjs";
+import { isNumber } from "./lib/values.mjs";
 import {
   evaluate,
   judge,
@@ -23,25 +23,43 @@ import {
   readPageExpectations,
 } from "./verdict.mjs";
 
-const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url));
-const REPO_ROOT = join(SCRIPT_DIR, "..", "..", "..");
-const SCRIPT_PATH = join(SCRIPT_DIR, "prove-demo-book.sh");
-const TABLE_PATH = join(SCRIPT_DIR, "step-table.json");
-const FEATURES_DIR = join(SCRIPT_DIR, "..", "features");
-const MAP_PATH = join(SCRIPT_DIR, "check-feature-map.mjs");
-const RECORDS_PATH = join(tmpdir(), "pecunia-check-records.jsonl");
+const SCRIPT_DIR = import.meta.dirname;
+
+const REPO_ROOT = nodePath.join(SCRIPT_DIR, "..", "..", "..");
+
+const SCRIPT_PATH = nodePath.join(SCRIPT_DIR, "prove-demo-book.sh");
+
+const TABLE_PATH = nodePath.join(SCRIPT_DIR, "step-table.json");
+
+const FEATURES_DIR = nodePath.join(SCRIPT_DIR, "..", "features");
+
+const MAP_PATH = nodePath.join(SCRIPT_DIR, "check-feature-map.mjs");
+
+const RECORDS_PATH = nodePath.join(tmpdir(), "pecunia-check-records.jsonl");
+
 const FEATURE = "all";
-const table = JSON.parse(readFileSync(TABLE_PATH, "utf8"));
+
+const table = JSON.parse(readFileSync(TABLE_PATH, "utf-8"));
+
 const capabilities = readCapabilities(FEATURES_DIR);
+
 const pageExpectations = readPageExpectations(FEATURES_DIR);
+
 const stepsById = new Map(table.steps.map((step) => [step.id, step]));
+
 const demoNumbers = table.demoNumbers ?? {};
 
+const uint32 = (value) => {
+  const remainder = Math.trunc(value) % 4_294_967_296;
+
+  return remainder < 0 ? remainder + 4_294_967_296 : remainder;
+};
+
 const makeRandom = (seed) => {
-  let state = seed >>> 0;
+  let state = uint32(seed);
 
   return () => {
-    state = (state * 1_664_525 + 1_013_904_223) >>> 0;
+    state = uint32(state * 1_664_525 + 1_013_904_223);
 
     return state / 4_294_967_296;
   };
@@ -88,7 +106,7 @@ const passingRecords = (feature = FEATURE) =>
       artifacts: step.artifacts.map((name) => ({
         found: true,
         name,
-        path: join(tmpdir(), name),
+        path: nodePath.join(tmpdir(), name),
       })),
       commands: step.commands.map((command) => ({ exit: 0, id: command })),
       data: {},
@@ -104,6 +122,9 @@ const passingRecords = (feature = FEATURE) =>
       step: id,
     };
   });
+
+const caseOf = (expectation, value) =>
+  evaluate({ demoNumbers, expectation, value }).ok;
 
 const judgeRecords = (
   records,
@@ -160,17 +181,19 @@ const readbackFields = {
   ],
 };
 
+const awaitingReview = () => Object.fromEntries([["_tag", "Awaiting"]]);
+
 const corruptField = (row, field) => {
   const next = structuredClone(row);
 
   if (field === "amount") {
     next.amount = { ...next.amount, minor: next.amount.minor + 1 };
   } else if (field === "review") {
-    next.review = { _tag: "Awaiting" };
+    next.review = awaitingReview();
   } else if (field === "category") {
     next.category = { value: "0192f0c1-00ff-7000-8000-000000000000" };
-  } else if (typeof next[field] === "number") {
-    next[field] = next[field] + 1;
+  } else if (isNumber(next[field])) {
+    next[field] += 1;
   } else {
     next[field] = `${next[field]}-corrupt`;
   }
@@ -184,24 +207,26 @@ const corruptRecords = (text, field) => {
   return canonicalRecords([corruptField(rows[0], field), ...rows.slice(1)]);
 };
 
-const mutate = (records, random) => {
-  const kind = Math.floor(random() * 26);
-  const withObservations = observedRecords(records);
-  const record = pick(random, withObservations);
-  const observation = pick(random, record.observations);
+const caseResult = (
+  cause,
+  records,
+  caseTable = table,
+  casePages = pageExpectations
+) => ({
+  cause,
+  records,
+  table: caseTable,
+  pages: casePages,
+});
 
+const observationCase = (kind, records, record, observation) => {
   if (kind === 0) {
     const next = mutated(records);
 
     next.find((entry) => entry.step === record.step).observations =
       record.observations.filter((entry) => entry.id !== observation.id);
 
-    return {
-      cause: observation.id,
-      records: next,
-      table,
-      pages: pageExpectations,
-    };
+    return caseResult(observation.id, next);
   }
 
   if (kind === 1) {
@@ -212,12 +237,7 @@ const mutate = (records, random) => {
       .observations.find((entry) => entry.id === observation.id).value =
       "mutated-observation";
 
-    return {
-      cause: observation.id,
-      records: next,
-      table,
-      pages: pageExpectations,
-    };
+    return caseResult(observation.id, next);
   }
 
   if (kind === 2) {
@@ -227,12 +247,7 @@ const mutate = (records, random) => {
       .find((entry) => entry.step === record.step)
       .observations.push({ id: "probe-unexpected", value: "value" });
 
-    return {
-      cause: "probe-unexpected",
-      records: next,
-      table,
-      pages: pageExpectations,
-    };
+    return caseResult("probe-unexpected", next);
   }
 
   if (kind === 3) {
@@ -242,12 +257,7 @@ const mutate = (records, random) => {
       .find((entry) => entry.step === record.step)
       .observations.push(structuredClone(observation));
 
-    return {
-      cause: observation.id,
-      records: next,
-      table,
-      pages: pageExpectations,
-    };
+    return caseResult(observation.id, next);
   }
 
   if (kind === 4) {
@@ -258,17 +268,12 @@ const mutate = (records, random) => {
       (expectation) => expectation.id !== observation.id
     );
 
-    return {
-      cause: observation.id,
-      records: mutated(records),
-      table: caseTable,
-      pages: pageExpectations,
-    };
+    return caseResult(observation.id, mutated(records), caseTable);
   }
 
   if (kind === 5) {
     const casePages = structuredClone(pageExpectations);
-    const id = observation.id;
+    const { id } = observation;
 
     casePages.crossCutting = casePages.crossCutting.filter(
       (entry) => entry !== id
@@ -281,7 +286,7 @@ const mutate = (records, random) => {
       );
     }
 
-    return { cause: id, records: mutated(records), table, pages: casePages };
+    return caseResult(id, mutated(records), table, casePages);
   }
 
   if (kind === 6) {
@@ -289,23 +294,16 @@ const mutate = (records, random) => {
 
     next.find((entry) => entry.step === record.step).observations = [];
 
-    return {
-      cause: observation.id,
-      records: next,
-      table,
-      pages: pageExpectations,
-    };
+    return caseResult(observation.id, next);
   }
 
   if (kind === 7) {
     const index = records.indexOf(record);
 
-    return {
-      cause: record.step,
-      records: records.filter((_, position) => position !== index),
-      table,
-      pages: pageExpectations,
-    };
+    return caseResult(
+      record.step,
+      records.filter((_, position) => position !== index)
+    );
   }
 
   if (kind === 8) {
@@ -313,14 +311,13 @@ const mutate = (records, random) => {
 
     next.push(structuredClone(records[records.indexOf(record)]));
 
-    return {
-      cause: record.step,
-      records: next,
-      table,
-      pages: pageExpectations,
-    };
+    return caseResult(record.step, next);
   }
 
+  return assert.fail(`the mutation kind ${kind} has no case`);
+};
+
+const listedCase = (kind, records, random) => {
   if (kind === 9) {
     const eligible = records.filter((entry) => entry.commands.length > 0);
 
@@ -336,12 +333,7 @@ const mutate = (records, random) => {
       .find((entry) => entry.step === target.step)
       .commands.find((entry) => entry.id === command.id).exit = 1;
 
-    return {
-      cause: command.id,
-      records: next,
-      table,
-      pages: pageExpectations,
-    };
+    return caseResult(command.id, next);
   }
 
   if (kind === 10) {
@@ -359,14 +351,24 @@ const mutate = (records, random) => {
       .find((entry) => entry.step === target.step)
       .outputs.find((entry) => entry.name === output.name).found = false;
 
-    return {
-      cause: output.name,
-      records: next,
-      table,
-      pages: pageExpectations,
-    };
+    return caseResult(output.name, next);
   }
 
+  if (kind === 13) {
+    const name = pick(random, [...capabilities.values()].flat());
+    const caseTable = structuredClone(table);
+
+    for (const step of caseTable.steps) {
+      step.capabilities = step.capabilities.filter((entry) => entry !== name);
+    }
+
+    return caseResult(name, mutated(records), caseTable);
+  }
+
+  return assert.fail(`the mutation kind ${kind} has no case`);
+};
+
+const tableCase = (kind, records, random, record, observation) => {
   if (kind === 11) {
     const next = mutated(records);
     const ghost = "probe-ghost-step";
@@ -382,46 +384,26 @@ const mutate = (records, random) => {
       step: ghost,
     });
 
-    return { cause: ghost, records: next, table, pages: pageExpectations };
+    return caseResult(ghost, next);
   }
 
   if (kind === 12) {
-    return { cause: "empty", records: [], table, pages: pageExpectations };
-  }
-
-  if (kind === 13) {
-    const name = pick(random, [...capabilities.values()].flat());
-    const caseTable = structuredClone(table);
-
-    for (const step of caseTable.steps) {
-      step.capabilities = step.capabilities.filter((entry) => entry !== name);
-    }
-
-    return {
-      cause: name,
-      records: mutated(records),
-      table: caseTable,
-      pages: pageExpectations,
-    };
+    return caseResult("empty", []);
   }
 
   if (kind === 14) {
-    return {
-      cause: "missing",
-      records: undefined,
-      table,
-      pages: pageExpectations,
-    };
+    return caseResult("missing");
   }
 
   if (kind === 15) {
     const caseTable = structuredClone(table);
     const step = caseTable.steps.find((entry) => entry.id === record.step);
+
     const expectation = step.expectations.find(
       (entry) => entry.id === observation.id
     );
 
-    for (const predicate of [
+    const predicates = new Set([
       "equals",
       "equalsDemoNumber",
       "equalsRecords",
@@ -429,16 +411,17 @@ const mutate = (records, random) => {
       "countEquals",
       "isTrue",
       "isFalse",
-    ]) {
-      delete expectation[predicate];
-    }
+    ]);
 
-    return {
-      cause: observation.id,
-      records: mutated(records),
-      table: caseTable,
-      pages: pageExpectations,
-    };
+    const stripped = Object.fromEntries(
+      Object.entries(expectation).filter(([key]) => !predicates.has(key))
+    );
+
+    step.expectations = step.expectations.map((entry) =>
+      entry.id === expectation.id ? stripped : entry
+    );
+
+    return caseResult(observation.id, mutated(records), caseTable);
   }
 
   if (kind === 16) {
@@ -447,12 +430,7 @@ const mutate = (records, random) => {
 
     delete caseTable.steps.find((entry) => entry.id === written.id).writes;
 
-    return {
-      cause: written.id,
-      records: mutated(records),
-      table: caseTable,
-      pages: pageExpectations,
-    };
+    return caseResult(written.id, mutated(records), caseTable);
   }
 
   if (kind === 17) {
@@ -464,14 +442,13 @@ const mutate = (records, random) => {
       delete expectation.readback;
     }
 
-    return {
-      cause: written.id,
-      records: mutated(records),
-      table: caseTable,
-      pages: pageExpectations,
-    };
+    return caseResult(written.id, mutated(records), caseTable);
   }
 
+  return assert.fail(`the mutation kind ${kind} has no case`);
+};
+
+const readbackCase = (kind, records, random) => {
   if (kind === 18) {
     const written = pick(random, writtenSteps(records));
     const readback = pick(random, readbacksOf(written));
@@ -482,12 +459,7 @@ const mutate = (records, random) => {
       (entry) => entry.id !== readback.id
     );
 
-    return {
-      cause: readback.id,
-      records: next,
-      table,
-      pages: pageExpectations,
-    };
+    return caseResult(readback.id, next);
   }
 
   if (kind === 19) {
@@ -500,12 +472,7 @@ const mutate = (records, random) => {
       .observations.find((entry) => entry.id === readback.id).value =
       "mutated-readback";
 
-    return {
-      cause: readback.id,
-      records: next,
-      table,
-      pages: pageExpectations,
-    };
+    return caseResult(readback.id, next);
   }
 
   if (kind === 20) {
@@ -513,18 +480,14 @@ const mutate = (records, random) => {
     const readback = pick(random, readbacksOf(written));
     const field = pick(random, readbackFields[written.id]);
     const next = mutated(records);
-    const observation = next
+
+    const matchedObservation = next
       .find((entry) => entry.step === written.id)
       .observations.find((entry) => entry.id === readback.id);
 
-    observation.value = corruptRecords(observation.value, field);
+    matchedObservation.value = corruptRecords(matchedObservation.value, field);
 
-    return {
-      cause: field,
-      records: next,
-      table,
-      pages: pageExpectations,
-    };
+    return caseResult(field, next);
   }
 
   if (kind === 21) {
@@ -533,6 +496,7 @@ const mutate = (records, random) => {
     const next = mutated(records);
     const target = next.find((entry) => entry.step === written.id);
     const readbackIds = new Set(readbacksOf(written).map((entry) => entry.id));
+
     const reply = target.observations.find(
       (entry) => !readbackIds.has(entry.id)
     );
@@ -540,102 +504,110 @@ const mutate = (records, random) => {
     target.observations.find((entry) => entry.id === readback.id).value =
       reply.value;
 
-    return {
-      cause: readback.id,
-      records: next,
-      table,
-      pages: pageExpectations,
-    };
+    return caseResult(readback.id, next);
   }
 
   if (kind === 22) {
     const written = pick(random, writtenSteps(records));
     const readback = pick(random, readbacksOf(written));
     const next = mutated(records);
+    const [operation] = written.writeOperations;
 
     next
       .find((entry) => entry.step === written.id)
       .observations.find((entry) => entry.id === readback.id).operation =
-      written.writeOperations[0];
+      operation;
 
-    return {
-      cause: readback.id,
-      records: next,
-      table,
-      pages: pageExpectations,
-    };
+    return caseResult(readback.id, next);
   }
 
   if (kind === 23) {
     const silent = records.filter(
       (entry) => stepsById.get(entry.step)?.writes !== true
     );
+
     const target = pick(random, silent);
     const next = mutated(records);
 
     next.find((entry) => entry.step === target.step).mutatingCalls = 1;
 
-    return {
-      cause: target.step,
-      records: next,
-      table,
-      pages: pageExpectations,
-    };
+    return caseResult(target.step, next);
   }
 
   if (kind === 24) {
     const repeated = records.filter(
       (entry) => readbacksOf(stepsById.get(entry.step)).length > 1
     );
+
     const target = pick(random, repeated);
-    const first = readbacksOf(stepsById.get(target.step))[0];
+    const [first] = readbacksOf(stepsById.get(target.step));
     const next = mutated(records);
 
     next.find((entry) => entry.step === target.step).observations = next
       .find((entry) => entry.step === target.step)
       .observations.filter((entry) => entry.id !== first.id);
 
-    return {
-      cause: first.id,
-      records: next,
-      table,
-      pages: pageExpectations,
-    };
+    return caseResult(first.id, next);
   }
 
   if (kind === 25) {
     const eligible = records.filter((entry) =>
       readbacksOf(stepsById.get(entry.step)).some(
-        (readback) => readbackFields[entry.step] !== undefined
+        () => readbackFields[entry.step] !== undefined
       )
     );
+
     const target = pick(random, eligible);
+
     const readback = pick(
       random,
       readbacksOf(stepsById.get(target.step)).filter(
-        (entry) => readbackFields[target.step] !== undefined
+        () => readbackFields[target.step] !== undefined
       )
     );
+
     const next = mutated(records);
-    const observation = next
+
+    const matchedObservation = next
       .find((entry) => entry.step === target.step)
       .observations.find((entry) => entry.id === readback.id);
-    const rows = JSON.parse(observation.value);
 
-    observation.value = canonicalRecords([
+    const rows = JSON.parse(matchedObservation.value);
+
+    matchedObservation.value = canonicalRecords([
       ...rows,
       structuredClone(rows.at(-1)),
     ]);
 
-    return {
-      cause: readback.id,
-      records: next,
-      table,
-      pages: pageExpectations,
-    };
+    return caseResult(readback.id, next);
   }
 
-  assert.fail(`the mutation kind ${kind} has no case`);
+  return assert.fail(`the mutation kind ${kind} has no case`);
+};
+
+const mutate = (records, random) => {
+  const kind = Math.floor(random() * 26);
+  const withObservations = observedRecords(records);
+  const record = pick(random, withObservations);
+  const observation = pick(random, record.observations);
+
+  if (kind <= 8) {
+    return observationCase(kind, records, record, observation);
+  }
+
+  if ((kind >= 9 && kind <= 10) || kind === 13) {
+    return listedCase(kind, records, random);
+  }
+
+  if (kind <= 17) {
+    return tableCase(kind, records, random, record, observation);
+  }
+
+  if (kind >= 18) {
+    return readbackCase(kind, records, random);
+  }
+
+  return assert.fail(`the mutation kind ${kind} has no case`);
 };
 
 const injectStepFailure = (source, id) => {
@@ -647,7 +619,8 @@ const injectStepFailure = (source, id) => {
 };
 
 const runProof = (scriptPath, label) => {
-  const root = mkdtempSync(join(tmpdir(), "pecunia-proof-"));
+  const root = mkdtempSync(nodePath.join(tmpdir(), "pecunia-proof-"));
+
   const result = spawnSync(
     "bash",
     [
@@ -659,7 +632,7 @@ const runProof = (scriptPath, label) => {
       "--evidence-root",
       root,
     ],
-    { cwd: REPO_ROOT, encoding: "utf8" }
+    { cwd: REPO_ROOT, encoding: "utf-8" }
   );
 
   return {
@@ -671,27 +644,32 @@ const runProof = (scriptPath, label) => {
 };
 
 const readSavedProof = (root) => {
-  const name = readdirSync(root)[0];
+  const [name] = readdirSync(root);
 
-  return readFileSync(join(root, name, "PROOF.md"), "utf8");
+  return readFileSync(nodePath.join(root, name, "PROOF.md"), "utf-8");
 };
 
 const writeFakeMapRoot = (withCapability) => {
-  const root = mkdtempSync(join(tmpdir(), "pecunia-map-"));
-  mkdirSync(join(root, "packages", "probe", "src"), { recursive: true });
-  mkdirSync(join(root, "apps"), { recursive: true });
-  mkdirSync(join(root, "skills", "verify-pecunia", "features"), {
+  const root = mkdtempSync(nodePath.join(tmpdir(), "pecunia-map-"));
+  mkdirSync(nodePath.join(root, "packages", "probe", "src"), {
     recursive: true,
   });
-  const implement = withCapability
-    ? "const probeCapability = implement(probeContract);\n"
-    : "";
+  mkdirSync(nodePath.join(root, "apps"), { recursive: true });
+  mkdirSync(nodePath.join(root, "skills", "verify-pecunia", "features"), {
+    recursive: true,
+  });
+
+  const implement =
+    withCapability === true
+      ? "const probeCapability = implement(probeContract);\n"
+      : "";
+
   writeFileSync(
-    join(root, "packages", "probe", "src", "probe.ts"),
+    nodePath.join(root, "packages", "probe", "src", "probe.ts"),
     `const probeContract = defineContract("probe.capability");\n${implement}`
   );
   writeFileSync(
-    join(root, "skills", "verify-pecunia", "features", "README.md"),
+    nodePath.join(root, "skills", "verify-pecunia", "features", "README.md"),
     [
       "# Probe feature map",
       "",
@@ -703,18 +681,22 @@ const writeFakeMapRoot = (withCapability) => {
       "",
     ].join("\n")
   );
+
   return root;
 };
 
 const runMap = (root) => {
   const result = spawnSync("node", [MAP_PATH, "--root", root], {
     cwd: REPO_ROOT,
-    encoding: "utf8",
+    encoding: "utf-8",
   });
+
   const summary = /SUMMARY (?<fields>.*)/u.exec(result.stdout)?.groups?.fields;
+
   const fields = new Map(
     (summary ?? "").split(" ").map((field) => field.split("="))
   );
+
   return {
     failures: result.stderr
       .split("\n")
@@ -725,12 +707,14 @@ const runMap = (root) => {
 };
 
 test("every step function has one table entry and every entry has one function", () => {
-  const source = readFileSync(SCRIPT_PATH, "utf8");
+  const source = readFileSync(SCRIPT_PATH, "utf-8");
+
   const functions = new Set(
-    [...source.matchAll(/^step_([a-z0-9_]+)\(\) \{/gmu)].map((match) =>
-      match[1].replaceAll("_", "-")
+    [...source.matchAll(/^step_(?<name>[a-z0-9_]+)\(\) \{/gmu)].map((match) =>
+      match.groups.name.replaceAll("_", "-")
     )
   );
+
   const declared = new Set();
 
   for (const feature of Object.keys(table.features)) {
@@ -761,13 +745,17 @@ test("each page expectation id is declared once and resolves to a value", () => 
     ...pageExpectations.crossCutting,
     ...[...pageExpectations.pages.values()].flat(),
   ];
+
   const tableIds = table.steps.flatMap((step) =>
     step.expectations.map((expectation) => expectation.id)
   );
 
   assert.equal(new Set(pageExpectations.crossCutting).size, 5);
   assert.equal(new Set(ids).size, ids.length, "a page repeats an id");
-  assert.deepEqual([...tableIds].sort(), [...ids].sort());
+  assert.deepEqual(
+    [...tableIds].toSorted((left, right) => left.localeCompare(right)),
+    [...ids].toSorted((left, right) => left.localeCompare(right))
+  );
 
   for (const step of table.steps) {
     for (const expectation of step.expectations) {
@@ -782,9 +770,6 @@ test("each page expectation id is declared once and resolves to a value", () => 
 });
 
 test("the closed predicate set compares, counts and negates", () => {
-  const caseOf = (expectation, value) =>
-    evaluate({ demoNumbers, expectation, value }).ok;
-
   assert.equal(caseOf({ equals: "12" }, "12"), true);
   assert.equal(caseOf({ equals: "12" }, "12 "), false);
   assert.equal(caseOf({ equalsDemoNumber: "dashboardSpend" }, "328955"), true);
@@ -802,6 +787,7 @@ test("the closed predicate set compares, counts and negates", () => {
 
 test("the unmutated helper passes", () => {
   const result = runProof(SCRIPT_PATH, "check-whole");
+
   const expected = new RegExp(
     `^PASS ${table.features[FEATURE].length} steps, \\d+ expectations, 0 failed\\.$`,
     "mu"
@@ -838,6 +824,7 @@ test("the verdict fails a write step with no readback by name", () => {
   }
 
   const misplaced = structuredClone(table);
+
   const reader = misplaced.steps.find(
     (step) => step.writes !== true && step.expectations.length > 0
   );
@@ -854,7 +841,11 @@ test("the verdict fails a write step with no readback by name", () => {
 });
 
 test("a discarding adapter fails through the stored-state readback", () => {
-  const source = readFileSync(join(SCRIPT_DIR, "drive-bank-lines.mjs"), "utf8");
+  const source = readFileSync(
+    nodePath.join(SCRIPT_DIR, "drive-bank-lines.mjs"),
+    "utf-8"
+  );
+
   const write = [
     "      const edited = yield* editBankLine.handler(",
     "        editRequest({",
@@ -866,6 +857,7 @@ test("a discarding adapter fails through the stored-state readback", () => {
     "        })",
     "      );",
   ].join("\n");
+
   const discard = [
     "      const edited = {",
     "        category: Option.some(category),",
@@ -874,7 +866,11 @@ test("a discarding adapter fails through the stored-state readback", () => {
     "        profileId: demoProfileId,",
     "      };",
   ].join("\n");
-  const path = join(SCRIPT_DIR, `.check-mutant-${process.pid}-edit.mjs`);
+
+  const path = nodePath.join(
+    SCRIPT_DIR,
+    `.check-mutant-${process.pid}-edit.mjs`
+  );
 
   assert.ok(source.includes(write), "the edit drive write call is missing");
 
@@ -883,17 +879,20 @@ test("a discarding adapter fails through the stored-state readback", () => {
 
     const drive = spawnSync("node", [path, "--capability", "edit"], {
       cwd: REPO_ROOT,
-      encoding: "utf8",
+      encoding: "utf-8",
     });
 
     assert.equal(drive.status, 0, drive.stderr);
 
     const { observations } = JSON.parse(drive.stdout);
+
     const records = passingRecords().map((record) =>
       record.step === "bank-line-edit" ? { ...record, observations } : record
     );
+
     const result = judgeRecords(records);
     const text = result.failures.join("\n");
+
     const reply = result.expectations.find(
       (expectation) =>
         expectation.id === "bank-line-edit-sets-category-and-note"
@@ -909,15 +908,18 @@ test("a discarding adapter fails through the stored-state readback", () => {
 
 test("a delayed-write adapter fails through the first-import readback", () => {
   const source = readFileSync(
-    join(SCRIPT_DIR, "drive-bank-import.mjs"),
-    "utf8"
+    nodePath.join(SCRIPT_DIR, "drive-bank-import.mjs"),
+    "utf-8"
   );
+
   const layer = [
     "const recorder = mutationRecorder();",
+    "",
     "const layer = Layer.mergeAll(",
     "  countingLayer({",
     "    layer: memoryImportLedgerLayer(targets),",
   ].join("\n");
+
   const delayed = [
     "const recorder = mutationRecorder();",
     "const delayedLayer = Layer.effect(",
@@ -960,14 +962,17 @@ test("a delayed-write adapter fails through the first-import readback", () => {
     "  countingLayer({",
     "    layer: delayedLayer,",
   ].join("\n");
-  const path = join(
+
+  const path = nodePath.join(
     SCRIPT_DIR,
     `.check-mutant-${process.pid}-delayed-import.mjs`
   );
-  const bookPath = join(
+
+  const bookPath = nodePath.join(
     tmpdir(),
     `pecunia-check-delayed-${process.pid}.sqlite`
   );
+
   const book = new DatabaseSync(bookPath);
 
   assert.ok(source.includes(layer), "the import ledger layer is missing");
@@ -989,13 +994,14 @@ test("a delayed-write adapter fails through the first-import readback", () => {
 
     const drive = spawnSync("node", [path, "--database", bookPath], {
       cwd: REPO_ROOT,
-      encoding: "utf8",
+      encoding: "utf-8",
     });
 
     assert.equal(drive.status, 0, drive.stderr);
 
     const { observations } = JSON.parse(drive.stdout);
     const driveIds = new Set(observations.map((entry) => entry.id));
+
     const records = passingRecords().map((record) =>
       record.step === "accounts-and-bank-lines"
         ? {
@@ -1007,11 +1013,14 @@ test("a delayed-write adapter fails through the first-import readback", () => {
           }
         : record
     );
+
     const result = judgeRecords(records);
     const text = result.failures.join("\n");
+
     const first = result.expectations.find(
       (expectation) => expectation.id === "import-stores-every-line"
     );
+
     const reply = result.expectations.find(
       (expectation) => expectation.id === "import-writes-every-line"
     );
@@ -1043,7 +1052,11 @@ test("an observation holds a snapshot taken when it is emitted", () => {
 });
 
 const demoBookPath = (label) => {
-  const path = join(tmpdir(), `pecunia-check-${label}-${process.pid}.sqlite`);
+  const path = nodePath.join(
+    tmpdir(),
+    `pecunia-check-${label}-${process.pid}.sqlite`
+  );
+
   const book = new DatabaseSync(path);
 
   book.exec(
@@ -1063,15 +1076,18 @@ const demoBookPath = (label) => {
 
 test("a shared readback array filled on replay fails the first-import readback", () => {
   const source = readFileSync(
-    join(SCRIPT_DIR, "drive-bank-import.mjs"),
-    "utf8"
+    nodePath.join(SCRIPT_DIR, "drive-bank-import.mjs"),
+    "utf-8"
   );
+
   const layer = [
     "const recorder = mutationRecorder();",
+    "",
     "const layer = Layer.mergeAll(",
     "  countingLayer({",
     "    layer: memoryImportLedgerLayer(targets),",
   ].join("\n");
+
   const shared = [
     "const recorder = mutationRecorder();",
     "const heldLineSets = [];",
@@ -1107,10 +1123,12 @@ test("a shared readback array filled on replay fails the first-import readback",
     "  countingLayer({",
     "    layer: sharedReadbackLayer,",
   ].join("\n");
-  const path = join(
+
+  const path = nodePath.join(
     SCRIPT_DIR,
     `.check-mutant-${process.pid}-shared-import.mjs`
   );
+
   const bookPath = demoBookPath("shared-import");
 
   assert.ok(source.includes(layer), "the import ledger layer is missing");
@@ -1120,12 +1138,13 @@ test("a shared readback array filled on replay fails the first-import readback",
 
     const drive = spawnSync("node", [path, "--database", bookPath], {
       cwd: REPO_ROOT,
-      encoding: "utf8",
+      encoding: "utf-8",
     });
 
     assert.equal(drive.status, 0, drive.stderr);
 
     const { observations } = JSON.parse(drive.stdout);
+
     const firstImport = observations.find(
       (entry) => entry.id === "import-stores-every-line"
     );
@@ -1133,6 +1152,7 @@ test("a shared readback array filled on replay fails the first-import readback",
     assert.deepEqual(firstImport?.value, [], JSON.stringify(observations));
 
     const driveIds = new Set(observations.map((entry) => entry.id));
+
     const records = passingRecords().map((record) =>
       record.step === "accounts-and-bank-lines"
         ? {
@@ -1144,11 +1164,14 @@ test("a shared readback array filled on replay fails the first-import readback",
           }
         : record
     );
+
     const result = judgeRecords(records);
     const text = result.failures.join("\n");
+
     const readback = result.expectations.find(
       (expectation) => expectation.id === "import-stores-every-line"
     );
+
     const reply = result.expectations.find(
       (expectation) => expectation.id === "import-writes-every-line"
     );
@@ -1176,6 +1199,7 @@ const sharedReadbackStore = (source) => {
     "          }),",
     '          mutations: ["patch"],',
   ].join("\n");
+
   const shared = [
     "const heldLines = [];",
     "const sharedReadbackServiceLayer = Layer.effect(",
@@ -1241,15 +1265,22 @@ const sharedReadbackStore = (source) => {
 };
 
 const runSharedReadbackDrive = (label, capability) => {
-  const source = readFileSync(join(SCRIPT_DIR, "drive-bank-lines.mjs"), "utf8");
-  const path = join(SCRIPT_DIR, `.check-mutant-${process.pid}-${label}.mjs`);
+  const source = readFileSync(
+    nodePath.join(SCRIPT_DIR, "drive-bank-lines.mjs"),
+    "utf-8"
+  );
+
+  const path = nodePath.join(
+    SCRIPT_DIR,
+    `.check-mutant-${process.pid}-${label}.mjs`
+  );
 
   try {
     writeFileSync(path, sharedReadbackStore(source));
 
     const drive = spawnSync("node", [path, "--capability", capability], {
       cwd: REPO_ROOT,
-      encoding: "utf8",
+      encoding: "utf-8",
     });
 
     assert.equal(drive.status, 0, drive.stderr);
@@ -1262,6 +1293,7 @@ const runSharedReadbackDrive = (label, capability) => {
 
 test("a shared readback array filled after an edit fails the edit readback", () => {
   const observations = runSharedReadbackDrive("shared-edit", "edit");
+
   const readback = observations.find(
     (entry) => entry.id === "bank-line-edit-stores-category-and-note"
   );
@@ -1269,6 +1301,7 @@ test("a shared readback array filled after an edit fails the edit readback", () 
   assert.deepEqual(readback?.value, [], JSON.stringify(observations));
 
   const driveIds = new Set(observations.map((entry) => entry.id));
+
   const records = passingRecords().map((record) =>
     record.step === "bank-line-edit"
       ? {
@@ -1280,8 +1313,10 @@ test("a shared readback array filled after an edit fails the edit readback", () 
         }
       : record
   );
+
   const result = judgeRecords(records);
   const text = result.failures.join("\n");
+
   const reply = result.expectations.find(
     (expectation) => expectation.id === "bank-line-edit-sets-category-and-note"
   );
@@ -1293,6 +1328,7 @@ test("a shared readback array filled after an edit fails the edit readback", () 
 
 test("a shared readback array filled after a review fails the review readback", () => {
   const observations = runSharedReadbackDrive("shared-review", "review");
+
   const readback = observations.find(
     (entry) => entry.id === "bank-line-review-shows-in-the-list"
   );
@@ -1300,6 +1336,7 @@ test("a shared readback array filled after a review fails the review readback", 
   assert.deepEqual(readback?.value, [], JSON.stringify(observations));
 
   const driveIds = new Set(observations.map((entry) => entry.id));
+
   const records = passingRecords().map((record) =>
     record.step === "bank-line-review"
       ? {
@@ -1311,8 +1348,10 @@ test("a shared readback array filled after a review fails the review readback", 
         }
       : record
   );
+
   const result = judgeRecords(records);
   const text = result.failures.join("\n");
+
   const reply = result.expectations.find(
     (expectation) => expectation.id === "bank-line-review-marks-the-line"
   );
@@ -1336,6 +1375,7 @@ test("the verdict never passes a mutated record file and names the cause", () =>
       table: caseTable,
       pages,
     } = mutate(passingRecords(), random);
+
     const result = judgeRecords(records, caseTable, pages);
     const text = result.failures.join("\n");
     const context = `seed ${seed} case ${index} cause ${cause}`;
@@ -1350,16 +1390,23 @@ test("the verdict never passes a mutated record file and names the cause", () =>
 });
 
 test("a failing observation in every step fails the helper closed", () => {
-  const source = readFileSync(SCRIPT_PATH, "utf8");
-  const mutated = table.features[FEATURE].reduce(
-    (text, id) => injectStepFailure(text, id),
-    source
+  const source = readFileSync(SCRIPT_PATH, "utf-8");
+
+  let mutant = source;
+
+  for (const id of table.features[FEATURE]) {
+    mutant = injectStepFailure(mutant, id);
+  }
+
+  const path = nodePath.join(
+    SCRIPT_DIR,
+    `.check-mutant-${process.pid}-every-step.sh`
   );
-  const path = join(SCRIPT_DIR, `.check-mutant-${process.pid}-every-step.sh`);
+
   const result = { root: undefined };
 
   try {
-    writeFileSync(path, mutated, { mode: 0o755 });
+    writeFileSync(path, mutant, { mode: 0o755 });
     const run = runProof(path, "check-mutant");
     result.root = run.root;
 
@@ -1376,6 +1423,7 @@ test("a failing observation in every step fails the helper closed", () => {
     assert.equal(/^PASS:/mu.test(proof), false);
   } finally {
     rmSync(path, { force: true });
+
     if (result.root !== undefined) {
       rmSync(result.root, { force: true, recursive: true });
     }
@@ -1385,7 +1433,7 @@ test("a failing observation in every step fails the helper closed", () => {
 test("the repository feature map reports no problems", () => {
   const result = spawnSync("node", [MAP_PATH], {
     cwd: REPO_ROOT,
-    encoding: "utf8",
+    encoding: "utf-8",
   });
 
   assert.equal(result.status, 0, result.stderr);
@@ -1402,6 +1450,7 @@ test("a readback that differs in one field of one row fails and names the field"
   for (const [step, id] of fields) {
     for (const field of readbackFields[step]) {
       const records = passingRecords();
+
       const observation = records
         .find((record) => record.step === step)
         .observations.find((entry) => entry.id === id);
@@ -1410,8 +1459,10 @@ test("a readback that differs in one field of one row fails and names the field"
 
       const result = judgeRecords(records);
       const text = result.failures.join("\n");
+
       const line = result.failures.find(
-        (entry) => entry.includes(id) && entry.includes("observed")
+        (entry) =>
+          entry.includes(id) === true && entry.includes("observed") === true
       );
 
       assert.equal(result.passed, false, `${step} ${field} passed: ${text}`);
@@ -1425,9 +1476,11 @@ test("a readback that differs in one field of one row fails and names the field"
 
 test("the v60 reproduction fails: zero amounts and USD currencies in the ledger", () => {
   const records = passingRecords();
+
   const observation = records
     .find((record) => record.step === "accounts-and-bank-lines")
     .observations.find((entry) => entry.id === "import-stores-every-line");
+
   const rows = JSON.parse(observation.value).map((row) => ({
     ...row,
     amountMinor: 0,
@@ -1441,18 +1494,21 @@ test("the v60 reproduction fails: zero amounts and USD currencies in the ledger"
 
   assert.equal(result.passed, false, text);
   assert.ok(text.includes("amountMinor"), text);
+
   const total = table.features[FEATURE].flatMap(
     (id) => stepsById.get(id).expectations
   ).length;
 
   assert.equal(result.expectations.length, total, text);
   assert.equal(
-    result.expectations.filter((expectation) => expectation.passed).length,
+    result.expectations.filter((expectation) => expectation.passed === true)
+      .length,
     total - 1,
     text
   );
 
   const currencyOnly = passingRecords();
+
   const stored = currencyOnly
     .find((record) => record.step === "accounts-and-bank-lines")
     .observations.find((entry) => entry.id === "import-stores-every-line");
@@ -1472,9 +1528,11 @@ test("the v60 reproduction fails: zero amounts and USD currencies in the ledger"
 test("a readback replaced by the write response fails", () => {
   const records = passingRecords();
   const step = records.find((record) => record.step === "bank-line-edit");
+
   const readback = step.observations.find(
     (entry) => entry.id === "bank-line-edit-stores-category-and-note"
   );
+
   const reply = step.observations.find(
     (entry) => entry.id === "bank-line-edit-sets-category-and-note"
   );
@@ -1492,6 +1550,7 @@ test("a readback replaced by the write response fails", () => {
 test("a readback through the write operation, or with no read operation, fails", () => {
   const records = passingRecords();
   const step = records.find((record) => record.step === "bank-line-review");
+
   const readback = step.observations.find(
     (entry) => entry.id === "bank-line-review-shows-in-the-list"
   );
@@ -1508,6 +1567,7 @@ test("a readback through the write operation, or with no read operation, fails",
   );
 
   const unnamed = passingRecords();
+
   const unnamedStep = unnamed.find(
     (record) => record.step === "bank-line-review"
   );
@@ -1525,9 +1585,10 @@ test("a readback through the write operation, or with no read operation, fails",
   );
 
   const unreadable = structuredClone(table);
-  const expectations = unreadable.steps.find(
+
+  const { expectations } = unreadable.steps.find(
     (entry) => entry.id === "bank-line-review"
-  ).expectations;
+  );
 
   delete expectations.find(
     (entry) => entry.id === "bank-line-review-shows-in-the-list"

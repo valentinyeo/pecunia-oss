@@ -1,3 +1,5 @@
+import { isBoolean, isNumber, isText } from "./values.mjs";
+
 const asRows = (value) => (Array.isArray(value) ? value : []);
 
 const sortKeys = (value) => {
@@ -5,13 +7,19 @@ const sortKeys = (value) => {
     return value.map(sortKeys);
   }
 
-  if (value === null || typeof value !== "object") {
+  if (
+    value === null ||
+    value === undefined ||
+    isText(value) ||
+    isNumber(value) ||
+    isBoolean(value)
+  ) {
     return value;
   }
 
   return Object.fromEntries(
     Object.keys(value)
-      .sort()
+      .toSorted()
       .map((key) => [key, sortKeys(value[key])])
   );
 };
@@ -19,14 +27,14 @@ const sortKeys = (value) => {
 export const canonicalRecords = (rows) =>
   `[${asRows(rows)
     .map((row) => JSON.stringify(sortKeys(row)))
-    .sort()
+    .toSorted()
     .join(",")}]`;
 
 export const parseRecordSet = (text) => {
   const parsed = JSON.parse(text);
 
   if (!Array.isArray(parsed)) {
-    throw new Error("a record set must be a JSON array of rows");
+    throw new TypeError("a record set must be a JSON array of rows");
   }
 
   return parsed;

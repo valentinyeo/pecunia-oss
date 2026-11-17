@@ -1,4 +1,8 @@
-const jsonSnapshot = (value) => JSON.parse(JSON.stringify(value));
+const jsonSnapshot = (value) => {
+  const text = JSON.stringify(value);
+
+  return text === undefined ? undefined : JSON.parse(text);
+};
 
 export const snapshotValue = (value) => {
   try {

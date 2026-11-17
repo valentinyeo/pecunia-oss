@@ -1,10 +1,9 @@
 #!/usr/bin/env node
 import { readFileSync } from "node:fs";
-import { join } from "node:path";
+import path from "node:path";
 import { DatabaseSync } from "node:sqlite";
-import { fileURLToPath } from "node:url";
 
-import { Effect, Layer } from "effect";
+import { Effect, Layer, Predicate } from "effect";
 import { Digest, WebCrypto } from "effect/crypto";
 
 import {
@@ -16,16 +15,20 @@ import { memoryImportLedgerLayer } from "../../../packages/bank-import/dist/ledg
 import { countingLayer, mutationRecorder } from "./lib/mutating-adapter.mjs";
 import { observe } from "./lib/observation.mjs";
 
-const SCRIPT_DIR = fileURLToPath(new URL(".", import.meta.url));
-const REPO_ROOT = join(SCRIPT_DIR, "..", "..", "..");
-const FIXTURE = join(
+const SCRIPT_DIR = import.meta.dirname;
+
+const REPO_ROOT = path.join(SCRIPT_DIR, "..", "..", "..");
+
+const FIXTURE = path.join(
   REPO_ROOT,
   "packages",
   "bank-import",
   "fixtures",
   "demo-bank.csv"
 );
+
 const UNKNOWN_ACCOUNT = "0192f0c1-0008-7000-8000-000000000000";
+
 const BROKEN_FILE = [
   "date,description,amount_minor,currency,reference",
   "2026-03-02,Demo Notebook,-4500,EUR,DEMO-2026-0006",
@@ -38,13 +41,17 @@ const fence = (message) => {
 };
 
 const arguments_ = process.argv.slice(2);
+
 const databaseIndex = arguments_.indexOf("--database");
+
 if (databaseIndex === -1 || arguments_[databaseIndex + 1] === undefined) {
   fence("drive-bank-import needs --database <path to the seeded demo book>");
 }
 
 const database = arguments_[databaseIndex + 1];
+
 const book = new DatabaseSync(database, { readOnly: true });
+
 const accounts = book
   .prepare(
     "SELECT a.id, a.profile_id, a.label, a.kind, p.base_currency, pr.label AS provider_label FROM provider_accounts a JOIN profiles p ON p.id = a.profile_id JOIN providers pr ON pr.id = a.provider_id WHERE a.archived_at IS NULL AND a.kind IN ('bank', 'csv') ORDER BY a.label"
@@ -64,10 +71,14 @@ if (targets.length === 0) {
   fence("The demo book holds no bank or CSV account to import into");
 }
 
-const profileId = targets[0].profileId;
+const [{ profileId }] = targets;
+
 const target = targets.find((entry) => entry.profileId === profileId);
-const content = readFileSync(FIXTURE, "utf8");
+
+const content = readFileSync(FIXTURE, "utf-8");
+
 const recorder = mutationRecorder();
+
 const layer = Layer.mergeAll(
   countingLayer({
     layer: memoryImportLedgerLayer(targets),
@@ -89,25 +100,29 @@ const observations = await Effect.runPromise(
   Effect.gen(function* driveBankImport() {
     const emitted = [];
     const listed = yield* listImportTargets.handler({ profileId });
-    const first = listed[0];
+    const [first] = listed;
     emitted.push(
       observe({
         id: "import-targets-listed",
         value: `label=${first.label} kind=${first.kind} base=${first.baseCurrency} provider=${first.providerLabel}`,
       })
     );
+
     const imported = yield* importBankFile.handler(
       request(content, target.id, "demo-bank.csv")
     );
+
     emitted.push(
       observe({
         id: "import-writes-every-line",
         value: `imported=${imported.imported} alreadyImported=${imported.alreadyImported} rejected=${imported.rejected.length}`,
       })
     );
+
     const storedFirst = yield* ImportLedger.use((ledger) =>
       ledger.storedLines(profileId, target.id)
     );
+
     emitted.push(
       observe({
         id: "import-stores-every-line",
@@ -115,18 +130,22 @@ const observations = await Effect.runPromise(
         value: storedFirst,
       })
     );
+
     const replayed = yield* importBankFile.handler(
       request(content, target.id, "demo-bank.csv")
     );
+
     emitted.push(
       observe({
         id: "import-replay-adds-nothing",
         value: `imported=${replayed.imported} alreadyImported=${replayed.alreadyImported}`,
       })
     );
+
     const storedReplay = yield* ImportLedger.use((ledger) =>
       ledger.storedLines(profileId, target.id)
     );
+
     emitted.push(
       observe({
         id: "import-replay-stores-nothing",
@@ -134,18 +153,22 @@ const observations = await Effect.runPromise(
         value: storedReplay,
       })
     );
+
     const broken = yield* importBankFile.handler(
       request(BROKEN_FILE, target.id, "demo-bank-broken.csv")
     );
+
     emitted.push(
       observe({
         id: "import-names-a-rejected-line",
         value: `imported=${broken.imported} rejected=${broken.rejected.length} reason=${broken.rejected[0].reason}`,
       })
     );
+
     const storedBroken = yield* ImportLedger.use((ledger) =>
       ledger.storedLines(profileId, target.id)
     );
+
     emitted.push(
       observe({
         id: "import-rejected-line-stores-once",
@@ -153,18 +176,24 @@ const observations = await Effect.runPromise(
         value: storedBroken,
       })
     );
+
     const unknown = yield* importBankFile
       .handler(request(content, UNKNOWN_ACCOUNT, "demo-bank.csv"))
       .pipe(Effect.result);
+
     emitted.push(
       observe({
         id: "import-refuses-unknown-account",
-        value: unknown._tag === "Failure" ? unknown.failure._tag : "Imported",
+        value: Predicate.isTagged(unknown, "Failure")
+          ? unknown.failure._tag
+          : "Imported",
       })
     );
+
     const storedUnknown = yield* ImportLedger.use((ledger) =>
       ledger.storedLines(profileId, target.id)
     );
+
     emitted.push(
       observe({
         id: "import-unknown-account-stores-nothing",

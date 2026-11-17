@@ -1,17 +1,27 @@
 #!/usr/bin/env node
 import { readdirSync, readFileSync, statSync } from "node:fs";
-import { join, relative } from "node:path";
-import { fileURLToPath } from "node:url";
+import path from "node:path";
 
-const SCRIPT_DIR = fileURLToPath(new URL(".", import.meta.url));
+const SCRIPT_DIR = import.meta.dirname;
+
 const arguments_ = process.argv.slice(2);
+
 const rootIndex = arguments_.indexOf("--root");
+
 const REPO_ROOT =
   rootIndex === -1
-    ? join(SCRIPT_DIR, "..", "..", "..")
+    ? path.join(SCRIPT_DIR, "..", "..", "..")
     : arguments_[rootIndex + 1];
-const FEATURES_DIR = join(REPO_ROOT, "skills", "verify-pecunia", "features");
-const README_PATH = join(FEATURES_DIR, "README.md");
+
+const FEATURES_DIR = path.join(
+  REPO_ROOT,
+  "skills",
+  "verify-pecunia",
+  "features"
+);
+
+const README_PATH = path.join(FEATURES_DIR, "README.md");
+
 const SKIPPED_DIRECTORIES = new Set([
   "__fixtures__",
   "dist",
@@ -57,15 +67,15 @@ const walk = (directory, files = []) => {
       continue;
     }
 
-    const path = join(directory, entry);
+    const filePath = path.join(directory, entry);
 
-    if (statSync(path).isDirectory()) {
-      walk(path, files);
+    if (statSync(filePath).isDirectory() === true) {
+      walk(filePath, files);
       continue;
     }
 
-    if (path.endsWith(".ts")) {
-      files.push(path);
+    if (filePath.endsWith(".ts") === true) {
+      files.push(filePath);
     }
   }
 
@@ -73,12 +83,13 @@ const walk = (directory, files = []) => {
 };
 
 const sourceFiles = [];
+
 for (const workspace of ["packages", "apps"]) {
-  for (const packageName of readdirSync(join(REPO_ROOT, workspace))) {
-    const sourceDirectory = join(REPO_ROOT, workspace, packageName, "src");
+  for (const packageName of readdirSync(path.join(REPO_ROOT, workspace))) {
+    const sourceDirectory = path.join(REPO_ROOT, workspace, packageName, "src");
 
     try {
-      if (!statSync(sourceDirectory).isDirectory()) {
+      if (statSync(sourceDirectory).isDirectory() === false) {
         continue;
       }
     } catch {
@@ -90,77 +101,95 @@ for (const workspace of ["packages", "apps"]) {
 }
 
 const capabilityFiles = sourceFiles.filter(
-  (path) =>
-    !relative(REPO_ROOT, path).startsWith(`packages${join("/", "capability")}/`)
+  (filePath) =>
+    path
+      .relative(REPO_ROOT, filePath)
+      .startsWith(`packages${path.join("/", "capability")}/`) === false
 );
 
 const contractNames = new Map();
-for (const path of capabilityFiles) {
-  const source = readFileSync(path, "utf8");
+
+for (const filePath of capabilityFiles) {
+  const source = readFileSync(filePath, "utf-8");
+
   const pattern =
-    /(?:export\s+)?const\s+([A-Za-z0-9_]+)\s*=\s*defineContract\(\s*["']([^"']+)["']/gu;
+    /(?:export\s+)?const\s+(?<binding>[A-Za-z0-9_]+)\s*=\s*defineContract\(\s*["'](?<contract>[^"']+)["']/gu;
 
   for (const match of source.matchAll(pattern)) {
-    contractNames.set(match[1], match[2]);
+    contractNames.set(match.groups.binding, match.groups.contract);
   }
 }
 
 const capabilities = new Map();
-for (const path of capabilityFiles) {
-  const source = readFileSync(path, "utf8");
+
+for (const filePath of capabilityFiles) {
+  const source = readFileSync(filePath, "utf-8");
+
   const pattern =
-    /(?:export\s+)?const\s+[A-Za-z0-9_]+\s*=\s*implement\(\s*([A-Za-z0-9_]+)/gu;
+    /(?:export\s+)?const\s+[A-Za-z0-9_]+\s*=\s*implement\(\s*(?<implemented>[A-Za-z0-9_]+)/gu;
 
   for (const match of source.matchAll(pattern)) {
-    const name = contractNames.get(match[1]);
+    const name = contractNames.get(match.groups.implemented);
 
     if (name === undefined) {
       fail(
         "mapping",
-        `${match[1]} is implemented in ${relative(REPO_ROOT, path)} with no defineContract name`
+        `${match.groups.implemented} is implemented in ${path.relative(REPO_ROOT, filePath)} with no defineContract name`
       );
       continue;
     }
 
     if (!capabilities.has(name)) {
-      capabilities.set(name, relative(REPO_ROOT, path));
+      capabilities.set(name, path.relative(REPO_ROOT, filePath));
     }
   }
 }
 
 const pageNames = readdirSync(FEATURES_DIR)
-  .filter((name) => name.endsWith(".md") && name !== "README.md")
-  .sort();
+  .filter((name) => Boolean(name.endsWith(".md")) && name !== "README.md")
+  .toSorted();
 
 const pages = new Map();
+
 for (const pageName of pageNames) {
-  const source = readFileSync(join(FEATURES_DIR, pageName), "utf8");
-  const status = /^Status: ([^.]+)\./mu.exec(source)?.[1]?.trim().toLowerCase();
+  const source = readFileSync(path.join(FEATURES_DIR, pageName), "utf-8");
+
+  const status = /^Status: (?<status>[^.]+)\./mu
+    .exec(source)
+    ?.groups.status?.trim()
+    .toLowerCase();
+
   const named = new Set();
 
   for (const match of sectionOf(source, "## Capabilities").matchAll(
-    /^- `([^`]+)`/gmu
+    /^- `(?<name>[^`]+)`/gmu
   )) {
-    named.add(match[1]);
+    named.add(match.groups.name);
   }
 
   pages.set(pageName, { named, status });
 }
 
-const readme = readFileSync(README_PATH, "utf8");
+const readme = readFileSync(README_PATH, "utf-8");
+
 const readmeStatus = new Map();
+
 for (const match of readme.matchAll(
-  /^\| \[[^\]]+\]\(([^)]+\.md)\) \| ([^|]+?) \|/gmu
+  /^\| \[[^\]]+\]\((?<page>[^)]+\.md)\) \| (?<status>[^|]+?) \|/gmu
 )) {
-  readmeStatus.set(match[1], match[2].trim().toLowerCase());
+  readmeStatus.set(match.groups.page, match.groups.status.trim().toLowerCase());
 }
 
 const notMoney = new Map();
+
 for (const match of sectionOf(readme, "## Not money capabilities").matchAll(
-  /^\| `([^`]+)` \| ([^|]+?) \|/gmu
+  /^\| `(?<module>[^`]+)` \| (?<names>[^|]+?) \|/gmu
 )) {
-  const modulePath = match[1];
-  const names = [...match[2].matchAll(/`([^`]+)`/gu)].map((entry) => entry[1]);
+  const { module: modulePath, names: listed } = match.groups;
+
+  const names = [...listed.matchAll(/`(?<name>[^`]+)`/gu)].map(
+    (entry) => entry.groups.name
+  );
 
   for (const name of names) {
     notMoney.set(name, modulePath);
@@ -168,6 +197,7 @@ for (const match of sectionOf(readme, "## Not money capabilities").matchAll(
 }
 
 const onPage = new Map();
+
 for (const [pageName, page] of pages) {
   for (const name of page.named) {
     if (onPage.has(name)) {

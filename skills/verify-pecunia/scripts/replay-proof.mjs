@@ -8,39 +8,42 @@ import {
   statSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
-import { fileURLToPath } from "node:url";
+import path from "node:path";
 
-const SCRIPT_DIR = fileURLToPath(new URL(".", import.meta.url));
-const REPO_ROOT = join(SCRIPT_DIR, "..", "..", "..");
-const EVIDENCE_ROOT = join(REPO_ROOT, "skills", "verify-pecunia", "evidence");
+import { isBoolean, isNumber, isText } from "./lib/values.mjs";
+
+const SCRIPT_DIR = import.meta.dirname;
+
+const REPO_ROOT = path.join(SCRIPT_DIR, "..", "..", "..");
+
+const EVIDENCE_ROOT = path.join(
+  REPO_ROOT,
+  "skills",
+  "verify-pecunia",
+  "evidence"
+);
+
 const RUNNER =
-  /^bash\s+(skills\/verify-pecunia\/scripts\/prove-demo-book\.sh\b.*)$/mu;
+  /^bash\s+(?<command>skills\/verify-pecunia\/scripts\/prove-demo-book\.sh\b.*)$/mu;
 
 const failures = [];
+
 const fail = (message) => {
   failures.push(message);
   process.stderr.write(`FAIL ${message}\n`);
 };
 
 const isRecord = (value) =>
-  typeof value === "object" && value !== null && !Array.isArray(value);
+  value !== null &&
+  value !== undefined &&
+  !isText(value) &&
+  !isNumber(value) &&
+  !isBoolean(value) &&
+  !Array.isArray(value);
 
-const asText = (value) => (typeof value === "string" ? value : "");
+const asText = (value) => (isText(value) ? value : "");
 
-const readProof = (path) => {
-  let parsed;
-
-  try {
-    parsed = JSON.parse(readFileSync(path, "utf8"));
-  } catch {
-    return undefined;
-  }
-
-  if (!isRecord(parsed)) {
-    return undefined;
-  }
-
+const proofOf = (parsed) => {
   const checks = Array.isArray(parsed.checks) ? parsed.checks : [];
 
   return {
@@ -60,30 +63,51 @@ const readProof = (path) => {
   };
 };
 
+const readProof = (file) => {
+  let parsed;
+
+  try {
+    parsed = JSON.parse(readFileSync(file, "utf-8"));
+  } catch {
+    return null;
+  }
+
+  return isRecord(parsed) ? proofOf(parsed) : null;
+};
+
 const arguments_ = process.argv.slice(2);
+
 const onlyIndex = arguments_.indexOf("--only");
+
 const only = onlyIndex === -1 ? undefined : arguments_[onlyIndex + 1];
 
 const evidenceDirectories = readdirSync(EVIDENCE_ROOT)
-  .filter((name) => statSync(join(EVIDENCE_ROOT, name)).isDirectory())
+  .filter((name) =>
+    Boolean(statSync(path.join(EVIDENCE_ROOT, name)).isDirectory())
+  )
   .filter((name) => only === undefined || name.endsWith(`-${only}`))
-  .sort();
+  .toSorted();
 
 let missingChecks = 0;
+
 let changedObservations = 0;
+
 let replayed = 0;
-const scratchRoot = mkdtempSync(join(tmpdir(), "pecunia-replay-"));
+
+const scratchRoot = mkdtempSync(path.join(tmpdir(), "pecunia-replay-"));
 
 try {
   for (const directory of evidenceDirectories) {
-    const savedDirectory = join(EVIDENCE_ROOT, directory);
-    const proofPath = join(savedDirectory, "PROOF.md");
-    const savedProofPath = join(savedDirectory, "proof.json");
-    const proof = readFileSync(proofPath, "utf8");
+    const savedDirectory = path.join(EVIDENCE_ROOT, directory);
+    const proofPath = path.join(savedDirectory, "PROOF.md");
+    const savedProofPath = path.join(savedDirectory, "proof.json");
+    const proof = readFileSync(proofPath, "utf-8");
+
     const label =
-      /^- Run label: `([^`]+)`$/mu.exec(proof)?.[1] ??
+      /^- Run label: `(?<label>[^`]+)`$/mu.exec(proof)?.groups.label ??
       directory.replace(/^\d{4}-\d{2}-\d{2}-/u, "");
-    const command = RUNNER.exec(proof)?.[1];
+
+    const command = RUNNER.exec(proof)?.groups.command;
 
     if (command === undefined) {
       fail(`${directory} records no prove-demo-book.sh command`);
@@ -91,16 +115,17 @@ try {
     }
 
     const replayLabel = `replay-${label}-${process.pid}`;
-    const replayRoot = join(scratchRoot, directory);
-    const replayCommand = command
-      .replace(/--label\s+\S+/u, `--label ${replayLabel}`)
-      .concat(
-        command.includes("--label") ? "" : ` --label ${replayLabel}`,
-        ` --evidence-root ${replayRoot}`
-      );
+    const replayRoot = path.join(scratchRoot, directory);
+
+    const replayCommand = [
+      command.replace(/--label\s+\S+/u, `--label ${replayLabel}`),
+      ...(command.includes("--label") ? [] : [` --label ${replayLabel}`]),
+      ` --evidence-root ${replayRoot}`,
+    ].join("");
+
     const result = spawnSync("bash", ["-c", replayCommand], {
       cwd: REPO_ROOT,
-      encoding: "utf8",
+      encoding: "utf-8",
     });
 
     if (result.status !== 0) {
@@ -108,12 +133,13 @@ try {
       continue;
     }
 
-    const replayProofDirectory = readdirSync(replayRoot)[0];
+    const [replayProofDirectory] = readdirSync(replayRoot);
+
     const replayProof = readProof(
-      join(replayRoot, replayProofDirectory, "proof.json")
+      path.join(replayRoot, replayProofDirectory, "proof.json")
     );
 
-    if (replayProof === undefined) {
+    if (replayProof === null) {
       fail(
         `${directory} replay wrote no usable proof.json under ${replayRoot}`
       );
@@ -122,7 +148,7 @@ try {
 
     const saved = readProof(savedProofPath);
 
-    if (saved === undefined) {
+    if (saved === null) {
       fail(`${directory} has no usable proof.json`);
       continue;
     }
@@ -134,7 +160,7 @@ try {
     for (const check of saved.checks) {
       const again = replayedById.get(check.id);
 
-      if (again === undefined) {
+      if (again === null) {
         missingChecks += 1;
         fail(`${directory} saved ${check.id}, which the replay no longer runs`);
         continue;
@@ -147,7 +173,7 @@ try {
       ) {
         changedObservations += 1;
         fail(
-          `${directory} ${check.id} observed ${again.actual} (${again.passed ? "PASS" : "FAIL"}) instead of ${check.actual} (${check.passed ? "PASS" : "FAIL"})`
+          `${directory} ${check.id} observed ${again.actual} (${again.passed === true ? "PASS" : "FAIL"}) instead of ${check.actual} (${check.passed === true ? "PASS" : "FAIL"})`
         );
       }
     }

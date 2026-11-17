@@ -7,16 +7,21 @@ import {
   readdirSync,
   writeFileSync,
 } from "node:fs";
-import { join } from "node:path";
-import { fileURLToPath } from "node:url";
+import path from "node:path";
 
 import { canonicalRecords, parseRecordSet } from "./lib/records.mjs";
+import { isBoolean, isNumber, isText } from "./lib/values.mjs";
 
-const SCRIPT_DIR = fileURLToPath(new URL(".", import.meta.url));
-const DEFAULT_TABLE = join(SCRIPT_DIR, "step-table.json");
-const DEFAULT_FEATURES = join(SCRIPT_DIR, "..", "features");
+const SCRIPT_DIR = import.meta.dirname;
+
+const DEFAULT_TABLE = path.join(SCRIPT_DIR, "step-table.json");
+
+const DEFAULT_FEATURES = path.join(SCRIPT_DIR, "..", "features");
+
 const PASS = "PASS";
+
 const FAIL = "FAIL";
+
 const PREDICATES = [
   "equals",
   "equalsDemoNumber",
@@ -29,11 +34,11 @@ const PREDICATES = [
 
 const asArray = (value) => (Array.isArray(value) ? value : []);
 
-export const readTable = (path = DEFAULT_TABLE) =>
-  JSON.parse(readFileSync(path, "utf8"));
+export const readTable = (tablePath = DEFAULT_TABLE) =>
+  JSON.parse(readFileSync(tablePath, "utf-8"));
 
 const readPageLines = (directory, name) =>
-  readFileSync(join(directory, name), "utf8").split("\n");
+  readFileSync(path.join(directory, name), "utf-8").split("\n");
 
 const bulletsAfter = (lines, start, pattern) => {
   const end = lines.findIndex(
@@ -45,15 +50,15 @@ const bulletsAfter = (lines, start, pattern) => {
     .flatMap((line) => {
       const match = pattern.exec(line);
 
-      return match === null ? [] : [match[1]];
+      return match === null ? [] : [match.groups.name];
     });
 };
 
 export const readCapabilities = (directory = DEFAULT_FEATURES) => {
   const capabilities = new Map();
 
-  for (const name of readdirSync(directory).sort()) {
-    if (!name.endsWith(".md") || name === "README.md") {
+  for (const name of readdirSync(directory).toSorted()) {
+    if (name.endsWith(".md") === false || name === "README.md") {
       continue;
     }
 
@@ -66,7 +71,7 @@ export const readCapabilities = (directory = DEFAULT_FEATURES) => {
 
     capabilities.set(
       name.replace(/\.md$/u, ""),
-      bulletsAfter(lines, start, /^- `([^`]+)`/u)
+      bulletsAfter(lines, start, /^- `(?<name>[^`]+)`/u)
     );
   }
 
@@ -76,19 +81,22 @@ export const readCapabilities = (directory = DEFAULT_FEATURES) => {
 export const readPageExpectations = (directory = DEFAULT_FEATURES) => {
   const pages = new Map();
 
-  for (const name of readdirSync(directory).sort()) {
-    if (!name.endsWith(".md") || name === "README.md") {
+  for (const name of readdirSync(directory).toSorted()) {
+    if (name.endsWith(".md") === false || name === "README.md") {
       continue;
     }
 
     const lines = readPageLines(directory, name);
+
     const start = lines.findIndex((line) =>
       line.startsWith("Checks this drive runs")
     );
 
     pages.set(
       name.replace(/\.md$/u, ""),
-      start === -1 ? [] : bulletsAfter(lines, start, /^- `([a-z0-9-]+)`: /u)
+      start === -1
+        ? []
+        : bulletsAfter(lines, start, /^- `(?<name>[a-z0-9-]+)`: /u)
     );
   }
 
@@ -97,7 +105,9 @@ export const readPageExpectations = (directory = DEFAULT_FEATURES) => {
 
   return {
     crossCutting:
-      start === -1 ? [] : bulletsAfter(lines, start, /^- `([a-z0-9-]+)`$/u),
+      start === -1
+        ? []
+        : bulletsAfter(lines, start, /^- `(?<name>[a-z0-9-]+)`$/u),
     pages,
   };
 };
@@ -167,36 +177,42 @@ const judgeEntries = ({ declared, fail, kind, recorded, step }) => {
 const fieldDifference = (expected, actual, where) => {
   const fields = [
     ...new Set([...Object.keys(expected), ...Object.keys(actual ?? {})]),
-  ].sort();
+  ].toSorted();
+
+  let difference;
 
   for (const field of fields) {
     const before = JSON.stringify(expected[field] ?? null);
     const after = JSON.stringify(actual?.[field] ?? null);
 
     if (before !== after) {
-      return {
+      difference = {
         actual: `record ${where} field ${field} ${after}`,
         expected: `record ${where} field ${field} ${before}`,
       };
+      break;
     }
   }
 
-  return undefined;
+  return difference;
 };
 
 const keyFieldOf = (rows) => {
-  if (rows.every((row) => typeof row?.id === "string")) {
-    return "id";
+  let keyField;
+
+  for (const field of ["id", "fingerprint"]) {
+    if (rows.every((row) => isText(row?.[field])) === true) {
+      keyField = field;
+      break;
+    }
   }
 
-  if (rows.every((row) => typeof row?.fingerprint === "string")) {
-    return "fingerprint";
-  }
-
-  return undefined;
+  return keyField;
 };
 
 const recordDifference = (expected, actual) => {
+  let difference;
+
   if (expected.length !== actual.length) {
     return {
       actual: `${actual.length} records`,
@@ -209,13 +225,15 @@ const recordDifference = (expected, actual) => {
 
   if (keyed) {
     const observed = actual.flatMap((row) =>
-      typeof row?.[keyField] === "string" ? [row[keyField]] : []
+      isText(row?.[keyField]) ? [row[keyField]] : []
     );
+
     const missing = expected
       .map((row) => row[keyField])
-      .filter((key) => !observed.includes(key));
+      .filter((key) => observed.includes(key) === false);
+
     const extra = observed.filter(
-      (key) => !expected.some((row) => row[keyField] === key)
+      (key) => expected.some((row) => row[keyField] === key) === false
     );
 
     if (missing.length > 0 || extra.length > 0) {
@@ -228,18 +246,21 @@ const recordDifference = (expected, actual) => {
 
   for (const [index, expectedRow] of expected.entries()) {
     const key = keyed ? expectedRow[keyField] : undefined;
+
     const actualRow = keyed
       ? actual.find((row) => row[keyField] === key)
       : actual[index];
+
     const where = key === undefined ? index + 1 : key;
-    const difference = fieldDifference(expectedRow, actualRow, where);
+
+    difference = fieldDifference(expectedRow, actualRow, where);
 
     if (difference !== undefined) {
-      return difference;
+      break;
     }
   }
 
-  return undefined;
+  return difference;
 };
 
 export const evaluate = ({
@@ -262,7 +283,7 @@ export const evaluate = ({
     };
   }
 
-  const predicate = declared[0];
+  const [predicate] = declared;
 
   if (predicate === "equals") {
     return {
@@ -355,9 +376,9 @@ const judgeReadbackOperation = ({ fail, found, expectation, step }) => {
     return;
   }
 
-  const operation = found.operation;
+  const { operation } = found;
 
-  if (typeof expectation.readOperation !== "string") {
+  if (!isText(expectation.readOperation)) {
     return;
   }
 
@@ -365,12 +386,13 @@ const judgeReadbackOperation = ({ fail, found, expectation, step }) => {
     fail(
       `step ${step.id} readback expectation ${expectation.id} observed through the write operation ${operation}`
     );
+
     return;
   }
 
   if (operation !== expectation.readOperation) {
     fail(
-      `step ${step.id} readback expectation ${expectation.id} observed through operation ${typeof operation === "string" && operation.length > 0 ? operation : "none"}, which is not the declared read operation ${expectation.readOperation}`
+      `step ${step.id} readback expectation ${expectation.id} observed through operation ${isText(operation) && operation.length > 0 ? operation : "none"}, which is not the declared read operation ${expectation.readOperation}`
     );
   }
 };
@@ -379,7 +401,6 @@ const judgeExpectations = ({
   demoNumbers,
   fail,
   readbackRecords,
-  record,
   step,
   expectations,
   observed,
@@ -394,7 +415,7 @@ const judgeExpectations = ({
       continue;
     }
 
-    if (seen.has(expectation.id)) {
+    if (seen.has(expectation.id) === true) {
       fail(
         `step ${step.id} declares expectation ${expectation.id}, which another step already declares`
       );
@@ -444,11 +465,12 @@ const judgeExpectations = ({
       continue;
     }
 
-    const value =
-      typeof found[0].value === "string"
-        ? found[0].value
-        : JSON.stringify(found[0].value ?? null);
+    const value = isText(found[0].value)
+      ? found[0].value
+      : JSON.stringify(found[0].value ?? null);
+
     judgeReadbackOperation({ fail, found: found[0], expectation, step });
+
     const result = evaluate({
       demoNumbers,
       expectation,
@@ -462,7 +484,7 @@ const judgeExpectations = ({
       fail(`step ${step.id} ${result.problem}`);
     }
 
-    if (!result.ok && result.problem === undefined) {
+    if (result.ok === false && result.problem === undefined) {
       fail(
         `step ${step.id} expectation ${id} expected ${result.expected} and observed ${result.actual}`
       );
@@ -488,6 +510,84 @@ const judgeExpectations = ({
   return declared.size;
 };
 
+const readbackExpectations = (step) =>
+  asArray(step.expectations).filter(
+    (expectation) => expectation.readback === true
+  );
+
+const judgeStepWrites = ({
+  fail,
+  id,
+  mutatingCalls,
+  ran,
+  readbacks,
+  step,
+  writes,
+}) => {
+  if (mutatingCalls > 0) {
+    if (step.writes !== true) {
+      fail(
+        `step ${id} recorded ${mutatingCalls} mutating calls but is not marked as writing`
+      );
+    }
+
+    if (writes.length === 0) {
+      fail(
+        `step ${id} recorded ${mutatingCalls} mutating calls but declares no write operation`
+      );
+    }
+
+    if (readbacks.length === 0) {
+      fail(
+        `step ${id} recorded ${mutatingCalls} mutating calls but declares no readback expectation`
+      );
+    }
+  }
+
+  if (step.writes !== true) {
+    for (const expectation of readbacks) {
+      fail(
+        `step ${id} is not marked as writing but declares readback expectation ${expectation.id}`
+      );
+    }
+
+    return;
+  }
+
+  if (writes.length === 0) {
+    if (ran.has(id) === true) {
+      fail(`step ${id} writes but declares no write operation`);
+    }
+  } else {
+    for (const name of writes) {
+      if (!isText(name) || name.length === 0) {
+        fail(`step ${id} declares a write operation that is not a name`);
+      }
+    }
+  }
+
+  if (ran.has(id) === true && readbacks.length === 0) {
+    fail(`step ${id} writes but declares no readback expectation`);
+  }
+};
+
+const judgeRecordReadbacks = ({ fail, record, step }) => {
+  for (const expectation of readbackExpectations(step)) {
+    if (!isText(expectation.readOperation)) {
+      fail(
+        `step ${record.step} readback expectation ${expectation.id} names no read operation`
+      );
+      continue;
+    }
+
+    if (asArray(step.writeOperations).includes(expectation.readOperation)) {
+      fail(
+        `step ${record.step} readback expectation ${expectation.id} reads back through the write operation ${expectation.readOperation}`
+      );
+    }
+  }
+};
+
 const judgeWriteReadbacks = ({ fail, planned, ran, records, steps }) => {
   for (const id of planned) {
     const step = steps.get(id);
@@ -496,97 +596,42 @@ const judgeWriteReadbacks = ({ fail, planned, ran, records, steps }) => {
       continue;
     }
 
-    if (step.writes !== undefined && typeof step.writes !== "boolean") {
+    if (step.writes !== undefined && !isBoolean(step.writes)) {
       fail(
         `step ${id} declares writes ${JSON.stringify(step.writes)}, which is not true or false`
       );
     }
 
-    const readbacks = asArray(step.expectations).filter(
-      (expectation) => expectation.readback === true
-    );
-    const writes = asArray(step.writeOperations);
     const recorded = asArray(records).find((entry) => entry.step === id);
     const mutatingCalls = recorded?.mutatingCalls ?? 0;
 
-    if (typeof mutatingCalls !== "number") {
+    if (!isNumber(mutatingCalls)) {
       fail(
         `step ${id} recorded mutating calls ${JSON.stringify(mutatingCalls)}, which is not a number`
       );
       continue;
     }
 
-    if (mutatingCalls > 0) {
-      if (step.writes !== true) {
-        fail(
-          `step ${id} recorded ${mutatingCalls} mutating calls but is not marked as writing`
-        );
-      }
-
-      if (writes.length === 0) {
-        fail(
-          `step ${id} recorded ${mutatingCalls} mutating calls but declares no write operation`
-        );
-      }
-
-      if (readbacks.length === 0) {
-        fail(
-          `step ${id} recorded ${mutatingCalls} mutating calls but declares no readback expectation`
-        );
-      }
-    }
-
-    if (step.writes === true) {
-      if (writes.length > 0) {
-        for (const name of writes) {
-          if (typeof name !== "string" || name.length === 0) {
-            fail(`step ${id} declares a write operation that is not a name`);
-          }
-        }
-      } else if (ran.has(id)) {
-        fail(`step ${id} writes but declares no write operation`);
-      }
-
-      if (ran.has(id) && readbacks.length === 0) {
-        fail(`step ${id} writes but declares no readback expectation`);
-      }
-
-      continue;
-    }
-
-    for (const expectation of readbacks) {
-      fail(
-        `step ${id} is not marked as writing but declares readback expectation ${expectation.id}`
-      );
-    }
+    judgeStepWrites({
+      fail,
+      id,
+      mutatingCalls,
+      ran,
+      readbacks: readbackExpectations(step),
+      step,
+      writes: asArray(step.writeOperations),
+    });
   }
 
   for (const record of asArray(records)) {
     const mutatingCalls = record.mutatingCalls ?? 0;
     const step = steps.get(record.step);
 
-    if (step === undefined || typeof mutatingCalls !== "number") {
+    if (step === undefined || !isNumber(mutatingCalls)) {
       continue;
     }
 
-    const readbacks = asArray(step.expectations).filter(
-      (expectation) => expectation.readback === true
-    );
-
-    for (const expectation of readbacks) {
-      if (typeof expectation.readOperation !== "string") {
-        fail(
-          `step ${record.step} readback expectation ${expectation.id} names no read operation`
-        );
-        continue;
-      }
-
-      if (asArray(step.writeOperations).includes(expectation.readOperation)) {
-        fail(
-          `step ${record.step} readback expectation ${expectation.id} reads back through the write operation ${expectation.readOperation}`
-        );
-      }
-    }
+    judgeRecordReadbacks({ fail, record, step });
   }
 };
 
@@ -604,7 +649,8 @@ const judgeCoverage = ({
     for (const name of capabilities.get(page) ?? []) {
       const owners = asArray(table.steps).filter(
         (step) =>
-          planned.includes(step.id) && asArray(step.capabilities).includes(name)
+          planned.includes(step.id) === true &&
+          asArray(step.capabilities).includes(name)
       );
 
       if (owners.length === 0) {
@@ -613,7 +659,7 @@ const judgeCoverage = ({
       }
 
       const proven = owners
-        .filter((step) => ran.has(step.id))
+        .filter((step) => ran.has(step.id) === true)
         .flatMap((step) => asArray(step.expectations))
         .filter((expectation) => expectation.capability === name);
 
@@ -628,7 +674,7 @@ const judgePages = ({ expected, fail, feature, tableIds }) => {
   const allowed = new Set(expected);
 
   for (const id of expected) {
-    if (!tableIds.has(id)) {
+    if (tableIds.has(id) === false) {
       fail(`feature page expectation ${id} has no entry in the step table`);
     }
   }
@@ -638,6 +684,132 @@ const judgePages = ({ expected, fail, feature, tableIds }) => {
       fail(
         `step table expectation ${id} is on no feature page the ${feature} run covers`
       );
+    }
+  }
+};
+
+const judgeRecordFile = ({
+  fail,
+  listed,
+  records,
+  recordsError,
+  recordsPath,
+}) => {
+  if (recordsError !== undefined) {
+    fail(recordsError);
+
+    return;
+  }
+
+  if (records === undefined) {
+    fail(`record file ${recordsPath} is missing`);
+
+    return;
+  }
+
+  if (listed.length === 0) {
+    fail(`record file ${recordsPath} is empty`);
+  }
+};
+
+const judgeRecord = ({
+  demoNumbers,
+  evaluated,
+  expectations,
+  fail,
+  feature,
+  planned,
+  ran,
+  readbackRecords,
+  record,
+  seen,
+  steps,
+}) => {
+  const step = steps.get(record.step);
+
+  if (step === undefined || planned.includes(record.step) === false) {
+    fail(
+      `record for step ${record.step}, which the ${feature} step table does not declare`
+    );
+
+    return 0;
+  }
+
+  if (seen.has(record.step) === true) {
+    fail(`step ${record.step} has more than one record`);
+
+    return 0;
+  }
+
+  seen.add(record.step);
+  ran.add(step.id);
+
+  if (record.exit !== 0) {
+    fail(`step ${record.step} exited ${record.exit}`);
+  }
+
+  judgeCommands({ fail, record, step });
+
+  judgeEntries({
+    declared: step.outputs,
+    fail,
+    kind: "output",
+    recorded: record.outputs,
+    step: step.id,
+  });
+
+  judgeEntries({
+    declared: step.artifacts,
+    fail,
+    kind: "artifact",
+    recorded: record.artifacts,
+    step: step.id,
+  });
+
+  return judgeExpectations({
+    demoNumbers,
+    evaluated,
+    expectations,
+    fail,
+    observed: asArray(record.observations),
+    readbackRecords,
+    seen,
+    step,
+  });
+};
+
+const judgeMissingRecords = ({ fail, listed, planned, seen }) => {
+  if (listed.length === 0) {
+    return;
+  }
+
+  for (const id of planned) {
+    if (seen.has(id) === false) {
+      fail(`step ${id} has no record`);
+    }
+  }
+};
+
+const featurePagesOf = ({ feature, pages }) => {
+  if (feature === "all") {
+    return [...pages.pages.keys()];
+  }
+
+  if (pages.pages.has(feature) === true) {
+    return [feature];
+  }
+
+  return [];
+};
+
+const judgePageLists = ({ fail, featurePages, pages }) => {
+  if (pages.crossCutting.length === 0) {
+    fail("the feature map cross-cutting section lists no expectation ids");
+  }
+
+  for (const page of featurePages) {
+    if ((pages.pages.get(page) ?? []).length === 0) {
+      fail(`the ${page} page lists no expectation ids`);
     }
   }
 };
@@ -652,9 +824,11 @@ export const judge = ({
   table,
 }) => {
   const failures = [];
+
   const fail = (message) => {
     failures.push(message);
   };
+
   const stepIds = table.features?.[feature];
   const planned = stepIds ?? [];
   const listed = records ?? [];
@@ -665,103 +839,44 @@ export const judge = ({
   const ran = new Set();
   let declared = 0;
 
-  if (recordsError === undefined) {
-    if (records === undefined) {
-      fail(`record file ${recordsPath} is missing`);
-    } else if (listed.length === 0) {
-      fail(`record file ${recordsPath} is empty`);
-    }
-  } else {
-    fail(recordsError);
-  }
+  judgeRecordFile({ fail, listed, records, recordsError, recordsPath });
 
   if (stepIds === undefined) {
     fail(`feature ${feature} has no declared step table`);
   }
 
   for (const record of listed) {
-    const step = steps.get(record.step);
-
-    if (step === undefined || !planned.includes(record.step)) {
-      fail(
-        `record for step ${record.step}, which the ${feature} step table does not declare`
-      );
-      continue;
-    }
-
-    if (seen.has(record.step)) {
-      fail(`step ${record.step} has more than one record`);
-      continue;
-    }
-
-    seen.add(record.step);
-    ran.add(step.id);
-
-    if (record.exit !== 0) {
-      fail(`step ${record.step} exited ${record.exit}`);
-    }
-
-    judgeCommands({ fail, record, step });
-    judgeEntries({
-      declared: step.outputs,
-      fail,
-      kind: "output",
-      recorded: record.outputs,
-      step: step.id,
-    });
-    judgeEntries({
-      declared: step.artifacts,
-      fail,
-      kind: "artifact",
-      recorded: record.artifacts,
-      step: step.id,
-    });
-    declared += judgeExpectations({
+    declared += judgeRecord({
       demoNumbers: table.demoNumbers ?? {},
       evaluated,
       expectations,
       fail,
-      observed: asArray(record.observations),
+      feature,
+      planned,
+      ran,
       readbackRecords: table.readbackRecords ?? {},
       record,
       seen,
-      step,
+      steps,
     });
   }
 
-  if (listed.length > 0) {
-    for (const id of planned) {
-      if (!seen.has(id)) {
-        fail(`step ${id} has no record`);
-      }
-    }
-  }
+  judgeMissingRecords({ fail, listed, planned, seen });
 
   judgeCoverage({ capabilities, fail, feature, planned, ran, table });
   judgeWriteReadbacks({ fail, planned, ran, records: listed, steps });
 
   const pages = pageExpectations ?? { crossCutting: [], pages: new Map() };
-  const featurePages =
-    feature === "all"
-      ? [...pages.pages.keys()]
-      : pages.pages.has(feature)
-        ? [feature]
-        : [];
 
-  if (pages.crossCutting.length === 0) {
-    fail("the feature map cross-cutting section lists no expectation ids");
-  }
+  const featurePages = featurePagesOf({ feature, pages });
 
-  for (const page of featurePages) {
-    if ((pages.pages.get(page) ?? []).length === 0) {
-      fail(`the ${page} page lists no expectation ids`);
-    }
-  }
+  judgePageLists({ fail, featurePages, pages });
 
   const expected = [
     ...pages.crossCutting,
     ...featurePages.flatMap((page) => pages.pages.get(page) ?? []),
   ];
+
   const tableIds = new Set(
     planned.flatMap((id) =>
       asArray(steps.get(id)?.expectations).map((expectation) => expectation.id)
@@ -796,7 +911,10 @@ const copyArtifacts = (records, evidenceDirectory) => {
       }
 
       try {
-        copyFileSync(artifact.path, join(evidenceDirectory, artifact.name));
+        copyFileSync(
+          artifact.path,
+          path.join(evidenceDirectory, artifact.name)
+        );
       } catch {
         failures.push(
           `artifact ${artifact.name} could not be copied from ${artifact.path}`
@@ -820,20 +938,7 @@ const mergedData = (records) => {
   return data;
 };
 
-const proofMarkdown = ({
-  data,
-  failures,
-  feature,
-  label,
-  passed,
-  ranAt,
-  records,
-  result,
-}) => {
-  const failedExpectations = result.expectations.filter(
-    (expectation) => !expectation.passed
-  ).length;
-  const lines = [];
+const proofCommands = ({ data, feature, label }) => {
   const commands = [];
 
   if ((data.buildCommand ?? "").length > 0) {
@@ -849,55 +954,129 @@ const proofMarkdown = ({
   }
 
   commands.push(
-    `bash skills/verify-pecunia/scripts/prove-demo-book.sh --feature ${feature} --label ${label}`
-  );
-  commands.push(
+    `bash skills/verify-pecunia/scripts/prove-demo-book.sh --feature ${feature} --label ${label}`,
     `node skills/verify-pecunia/scripts/replay-proof.mjs --only ${label}`
   );
 
-  lines.push(`# Verification proof: ${label}`, "");
-  lines.push(`- Run label: \`${label}\``);
-  lines.push(`- Run at: ${ranAt}`);
-  lines.push(
-    `- Branch: \`${data.branch ?? "unknown"}\` at \`${data.commit ?? "unknown"}\``
-  );
-  lines.push(`- Node: \`${data.node ?? "unknown"}\``);
-  lines.push(`- Demo seed: \`${data.seedCommand ?? "unknown"}\``);
-  lines.push(`- Demo book SHA-256: \`${data.demoBookSha256 ?? "unknown"}\``);
-  lines.push(
-    "- The scratch database is deleted after the run; `proof.json` holds every observation.",
-    ""
-  );
-  lines.push("## Commands", "", "```sh", ...commands, "```", "");
-  lines.push(
-    "## Steps",
-    "",
-    "| Step | Exit | Commands | Expectations |",
-    "| --- | --- | --- | --- |"
-  );
+  return commands;
+};
+
+const stepTableLines = ({ records, result }) => {
+  const rows = [];
 
   for (const id of result.steps) {
     const record = asArray(records).find((entry) => entry.step === id);
     const exit = record === undefined ? "no record" : `${record.exit}`;
+
     const commandList =
       record === undefined
         ? ""
         : asArray(record.commands)
             .map((command) => `\`${command.id}\` ${command.exit}`)
             .join(", ");
+
     const count = result.expectations.filter(
       (expectation) => expectation.step === id
     ).length;
 
-    lines.push(`| \`${id}\` | ${exit} | ${commandList} | ${count} |`);
+    rows.push(`| \`${id}\` | ${exit} | ${commandList} | ${count} |`);
+  }
+
+  return rows;
+};
+
+const artifactLines = (records) =>
+  asArray(records).flatMap((record) =>
+    asArray(record.artifacts).map(
+      (artifact) => `- \`${artifact.name}\` from the \`${record.step}\` step`
+    )
+  );
+
+const verdictLines = ({ failedExpectations, failures, passed, result }) => {
+  const lines = ["", "## Verdict", ""];
+
+  if (passed === true) {
+    lines.push(
+      `${PASS}: ${result.steps.length} steps ran, ${result.evaluated} expectations held against the seeded demo book.`
+    );
+
+    return lines;
   }
 
   lines.push(
-    "",
-    `Total: ${result.expectations.length} expectations across ${result.steps.length} steps, ${result.declared} declared, ${result.evaluated} evaluated.`
+    `${FAIL}: ${failures.length} problems, ${failedExpectations} of ${result.expectations.length} expectations failed, ${result.evaluated} of ${result.declared} declared expectations evaluated.`,
+    ""
   );
 
-  lines.push(
+  for (const failure of failures) {
+    lines.push(`- ${failure}`);
+  }
+
+  return lines;
+};
+
+const provesLines = ({ artifacts, passed }) => {
+  const lines = ["", "## What this proves", ""];
+
+  if (passed === true) {
+    lines.push(
+      "- The migrations and the demo seed fill a real SQLite database with the demo book.",
+      "- Every money value read back is an integer of minor units with an ISO currency code.",
+      "- Every expectation named above matched its observation for the demo data."
+    );
+
+    for (const line of artifacts) {
+      lines.push(`- ${line.replace(/^- /u, "")} ran.`);
+    }
+
+    return lines;
+  }
+
+  lines.push("Nothing: the verdict is FAIL, so this run proves no claim.");
+
+  return lines;
+};
+
+const proofMarkdown = ({
+  data,
+  failures,
+  feature,
+  label,
+  passed,
+  ranAt,
+  records,
+  result,
+}) => {
+  const failedExpectations = result.expectations.filter(
+    (expectation) => expectation.passed === false
+  ).length;
+
+  const artifacts = artifactLines(records);
+
+  const lines = [
+    `# Verification proof: ${label}`,
+    "",
+    `- Run label: \`${label}\``,
+    `- Run at: ${ranAt}`,
+    `- Branch: \`${data.branch ?? "unknown"}\` at \`${data.commit ?? "unknown"}\``,
+    `- Node: \`${data.node ?? "unknown"}\``,
+    `- Demo seed: \`${data.seedCommand ?? "unknown"}\``,
+    `- Demo book SHA-256: \`${data.demoBookSha256 ?? "unknown"}\``,
+    "- The scratch database is deleted after the run; `proof.json` holds every observation.",
+    "",
+    "## Commands",
+    "",
+    "```sh",
+    ...proofCommands({ data, feature, label }),
+    "```",
+    "",
+    "## Steps",
+    "",
+    "| Step | Exit | Commands | Expectations |",
+    "| --- | --- | --- | --- |",
+    ...stepTableLines({ records, result }),
+    "",
+    `Total: ${result.expectations.length} expectations across ${result.steps.length} steps, ${result.declared} declared, ${result.evaluated} evaluated.`,
     "",
     "## Seeded tables",
     "",
@@ -908,59 +1087,22 @@ const proofMarkdown = ({
     "## Expectations",
     "",
     "| Expectation | Result | Expected | Observed |",
-    "| --- | --- | --- | --- |"
-  );
+    "| --- | --- | --- | --- |",
+  ];
 
   for (const expectation of result.expectations) {
     lines.push(
-      `| \`${expectation.id}\` | ${expectation.passed ? "passed" : "failed"} | \`${expectation.expected}\` | \`${expectation.actual}\` |`
+      `| \`${expectation.id}\` | ${expectation.passed === true ? "passed" : "failed"} | \`${expectation.expected}\` | \`${expectation.actual}\` |`
     );
   }
-
-  const artifacts = asArray(records).flatMap((record) =>
-    asArray(record.artifacts).map(
-      (artifact) => `- \`${artifact.name}\` from the \`${record.step}\` step`
-    )
-  );
 
   if (artifacts.length > 0) {
     lines.push("", "## Capability drives", "", ...artifacts);
   }
 
-  lines.push("", "## Verdict", "");
-
-  if (passed) {
-    lines.push(
-      `${PASS}: ${result.steps.length} steps ran, ${result.evaluated} expectations held against the seeded demo book.`
-    );
-  } else {
-    lines.push(
-      `${FAIL}: ${failures.length} problems, ${failedExpectations} of ${result.expectations.length} expectations failed, ${result.evaluated} of ${result.declared} declared expectations evaluated.`,
-      ""
-    );
-
-    for (const failure of failures) {
-      lines.push(`- ${failure}`);
-    }
-  }
-
-  lines.push("", "## What this proves", "");
-
-  if (passed) {
-    lines.push(
-      "- The migrations and the demo seed fill a real SQLite database with the demo book.",
-      "- Every money value read back is an integer of minor units with an ISO currency code.",
-      "- Every expectation named above matched its observation for the demo data."
-    );
-
-    for (const line of artifacts) {
-      lines.push(`- ${line.replace(/^- /u, "")} ran.`);
-    }
-  } else {
-    lines.push("Nothing: the verdict is FAIL, so this run proves no claim.");
-  }
-
   lines.push(
+    ...verdictLines({ failedExpectations, failures, passed, result }),
+    ...provesLines({ artifacts, passed }),
     "",
     "## What this does not prove",
     "",
@@ -993,10 +1135,15 @@ const writeEvidence = ({
     passed: expectation.passed,
     step: expectation.step,
   }));
-  const failed = checks.filter((expectation) => !expectation.passed).length;
+
+  const failed = checks.filter(
+    (expectation) => expectation.passed === false
+  ).length;
+
   const failedSteps = asArray(records).filter(
     (record) => record.exit !== 0
   ).length;
+
   const stepExpectations = {};
 
   for (const check of checks) {
@@ -1024,7 +1171,7 @@ const writeEvidence = ({
   };
 
   writeFileSync(
-    join(evidence, "PROOF.md"),
+    path.join(evidence, "PROOF.md"),
     proofMarkdown({
       data,
       failures,
@@ -1037,7 +1184,7 @@ const writeEvidence = ({
     })
   );
   writeFileSync(
-    join(evidence, "proof.json"),
+    path.join(evidence, "proof.json"),
     `${JSON.stringify(proof, null, 2)}\n`
   );
 };
@@ -1048,7 +1195,7 @@ const parseArguments = (argv) => {
   for (let index = 0; index < argv.length; index += 1) {
     const token = argv[index];
 
-    if (!token.startsWith("--")) {
+    if (token.startsWith("--") === false) {
       throw new Error(`unexpected argument ${token}`);
     }
 
@@ -1069,13 +1216,13 @@ const required = (arguments_, name) => {
   return value;
 };
 
-const readRecords = (path) => {
-  if (!existsSync(path)) {
+const readRecords = (recordsPath) => {
+  if (existsSync(recordsPath) === false) {
     return { records: undefined };
   }
 
   try {
-    const records = readFileSync(path, "utf8")
+    const records = readFileSync(recordsPath, "utf-8")
       .split("\n")
       .filter((line) => line.trim().length > 0)
       .map((line) => JSON.parse(line));
@@ -1083,7 +1230,7 @@ const readRecords = (path) => {
     return { records };
   } catch (error) {
     return {
-      recordsError: `record file ${path} does not hold JSON lines: ${error.message}`,
+      recordsError: `record file ${recordsPath} does not hold JSON lines: ${error.message}`,
     };
   }
 };
@@ -1098,6 +1245,7 @@ const runCheck = (arguments_) => {
   const ranAt = arguments_.get("ran-at") ?? new Date().toISOString();
   const table = readTable(tablePath);
   const { records, recordsError } = readRecords(recordsPath);
+
   const result = judge({
     capabilities: readCapabilities(featuresDirectory),
     feature,
@@ -1130,10 +1278,10 @@ const runCheck = (arguments_) => {
   }
 
   const failedExpectations = result.expectations.filter(
-    (expectation) => !expectation.passed
+    (expectation) => expectation.passed === false
   ).length;
 
-  process.stdout.write(`Proof: ${join(evidence, "PROOF.md")}\n`);
+  process.stdout.write(`Proof: ${path.join(evidence, "PROOF.md")}\n`);
 
   if (passed) {
     process.stdout.write(
@@ -1155,6 +1303,7 @@ const main = () => {
 
   if (command === "features") {
     process.stdout.write(`${Object.keys(table.features).join("\n")}\n`);
+
     return;
   }
 
@@ -1168,6 +1317,7 @@ const main = () => {
 
     if (command === "plan") {
       process.stdout.write(`${steps.join("\n")}\n`);
+
       return;
     }
 
@@ -1186,16 +1336,14 @@ const main = () => {
 
   if (command === "check") {
     runCheck(arguments_);
+
     return;
   }
 
   throw new Error(`unknown command ${command ?? ""}`);
 };
 
-if (
-  process.argv[1] !== undefined &&
-  fileURLToPath(import.meta.url) === process.argv[1]
-) {
+if (process.argv[1] !== undefined && import.meta.filename === process.argv[1]) {
   try {
     main();
   } catch (error) {

@@ -1,6 +1,5 @@
 #!/usr/bin/env node
-import { Effect, Layer, Option, Schema } from "effect";
-import { Clock } from "effect";
+import { Effect, Layer, Option, Predicate, Schema, Clock } from "effect";
 
 import {
   CurrentPerson,
@@ -28,6 +27,7 @@ import { BankLineService } from "../../../packages/bank-lines/dist/service.js";
 import { BankLineStore } from "../../../packages/bank-lines/dist/store.js";
 import { countingLayer, mutationRecorder } from "./lib/mutating-adapter.mjs";
 import { observe } from "./lib/observation.mjs";
+import { isNumber } from "./lib/values.mjs";
 
 const fence = (message) => {
   process.stderr.write(`${message}\n`);
@@ -35,20 +35,27 @@ const fence = (message) => {
 };
 
 const arguments_ = process.argv.slice(2);
+
 const capabilityIndex = arguments_.indexOf("--capability");
+
 if (capabilityIndex === -1 || arguments_[capabilityIndex + 1] === undefined) {
   fence("drive-bank-lines needs --capability <list|edit|review>");
 }
 
 const capability = arguments_[capabilityIndex + 1];
+
 if (!["list", "edit", "review"].includes(capability)) {
   fence(`drive-bank-lines does not know the capability ${capability}`);
 }
 
 const foreignCategory = "0192f0c1-00ff-7000-8000-000000000000";
+
 const missingLine = "line-missing";
+
 const writtenNote = "Demo note written by the verify drive";
+
 const reviewedAt = 1_767_225_600_000;
+
 const recorder = mutationRecorder();
 
 const fixedClock = {
@@ -108,7 +115,7 @@ const request = ({
 });
 
 const failureTag = (result) =>
-  result._tag === "Failure" ? result.failure._tag : "NoFailure";
+  Predicate.isTagged(result, "Failure") ? result.failure._tag : "NoFailure";
 
 const editRequest = ({ category, lineId, note }) => ({
   category,
@@ -125,16 +132,20 @@ const listObservations = () =>
   Effect.runPromise(
     Effect.gen(function* listBook() {
       const page = yield* listBankLines.handler(request({}));
+
       const emitted = [
         observe({
           id: "bank-line-list-returns-the-demo-book",
-          value: `total=${page.lines.length} demoLines=${demoBankLines.length} awaiting=${page.lines.filter((line) => line.review._tag === "Awaiting").length}`,
+          value: `total=${page.lines.length} demoLines=${demoBankLines.length} awaiting=${page.lines.filter((line) => Predicate.isTagged(line.review, "Awaiting")).length}`,
         }),
       ];
+
       const occurred = page.lines.map((line) => line.occurredAt);
+
       const ordered = occurred.every(
         (value, index) => index === 0 || occurred[index - 1] >= value
       );
+
       emitted.push(
         observe({
           id: "bank-line-list-orders-newest-first",
@@ -142,9 +153,11 @@ const listObservations = () =>
         })
       );
       const outFilter = { ...noFilter, direction: Option.some("out") };
+
       const filtered = yield* listBankLines.handler(
         request({ filter: outFilter })
       );
+
       emitted.push(
         observe({
           id: "bank-line-list-filters-by-direction",
@@ -152,9 +165,11 @@ const listObservations = () =>
         })
       );
       const first = yield* listBankLines.handler(request({ limit: 5 }));
+
       const second = yield* listBankLines.handler(
         request({ cursor: first.next, limit: 5 })
       );
+
       const firstIds = first.lines.map((line) => line.id);
       const secondIds = second.lines.map((line) => line.id);
       const overlap = secondIds.filter((id) => firstIds.includes(id)).length;
@@ -172,9 +187,10 @@ const listObservations = () =>
 const editObservations = () =>
   Effect.runPromise(
     Effect.gen(function* editOneLine() {
-      const target = demoBankLines[0];
+      const [target] = demoBankLines;
       const category = demoCategories[0].id;
       const emitted = [];
+
       const edited = yield* editBankLine.handler(
         editRequest({
           category: CategoryChangeSchema.cases.Assigned.make({
@@ -184,13 +200,12 @@ const editObservations = () =>
           note: NoteChangeSchema.cases.Set.make({ text: writtenNote }),
         })
       );
+
       emitted.push(
         observe({
           id: "bank-line-edit-sets-category-and-note",
           value: `category=${Option.isSome(edited.category) ? edited.category.value : "none"} note=${edited.note}`,
-        })
-      );
-      emitted.push(
+        }),
         observe({
           id: "bank-line-edit-keeps-the-line-in-its-profile",
           value: `lineId=${edited.id} profileId=${edited.profileId}`,
@@ -204,6 +219,7 @@ const editObservations = () =>
           value: storedAfterEdit.lines,
         })
       );
+
       const unknownLine = yield* editBankLine
         .handler(
           editRequest({
@@ -213,6 +229,7 @@ const editObservations = () =>
           })
         )
         .pipe(Effect.result);
+
       emitted.push(
         observe({
           id: "bank-line-edit-refuses-an-unknown-line",
@@ -227,6 +244,7 @@ const editObservations = () =>
           value: storedAfterUnknownLine.lines,
         })
       );
+
       const unknownCategory = yield* editBankLine
         .handler(
           editRequest({
@@ -238,15 +256,18 @@ const editObservations = () =>
           })
         )
         .pipe(Effect.result);
+
       emitted.push(
         observe({
           id: "bank-line-edit-refuses-a-foreign-category",
           value: failureTag(unknownCategory),
         })
       );
+
       const storedAfterForeignCategory = yield* listBankLines.handler(
         request({})
       );
+
       emitted.push(
         observe({
           id: "bank-line-edit-foreign-category-stores-nothing",
@@ -260,7 +281,9 @@ const editObservations = () =>
   );
 
 const reviewObservations = async () => {
-  const target = demoBankLines.find((line) => line.review._tag === "Awaiting");
+  const target = demoBankLines.find((line) =>
+    Predicate.isTagged(line.review, "Awaiting")
+  );
 
   if (target === undefined) {
     fence("The demo book has no line awaiting review to drive");
@@ -272,12 +295,14 @@ const reviewObservations = async () => {
         const marked = yield* reviewBankLine.handler(
           reviewRequest({ lineId: target.id })
         );
+
         const emitted = [
           observe({
             id: "bank-line-review-marks-the-line",
-            value: `tag=${marked.review._tag} hasTime=${marked.review._tag === "Reviewed" && typeof marked.review.at === "number"}`,
+            value: `tag=${marked.review._tag} hasTime=${Predicate.isTagged(marked.review, "Reviewed") && isNumber(marked.review.at)}`,
           }),
         ];
+
         const storedAfterReview = yield* listBankLines.handler(request({}));
         emitted.push(
           observe({
@@ -286,12 +311,14 @@ const reviewObservations = async () => {
             value: storedAfterReview.lines,
           })
         );
+
         const viewer = yield* reviewBankLine
           .handler(reviewRequest({ lineId: target.id }))
           .pipe(
             Effect.provideService(CurrentPerson, viewerPerson),
             Effect.result
           );
+
         emitted.push(
           observe({
             id: "bank-line-review-refuses-a-viewer",
