@@ -1,6 +1,9 @@
+// oxlint-disable typescript/no-misused-spread, typescript/no-unsafe-type-assertion, anti-slop/require-safety-comment-for-type-assertion -- this test forges a plain copy of a class instance on purpose, because a copy that loses the prototype must never reach the model
 import { describe, expect, it } from "@effect/vitest";
 import { Effect, Schema } from "effect";
 
+import { parse } from "../../src/model/codec.js";
+import { codecs } from "../../src/model/codecs.js";
 import {
   AmountsSchema,
   ConvertedAmount,
@@ -8,24 +11,18 @@ import {
 } from "../../src/model/money.js";
 import type { Amounts } from "../../src/model/money.js";
 import type { CurrencyCode } from "../../src/model/primitives.js";
-import {
-  CurrencyCodeSchema,
-  DateOnlySchema,
-  MoneySchema,
-} from "../../src/model/primitives.js";
-import { RateSchema } from "../../src/model/rate.js";
 
 const currencyOf = (code: string): CurrencyCode =>
-  Schema.decodeSync(CurrencyCodeSchema)(code);
+  parse(codecs.currencyCode, code);
 
 const moneyOf = (code: string, minor: number) =>
-  Schema.decodeSync(MoneySchema)({ currency: code, minor });
+  parse(codecs.money, { currency: code, minor });
 
 const minorOf = (value: number) => moneyOf("EUR", value).minor;
 
-const rateOf = (text: string) => Schema.decodeSync(RateSchema)(text);
+const rateOf = (text: string) => parse(codecs.rate, text);
 
-const dateOnly = (text: string) => Schema.decodeSync(DateOnlySchema)(text);
+const dateOnly = (text: string) => parse(codecs.dateOnly, text);
 
 describe("a converted amount keeps one source of truth", () => {
   it.effect("refuses a spread that retargets the source", () =>
@@ -85,7 +82,11 @@ describe("a converted amount keeps one source of truth", () => {
         dateOnly("2024-01-30")
       );
 
-      const forged = Object.assign(stored, { source: moneyOf("GBP", 5000) });
+      expect(() =>
+        Object.assign(stored, { source: moneyOf("GBP", 5000) })
+      ).toThrow(/source/u);
+
+      const forged = { ...stored, source: moneyOf("GBP", 5000) } as never;
 
       expect(() => Schema.encodeSync(AmountsSchema)(forged)).toThrow();
     })
@@ -100,9 +101,16 @@ describe("a converted amount keeps one source of truth", () => {
         dateOnly("2024-01-30")
       );
 
-      const forged = Object.assign(stored, {
+      expect(() =>
+        Object.assign(stored, {
+          base: { currency: currencyOf("EUR"), minor: minorOf(1) },
+        })
+      ).toThrow(/base/u);
+
+      const forged = {
+        ...stored,
         base: { currency: currencyOf("EUR"), minor: minorOf(1) },
-      });
+      } as never;
 
       expect(() => Schema.encodeUnknownSync(AmountsSchema)(forged)).toThrow();
     })

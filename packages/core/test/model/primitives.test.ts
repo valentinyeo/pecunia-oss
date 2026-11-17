@@ -1,43 +1,36 @@
 import { describe, expect, it } from "@effect/vitest";
-import { Schema } from "effect";
 
+import { parse } from "../../src/model/codec.js";
+import { codecs } from "../../src/model/codecs.js";
 import * as modelModule from "../../src/model/index.js";
 import * as moneyModule from "../../src/model/money.js";
 import * as primitivesModule from "../../src/model/primitives.js";
-import {
-  DateOnlySchema,
-  MoneySchema,
-  ProfileIdSchema,
-  TransactionIdSchema,
-} from "../../src/model/primitives.js";
 
 describe("domain primitives", () => {
   it("rejects a float minor amount", () => {
     expect(() =>
-      Schema.decodeSync(MoneySchema)({ currency: "EUR", minor: 12.5 })
+      parse(codecs.money, { currency: "EUR", minor: 12.5 })
     ).toThrow();
   });
 
   it("rejects a lowercase currency code", () => {
     expect(() =>
-      Schema.decodeSync(MoneySchema)({ currency: "eur", minor: 100 })
+      parse(codecs.money, { currency: "eur", minor: 100 })
     ).toThrow();
   });
 
   it("rejects an amount without a currency", () => {
-    expect(() =>
-      Schema.decodeUnknownSync(MoneySchema)({ minor: 100 })
-    ).toThrow();
+    expect(() => parse(codecs.money, { minor: 100 })).toThrow();
   });
 
   it("accepts a UUIDv7 id and rejects another UUID version", () => {
     const v7 = "018f2b7c-1234-7abc-8def-0123456789ab";
     const v4 = "018f2b7c-1234-4abc-8def-0123456789ab";
 
-    expect(Schema.decodeSync(ProfileIdSchema)(v7)).toBe(v7);
-    expect(Schema.decodeSync(TransactionIdSchema)(v7)).toBe(v7);
-    expect(() => Schema.decodeSync(ProfileIdSchema)(v4)).toThrow();
-    expect(() => Schema.decodeSync(ProfileIdSchema)("demo-profile")).toThrow();
+    expect(parse(codecs.profileId, v7)).toBe(v7);
+    expect(parse(codecs.transactionId, v7)).toBe(v7);
+    expect(() => parse(codecs.profileId, v4)).toThrow();
+    expect(() => parse(codecs.profileId, "demo-profile")).toThrow();
   });
 
   it("exposes no schema that brands an arbitrary amount as a base amount", () => {
@@ -47,8 +40,8 @@ describe("domain primitives", () => {
   });
 
   it("rejects a date that is not in YYYY-MM-DD form", () => {
-    expect(Schema.decodeSync(DateOnlySchema)("2024-01-31")).toBe("2024-01-31");
-    expect(() => Schema.decodeSync(DateOnlySchema)("31/01/2024")).toThrow();
+    expect(parse(codecs.dateOnly, "2024-01-31")).toBe("2024-01-31");
+    expect(() => parse(codecs.dateOnly, "31/01/2024")).toThrow();
   });
 
   it("rejects a date no calendar has", () => {
@@ -65,7 +58,7 @@ describe("domain primitives", () => {
     ];
 
     for (const text of impossible) {
-      expect(() => Schema.decodeSync(DateOnlySchema)(text)).toThrow();
+      expect(() => parse(codecs.dateOnly, text)).toThrow();
     }
   });
 
@@ -79,7 +72,7 @@ describe("domain primitives", () => {
     ];
 
     for (const text of possible) {
-      expect(Schema.decodeSync(DateOnlySchema)(text)).toBe(text);
+      expect(parse(codecs.dateOnly, text)).toBe(text);
     }
   });
 });

@@ -2,6 +2,8 @@ import { describe, expect, it } from "@effect/vitest";
 import { Effect, Option, Result, Schema } from "effect";
 import * as Arbitrary from "effect/Arbitrary";
 
+import { parse } from "../../src/model/codec.js";
+import { codecs } from "../../src/model/codecs.js";
 import {
   conversionInputInvalid,
   conversionOverflow,
@@ -20,12 +22,7 @@ import {
 } from "../../src/model/money.js";
 import type { RateLookup } from "../../src/model/money.js";
 import type { CurrencyCode, MinorUnits } from "../../src/model/primitives.js";
-import {
-  CurrencyCodeSchema,
-  MinorUnitsSchema,
-  MoneySchema,
-} from "../../src/model/primitives.js";
-import { RateSchema } from "../../src/model/rate.js";
+import { CurrencyCodeSchema } from "../../src/model/primitives.js";
 
 const minorRange = Schema.Int.check(
   Schema.isBetween({ maximum: 1_000_000_000, minimum: -1_000_000_000 })
@@ -46,19 +43,19 @@ const otherThanEuro = Arbitrary.filter((currency) => currency !== "EUR")(
 );
 
 const currencyOf = (code: string): CurrencyCode =>
-  Schema.decodeSync(CurrencyCodeSchema)(code);
+  parse(codecs.currencyCode, code);
 
 const moneyOf = (code: string, minor: number) =>
-  Schema.decodeSync(MoneySchema)({ currency: code, minor });
+  parse(codecs.money, { currency: code, minor });
 
 const euro = (minor: number) => moneyOf("EUR", minor);
 
 const minorOf = (value: number) => euro(value).minor;
 
-const rateOf = (text: string) => Schema.decodeSync(RateSchema)(text);
+const rateOf = (text: string) => parse(codecs.rate, text);
 
 const minorUnits = (value: number): MinorUnits =>
-  Schema.decodeSync(MinorUnitsSchema)(value);
+  parse(codecs.minorUnits, value);
 
 const unguardedMinorUnits = Schema.Finite.pipe(Schema.brand("MinorUnits"));
 

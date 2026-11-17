@@ -1,165 +1,113 @@
+// oxlint-disable anti-slop/no-unknown-parameters, anti-slop/no-object-parameters -- these two helpers are the strict decode boundary the rule tests call with made-up wire literals
 import { describe, expect, it } from "@effect/vitest";
 import { DateTime, Effect, Option, Schema } from "effect";
 
-import { AppSettingSchema } from "../../src/model/app-setting.js";
-import {
-  CategorySchema,
-  MerchantAliasSchema,
-  PayeeSchema,
-} from "../../src/model/category.js";
-import { strictOptions } from "../../src/model/codec.js";
+import { strictOptions, parse } from "../../src/model/codec.js";
+import { codecs } from "../../src/model/codecs.js";
 import { rateOnSameCurrency } from "../../src/model/errors.js";
 import { convertedAmounts, sameCurrencyAmount } from "../../src/model/index.js";
-import {
-  HoldingSchema,
-  InvestmentPlatformSchema,
-} from "../../src/model/investment.js";
+import { HoldingSchema } from "../../src/model/investment.js";
 import type { Holding } from "../../src/model/investment.js";
-import {
-  ArchiveStateSchema,
-  ArchiveTargetSchema,
-  InvoiceDocumentSchema,
-  InvoiceExceptionSchema,
-  InvoiceSourceSchema,
-} from "../../src/model/invoice.js";
-import { ExchangeRateSchema } from "../../src/model/market.js";
+import { ArchiveStateSchema } from "../../src/model/invoice.js";
 import {
   AmountsSchema,
   SameCurrencyAmountSchema,
 } from "../../src/model/money.js";
-import {
-  AliasIdSchema,
-  ArchiveTargetIdSchema,
-  CategoryIdSchema,
-  CurrencyCodeSchema,
-  DateOnlySchema,
-  DocumentIdSchema,
-  HoldingIdSchema,
-  InvoiceSourceIdSchema,
-  MemberIdSchema,
-  MoneySchema,
-  PayeeIdSchema,
-  ProfileIdSchema,
-  ProviderAccountIdSchema,
-  ReportIdSchema,
-  RuleIdSchema,
-  SubscriptionIdSchema,
-  SyncRunIdSchema,
-  TaxObligationIdSchema,
-  TaxProfileIdSchema,
-  TimestampSchema,
-  TransactionIdSchema,
-} from "../../src/model/primitives.js";
 import type { DateOnly } from "../../src/model/primitives.js";
-import { MemberSchema, ProfileSchema } from "../../src/model/profile.js";
-import {
-  ProviderAccountSchema,
-  ProviderSchema,
-} from "../../src/model/provider.js";
-import { RateSchema } from "../../src/model/rate.js";
 import type { Rate } from "../../src/model/rate.js";
-import { ReportSchema } from "../../src/model/report.js";
 import { RuleSchema } from "../../src/model/rule.js";
-import { SyncRunSchema, SyncRunStateSchema } from "../../src/model/run.js";
-import {
-  SubscriptionSchema,
-  SubscriptionStatusSchema,
-} from "../../src/model/subscription.js";
-import {
-  TaxObligationSchema,
-  TaxObligationStatusSchema,
-  TaxProfileSchema,
-} from "../../src/model/tax.js";
+import { SyncRunStateSchema } from "../../src/model/run.js";
+import { SubscriptionStatusSchema } from "../../src/model/subscription.js";
+import type { TaxObligationSchema } from "../../src/model/tax.js";
+import { TaxObligationStatusSchema } from "../../src/model/tax.js";
 import {
   CategorizationSchema,
   ClassificationSchema,
   TransactionSchema,
 } from "../../src/model/transaction.js";
 
-const at = Schema.decodeSync(TimestampSchema)(
-  DateTime.makeUnsafe("2024-01-31T10:00:00Z")
-);
+const at = parse(codecs.timestamp, DateTime.makeUnsafe("2024-01-31T10:00:00Z"));
 
-const profileId = Schema.decodeSync(ProfileIdSchema)(
+const profileId = parse(
+  codecs.profileId,
   "018f2b7c-1234-7abc-8def-0123456789ab"
 );
 
-const memberId = Schema.decodeSync(MemberIdSchema)(
-  "018f2b7c-1234-7abc-8def-0123456789ac"
-);
+const memberId = parse(codecs.memberId, "018f2b7c-1234-7abc-8def-0123456789ac");
 
-const accountId = Schema.decodeSync(ProviderAccountIdSchema)(
+const accountId = parse(
+  codecs.providerAccountId,
   "018f2b7c-1234-7abc-8def-0123456789ad"
 );
 
-const categoryId = Schema.decodeSync(CategoryIdSchema)(
+const categoryId = parse(
+  codecs.categoryId,
   "018f2b7c-1234-7abc-8def-0123456789ae"
 );
 
-const ruleId = Schema.decodeSync(RuleIdSchema)(
-  "018f2b7c-1234-7abc-8def-0123456789af"
-);
+const ruleId = parse(codecs.ruleId, "018f2b7c-1234-7abc-8def-0123456789af");
 
-const payeeId = Schema.decodeSync(PayeeIdSchema)(
-  "018f2b7c-1234-7abc-8def-0123456789b0"
-);
+const payeeId = parse(codecs.payeeId, "018f2b7c-1234-7abc-8def-0123456789b0");
 
-const aliasId = Schema.decodeSync(AliasIdSchema)(
-  "018f2b7c-1234-7abc-8def-0123456789b1"
-);
+const aliasId = parse(codecs.aliasId, "018f2b7c-1234-7abc-8def-0123456789b1");
 
-const transactionId = Schema.decodeSync(TransactionIdSchema)(
+const transactionId = parse(
+  codecs.transactionId,
   "018f2b7c-1234-7abc-8def-0123456789b2"
 );
 
-const subscriptionId = Schema.decodeSync(SubscriptionIdSchema)(
+const subscriptionId = parse(
+  codecs.subscriptionId,
   "018f2b7c-1234-7abc-8def-0123456789b3"
 );
 
-const holdingId = Schema.decodeSync(HoldingIdSchema)(
+const holdingId = parse(
+  codecs.holdingId,
   "018f2b7c-1234-7abc-8def-0123456789b4"
 );
 
-const syncRunId = Schema.decodeSync(SyncRunIdSchema)(
+const syncRunId = parse(
+  codecs.syncRunId,
   "018f2b7c-1234-7abc-8def-0123456789b5"
 );
 
-const documentId = Schema.decodeSync(DocumentIdSchema)(
+const documentId = parse(
+  codecs.documentId,
   "018f2b7c-1234-7abc-8def-0123456789b6"
 );
 
-const invoiceSourceId = Schema.decodeSync(InvoiceSourceIdSchema)(
+const invoiceSourceId = parse(
+  codecs.invoiceSourceId,
   "018f2b7c-1234-7abc-8def-0123456789b7"
 );
 
-const archiveTargetId = Schema.decodeSync(ArchiveTargetIdSchema)(
+const archiveTargetId = parse(
+  codecs.archiveTargetId,
   "018f2b7c-1234-7abc-8def-0123456789b8"
 );
 
-const taxProfileId = Schema.decodeSync(TaxProfileIdSchema)(
+const taxProfileId = parse(
+  codecs.taxProfileId,
   "018f2b7c-1234-7abc-8def-0123456789b9"
 );
 
-const taxObligationId = Schema.decodeSync(TaxObligationIdSchema)(
+const taxObligationId = parse(
+  codecs.taxObligationId,
   "018f2b7c-1234-7abc-8def-0123456789ba"
 );
 
-const reportId = Schema.decodeSync(ReportIdSchema)(
-  "018f2b7c-1234-7abc-8def-0123456789bb"
-);
+const reportId = parse(codecs.reportId, "018f2b7c-1234-7abc-8def-0123456789bb");
 
 const euro = (minor: number) => ({ currency: "EUR", minor });
 
 const moneyOf = (code: string, minor: number) =>
-  Schema.decodeSync(MoneySchema)({ currency: code, minor });
+  parse(codecs.money, { currency: code, minor });
 
-const currencyOf = (code: string) =>
-  Schema.decodeSync(CurrencyCodeSchema)(code);
+const currencyOf = (code: string) => parse(codecs.currencyCode, code);
 
-const dateOnly = (value: string): DateOnly =>
-  Schema.decodeSync(DateOnlySchema)(value);
+const dateOnly = (value: string): DateOnly => parse(codecs.dateOnly, value);
 
-const rateOf = (value: string): Rate => Schema.decodeSync(RateSchema)(value);
+const rateOf = (value: string): Rate => parse(codecs.rate, value);
 
 const wire = <S extends Schema.ConstraintEncoder<unknown>>(
   schema: S,
@@ -174,12 +122,10 @@ const storedConversion = (minor: number, rate: string) =>
     dateOnly("2024-01-30")
   );
 
-const strictRuleDecoder = Schema.decodeUnknownSync(RuleSchema, strictOptions);
+const strictRuleDecoder = (input: object) => parse(codecs.rule, input);
 
-const strictTransactionDecoder = Schema.decodeUnknownSync(
-  TransactionSchema,
-  strictOptions
-);
+const strictTransactionDecoder = (input: object) =>
+  parse(codecs.transaction, input);
 
 const transactionWire = (
   amounts: typeof AmountsSchema.Encoded
@@ -264,7 +210,7 @@ const taxObligationWire = (): typeof TaxObligationSchema.Encoded => ({
 describe("valid rows decode for every aggregate", () => {
   it("decodes one made-up row per entity", () => {
     expect(
-      Schema.decodeSync(ProfileSchema)({
+      parse(codecs.profile, {
         baseCurrency: "EUR",
         createdAt: at,
         id: profileId,
@@ -274,7 +220,7 @@ describe("valid rows decode for every aggregate", () => {
     ).toBe("business");
 
     expect(
-      Schema.decodeSync(MemberSchema)({
+      parse(codecs.member, {
         createdAt: at,
         email: "demo@example.com",
         id: memberId,
@@ -284,7 +230,7 @@ describe("valid rows decode for every aggregate", () => {
     ).toBe("owner");
 
     expect(
-      Schema.decodeSync(ProviderSchema)({
+      parse(codecs.provider, {
         enabled: true,
         id: "wise",
         kind: "bank",
@@ -293,7 +239,7 @@ describe("valid rows decode for every aggregate", () => {
     ).toBe("bank");
 
     expect(
-      Schema.decodeSync(ProviderAccountSchema)({
+      parse(codecs.providerAccount, {
         createdAt: at,
         externalId: "demo-account",
         id: accountId,
@@ -305,7 +251,7 @@ describe("valid rows decode for every aggregate", () => {
     ).toBe("demo-account");
 
     expect(
-      Schema.decodeSync(CategorySchema)({
+      parse(codecs.category, {
         archivedAt: null,
         color: "accent",
         id: categoryId,
@@ -317,7 +263,7 @@ describe("valid rows decode for every aggregate", () => {
     ).toBe("Groceries");
 
     expect(
-      Schema.decodeSync(PayeeSchema)({
+      parse(codecs.payee, {
         archivedAt: null,
         defaultCategoryId: null,
         id: payeeId,
@@ -328,7 +274,7 @@ describe("valid rows decode for every aggregate", () => {
     ).toBe("merchant");
 
     expect(
-      Schema.decodeSync(MerchantAliasSchema)({
+      parse(codecs.merchantAlias, {
         aliasId,
         matchType: "contains",
         pattern: "example",
@@ -337,10 +283,10 @@ describe("valid rows decode for every aggregate", () => {
       }).matchType
     ).toBe("contains");
 
-    expect(Schema.decodeSync(RuleSchema)(ruleWire()).kind).toBe("categorize");
+    expect(parse(codecs.rule, ruleWire()).kind).toBe("categorize");
 
     expect(
-      Schema.decodeSync(SubscriptionSchema)({
+      parse(codecs.subscription, {
         amounts: wire(AmountsSchema, sameCurrencyAmount(moneyOf("EUR", 999))),
         categoryId: null,
         confidence: 0.9,
@@ -358,7 +304,7 @@ describe("valid rows decode for every aggregate", () => {
     ).toBe("monthly");
 
     expect(
-      Schema.decodeSync(InvestmentPlatformSchema)({
+      parse(codecs.investmentPlatform, {
         connector: "manual",
         enabled: true,
         id: "demo-broker",
@@ -366,12 +312,10 @@ describe("valid rows decode for every aggregate", () => {
       }).connector
     ).toBe("manual");
 
-    expect(Schema.decodeSync(HoldingSchema)(holdingWire()).state).toBe(
-      "pending"
-    );
+    expect(parse(codecs.holding, holdingWire()).state).toBe("pending");
 
     expect(
-      Schema.decodeSync(ExchangeRateSchema)({
+      parse(codecs.exchangeRate, {
         asOf: "2024-01-31",
         base: "EUR",
         fetchedAt: at,
@@ -381,7 +325,7 @@ describe("valid rows decode for every aggregate", () => {
     ).toBe(1_100_000_000_000n);
 
     expect(
-      Schema.decodeSync(InvoiceDocumentSchema)({
+      parse(codecs.invoiceDocument, {
         amount: null,
         archive: wire(
           ArchiveStateSchema,
@@ -404,7 +348,7 @@ describe("valid rows decode for every aggregate", () => {
     ).toBe("invoice");
 
     expect(
-      Schema.decodeSync(InvoiceSourceSchema)({
+      parse(codecs.invoiceSource, {
         id: invoiceSourceId,
         loginHint: null,
         pattern: "Example Ltd",
@@ -421,7 +365,7 @@ describe("valid rows decode for every aggregate", () => {
     ).toBe("Example Ltd");
 
     expect(
-      Schema.decodeSync(ArchiveTargetSchema)({
+      parse(codecs.archiveTarget, {
         blocklist: ["private"],
         id: archiveTargetId,
         profileId,
@@ -431,7 +375,7 @@ describe("valid rows decode for every aggregate", () => {
     ).toBe("drive");
 
     expect(
-      Schema.decodeSync(InvoiceExceptionSchema)({
+      parse(codecs.invoiceException, {
         profileId,
         reason: "Demo invoice expected",
         recordedAt: at,
@@ -440,7 +384,7 @@ describe("valid rows decode for every aggregate", () => {
     ).toBe("Demo invoice expected");
 
     expect(
-      Schema.decodeSync(TaxProfileSchema)({
+      parse(codecs.taxProfile, {
         id: taxProfileId,
         jurisdiction: "UK",
         primary: true,
@@ -449,12 +393,10 @@ describe("valid rows decode for every aggregate", () => {
       }).yearStart.month
     ).toBe(4);
 
-    expect(
-      Schema.decodeSync(TaxObligationSchema)(taxObligationWire()).kind
-    ).toBe("vat");
+    expect(parse(codecs.taxObligation, taxObligationWire()).kind).toBe("vat");
 
     expect(
-      Schema.decodeSync(SyncRunSchema)({
+      parse(codecs.syncRun, {
         accountId,
         id: syncRunId,
         kind: "bank_sync",
@@ -473,7 +415,7 @@ describe("valid rows decode for every aggregate", () => {
     ).toBe("bank_sync");
 
     expect(
-      Schema.decodeSync(ReportSchema)({
+      parse(codecs.report, {
         html: "<p>Demo</p>",
         id: reportId,
         kind: "report",
@@ -484,7 +426,7 @@ describe("valid rows decode for every aggregate", () => {
     ).toBe("demo-report");
 
     expect(
-      Schema.decodeSync(AppSettingSchema)({
+      parse(codecs.appSetting, {
         locale: "en-GB",
         primaryProfileId: profileId,
         timezone: "Europe/London",
@@ -522,7 +464,7 @@ describe("a transaction carries one amount per currency story", () => {
         ["base", euro(1)],
       ]);
 
-      expect(() => Schema.decodeUnknownSync(AmountsSchema)(tampered)).toThrow();
+      expect(() => parse(codecs.amounts, tampered)).toThrow();
     })
   );
 
@@ -536,9 +478,7 @@ describe("a transaction carries one amount per currency story", () => {
         )
       );
 
-      expect(() =>
-        Schema.decodeUnknownSync(AmountsSchema)(withoutRate)
-      ).toThrow();
+      expect(() => parse(codecs.amounts, withoutRate)).toThrow();
     })
   );
 
@@ -556,16 +496,15 @@ describe("a transaction carries one amount per currency story", () => {
       amounts: tampered,
     };
 
-    expect(() =>
-      Schema.decodeSync(AmountsSchema, strictOptions)(tampered)
-    ).toThrow();
+    expect(() => parse(codecs.amounts, tampered)).toThrow();
     expect(() => strictTransactionDecoder(withBase)).toThrow();
   });
 
   it("keeps one amount on a same-currency transaction", () => {
     const amount = moneyOf("EUR", 1000);
 
-    const transaction = Schema.decodeSync(TransactionSchema)(
+    const transaction = parse(
+      codecs.transaction,
       transactionWire(wire(AmountsSchema, sameCurrencyAmount(amount)))
     );
 
@@ -613,7 +552,7 @@ describe("a transaction carries one amount per currency story", () => {
 
   it("rejects a fee in another currency than the source", () => {
     expect(() =>
-      Schema.decodeSync(TransactionSchema)({
+      parse(codecs.transaction, {
         ...transactionWire(
           wire(AmountsSchema, sameCurrencyAmount(moneyOf("EUR", 1000)))
         ),
@@ -631,9 +570,7 @@ describe("the categorization union forbids a confirmed row without a category", 
   it("rejects Confirmed without a categoryId", () => {
     const { categoryId: _categoryId, ...withoutCategory } = confirmed;
 
-    expect(() =>
-      Schema.decodeUnknownSync(CategorizationSchema)(withoutCategory)
-    ).toThrow();
+    expect(() => parse(codecs.categorization, withoutCategory)).toThrow();
   });
 
   it("rejects Suggested without the model that suggested it", () => {
@@ -647,19 +584,18 @@ describe("the categorization union forbids a confirmed row without a category", 
 
     const { model: _model, ...withoutModel } = suggested;
 
-    expect(() =>
-      Schema.decodeUnknownSync(CategorizationSchema)(withoutModel)
-    ).toThrow();
+    expect(() => parse(codecs.categorization, withoutModel)).toThrow();
   });
 
   it("accepts None and Confirmed with a category", () => {
     expect(
-      Schema.decodeSync(CategorizationSchema)(
+      parse(
+        codecs.categorization,
         wire(CategorizationSchema, CategorizationSchema.cases.None.make({}))
       )
     ).toEqual(CategorizationSchema.cases.None.make({}));
 
-    expect(Schema.decodeSync(CategorizationSchema)(confirmed)).toEqual(
+    expect(parse(codecs.categorization, confirmed)).toEqual(
       CategorizationSchema.cases.Confirmed.make({ at, categoryId })
     );
   });
@@ -715,7 +651,7 @@ describe("other illegal states the type forbids", () => {
     const { settledBy: _settledBy, ...withoutSettling } = paid;
 
     expect(() =>
-      Schema.decodeUnknownSync(TaxObligationSchema)({
+      parse(codecs.taxObligation, {
         ...taxObligationWire(),
         status: withoutSettling,
       })
@@ -724,7 +660,7 @@ describe("other illegal states the type forbids", () => {
 
   it("accepts a paid tax obligation that names its transaction", () => {
     expect(
-      Schema.decodeSync(TaxObligationSchema)({
+      parse(codecs.taxObligation, {
         ...taxObligationWire(),
         status: wire(
           TaxObligationStatusSchema,
@@ -743,7 +679,7 @@ describe("other illegal states the type forbids", () => {
   });
 
   it("rejects a pending holding that already has a market price", () => {
-    const pending = Schema.decodeSync(HoldingSchema)(holdingWire());
+    const pending = parse(codecs.holding, holdingWire());
 
     expect(pending.state).toBe("pending");
 
@@ -765,14 +701,14 @@ describe("other illegal states the type forbids", () => {
     ).toThrow();
 
     expect(() =>
-      Schema.decodeSync(HoldingSchema)({
+      parse(codecs.holding, {
         ...holdingWire(),
         lastPrice: euro(500),
       })
     ).toThrow();
 
     expect(() =>
-      Schema.decodeSync(HoldingSchema)({
+      parse(codecs.holding, {
         ...holdingWire(),
         pricedAt: at,
       })
@@ -781,7 +717,7 @@ describe("other illegal states the type forbids", () => {
 
   it("rejects a category that is its own parent", () => {
     expect(() =>
-      Schema.decodeSync(CategorySchema)({
+      parse(codecs.category, {
         archivedAt: null,
         color: "accent",
         id: categoryId,
@@ -804,7 +740,7 @@ describe("other illegal states the type forbids", () => {
     const { counts: _counts, ...withoutCounts } = succeeded;
 
     expect(() =>
-      Schema.decodeUnknownSync(SyncRunSchema)({
+      parse(codecs.syncRun, {
         accountId,
         id: syncRunId,
         kind: "bank_sync",
@@ -819,7 +755,7 @@ describe("other illegal states the type forbids", () => {
 
   it("rejects a report slug that is not a lowercase kebab name", () => {
     expect(() =>
-      Schema.decodeSync(ReportSchema)({
+      parse(codecs.report, {
         html: "<p>Demo</p>",
         id: reportId,
         kind: "report",
@@ -841,8 +777,6 @@ describe("other illegal states the type forbids", () => {
 
     const { fileId: _fileId, ...withoutFile } = archived;
 
-    expect(() =>
-      Schema.decodeUnknownSync(ArchiveStateSchema)(withoutFile)
-    ).toThrow();
+    expect(() => parse(codecs.archiveState, withoutFile)).toThrow();
   });
 });
