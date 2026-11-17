@@ -1273,7 +1273,8 @@ const asSoftWrappedQuotedPrintable = (text: string, random: Random) =>
     .split("\n")
     .map((line) => line.replaceAll("\r", ""))
     .map((line) => quotedPrintableLine(line, random.between(20, MIME_LINE)))
-    .join("\r\n");
+    .join("\r\n")
+    .replace(/[=]$/u, "");
 
 const asWrappedMimeBase64 = (text: string, random: Random) => {
   const encoded = Buffer.from(text, "utf-8").toString("base64");
@@ -1928,4 +1929,281 @@ describe("a co-author trailer is read through any control character and address 
 
     expect(missed).toEqual([]);
   });
+});
+
+const PREFIX_SEED = SEED + 42_424;
+
+const PREFIX_CASES = 1600;
+
+const ASCII_PUNCTUATION = Array.from({ length: 94 }, (_, index) =>
+  String.fromCodePoint(33 + index)
+).filter((character) => !/[A-Za-z0-9]/u.test(character));
+
+const CONTAINER_PREFIXES: readonly string[] = [
+  ...ASCII_PUNCTUATION.map((character) => `${character} `),
+  " ",
+  "\t",
+  "> ",
+  ">> ",
+  "> > ",
+  "+ ",
+  "- ",
+  "| a | b | ",
+  "// ",
+  "# ",
+  "1. ",
+  "2) ",
+];
+
+const asEscapedPayload = (text: string) =>
+  text.replaceAll(/[^A-Za-z0-9]/gu, (character) => {
+    const code = (character.codePointAt(0) ?? 0).toString(16).padStart(4, "0");
+
+    return `\\u${code}`;
+  });
+
+interface PayloadKind {
+  readonly name: string;
+  readonly path: string;
+  readonly rules: readonly RuleId[];
+  readonly text: (random: Random) => string;
+}
+
+const PREFIX_PAYLOADS: readonly PayloadKind[] = [
+  {
+    name: "address",
+    path: "docs/mail-export.md",
+    rules: ["email"],
+    text: (random) =>
+      `${random.pick(EMAIL_LOCALS)}@${random.pick(EMAIL_DOMAINS)}`,
+  },
+  {
+    name: "iban",
+    path: "docs/payments.md",
+    rules: ["iban"],
+    text: (random) => ibanValue(random).replaceAll(/[^A-Za-z0-9]/gu, ""),
+  },
+  {
+    name: "account-id",
+    path: "apps/cli/demo.yaml",
+    rules: ["cloudflare-account-id"],
+    text: (random) => `account_id: ${accountIdValue(random)}`,
+  },
+  {
+    name: "bank-pair",
+    path: "apps/cli/demo.yaml",
+    rules: ["bank-account"],
+    text: (random) =>
+      `sort code ${plainSortCode(random)} account number ${plainAccount(random)}`,
+  },
+];
+
+interface DecoderWrap {
+  readonly encode: (text: string, random: Random) => string;
+  readonly name: string;
+}
+
+const DECODER_WRAPS: readonly DecoderWrap[] = [
+  { encode: withZeroWidth, name: "zero-width" },
+  { encode: asFullWidth, name: "fold" },
+  { encode: asEscapedPayload, name: "json-escape" },
+  { encode: inEntityForm, name: "entity" },
+  { encode: asPercent, name: "percent" },
+  { encode: asSoftWrappedQuotedPrintable, name: "quoted-printable" },
+  { encode: asWrappedMimeBase64, name: "base64" },
+  { encode: asForm, name: "form-plus" },
+  { encode: withTags, name: "tag" },
+];
+
+const layered = (
+  encoded: string,
+  prefixes: readonly string[],
+  indents: readonly number[],
+  ending: string
+) => {
+  let lines = payloadLines(encoded);
+
+  for (const [layer, prefix] of prefixes.entries()) {
+    const indent = " ".repeat(indents[layer] ?? 0);
+
+    lines = lines.map((line) => `${indent}${prefix}${line}`);
+  }
+
+  return lines.join(ending);
+};
+
+const labelled = (
+  index: number,
+  kind: string,
+  wrap: string,
+  prefixes: readonly string[],
+  indents: readonly number[],
+  ending: string
+) =>
+  `seed ${PREFIX_SEED} case ${index} ${kind} ${wrap} prefixes ${JSON.stringify(prefixes)} indents ${JSON.stringify(indents)} ending ${JSON.stringify(ending)}`;
+
+describe("a container prefix is read by what it is not, not from a list", () => {
+  it(`reads ${PREFIX_CASES} seeded prefix stacks over every decoder`, () => {
+    const random = makeRandom(PREFIX_SEED);
+
+    const missed: string[] = [];
+
+    for (let index = 0; index < PREFIX_CASES; index += 1) {
+      const kind = random.pick(PREFIX_PAYLOADS);
+
+      const wrap = random.pick(DECODER_WRAPS);
+
+      const ending = random.pick(LINE_ENDINGS);
+
+      const depth = random.between(0, 4);
+
+      const prefixes = Array.from({ length: depth }, () =>
+        random.pick(CONTAINER_PREFIXES)
+      );
+
+      const indents = Array.from({ length: depth }, () => random.between(0, 8));
+
+      const encoded = wrap.encode(kind.text(random), random);
+
+      const document = layered(encoded, prefixes, indents, ending);
+
+      const rules = rulesOf(kind.path, document);
+
+      if (!kind.rules.every((rule) => rules.includes(rule))) {
+        missed.push(
+          `${labelled(index, kind.name, wrap.name, prefixes, indents, ending)}: ${document}`
+        );
+      }
+    }
+
+    expect(missed).toEqual([]);
+  }, 300_000);
+
+  const HARMLESS_SEED = SEED + 909_090;
+
+  const HARMLESS_CASES = 600;
+
+  const HARMLESS_SPLITS: readonly {
+    readonly build: (sort: string, account: string) => string;
+    readonly name: string;
+    readonly path: string;
+  }[] = [
+    {
+      build: (sort, account) =>
+        [`sort_code: ${sort}`, "", `account_number: ${account}`].join("\n"),
+      name: "blank-line-split",
+      path: "apps/cli/demo.yaml",
+    },
+    {
+      build: (sort, account) =>
+        [
+          "first:",
+          `  sort_code: ${sort}`,
+          "second:",
+          `  account_number: ${account}`,
+        ].join("\n"),
+      name: "separate-entries",
+      path: "apps/cli/demo.yaml",
+    },
+  ];
+
+  const HARMLESS_VALUES: readonly {
+    readonly name: string;
+    readonly path: string;
+    readonly text: (random: Random) => string;
+  }[] = [
+    {
+      name: "sort-only",
+      path: "docs/payments.md",
+      text: (random) => `sort code ${plainSortCode(random)}`,
+    },
+    {
+      name: "placeholder-mailbox",
+      path: "docs/mail-export.md",
+      text: (random) =>
+        `${random.pick(mailboxNames)}@${random.pick(PLACEHOLDER_DOMAINS)}`,
+    },
+    {
+      name: "non-checksum-iban",
+      path: "docs/payments.md",
+      text: (random) => nonChecksumIban(random),
+    },
+    {
+      name: "example-hostname",
+      path: "README.md",
+      text: () => "example.pages.dev",
+    },
+  ];
+
+  it(`keeps ${HARMLESS_CASES} seeded harmless values and split records quiet`, () => {
+    const random = makeRandom(HARMLESS_SEED);
+
+    const noisy: string[] = [];
+
+    for (let index = 0; index < HARMLESS_CASES; index += 1) {
+      const wrap = random.pick(DECODER_WRAPS);
+
+      const ending = random.pick(LINE_ENDINGS);
+
+      const split = random.pick([true, false]);
+
+      const label = split
+        ? random.pick(HARMLESS_SPLITS).name
+        : random.pick(HARMLESS_VALUES).name;
+
+      let documentPath = "docs/payments.md";
+
+      let text = "";
+
+      const encode =
+        wrap.name === "tag"
+          ? (value: string) => `<span title="a > b">${value}</span>`
+          : wrap.encode;
+
+      if (split) {
+        const document = random.pick(HARMLESS_SPLITS);
+
+        documentPath = document.path;
+
+        text = document
+          .build(
+            encode(plainSortCode(random), random),
+            encode(plainAccount(random), random)
+          )
+          .split("\n")
+          .join(ending);
+      } else {
+        const document = random.pick(HARMLESS_VALUES);
+
+        documentPath = document.path;
+
+        const depth = random.between(0, 4);
+
+        const prefixes = Array.from({ length: depth }, () =>
+          random.pick(CONTAINER_PREFIXES)
+        );
+
+        const indents = Array.from({ length: depth }, () =>
+          random.between(0, 8)
+        );
+
+        text = layered(
+          encode(document.text(random), random),
+          prefixes,
+          indents,
+          ending
+        );
+      }
+
+      const rules = rulesOf(documentPath, text);
+
+      if (rules.length > 0) {
+        noisy.push(
+          `${label} ${wrap.name} ${JSON.stringify(ending)} ${JSON.stringify(rules)}: ${text}`
+        );
+      }
+    }
+
+    expect(noisy).toEqual([]);
+  }, 300_000);
 });

@@ -5,7 +5,7 @@ import path from "node:path";
 
 import { Option, Schema } from "effect";
 
-import { decodeChains, squeezeText } from "./decoded-text.ts";
+import { containerContent, decodeChains, squeezeText } from "./decoded-text.ts";
 import type { DecodedText } from "./decoded-text.ts";
 
 const root = path.resolve(import.meta.dirname, "..");
@@ -1127,110 +1127,235 @@ const overlaps = (run: DigitRun, spans: readonly DigitRun[]) =>
 const distanceBetween = (left: DigitRun, right: DigitRun) =>
   left.start >= right.end ? left.start - right.end : right.start - left.end;
 
+const FORMATTING_NOISE = /[\u200B-\u200D\u2060\uFEFF]/gu;
+
 const RECORD_LIMIT = 2000;
+
+const RECORD_BREAK = /\r\n|\r|\n/u;
 
 interface LineSpan {
   readonly end: number;
   readonly start: number;
 }
 
-const blockOf = (source: TextSource, position: number): LineSpan => {
-  const lines = rawLinesOf(source);
+const BLANK_LINE = /^[ \t]*$/u;
 
-  const index = source.lineAt(position);
+const lineBoundsAt = (raw: string, position: number): LineSpan => {
+  let start = 0;
 
-  const limit = source.lineStarts[index] ?? 0;
+  for (let index = position - 1; index >= 0; index -= 1) {
+    const character = raw[index];
 
-  let start = index;
+    if (character === "\n" || character === "\r") {
+      start =
+        character === "\r" && raw[index + 1] === "\n" ? index + 2 : index + 1;
 
-  while (start > 0 && (lines[start - 1] ?? "").trim().length > 0) {
-    if (limit - (source.lineStarts[start - 1] ?? 0) > RECORD_LIMIT) {
       break;
     }
-
-    start -= 1;
   }
 
-  const ceiling = limit + RECORD_LIMIT;
+  let end = start;
 
-  let end = index;
-
-  while (
-    end + 1 < lines.length &&
-    (lines[end + 1] ?? "").trim().length > 0 &&
-    (source.lineStarts[end + 1] ?? ceiling) <= ceiling
-  ) {
+  while (end < raw.length && raw[end] !== "\n" && raw[end] !== "\r") {
     end += 1;
   }
 
   return { end, start };
 };
 
-const entryOf = (lines: readonly string[], index: number): LineSpan => {
-  const indent = indentOf(lines[index] ?? "");
-
-  let start = index;
-
-  for (let cursor = index - 1; cursor >= 0; cursor -= 1) {
-    const line = lines[cursor] ?? "";
-
-    if (line.trim().length === 0) {
-      break;
-    }
-
-    if (indentOf(line) < indent) {
-      start = cursor;
-
-      break;
-    }
+const previousLine = (raw: string, span: LineSpan): LineSpan | undefined => {
+  if (span.start === 0) {
+    return undefined;
   }
 
-  const floor = indentOf(lines[start] ?? "");
+  let cursor = span.start - 1;
 
-  let end = index;
+  if (raw[cursor] === "\n" && raw[cursor - 1] === "\r") {
+    cursor -= 1;
+  }
 
-  for (let cursor = start + 1; cursor < lines.length; cursor += 1) {
-    const line = lines[cursor] ?? "";
+  const end = cursor;
 
-    if (line.trim().length === 0 || indentOf(line) <= floor) {
+  let start = 0;
+
+  for (let index = end - 1; index >= 0; index -= 1) {
+    const character = raw[index];
+
+    if (character === "\n" || character === "\r") {
+      start =
+        character === "\r" && raw[index + 1] === "\n" ? index + 2 : index + 1;
+
       break;
     }
-
-    end = cursor;
   }
 
   return { end, start };
 };
 
-const sameRecord = (source: TextSource, left: DigitRun, right: DigitRun) => {
-  if (distanceBetween(left, right) > RECORD_LIMIT) {
+const followingLine = (raw: string, span: LineSpan): LineSpan | undefined => {
+  if (span.end >= raw.length) {
+    return undefined;
+  }
+
+  const start =
+    raw[span.end] === "\r" && raw[span.end + 1] === "\n"
+      ? span.end + 2
+      : span.end + 1;
+
+  let end = start;
+
+  while (end < raw.length && raw[end] !== "\n" && raw[end] !== "\r") {
+    end += 1;
+  }
+
+  return { end, start };
+};
+
+const visibleLine = (raw: string, span: LineSpan) =>
+  raw.slice(span.start, span.end).replaceAll(FORMATTING_NOISE, "");
+
+const blankLine = (raw: string, span: LineSpan) => {
+  const line = visibleLine(raw, span);
+
+  return BLANK_LINE.test(line) || containerContent(line).length === 0;
+};
+
+const deeper = (raw: string, span: LineSpan, floor: number) =>
+  indentOf(visibleLine(raw, span)) >= floor;
+
+const readsAsKeyLine = (raw: string, span: LineSpan) =>
+  BLOCK_KEY_LINE.test(visibleLine(raw, span));
+
+const recordOf = (raw: string, position: number): LineSpan => {
+  const line = lineBoundsAt(raw, position);
+
+  const floor = indentOf(raw.slice(line.start, line.end));
+
+  let start = 0;
+
+  let end = 0;
+
+  ({ end, start } = line);
+
+  let reached = line;
+
+  for (;;) {
+    const previous = previousLine(raw, reached);
+
+    if (
+      previous === undefined ||
+      blankLine(raw, previous) ||
+      (!deeper(raw, previous, floor) && readsAsKeyLine(raw, previous)) ||
+      line.end - previous.start > RECORD_LIMIT
+    ) {
+      break;
+    }
+
+    ({ start } = previous);
+
+    reached = previous;
+  }
+
+  reached = line;
+
+  for (;;) {
+    const next = followingLine(raw, reached);
+
+    if (
+      next === undefined ||
+      blankLine(raw, next) ||
+      (!deeper(raw, next, floor) && readsAsKeyLine(raw, next)) ||
+      next.end - start > RECORD_LIMIT
+    ) {
+      break;
+    }
+
+    ({ end } = next);
+
+    reached = next;
+  }
+
+  return { end, start };
+};
+
+const csvRecordEnd = (raw: string, position: number): number => {
+  let quoted = false;
+
+  for (let index = position; index < raw.length; index += 1) {
+    const character = raw[index];
+
+    if (character === '"') {
+      quoted = !quoted;
+    } else if (!quoted && (character === "\n" || character === "\r")) {
+      return index;
+    }
+  }
+
+  return raw.length;
+};
+
+const FIELD_HEAD = /(?:^|,)[ \t]*$/u;
+
+const insideQuotedCell = (raw: string, position: number) => {
+  const line = lineBoundsAt(raw, position);
+
+  let opening = -1;
+
+  let quotes = 0;
+
+  for (let index = line.start; index < position; index += 1) {
+    if (raw[index] === '"') {
+      quotes += 1;
+
+      opening = index;
+    }
+  }
+
+  return (
+    quotes % 2 === 1 &&
+    opening >= 0 &&
+    FIELD_HEAD.test(raw.slice(line.start, opening))
+  );
+};
+
+interface RecordText {
+  readonly at: (position: number) => number;
+  readonly text: string;
+}
+
+const SQUEEZED_VIEWS = new Set<ViewId>(["squeezed", "squeezed-tagged"]);
+
+const recordTextOf = (view: GuardView): RecordText =>
+  SQUEEZED_VIEWS.has(view.id)
+    ? { at: view.source.rawStartOf, text: view.source.raw }
+    : { at: (position) => position, text: view.source.text };
+
+const sameRecord = (record: RecordText, left: DigitRun, right: DigitRun) => {
+  const raw = record.text;
+
+  const from = record.at(left.start);
+
+  const to = record.at(right.start);
+
+  const first = Math.min(from, to);
+
+  const second = Math.max(from, to);
+
+  if (second - first > RECORD_LIMIT) {
     return false;
   }
 
-  const leftLine = source.lineAt(left.start);
-
-  const rightLine = source.lineAt(right.start);
-
-  if (leftLine === rightLine) {
+  if (!RECORD_BREAK.test(raw.slice(first, second))) {
     return true;
   }
 
-  const lines = rawLinesOf(source);
-
-  const leftEntry = entryOf(lines, leftLine);
-
-  const rightEntry = entryOf(lines, rightLine);
-
-  if (
-    leftEntry.start === rightEntry.start &&
-    leftEntry.end === rightEntry.end
-  ) {
+  if (insideQuotedCell(raw, first) && csvRecordEnd(raw, first) >= second) {
     return true;
   }
 
-  const block = blockOf(source, left.start);
+  const span = recordOf(raw, first);
 
-  return block.start <= rightLine && rightLine <= block.end;
+  return span.start <= second && second <= span.end;
 };
 
 const readsAsCsvRecord = (source: TextSource, position: number) => {
@@ -1260,8 +1385,6 @@ const readsAsCsvRecord = (source: TextSource, position: number) => {
     row.length <= RECORD_LIMIT
   );
 };
-
-const FORMATTING_NOISE = /[\u200B-\u200D\u2060\uFEFF]/gu;
 
 const nearestContext = (text: string, runs: readonly DigitRun[]) => {
   const first = Math.max(
@@ -1461,6 +1584,8 @@ const partOfDateOrClock = (source: TextSource, run: DigitRun) => {
 const bankRule = ({ allow, filePath, view }: RuleContext) => {
   const { source } = view;
 
+  const record = recordTextOf(view);
+
   const ibans = rawSpans(source, ibanSpansOf(view).suppressors);
 
   const { accounts, sortCodes } = bankAtomsOf(source);
@@ -1495,7 +1620,7 @@ const bankRule = ({ allow, filePath, view }: RuleContext) => {
 
       const near = distanceBetween(sortCode, account) <= PAIR_WINDOW;
 
-      if (!near && !sameRecord(source, sortCode, account)) {
+      if (!sameRecord(record, sortCode, account)) {
         return false;
       }
 

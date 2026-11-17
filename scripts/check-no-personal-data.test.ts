@@ -382,34 +382,30 @@ describe("a sort code and an account number in any written form fail", () => {
     expect(ruleOf("apps/site/src/profile.ts", sample.join("\n"))).toEqual([]);
   });
 
-  it("fails on the account number below a blank line", () => {
+  it("passes an account number split from its sort code by a blank line", () => {
     const sample = [
       `sortCode: "${sortCode(" ")}",`,
       "",
       `number: "${accountNumber("")}",`,
     ];
 
-    expect(ruleOf("apps/site/src/profile.ts", sample.join("\n"))).toEqual([
-      "bank-account",
-    ]);
+    expect(ruleOf("apps/site/src/profile.ts", sample.join("\n"))).toEqual([]);
   });
 
-  it("fails on the account number above a blank line", () => {
+  it("passes a sort code split from its account number by a blank line", () => {
     const sample = [
       `number: "${accountNumber("")}",`,
       "",
       `sortCode: "${sortCode(" ")}",`,
     ];
 
-    expect(ruleOf("apps/site/src/profile.ts", sample.join("\n"))).toEqual([
-      "bank-account",
-    ]);
+    expect(ruleOf("apps/site/src/profile.ts", sample.join("\n"))).toEqual([]);
   });
 
-  it("names the sort code line when the account number is two lines away", () => {
+  it("names the sort code line when the pair sits two lines apart", () => {
     const sample = [
       `const sortCode = "${sortCode(" ")}";`,
-      "",
+      `const review = "Demo note for the pair";`,
       `const number = "${accountNumber("")}";`,
     ];
 
@@ -888,4 +884,127 @@ describe("an earlier verdict's reproduction still fails", () => {
   ])("fails on %s", (_label, text) => {
     expect(ruleOf("apps/cli/src/ids.ts", text).length).toBeGreaterThan(0);
   });
+});
+
+const base64Lines = (text: string, width: number) =>
+  Buffer.from(text, "utf-8")
+    .toString("base64")
+    .match(new RegExp(`.{1,${width}}`, "gu")) ?? [];
+
+describe("the seventh verdict's reproductions", () => {
+  it.each([
+    [
+      "v62 env pair",
+      "apps/cli/.env.demo",
+      [
+        `SORT_CODE=${sortCode("-")}`,
+        `ACCOUNT_NUMBER=${accountNumber("")}`,
+      ].join("\n"),
+    ],
+    [
+      "v62 quoted-printable IBAN with escaped spaces",
+      "docs/mail-export.md",
+      `IBAN:=20${verifierIban.slice(0, 4)}=20${verifierIban.slice(4, 8)}=20${verifierIban.slice(8, 12)}=20${verifierIban.slice(12)}`,
+    ],
+    [
+      "v68 indented quoted-printable soft break",
+      "docs/mail-export.md",
+      ["mail_body: |", `  demo.person@mail=`, `  ${mailHost}`].join("\n"),
+    ],
+    [
+      "v72 nested quote prefixes around a soft break",
+      "docs/mail-export.md",
+      ["> > demo.person@mail=", `> > ${mailHost}`].join("\n"),
+    ],
+    [
+      "v72 diff additions around a soft break",
+      "docs/mail-export.md",
+      ["+ demo.person@mail=", `+ ${mailHost}`].join("\n"),
+    ],
+    [
+      "v72 markdown table cells around a soft break",
+      "docs/mail-export.md",
+      ["| a | b | demo.person@mail= |", `| a | b | ${mailHost} |`].join("\n"),
+    ],
+    [
+      "v72 numbered list around a soft break",
+      "docs/mail-export.md",
+      ["1. demo.person@mail=", `2. ${mailHost}`].join("\n"),
+    ],
+  ])("fails on %s", (_label, filePath, text) => {
+    expect(ruleOf(filePath, text).length).toBeGreaterThan(0);
+  });
+
+  it("fails on base64 additions split across diff lines", () => {
+    const lines = base64Lines(
+      `Invoice contact demo.person@${mailHost}`,
+      40
+    ).map((line) => `+ ${line}`);
+
+    expect(ruleOf("docs/mail-export.md", lines.join("\n"))).toEqual(["email"]);
+  });
+
+  it.each(LINE_ENDINGS)(
+    "keeps a blank-line split quiet with %j line endings",
+    (ending) => {
+      expect(
+        ruleOf(
+          "apps/cli/demo.yaml",
+          [
+            `sort_code: ${sortCode("-")}`,
+            "",
+            `account_number: ${accountNumber("")}`,
+          ].join(ending)
+        )
+      ).toEqual([]);
+    }
+  );
+
+  it.each(LINE_ENDINGS)(
+    "keeps two YAML entries quiet with %j line endings",
+    (ending) => {
+      expect(
+        ruleOf(
+          "apps/cli/demo.yaml",
+          [
+            "first:",
+            `  sort_code: ${sortCode("-")}`,
+            "second:",
+            `  account_number: ${accountNumber("")}`,
+          ].join(ending)
+        )
+      ).toEqual([]);
+    }
+  );
+
+  it.each(LINE_ENDINGS)(
+    "detects a true pair in one YAML entry with %j line endings",
+    (ending) => {
+      expect(
+        ruleOf(
+          "apps/cli/demo.yaml",
+          [
+            "payment:",
+            `  sort_code: ${sortCode("-")}`,
+            `  account_number: ${accountNumber("")}`,
+          ].join(ending)
+        )
+      ).toEqual(["bank-account"]);
+    }
+  );
+
+  it.each(LINE_ENDINGS)(
+    "detects a true pair on one line with %j line endings",
+    (ending) => {
+      expect(
+        ruleOf(
+          "docs/payments.md",
+          [
+            `Sort code: ${sortCode("-")}`,
+            `Account number: ${accountNumber("")}`,
+          ].join(ending)
+        )
+      ).toEqual(["bank-account"]);
+    }
+  );
 });
