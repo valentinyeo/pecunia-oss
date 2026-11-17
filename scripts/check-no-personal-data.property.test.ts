@@ -812,7 +812,7 @@ interface Encoder {
 const QUOTED_PRINTABLE_PIECE = (byte: number) =>
   `=${byte.toString(16).toUpperCase().padStart(2, "0")}`;
 
-const quotedPrintableLine = (line: string) => {
+const quotedPrintableLine = (line: string, width = 75) => {
   const bytes = [...new TextEncoder().encode(line)];
 
   const pieces = bytes.map((byte, index) => {
@@ -832,7 +832,7 @@ const quotedPrintableLine = (line: string) => {
   let current = "";
 
   for (const piece of pieces) {
-    if (current.length + piece.length > 75) {
+    if (current.length + piece.length > width) {
       wrapped.push(`${current}=`);
 
       current = "";
@@ -850,7 +850,7 @@ const asQuotedPrintable = (text: string) =>
   text
     .split("\n")
     .map((line) => line.replaceAll("\r", ""))
-    .map(quotedPrintableLine)
+    .map((line) => quotedPrintableLine(line))
     .join("\r\n");
 
 const BASE64_MINIMUM = 16;
@@ -1254,6 +1254,360 @@ describe("a planted value survives a real encoder in an ordinary container", () 
 
     expect(decodeText(decodeText(VERIFIER_IBAN).text.text).settled).toBe(true);
   });
+});
+
+const CONTAINER_SEED = SEED + 24_190;
+
+const CONTAINER_WRAP_CASES = 1500;
+
+const LINE_ENDINGS = ["\n", "\r\n", "\r"] as const;
+
+const payloadLines = (payload: string) =>
+  payload.replaceAll(/\r\n|\r|\n/gu, "\n").split("\n");
+
+const indentedLines = (lines: readonly string[], indent: number) =>
+  lines.map((line) => `${" ".repeat(indent)}${line}`);
+
+const asSoftWrappedQuotedPrintable = (text: string, random: Random) =>
+  text
+    .split("\n")
+    .map((line) => line.replaceAll("\r", ""))
+    .map((line) => quotedPrintableLine(line, random.between(20, MIME_LINE)))
+    .join("\r\n");
+
+const asWrappedMimeBase64 = (text: string, random: Random) => {
+  const encoded = Buffer.from(text, "utf-8").toString("base64");
+
+  return encoded.length < 24 ? text : wrapAt(encoded, random.between(24, 76));
+};
+
+const CONTAINER_ENCODERS: readonly Encoder[] = [
+  { encode: asJsonString, name: "json-string" },
+  { encode: inEntityForm, name: "html-entity" },
+  { encode: asPercent, name: "percent" },
+  { encode: asSoftWrappedQuotedPrintable, name: "quoted-printable" },
+  { encode: asWrappedMimeBase64, name: "mime-base64" },
+];
+
+interface ContainerWrap {
+  readonly name: string;
+  readonly wrap: (payload: string, indent: number, ending: string) => string;
+}
+
+const CONTAINER_WRAPS: readonly ContainerWrap[] = [
+  {
+    name: "yaml-block-scalar",
+    wrap: (payload, indent, ending) =>
+      [
+        "record:",
+        "  mail_body: |",
+        ...indentedLines(payloadLines(payload), indent),
+      ].join(ending),
+  },
+  {
+    name: "yaml-folded-scalar",
+    wrap: (payload, indent, ending) =>
+      [
+        "record:",
+        "  mail_body: >",
+        ...indentedLines(payloadLines(payload), indent),
+      ].join(ending),
+  },
+  {
+    name: "mail-reply",
+    wrap: (payload, indent, ending) =>
+      payloadLines(payload)
+        .map((line) => `${" ".repeat(indent)}> ${line}`)
+        .join(ending),
+  },
+  {
+    name: "mail-reply-nested",
+    wrap: (payload, indent, ending) =>
+      payloadLines(payload)
+        .map((line) => `${" ".repeat(indent)}>> ${line}`)
+        .join(ending),
+  },
+  {
+    name: "shell-heredoc",
+    wrap: (payload, indent, ending) =>
+      [
+        `${" ".repeat(indent)}cat > note.txt <<'EOF'`,
+        ...indentedLines(payloadLines(payload), indent),
+        `${" ".repeat(indent)}EOF`,
+      ].join(ending),
+  },
+  {
+    name: "markdown-list-item",
+    wrap: (payload, indent, ending) => {
+      const [first = "", ...rest] = payloadLines(payload);
+
+      return [
+        `${" ".repeat(indent)}- ${first}`,
+        ...indentedLines(rest, indent + 2),
+      ].join(ending);
+    },
+  },
+  {
+    name: "code-comment",
+    wrap: (payload, indent, ending) =>
+      payloadLines(payload)
+        .map((line) => `${" ".repeat(indent)}# ${line}`)
+        .join(ending),
+  },
+  {
+    name: "json-string",
+    wrap: (payload, indent, ending) => {
+      const pad = " ".repeat(indent);
+
+      return [
+        `${pad}{"record":{"body":${JSON.stringify(payloadLines(payload).join("\n"))},`,
+        `${pad}"note":"demo"}}`,
+      ].join(ending);
+    },
+  },
+  {
+    name: "csv-quoted-cell",
+    wrap: (payload, indent, ending) => {
+      const [first = "", ...rest] = payloadLines(payload);
+
+      const pad = " ".repeat(indent);
+
+      return [
+        `${pad}note,body`,
+        `${pad}demo,"${first}`,
+        ...indentedLines(rest, indent),
+      ]
+        .join(ending)
+        .concat('"');
+    },
+  },
+];
+
+const WRAP_NAMES = [
+  "code-comment",
+  "csv-quoted-cell",
+  "json-string",
+  "mail-reply",
+  "mail-reply-nested",
+  "markdown-list-item",
+  "shell-heredoc",
+  "yaml-block-scalar",
+  "yaml-folded-scalar",
+];
+
+const longFiller = (random: Random) => {
+  const words = random.between(0, 220);
+
+  return words === 0 ? "" : random.prose(words);
+};
+
+const surrounded = (
+  wrapped: string,
+  random: Random,
+  ending: string
+): string => {
+  const before = longFiller(random);
+
+  const after = longFiller(random);
+
+  return [before, wrapped, after]
+    .filter((part) => part.length > 0)
+    .join(ending)
+    .concat(ending);
+};
+
+interface Twin {
+  readonly encode: boolean;
+  readonly name: string;
+  readonly text: string;
+}
+
+const base64Prose = (random: Random) =>
+  Buffer.from(random.prose(random.between(2, 6)), "utf-8").toString("base64");
+
+const TWINS: readonly ((random: Random) => Twin)[] = [
+  (random) => ({ encode: true, name: "date", text: makeDate(random) }),
+  (random) => ({ encode: true, name: "clock", text: makeClock(random) }),
+  (random) => ({ encode: true, name: "phone", text: makePhone(random) }),
+  (random) => ({
+    encode: true,
+    name: "amount",
+    text: `total ${random.digits(random.between(3, 7))}.${random.digits(2)}`,
+  }),
+  (random) => ({
+    encode: true,
+    name: "sort-code",
+    text: `sort code ${sortCodeValue(random)}`,
+  }),
+  (random) => ({
+    encode: false,
+    name: "base64-prose",
+    text: base64Prose(random),
+  }),
+];
+
+const twinsIn = (encoderName: string) =>
+  encoderName === "quoted-printable"
+    ? TWINS.filter((_, index) => index !== 2)
+    : TWINS;
+
+interface ContainerKind {
+  readonly covers: readonly RuleId[];
+  readonly name: string;
+  readonly path: string;
+  readonly value: (random: Random) => string;
+}
+
+const CONTAINER_KINDS: readonly ContainerKind[] = [
+  {
+    covers: ["email"],
+    name: "email",
+    path: "docs/mail-export.md",
+    value: (random) =>
+      `${random.pick(EMAIL_LOCALS)}@${random.pick(EMAIL_DOMAINS)}`,
+  },
+  {
+    covers: ["iban"],
+    name: "iban",
+    path: "docs/payments.md",
+    value: (random) => ibanValue(random).replaceAll(/[^A-Za-z0-9]/gu, ""),
+  },
+  {
+    covers: ["cloudflare-account-id"],
+    name: "cloudflare-account-id",
+    path: "apps/cli/demo.yaml",
+    value: (random) => `account_id: ${accountIdValue(random)}`,
+  },
+  {
+    covers: ["bank-account"],
+    name: "bank-pair",
+    path: "apps/cli/demo.yaml",
+    value: (random) =>
+      `sort code ${plainSortCode(random)} account number ${plainAccount(random)}`,
+  },
+];
+
+describe("a container around an encoded value is stripped before it is read", () => {
+  it("declares every container shape the class names", () => {
+    expect(CONTAINER_WRAPS.map((wrap) => wrap.name).toSorted()).toEqual(
+      WRAP_NAMES
+    );
+
+    expect(
+      CONTAINER_ENCODERS.map((encoder) => encoder.name).toSorted()
+    ).toEqual([
+      "html-entity",
+      "json-string",
+      "mime-base64",
+      "percent",
+      "quoted-printable",
+    ]);
+  });
+
+  it.each([2, 4, 8])(
+    "reads a soft-broken address and a wrapped base64 address under %d spaces of a block scalar",
+    (indent) => {
+      const local = makeRandom(indent);
+
+      const mailbox = `${local.alphanumeric(6).toLowerCase()}@${EMAIL_DOMAINS[indent % EMAIL_DOMAINS.length] ?? "acme.com"}`;
+
+      const softBroken = asSoftWrappedQuotedPrintable(
+        mailbox,
+        makeRandom(SEED)
+      );
+
+      const wrapped = asWrappedMimeBase64(
+        `Invoice recipient contact: ${mailbox}`,
+        makeRandom(SEED)
+      );
+
+      for (const payload of [softBroken, wrapped]) {
+        for (const ending of LINE_ENDINGS) {
+          const text = [
+            "record:",
+            "  mail_body: |",
+            ...indentedLines(payloadLines(payload), indent),
+          ].join(ending);
+
+          expect(rulesOf("docs/mail-export.md", text)).toContain("email");
+        }
+      }
+    }
+  );
+
+  it(`reads ${CONTAINER_WRAP_CASES} seeded containers and keeps every twin quiet`, () => {
+    const random = makeRandom(CONTAINER_SEED);
+
+    const missed: {
+      readonly case: string;
+      readonly rules: readonly string[];
+      readonly text: string;
+    }[] = [];
+
+    const noisy: {
+      readonly case: string;
+      readonly rules: readonly string[];
+      readonly text: string;
+    }[] = [];
+
+    for (let index = 0; index < CONTAINER_WRAP_CASES; index += 1) {
+      const kind = random.pick(CONTAINER_KINDS);
+
+      const encoder = random.pick(CONTAINER_ENCODERS);
+
+      const wrap = random.pick(CONTAINER_WRAPS);
+
+      const indent =
+        random.between(1, 4) === 1
+          ? random.pick([2, 4, 8])
+          : random.between(0, 12);
+
+      const ending = random.pick(LINE_ENDINGS);
+
+      const encoded = encoder.encode(kind.value(random), random);
+
+      const document = surrounded(
+        wrap.wrap(encoded, indent, ending),
+        random,
+        ending
+      );
+
+      const rules = rulesOf(kind.path, document);
+
+      const label = `seed ${CONTAINER_SEED} case ${index} ${kind.name} ${encoder.name} in ${wrap.name} indent ${indent} ending ${JSON.stringify(ending)}`;
+
+      if (!kind.covers.every((rule) => rules.includes(rule))) {
+        missed.push({ case: label, rules, text: document });
+      }
+
+      const twin = random.pick(twinsIn(encoder.name))(random);
+
+      const twinEncoded = twin.encode
+        ? encoder.encode(twin.text, random)
+        : twin.text;
+
+      const twinDocument = surrounded(
+        wrap.wrap(twinEncoded, indent, ending),
+        random,
+        ending
+      );
+
+      if (rulesOf(kind.path, twinDocument).length > 0) {
+        noisy.push({
+          case: label,
+          rules: rulesOf(kind.path, twinDocument),
+          text: twinDocument,
+        });
+      }
+    }
+
+    writeFileSync(
+      "/tmp/container-cases.json",
+      JSON.stringify({ missed, noisy }, null, 1)
+    );
+
+    expect({ missed, noisy }).toEqual({ missed: [], noisy: [] });
+  }, 240_000);
 });
 
 const pad = (value: number) => String(value).padStart(2, "0");

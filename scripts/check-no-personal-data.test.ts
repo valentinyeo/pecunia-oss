@@ -8,6 +8,7 @@ import {
   VIEW_IDS,
 } from "./check-no-personal-data.ts";
 import type { AllowList } from "./check-no-personal-data.ts";
+import { DECODERS, decodeChains } from "./decoded-text.ts";
 
 const empty: AllowList = { skipped: [], values: [] };
 
@@ -724,6 +725,117 @@ describe("the fifth verdict's reproductions fail", () => {
         ].join("\n")
       )
     ).toEqual(["bank-account"]);
+  });
+});
+
+const wrappedWide = (encoded: string, width: number) => {
+  const lines: string[] = [];
+
+  for (let index = 0; index < encoded.length; index += width) {
+    lines.push(encoded.slice(index, index + width));
+  }
+
+  return lines;
+};
+
+const LINE_ENDINGS = ["\n", "\r\n", "\r"] as const;
+
+describe("the sixth verdict's reproductions fail", () => {
+  it.each(LINE_ENDINGS)(
+    "fails on a quoted-printable soft break inside a YAML block scalar with %j line endings",
+    (ending) => {
+      expect(
+        ruleOf(
+          "docs/mail-export.md",
+          [
+            "mail_body: |",
+            `  demo.person@${mailHost.slice(0, 4)}=`,
+            `  ${mailHost.slice(4)}`,
+          ].join(ending)
+        )
+      ).toEqual(["email"]);
+    }
+  );
+
+  it.each(LINE_ENDINGS)(
+    "fails on indented base64 wraps inside a YAML block scalar with %j line endings",
+    (ending) => {
+      const body = `Invoice recipient contact: demo.person@${mailHost}`;
+
+      const lines = wrappedWide(
+        Buffer.from(body, "utf-8").toString("base64"),
+        42
+      );
+
+      expect(
+        ruleOf(
+          "docs/mail-export.md",
+          ["mail_body: |", ...lines.map((line) => `  ${line}`)].join(ending)
+        )
+      ).toEqual(["email"]);
+    }
+  );
+
+  it.each(LINE_ENDINGS)(
+    "keeps reading a sort code in one row and an account number in the next row of one table with %j line endings",
+    (ending) => {
+      expect(
+        ruleOf(
+          "packages/bank-import/fixtures/demo.csv",
+          [
+            "sort_code,account_number",
+            `${sortCode("-")},`,
+            `,${accountNumber("")}`,
+          ].join(ending)
+        )
+      ).toEqual(["bank-account"]);
+    }
+  );
+});
+
+describe("every decoder reads both views", () => {
+  const containerText = [
+    "mail_body: |",
+    `  demo.person@${mailHost.slice(0, 4)}=`,
+    `  ${mailHost.slice(4)}`,
+  ].join("\n");
+
+  it("runs every decoder in the table on the text as written", () => {
+    expect(DECODERS.map((decoder) => decoder.id).toSorted()).toEqual(
+      [
+        "base64",
+        "entity",
+        "fold",
+        "form-plus",
+        "json-escape",
+        "percent",
+        "quoted-printable",
+        "tag",
+        "zero-width",
+      ].toSorted()
+    );
+
+    expect([...decodeChains(containerText).ranOn.written].toSorted()).toEqual(
+      DECODERS.map((decoder) => decoder.id).toSorted()
+    );
+  });
+
+  it("runs every decoder in the table on the container-stripped text too", () => {
+    const chains = decodeChains(containerText);
+
+    expect(chains.stripped === undefined).toBe(false);
+
+    expect([...chains.ranOn.stripped].toSorted()).toEqual(
+      DECODERS.map((decoder) => decoder.id).toSorted()
+    );
+
+    expect(chains.stripped?.text.text).toContain(`demo.person@${mailHost}`);
+  });
+
+  it("skips the container-stripped view when no line needs a wrapper removed", () => {
+    expect(
+      decodeChains("A line of prose.\nAnother line.").stripped === undefined
+    ).toBe(true);
   });
 });
 
