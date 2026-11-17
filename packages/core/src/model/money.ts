@@ -143,6 +143,8 @@ export type SameCurrencyAmount = Extract<
 const sourceAmountRun = (amounts: Amounts): Money =>
   Predicate.isTagged(amounts, "Converted") ? amounts.source : amounts.amount;
 
+export const sourceOfAmounts = sourceAmountRun;
+
 const sameCurrencyAmountRun = (amount: Money): SameCurrencyAmount =>
   parse(
     SameCurrencyAmountSchema,

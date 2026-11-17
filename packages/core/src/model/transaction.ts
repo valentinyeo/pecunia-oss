@@ -1,7 +1,7 @@
 import { Option, Schema } from "effect";
 
 import type { Exact } from "./codec.js";
-import { AmountsSchema, sourceAmount } from "./money.js";
+import { AmountsSchema, sourceOfAmounts } from "./money.js";
 import type { Money } from "./primitives.js";
 import {
   CategoryIdSchema,
@@ -72,7 +72,7 @@ const feeSharesSourceCurrency = Schema.makeFilter<FeeBearingAmounts>(
   (transaction) =>
     Option.isNone(transaction.fee) ||
     transaction.fee.value.currency ===
-      sourceAmount(transaction.amounts).currency,
+      sourceOfAmounts(transaction.amounts).currency,
   { expected: "a fee in the source currency" }
 );
 

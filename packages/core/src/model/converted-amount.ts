@@ -41,6 +41,7 @@ import {
 } from "./primitives.js";
 import { RateSchema, rateArgument, rateSample } from "./rate.js";
 import type { Rate } from "./rate.js";
+import { register } from "./registry.js";
 
 const conversionProof: unique symbol = Symbol("Converted");
 
@@ -77,6 +78,7 @@ export class ConvertedAmount {
     this.base = fields.base;
     this.rate = fields.rate;
     this.source = fields.source;
+    register("ConvertedAmount", this);
   }
 
   static readonly convertingOperation: Operation<

@@ -5,6 +5,7 @@ import { Schema, SchemaGetter } from "effect";
 import type { Exact, Handle, ModelCodec } from "./codec.js";
 import { assertNoForeignKeys, codec, parse } from "./codec.js";
 import { CurrencyCodeSchema, MinorUnitsSchema } from "./primitives.js";
+import { ownPrototype } from "./registry.js";
 
 declare const errorBrand: unique symbol;
 
@@ -67,8 +68,16 @@ const defineError = <const Tag extends string, const F extends FieldSchemas>(
 
   const build = (
     input: object
-  ): InstanceType<typeof ErrorClass> & FieldsOf<F> =>
-    Object.assign(new ErrorClass(), declaredFields(fields, input));
+  ): InstanceType<typeof ErrorClass> & FieldsOf<F> => {
+    const error = Object.assign(
+      new ErrorClass(),
+      declaredFields(fields, input)
+    );
+
+    Reflect.deleteProperty(error, "stack");
+
+    return error;
+  };
 
   const schema = wire.pipe(
     Schema.decodeTo(instance, {
@@ -79,6 +88,8 @@ const defineError = <const Tag extends string, const F extends FieldSchemas>(
       })),
     })
   );
+
+  ownPrototype(ErrorClass.prototype);
 
   Object.defineProperties(ErrorClass.prototype, {
     constructor: { value: undefined },

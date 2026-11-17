@@ -20,6 +20,8 @@ import {
   SchemaIssue,
 } from "effect";
 
+import { foreignLabel, ownPrototype, register } from "./registry.js";
+
 type Codec = Schema.Top & {
   readonly DecodingServices: never;
   readonly EncodingServices: never;
@@ -40,6 +42,11 @@ export type Exact<T, AllKeys extends Key = UnionKeys<T>> = T extends unknown
 export const strictOptions: SchemaAST.ParseOptions = {
   onExcessProperty: "error",
 };
+
+export interface Gate {
+  readonly domain: string;
+  readonly where: string;
+}
 
 export interface CodecHandle<T, Encoded> {
   readonly name: string;
@@ -411,7 +418,7 @@ const dateTimeAdmits = (context: ShapeContext, key: Key): boolean => {
   );
 };
 
-const errorInfrastructureKeys: ReadonlySet<Key> = new Set<Key>(["stack"]);
+const errorInfrastructureKeys: ReadonlySet<Key> = new Set<Key>();
 
 const someKeys: ReadonlySet<Key> = new Set<Key>(
   Reflect.ownKeys(Option.some(null))
@@ -813,6 +820,7 @@ const domainClasses: DomainConstructor[] = [];
 
 export const domainClass = (ctor: DomainConstructor): void => {
   domainClasses.push(ctor);
+  ownPrototype(ctor.prototype);
 };
 
 const isDomainInstance = (value: object): boolean => {
@@ -963,6 +971,71 @@ export const assertNoForeignKeys = (
   handle: Handle
 ): Schema.SchemaError | undefined => shapeFailure(value, schemaOf(handle));
 
+const diagnosticOf = (value: unknown, handle: Handle): string | undefined => {
+  const violation = walkNode(
+    { ast: schemaOf(handle).ast, path: "$", value },
+    new WeakSet<object>()
+  );
+
+  return violation === undefined ? undefined : violationMessage(violation);
+};
+
+export const foreignRefusal = (
+  value: unknown,
+  handle: Handle,
+  gate: Gate
+): Schema.SchemaError | undefined => {
+  const label = foreignLabel(value);
+
+  if (label === undefined) {
+    return undefined;
+  }
+
+  const detail =
+    diagnosticOf(value, handle) ??
+    `${label} at "$" is not something the model made`;
+
+  const message = `${gate.where} expects ${gate.domain}: ${detail} Fix: build it with the factory or codec for ${gate.domain}.`;
+
+  return new Schema.SchemaError(
+    new SchemaIssue.InvalidValue({ message }, value)
+  );
+};
+
+export const nestedRefusal = (
+  value: unknown,
+  handle: Handle,
+  gate: Gate
+): Schema.SchemaError | undefined => {
+  if (foreignLabel(value) !== undefined) {
+    return foreignRefusal(value, handle, gate);
+  }
+
+  const detail = diagnosticOf(value, handle);
+
+  if (detail === undefined) {
+    return undefined;
+  }
+
+  const message = `${gate.where} expects ${gate.domain}: ${detail} Fix: build it with the factory or codec for ${gate.domain}.`;
+
+  return new Schema.SchemaError(
+    new SchemaIssue.InvalidValue({ message }, value)
+  );
+};
+
+export const assertMade = (
+  value: unknown,
+  handle: Handle,
+  gate: Gate
+): void => {
+  const failure = foreignRefusal(value, handle, gate);
+
+  if (failure !== undefined) {
+    throw failure;
+  }
+};
+
 export const isModelCodec = (value: unknown): boolean =>
   typeof value === "object" &&
   value !== null &&
@@ -986,6 +1059,7 @@ const ensureExactShape = (value: unknown, handle: Handle): void => {
 export function codec<S extends Codec>(
   schema: S
 ): ModelCodec<S["Type"], S["Encoded"]>;
+
 export function codec<S extends Codec>(
   name: string,
   schema: S
@@ -1003,11 +1077,18 @@ export function codec<S extends Codec>(
   const handle: ModelCodec<S["Type"], S["Encoded"]> = {
     decode: (input) =>
       strictResult(assertNoForeignKeys(input, handle), () =>
-        Schema.decodeUnknownResult(schema, strictOptions)(input)
+        Result.map(
+          Schema.decodeUnknownResult(schema, strictOptions)(input),
+          (decoded) => register(name, decoded)
+        )
       ),
     encode: (value) =>
-      strictResult(assertNoForeignKeys(value, handle), () =>
-        Schema.encodeUnknownResult(schema, strictOptions)(value)
+      strictResult(
+        nestedRefusal(value, handle, {
+          domain: name,
+          where: `encode of ${name}`,
+        }),
+        () => Schema.encodeUnknownResult(schema, strictOptions)(value)
       ),
     name,
   };
@@ -1022,10 +1103,10 @@ export function parse<T, E>(handle: ModelCodec<T, E>, input: unknown): T;
 export function parse(handle: unknown, input: unknown): unknown {
   ensureExactShape(input, handle as Handle);
 
-  return Schema.decodeUnknownSync(
-    schemaOf(handle as Handle),
-    strictOptions
-  )(input);
+  return register(
+    (handle as ModelCodec<unknown, unknown>).name,
+    Schema.decodeUnknownSync(schemaOf(handle as Handle), strictOptions)(input)
+  );
 }
 
 export function render<S extends Codec>(
@@ -1034,7 +1115,14 @@ export function render<S extends Codec>(
 ): S["Encoded"];
 export function render<T, E>(handle: ModelCodec<T, E>, value: T): E;
 export function render(handle: unknown, value: unknown): unknown {
-  ensureExactShape(value, handle as Handle);
+  const { name } = handle as ModelCodec<unknown, unknown>;
+
+  const gate = { domain: name, where: `render of ${name}` };
+  const failure = nestedRefusal(value, handle as Handle, gate);
+
+  if (failure !== undefined) {
+    throw failure;
+  }
 
   return Schema.encodeSync(schemaOf(handle as Handle), strictOptions)(value);
 }
@@ -1046,8 +1134,11 @@ export function verified(handle: unknown, value: unknown): unknown {
 
   const schema = schemaOf(handle as Handle);
 
-  return Schema.decodeUnknownSync(
-    schema,
-    strictOptions
-  )(Schema.encodeUnknownSync(schema, strictOptions)(value));
+  return register(
+    (handle as ModelCodec<unknown, unknown>).name,
+    Schema.decodeUnknownSync(
+      schema,
+      strictOptions
+    )(Schema.encodeUnknownSync(schema, strictOptions)(value))
+  );
 }
