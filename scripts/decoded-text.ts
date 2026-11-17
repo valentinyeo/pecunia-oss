@@ -225,7 +225,7 @@ const undoQuotedPrintable = (input: DecodedText) =>
     : input;
 
 const BASE64_RUN =
-  /(?<![A-Za-z0-9+/])(?<run>[A-Za-z0-9+/_-]{13,}(?:\r?\n[A-Za-z0-9+/_-]{4,}){0,64}={0,2})(?![A-Za-z0-9+/=])/gu;
+  /(?<![A-Za-z0-9+/])(?<run>[A-Za-z0-9+/_-]{13,}(?:\r?\n[A-Za-z0-9+/_-]{4,}){0,64}(?:\r?\n[A-Za-z0-9+/_-]{1,3})?={0,2})(?![A-Za-z0-9+/=])/gu;
 
 const EMPHASIS_EDGE = /^[-_]+|[-_]+$/gu;
 
@@ -249,43 +249,73 @@ const readsAsPrintableBytes = (bytes: Uint8Array) => {
 
 const WRAPPED_LINE = /[ \t\r\n]+/gu;
 
-const decodeBase64 = (match: string) => {
-  const candidates = [match, match.replaceAll(EMPHASIS_EDGE, "")].map((value) =>
-    value.replaceAll(WRAPPED_LINE, "")
+const LINE_SPLIT = /[\r\n]+/u;
+
+const truncations = (value: string): readonly string[] => {
+  const parts = value.split(LINE_SPLIT);
+
+  const candidates: string[] = [];
+
+  for (let count = parts.length; count > 0; count -= 1) {
+    candidates.push(parts.slice(0, count).join(""));
+  }
+
+  return candidates;
+};
+
+const base64Bytes = (value: string): Uint8Array | undefined => {
+  if (value.length < 16) {
+    return undefined;
+  }
+
+  const normalized = value.replaceAll("-", "+").replaceAll("_", "/");
+
+  const body = normalized.replaceAll(/[=]+$/gu, "");
+
+  if (body.length % 4 === 1 || !BASE64_ALPHABET.test(body)) {
+    return undefined;
+  }
+
+  const padded = body.padEnd(body.length + ((4 - (body.length % 4)) % 4), "=");
+
+  const bytes = Buffer.from(padded, "base64");
+
+  if (bytes.toString("base64") !== padded || bytes.length === 0) {
+    return undefined;
+  }
+
+  return readsAsPrintableBytes(bytes) ? bytes : undefined;
+};
+
+const readStrict = (bytes: Uint8Array): string | undefined => {
+  try {
+    return STRICT_BYTES.decode(bytes);
+  } catch {
+    return undefined;
+  }
+};
+
+const attemptsOf = (match: string): readonly string[] =>
+  [match, match.replaceAll(EMPHASIS_EDGE, "")].flatMap((value) =>
+    truncations(value).map((candidate) =>
+      candidate.replaceAll(WRAPPED_LINE, "")
+    )
   );
 
-  for (const candidate of candidates) {
-    if (candidate.length < 16) {
+const decodeBase64 = (match: string) => {
+  const attempts = attemptsOf(match);
+
+  for (const attempt of attempts) {
+    const bytes = base64Bytes(attempt);
+
+    if (bytes === undefined) {
       continue;
     }
 
-    const normalized = candidate.replaceAll("-", "+").replaceAll("_", "/");
+    const text = readStrict(bytes);
 
-    const body = normalized.replaceAll(/[=]+$/gu, "");
-
-    if (body.length % 4 === 1 || !BASE64_ALPHABET.test(body)) {
-      continue;
-    }
-
-    const padded = body.padEnd(
-      body.length + ((4 - (body.length % 4)) % 4),
-      "="
-    );
-
-    const bytes = Buffer.from(padded, "base64");
-
-    if (bytes.toString("base64") !== padded || bytes.length === 0) {
-      continue;
-    }
-
-    if (!readsAsPrintableBytes(bytes)) {
-      continue;
-    }
-
-    try {
-      return STRICT_BYTES.decode(bytes);
-    } catch {
-      continue;
+    if (text !== undefined) {
+      return text;
     }
   }
 
@@ -362,33 +392,183 @@ const undoFold = (input: DecodedText) =>
 
 type Step = (input: DecodedText) => DecodedText;
 
-const UNDO_STEPS: readonly Step[] = [
-  undoZeroWidth,
-  undoFold,
-  undoJsonEscape,
-  undoEntities,
-  undoPercent,
-  undoQuotedPrintable,
-  undoZeroWidth,
-  undoFold,
-  undoBase64,
-  undoFormPlus,
-  undoTag,
+const LINE_BREAK = /\r\n|\r|\n/gu;
+
+const WRAPPED_CONTAINER = "[ \\t]*(?:>>?|#|\\/\\/|\\||\\*|-)?[ \\t]*";
+
+const CONTAINER_HEAD = "[ \\t]*(?:>>?|#|\\/\\/|\\||\\*|-)[ \\t]*";
+
+const LINE_BREAK_SOURCE = "(?:\\r\\n|\\r|\\n)";
+
+const JOIN_HINT = new RegExp(
+  [
+    `\\S=[ \\t]*${LINE_BREAK_SOURCE}[ \\t]*\\S`,
+    `(?:^|${LINE_BREAK_SOURCE})${WRAPPED_CONTAINER}[A-Za-z0-9+/_-]{8,}={0,2}[ \\t]*${LINE_BREAK_SOURCE}${WRAPPED_CONTAINER}[A-Za-z0-9+/_-]+`,
+    `(?:^|${LINE_BREAK_SOURCE})${CONTAINER_HEAD}[^\\r\\n]*(?:%[0-9A-Fa-f]{2}|&#[0-9]|\\\\u[0-9A-Fa-f]{4}|=[0-9A-Fa-f]{2})`,
+    `[A-Za-z0-9+/_-]{24,}={0,2}[ \\t]*${LINE_BREAK_SOURCE}[ \\t]*(?:[>#|*/\\-]+[ \\t]*)?[A-Za-z0-9+/_-]+`,
+  ].join("|"),
+  "u"
+);
+
+const LEADING_SPACE = /^[ \t]*/u;
+
+const CONTAINER_PREFIX =
+  /^(?:>>[ \t]*|>[ \t]*|\/\/[ \t]*|#[ \t]*|\|[ \t]*|\*[ \t]+|-[ \t]+)/u;
+
+const QUOTE_EDGE = new Set(['"', "'"]);
+
+const TRAILING_SPACE = /[ \t]+$/u;
+
+interface LineBounds {
+  readonly end: number;
+  readonly start: number;
+}
+
+const contentBounds = (line: string): LineBounds => {
+  let start = LEADING_SPACE.exec(line)?.[0].length ?? 0;
+
+  start += CONTAINER_PREFIX.exec(line.slice(start))?.[0].length ?? 0;
+
+  if (QUOTE_EDGE.has(line[start] ?? "")) {
+    start += 1;
+  }
+
+  let end = line.length - (TRAILING_SPACE.exec(line)?.[0].length ?? 0);
+
+  if (end > start && QUOTE_EDGE.has(line[end - 1] ?? "")) {
+    end -= 1;
+  }
+
+  return { end, start };
+};
+
+const stripContainers = (text: string): DecodedText | undefined => {
+  if (!JOIN_HINT.test(text)) {
+    return undefined;
+  }
+
+  const parts: string[] = [];
+
+  const origins: number[] = [];
+
+  let position = 0;
+
+  for (;;) {
+    LINE_BREAK.lastIndex = position;
+
+    const lineBreak = LINE_BREAK.exec(text);
+
+    const lineEnd = lineBreak?.index ?? text.length;
+
+    const line = text.slice(position, lineEnd);
+
+    const { end, start } = contentBounds(line);
+
+    const content = line.slice(start, end);
+
+    parts.push(content);
+
+    for (let index = 0; index < content.length; index += 1) {
+      origins.push(position + start + index);
+    }
+
+    if (lineBreak === null) {
+      break;
+    }
+
+    parts.push("\n");
+
+    origins.push(lineBreak.index + lineBreak[0].length - 1);
+
+    position = lineBreak.index + lineBreak[0].length;
+  }
+
+  return { origins: Int32Array.from(origins), text: parts.join("") };
+};
+
+interface Decoder {
+  readonly id: string;
+  readonly readable: boolean;
+  readonly step: Step;
+}
+
+export const DECODERS: readonly Decoder[] = [
+  { id: "zero-width", readable: true, step: undoZeroWidth },
+  { id: "fold", readable: true, step: undoFold },
+  { id: "json-escape", readable: true, step: undoJsonEscape },
+  { id: "entity", readable: true, step: undoEntities },
+  { id: "percent", readable: true, step: undoPercent },
+  { id: "quoted-printable", readable: false, step: undoQuotedPrintable },
+  { id: "base64", readable: true, step: undoBase64 },
+  { id: "form-plus", readable: true, step: undoFormPlus },
+  { id: "tag", readable: false, step: undoTag },
 ];
 
-const READABLE_STEPS: readonly Step[] = UNDO_STEPS.filter(
-  (step) => step !== undoTag && step !== undoQuotedPrintable
+const DECODER_ORDER = [
+  "zero-width",
+  "fold",
+  "json-escape",
+  "entity",
+  "percent",
+  "quoted-printable",
+  "zero-width",
+  "fold",
+  "base64",
+  "form-plus",
+  "tag",
+] as const;
+
+const BY_ID = new Map(DECODERS.map((decoder) => [decoder.id, decoder]));
+
+const ORDERED: readonly Decoder[] = DECODER_ORDER.map((id) => {
+  const decoder = BY_ID.get(id);
+
+  if (decoder === undefined) {
+    throw new Error(`no decoder named ${id}`);
+  }
+
+  return decoder;
+});
+
+const READABLE_STEPS: readonly Decoder[] = ORDERED.filter(
+  (decoder) => decoder.readable
 );
 
-const UNTAGGED_STEPS: readonly Step[] = UNDO_STEPS.filter(
-  (step) => step !== undoQuotedPrintable
+const UNTAGGED_STEPS: readonly Decoder[] = ORDERED.filter(
+  (decoder) => decoder.id !== "quoted-printable"
 );
 
-const undoEverything = (steps: readonly Step[], input: DecodedText) => {
+type Recorder = (id: string) => void;
+
+const decoderNamed = (id: string): Decoder => {
+  const decoder = BY_ID.get(id);
+
+  if (decoder === undefined) {
+    throw new Error(`no decoder named ${id}`);
+  }
+
+  return decoder;
+};
+
+const runDecoder = (
+  decoder: Decoder,
+  input: DecodedText,
+  record?: Recorder
+) => {
+  record?.(decoder.id);
+
+  return decoder.step(input);
+};
+
+const undoEverything = (
+  steps: readonly Decoder[],
+  input: DecodedText,
+  record?: Recorder
+) => {
   let current = input;
 
   for (const step of steps) {
-    current = step(current);
+    current = runDecoder(step, current, record);
   }
 
   return current;
@@ -397,7 +577,11 @@ const undoEverything = (steps: readonly Step[], input: DecodedText) => {
 const CAN_CHANGE =
   /[&%+\\<=>\u0080-\uFFFF]|(?<![A-Za-z0-9+/])[A-Za-z0-9+/_-]{13,}={0,2}/u;
 
-const settle = (input: DecodedText, steps: readonly Step[]): DecodeOutcome => {
+const settle = (
+  input: DecodedText,
+  steps: readonly Decoder[],
+  record?: Recorder
+): DecodeOutcome => {
   let current = input;
 
   let settled = false;
@@ -409,7 +593,7 @@ const settle = (input: DecodedText, steps: readonly Step[]): DecodeOutcome => {
       break;
     }
 
-    const next = undoEverything(steps, current);
+    const next = undoEverything(steps, current, record);
 
     if (next.text === current.text) {
       settled = true;
@@ -424,7 +608,10 @@ const settle = (input: DecodedText, steps: readonly Step[]): DecodeOutcome => {
 };
 
 export const decodeText = (text: string): DecodeOutcome =>
-  settle(undoQuotedPrintable({ text }), UNTAGGED_STEPS);
+  settle(
+    runDecoder(decoderNamed("quoted-printable"), { text }),
+    UNTAGGED_STEPS
+  );
 
 export const hasQuotedPrintable = (text: string) =>
   HAS_QUOTED_PRINTABLE.test(text);
@@ -434,7 +621,9 @@ export const decodeTaggedText = (text: string): DecodeOutcome => {
 
   const quoted = undoQuotedPrintable(plain.text);
 
-  return quoted.text === plain.text.text ? plain : settle(quoted, READABLE_STEPS);
+  return quoted.text === plain.text.text
+    ? plain
+    : settle(quoted, READABLE_STEPS);
 };
 
 export const decodeUnquotedText = (text: string): DecodeOutcome =>
@@ -448,6 +637,88 @@ export const removeTagMarkup = (input: DecodedText): DecodedText =>
 
 export const continueDecoding = (input: DecodedText): DecodeOutcome =>
   settle(input, READABLE_STEPS);
+
+export interface DecodeChain {
+  readonly readable: DecodeOutcome;
+  readonly settled: boolean;
+  readonly unquoted: DecodeOutcome;
+  readonly unwrapped: DecodeOutcome;
+}
+
+export interface StrippedChain {
+  readonly settled: boolean;
+  readonly text: DecodedText;
+  readonly view: string;
+}
+
+export interface DecodeChains {
+  readonly asWritten: DecodeChain;
+  readonly ranOn: {
+    readonly stripped: readonly string[];
+    readonly written: readonly string[];
+  };
+  readonly stripped: StrippedChain | undefined;
+}
+
+const chainFrom = (start: DecodedText, record?: Recorder): DecodeChain => {
+  const unquoted = settle(start, READABLE_STEPS, record);
+
+  const quoted = runDecoder(
+    decoderNamed("quoted-printable"),
+    unquoted.text,
+    record
+  );
+
+  const readable =
+    quoted.text === unquoted.text.text
+      ? unquoted
+      : settle(quoted, READABLE_STEPS, record);
+
+  const untagged = runDecoder(decoderNamed("tag"), readable.text, record);
+
+  const unwrapped = settle(untagged, READABLE_STEPS, record);
+
+  return {
+    readable,
+    settled: unquoted.settled && readable.settled && unwrapped.settled,
+    unquoted,
+    unwrapped,
+  };
+};
+
+export const decodeChains = (text: string): DecodeChains => {
+  const written = new Set<string>();
+
+  const stripped = new Set<string>();
+
+  const asWritten = chainFrom({ text }, (id) => {
+    written.add(id);
+  });
+
+  const containerView = stripContainers(text);
+
+  if (containerView === undefined) {
+    return {
+      asWritten,
+      ranOn: { stripped: [], written: [...written] },
+      stripped: undefined,
+    };
+  }
+
+  const chain = chainFrom(containerView, (id) => {
+    stripped.add(id);
+  });
+
+  return {
+    asWritten,
+    ranOn: { stripped: [...stripped], written: [...written] },
+    stripped: {
+      settled: chain.settled,
+      text: chain.unwrapped.text,
+      view: containerView.text,
+    },
+  };
+};
 
 const DIGIT_SOURCE = /[0-9]/u;
 

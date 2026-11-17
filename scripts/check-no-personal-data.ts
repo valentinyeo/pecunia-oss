@@ -5,13 +5,7 @@ import path from "node:path";
 
 import { Option, Schema } from "effect";
 
-import {
-  continueDecoding,
-  decodeUnquotedText,
-  quotePrintable,
-  removeTagMarkup,
-  squeezeText,
-} from "./decoded-text.ts";
+import { decodeChains, squeezeText } from "./decoded-text.ts";
 import type { DecodedText } from "./decoded-text.ts";
 
 const root = path.resolve(import.meta.dirname, "..");
@@ -505,10 +499,18 @@ const viewSource = (
 
   const at = (position: number) => origins?.[position] ?? position;
 
-  const gapAt = (position: number) =>
-    offsets === undefined || parent === undefined
-      ? text.slice(at(position) + 1, at(position + 1))
-      : parent.slice((offsets[position] ?? 0) + 1, offsets[position + 1] ?? 0);
+  const gapAt = (position: number) => {
+    if (offsets === undefined) {
+      return parent === undefined
+        ? text.slice(at(position) + 1, at(position + 1))
+        : "";
+    }
+
+    return (parent ?? "").slice(
+      (offsets[position] ?? 0) + 1,
+      offsets[position + 1] ?? 0
+    );
+  };
 
   return {
     gapAt,
@@ -629,6 +631,7 @@ export const VIEW_IDS = [
   "squeezed-tagged",
   "unquoted",
   "unwrapped",
+  "stripped",
 ] as const;
 
 export type ViewId = (typeof VIEW_IDS)[number];
@@ -644,14 +647,9 @@ interface BuiltViews {
 }
 
 const buildViews = (text: string): BuiltViews => {
-  const unquoted = decodeUnquotedText(text);
+  const chains = decodeChains(text);
 
-  const quoted = quotePrintable(unquoted.text);
-
-  const readable =
-    quoted.text === unquoted.text.text ? unquoted : continueDecoding(quoted);
-
-  const unwrapped = continueDecoding(removeTagMarkup(readable.text));
+  const { readable, unquoted, unwrapped } = chains.asWritten;
 
   const starts = lineStartsOf(linesOfText(text));
 
@@ -695,8 +693,16 @@ const buildViews = (text: string): BuiltViews => {
       : viewSource(text, unwrapped.text, undefined, starts)
   );
 
+  sources.set(
+    "stripped",
+    chains.stripped === undefined ||
+      chains.stripped.text.text === unwrapped.text.text
+      ? (sources.get("unwrapped") ?? raw)
+      : viewSource(text, chains.stripped.text, chains.stripped.view, starts)
+  );
+
   return {
-    settled: readable.settled && unquoted.settled && unwrapped.settled,
+    settled: chains.asWritten.settled && (chains.stripped?.settled ?? true),
     view: (id) => ({ id, source: sources.get(id) ?? raw }),
   };
 };
@@ -1709,6 +1715,9 @@ export const PERSONAL_DATA_MATRIX: Record<
     unwrapped: cell(
       "markup between a sort code and its account number is formatting, and the pair survives its removal"
     ),
+    stripped: cell(
+      "a value wrapped by an indentation, a quote prefix, a comment prefix, a list dash or a heredoc is joined once that wrapper is removed, and the pair only reads as a pair then"
+    ),
   },
   "cloudflare-account-id": {
     raw: cell(
@@ -1725,6 +1734,9 @@ export const PERSONAL_DATA_MATRIX: Record<
     unwrapped: cell(
       "markup between a label and its id hides the pair from the readable view"
     ),
+    stripped: cell(
+      "an id written through a wrapped encoding carries a container prefix or indentation that has to go before the value reads as an id"
+    ),
   },
   "cloudflare-hostname": {
     raw: cell("a hostname written plainly is still a hostname here"),
@@ -1737,6 +1749,9 @@ export const PERSONAL_DATA_MATRIX: Record<
       "the same text read without the quoted-printable step, so a hostname in a decoded layer is still read"
     ),
     unwrapped: cell("markup inside a hostname hides it from the readable view"),
+    stripped: cell(
+      "a hostname written through a wrapped encoding reads once its container prefix or indentation is gone"
+    ),
   },
   "decode-did-not-settle": {
     raw: cell(
@@ -1747,6 +1762,7 @@ export const PERSONAL_DATA_MATRIX: Record<
     "squeezed-tagged": skipped(HIDDEN_ONLY),
     unquoted: skipped(HIDDEN_ONLY),
     unwrapped: skipped(HIDDEN_ONLY),
+    stripped: skipped(HIDDEN_ONLY),
   },
   email: {
     raw: cell(RAW_ALWAYS),
@@ -1759,6 +1775,9 @@ export const PERSONAL_DATA_MATRIX: Record<
       "the same text read without the quoted-printable step, so a decoded layer is not eaten by a wrong guess about an equals sign"
     ),
     unwrapped: cell("markup around an address hides it from the readable view"),
+    stripped: cell(
+      "an address joined across a soft break inside a block scalar, a quoted reply, a list item, a heredoc or a comment keeps its wrapper until that wrapper is removed"
+    ),
   },
   iban: {
     raw: cell(RAW_ALWAYS),
@@ -1773,6 +1792,9 @@ export const PERSONAL_DATA_MATRIX: Record<
       "the same text read without the quoted-printable step, so a decoded layer is not eaten by a wrong guess about an equals sign"
     ),
     unwrapped: cell("markup inside an IBAN hides it from the readable view"),
+    stripped: cell(
+      "an IBAN wrapped inside a block scalar or behind a quote prefix reads as an IBAN once its wrapper is removed"
+    ),
   },
   "secret-block-scalar": {
     raw: cell("an indented value below its key is still indented here"),
@@ -1785,6 +1807,9 @@ export const PERSONAL_DATA_MATRIX: Record<
       "the same text read without the quoted-printable step, so an encoded value under a key is still read"
     ),
     unwrapped: cell("markup between a key and its value hides the pair"),
+    stripped: skipped(
+      "the strip removes the indentation a block scalar is made of, so this view has no block scalar left to read"
+    ),
   },
 };
 
