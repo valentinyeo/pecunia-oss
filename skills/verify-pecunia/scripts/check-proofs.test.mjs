@@ -35,6 +35,15 @@ const FEATURES_DIR = nodePath.join(SCRIPT_DIR, "..", "features");
 
 const MAP_PATH = nodePath.join(SCRIPT_DIR, "check-feature-map.mjs");
 
+const REPLAY_PATH = nodePath.join(SCRIPT_DIR, "replay-proof.mjs");
+
+const EVIDENCE_DIR = nodePath.join(
+  REPO_ROOT,
+  "skills",
+  "verify-pecunia",
+  "evidence"
+);
+
 const RECORDS_PATH = nodePath.join(tmpdir(), "pecunia-check-records.jsonl");
 
 const FEATURE = "all";
@@ -1051,6 +1060,13 @@ test("an observation holds a snapshot taken when it is emitted", () => {
   assert.deepEqual(text, { id: "probe-text", value: "[]" });
 });
 
+test("an observation of a value no snapshot can hold fails as before", () => {
+  assert.throws(
+    () => observe({ id: "probe-clone", value: () => 1 }),
+    SyntaxError
+  );
+});
+
 const demoBookPath = (label) => {
   const path = nodePath.join(
     tmpdir(),
@@ -1639,4 +1655,85 @@ test("the map check counts and fails every removed capability", () => {
   assert.equal(removed.problems, 1);
   assert.equal(removed.failures.length, 1);
   assert.match(removed.failures[0], /probe\.capability/u);
+});
+
+test("a saved proof missing one check and one changed observation fails by name and count", () => {
+  const root = mkdtempSync(nodePath.join(tmpdir(), "pecunia-replay-"));
+  const savedDirectory = nodePath.join(EVIDENCE_DIR, "2026-11-16-all");
+  const removedId = "probe-removed-expectation";
+
+  try {
+    const directory = nodePath.join(root, "2026-11-16-all");
+
+    mkdirSync(directory, { recursive: true });
+    writeFileSync(
+      nodePath.join(directory, "PROOF.md"),
+      readFileSync(nodePath.join(savedDirectory, "PROOF.md"), "utf-8")
+    );
+
+    const proof = JSON.parse(
+      readFileSync(nodePath.join(savedDirectory, "proof.json"), "utf-8")
+    );
+
+    const [changed] = proof.checks;
+
+    const checks = [
+      ...proof.checks.map((check) =>
+        check.id === changed.id
+          ? { ...check, actual: `${check.actual} changed` }
+          : check
+      ),
+      {
+        actual: "not observed",
+        expected: "not observed",
+        feature: changed.feature,
+        id: removedId,
+        passed: false,
+        step: changed.step,
+      },
+    ];
+
+    writeFileSync(
+      nodePath.join(directory, "proof.json"),
+      `${JSON.stringify({ ...proof, checks }, null, 2)}\n`
+    );
+
+    const result = spawnSync("node", [REPLAY_PATH, "--only", "all"], {
+      cwd: REPO_ROOT,
+      encoding: "utf-8",
+      env: { ...process.env, PECUNIA_REPLAY_EVIDENCE_ROOT: root },
+    });
+
+    assert.equal(result.status, 1, `${result.stdout}${result.stderr}`);
+    assert.match(
+      result.stdout,
+      /1 missing checks, 1 changed observations across 1 proofs/u
+    );
+    assert.equal(
+      result.stderr.includes(
+        `saved ${removedId}, which the replay no longer runs`
+      ),
+      true,
+      result.stderr
+    );
+    assert.equal(
+      result.stderr.includes(`${changed.id} observed`),
+      true,
+      result.stderr
+    );
+    assert.equal(/TypeError/u.test(result.stderr), false, result.stderr);
+  } finally {
+    rmSync(root, { force: true, recursive: true });
+  }
+});
+
+test("canonical records keep text, number and boolean values as leaves", () => {
+  const rows = [
+    { amount: 5, currency: "EUR", flag: "true", note: null, pending: true },
+  ];
+
+  assert.equal(
+    canonicalRecords(rows),
+    '[{"amount":5,"currency":"EUR","flag":"true","note":null,"pending":true}]'
+  );
 });
