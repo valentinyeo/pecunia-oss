@@ -46,7 +46,6 @@ export default defineConfig({
     "scripts/hooks/**",
     "tools/oxlint/anti-slop/**",
     "skills/security-audit/**",
-    "skills/verify-pecunia/scripts/**",
   ],
   jsPlugins: [
     { name: "foldkit", specifier: "@foldkit/oxlint-plugin" },
@@ -74,6 +73,16 @@ export default defineConfig({
   },
   overrides: [
     ...foldkitOverrides,
+    {
+      files: ["skills/verify-pecunia/scripts/**/*.mjs"],
+      rules: {
+        "typescript/no-unsafe-argument": "off",
+        "typescript/no-unsafe-assignment": "off",
+        "typescript/no-unsafe-call": "off",
+        "typescript/no-unsafe-member-access": "off",
+        "typescript/no-unsafe-return": "off",
+      },
+    },
     {
       files: [
         "**/*.{test,spec,test-d,spec-d}.{ts,tsx,js,jsx,mts,cts,mjs,cjs}",
