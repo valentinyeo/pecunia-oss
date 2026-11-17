@@ -11,7 +11,7 @@ import {
 import { tmpdir } from "node:os";
 import nodePath from "node:path";
 import { DatabaseSync } from "node:sqlite";
-import { test } from "node:test";
+import { test as nodeTest } from "node:test";
 
 import { observe } from "./lib/observation.mjs";
 import { canonicalRecords } from "./lib/records.mjs";
@@ -22,6 +22,12 @@ import {
   readCapabilities,
   readPageExpectations,
 } from "./verdict.mjs";
+
+const pendingTests = [];
+
+const test = (name, fn) => {
+  pendingTests.push(nodeTest(name, fn));
+};
 
 const SCRIPT_DIR = import.meta.dirname;
 
@@ -619,6 +625,7 @@ const mutate = (records, random) => {
   return assert.fail(`the mutation kind ${kind} has no case`);
 };
 
+/** @param {string} source */
 const injectStepFailure = (source, id) => {
   const header = `step_${id.replaceAll("-", "_")}() {`;
 
@@ -1202,6 +1209,7 @@ test("a shared readback array filled on replay fails the first-import readback",
   }
 });
 
+/** @param {string} source */
 const sharedReadbackStore = (source) => {
   const layer = [
     "const layerFor = (person) =>",
@@ -1476,6 +1484,7 @@ test("a readback that differs in one field of one row fails and names the field"
       const result = judgeRecords(records);
       const text = result.failures.join("\n");
 
+      /** @type {string | undefined} */
       const line = result.failures.find(
         (entry) =>
           entry.includes(id) === true && entry.includes("observed") === true
@@ -1737,3 +1746,5 @@ test("canonical records keep text, number and boolean values as leaves", () => {
     '[{"amount":5,"currency":"EUR","flag":"true","note":null,"pending":true}]'
   );
 });
+
+await Promise.all(pendingTests);
