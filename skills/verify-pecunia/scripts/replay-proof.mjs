@@ -79,9 +79,7 @@ const onlyIndex = arguments_.indexOf("--only");
 const only = onlyIndex === -1 ? undefined : arguments_[onlyIndex + 1];
 
 const evidenceDirectories = readdirSync(EVIDENCE_ROOT)
-  .filter((name) =>
-    Boolean(statSync(path.join(EVIDENCE_ROOT, name)).isDirectory())
-  )
+  .filter((name) => statSync(path.join(EVIDENCE_ROOT, name)).isDirectory())
   .filter((name) => only === undefined || name.endsWith(`-${only}`))
   .toSorted();
 

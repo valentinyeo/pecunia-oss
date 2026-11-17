@@ -1217,7 +1217,7 @@ const required = (arguments_, name) => {
 };
 
 const readRecords = (recordsPath) => {
-  if (existsSync(recordsPath) === false) {
+  if (!existsSync(recordsPath)) {
     return { records: undefined };
   }
 

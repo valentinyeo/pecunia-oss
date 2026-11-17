@@ -69,12 +69,12 @@ const walk = (directory, files = []) => {
 
     const filePath = path.join(directory, entry);
 
-    if (statSync(filePath).isDirectory() === true) {
+    if (statSync(filePath).isDirectory()) {
       walk(filePath, files);
       continue;
     }
 
-    if (filePath.endsWith(".ts") === true) {
+    if (filePath.endsWith(".ts")) {
       files.push(filePath);
     }
   }
@@ -89,7 +89,7 @@ for (const workspace of ["packages", "apps"]) {
     const sourceDirectory = path.join(REPO_ROOT, workspace, packageName, "src");
 
     try {
-      if (statSync(sourceDirectory).isDirectory() === false) {
+      if (!statSync(sourceDirectory).isDirectory()) {
         continue;
       }
     } catch {
@@ -102,9 +102,9 @@ for (const workspace of ["packages", "apps"]) {
 
 const capabilityFiles = sourceFiles.filter(
   (filePath) =>
-    path
+    !path
       .relative(REPO_ROOT, filePath)
-      .startsWith(`packages${path.join("/", "capability")}/`) === false
+      .startsWith(`packages${path.join("/", "capability")}/`)
 );
 
 const contractNames = new Map();
@@ -146,7 +146,7 @@ for (const filePath of capabilityFiles) {
 }
 
 const pageNames = readdirSync(FEATURES_DIR)
-  .filter((name) => Boolean(name.endsWith(".md")) && name !== "README.md")
+  .filter((name) => name.endsWith(".md") && name !== "README.md")
   .toSorted();
 
 const pages = new Map();
