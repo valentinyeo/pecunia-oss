@@ -41,7 +41,7 @@ import {
 } from "./primitives.js";
 import { RateSchema, rateArgument, rateSample } from "./rate.js";
 import type { Rate } from "./rate.js";
-import { register } from "./registry.js";
+import { seal } from "./registry.js";
 
 const conversionProof: unique symbol = Symbol("Converted");
 
@@ -78,7 +78,7 @@ export class ConvertedAmount {
     this.base = fields.base;
     this.rate = fields.rate;
     this.source = fields.source;
-    register("ConvertedAmount", this);
+    seal("ConvertedAmount", this);
   }
 
   static readonly convertingOperation: Operation<
@@ -148,13 +148,15 @@ export class ConvertedAmount {
       return Option.none();
     }
 
-    return Option.some(
-      new ConvertedAmount({
-        asOf: stored.asOf,
-        base: base.success,
-        rate: stored.rate,
-        source: stored.source,
-      })
+    return Object.freeze(
+      Option.some(
+        new ConvertedAmount({
+          asOf: stored.asOf,
+          base: base.success,
+          rate: stored.rate,
+          source: stored.source,
+        })
+      )
     );
   }
 

@@ -21,7 +21,7 @@ import type { Operation } from "./operation.js";
 import type { CurrencyCode, MinorUnits, Money } from "./primitives.js";
 import type { Rate } from "./rate.js";
 import { RateSchema, rateArgument, rateSample } from "./rate.js";
-import { register } from "./registry.js";
+import { seal } from "./registry.js";
 
 export interface ConversionQuery {
   readonly from: CurrencyCode;
@@ -48,7 +48,7 @@ export class BaseAmount {
     this.#proof = conversionProof;
     this.currency = currency;
     this.minor = minor;
-    register("BaseAmount", this);
+    seal("BaseAmount", this);
   }
 
   static readonly atRateOperation: Operation<

@@ -1,7 +1,7 @@
 import { Option, Schema, SchemaGetter } from "effect";
 
 import type { Exact } from "./codec.js";
-import { parse } from "./codec.js";
+import { decodeModel } from "./codec.js";
 import {
   CurrencyCodeSchema,
   DateOnlySchema,
@@ -115,7 +115,7 @@ const decodedHolding = (
 };
 
 const encodedHolding = (holding: EncodedHolding): StoredHolding =>
-  parse(StoredHoldingSchema, {
+  decodeModel(StoredHoldingSchema, {
     ...holding,
     costBasis: holding.costBasis ?? null,
     lastPrice: holding.lastPrice ?? null,

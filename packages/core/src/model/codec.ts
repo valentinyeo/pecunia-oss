@@ -8,7 +8,7 @@
 // oxlint-disable typescript/no-non-null-assertion -- the branch above already proves the schema argument is present
 // oxlint-disable anti-slop/no-shape-in-symbol-names -- the one shape gate is named assertNoForeignKeys by the review that asked for it
 // oxlint-disable anti-slop/no-index-signature, anti-slop/no-any, anti-slop/no-unsafe-dictionary-type -- the walker reads AST nodes and decoded values that no single declared type describes
-// oxlint-disable eslint/func-style -- the shape walk and its branch resolver call each other, so one of them is a hoisted declaration
+// oxlint-disable eslint/func-style, eslint/no-use-before-define -- the shape walk and its branch resolver call each other, so both are hoisted declarations
 
 import type { SchemaAST } from "effect";
 import {
@@ -20,7 +20,7 @@ import {
   SchemaIssue,
 } from "effect";
 
-import { foreignLabel, ownPrototype, register } from "./registry.js";
+import { foreignLabel, ownPrototype, seal } from "./registry.js";
 
 type Codec = Schema.Top & {
   readonly DecodingServices: never;
@@ -59,6 +59,8 @@ export type ModelCodec<T, Encoded> = CodecHandle<T, Encoded>;
 export type Handle = Codec | ModelCodec<unknown, unknown>;
 
 const schemaTable = new WeakMap<object, Codec>();
+
+const kindNames = new WeakMap<object, string>();
 
 const isHandle = (value: Handle): value is ModelCodec<unknown, unknown> =>
   typeof Reflect.get(value, "decode") === "function";
@@ -929,6 +931,115 @@ const walkNode = (
   return undefined;
 };
 
+const frozenWrapper = (value: object): boolean =>
+  Array.isArray(value) || Option.isSome(value as Option.Option<unknown>);
+
+const sealChildren = (
+  node: SchemaAST.AST,
+  value: object,
+  seen: WeakSet<object>,
+  inherited: string | undefined
+): void => {
+  if (Predicate.isTagged(node, "Objects")) {
+    for (const field of node.propertySignatures) {
+      if (Object.hasOwn(value, field.name)) {
+        sealDecoded(
+          field.type,
+          Reflect.get(value, field.name),
+          seen,
+          inherited
+        );
+      }
+    }
+
+    for (const signature of node.indexSignatures) {
+      for (const key of Reflect.ownKeys(value)) {
+        if (!node.propertySignatures.some((field) => field.name === key)) {
+          sealDecoded(signature.type, Reflect.get(value, key), seen, inherited);
+        }
+      }
+    }
+
+    return;
+  }
+
+  if (Predicate.isTagged(node, "Arrays")) {
+    for (const entry of value as readonly unknown[]) {
+      sealDecoded(node.rest[0], entry, seen, inherited);
+    }
+
+    return;
+  }
+
+  if (Predicate.isTagged(node, "Union")) {
+    let member: SchemaAST.AST | undefined;
+
+    for (const branch of node.types) {
+      if (
+        shapeOf(value, branch, "$") !== undefined &&
+        (member === undefined ||
+          literalScore(branch, value) > literalScore(member, value))
+      ) {
+        member = branch;
+      }
+    }
+
+    if (member !== undefined) {
+      sealChildren(suspendOf(member), value, seen, inherited);
+    }
+
+    return;
+  }
+
+  if (Predicate.isTagged(node, "Declaration")) {
+    const [parameter] = node.typeParameters;
+
+    if (parameter === undefined) {
+      return;
+    }
+
+    if (Option.isOption(value)) {
+      if (Option.isSome(value)) {
+        sealDecoded(parameter, value.value, seen, inherited);
+      }
+
+      return;
+    }
+
+    sealChildren(suspendOf(parameter), value, seen, inherited);
+  }
+};
+
+function sealDecoded(
+  ast: SchemaAST.AST | undefined,
+  value: unknown,
+  seen: WeakSet<object>,
+  inherited: string | undefined
+): void {
+  if (ast === undefined || typeof value !== "object" || value === null) {
+    return;
+  }
+
+  if (seen.has(value)) {
+    return;
+  }
+
+  seen.add(value);
+
+  const node = suspendOf(ast);
+  const kind = kindNames.get(node) ?? kindNames.get(ast) ?? inherited;
+
+  sealChildren(node, value, seen, kind);
+
+  if (kind !== undefined && !Array.isArray(value) && !Option.isOption(value)) {
+    seal(kind, value);
+  }
+
+  if (frozenWrapper(value)) {
+    Object.freeze(value);
+  }
+}
+
 const violationMessage = (violation: Violation): string => {
   if (violation.rule === "key") {
     const detail =
@@ -1079,7 +1190,16 @@ export function codec<S extends Codec>(
       strictResult(assertNoForeignKeys(input, handle), () =>
         Result.map(
           Schema.decodeUnknownResult(schema, strictOptions)(input),
-          (decoded) => register(name, decoded)
+          (decoded) => {
+            sealDecoded(
+              schema.ast,
+              decoded,
+              new WeakSet<object>(),
+              kindNames.get(schema.ast)
+            );
+
+            return decoded;
+          }
         )
       ),
     encode: (value) =>
@@ -1094,19 +1214,38 @@ export function codec<S extends Codec>(
   };
 
   schemaTable.set(handle, schema);
+  kindNames.set(schema.ast, name);
 
   return handle;
 }
 
-export function parse<S extends Codec>(schema: S, input: unknown): S["Type"];
+export const decodeModel = <S extends Codec>(
+  schema: S,
+  input: unknown
+): S["Type"] => {
+  ensureExactShape(input, schema);
+
+  const decoded = Schema.decodeUnknownSync(schema, strictOptions)(input);
+
+  sealDecoded(
+    schema.ast,
+    decoded,
+    new WeakSet<object>(),
+    kindNames.get(schema.ast)
+  );
+
+  return decoded;
+};
+
 export function parse<T, E>(handle: ModelCodec<T, E>, input: unknown): T;
 export function parse(handle: unknown, input: unknown): unknown {
-  ensureExactShape(input, handle as Handle);
+  if (!isModelCodec(handle)) {
+    throw new Error(
+      "parse takes a model codec handle, not a schema: build the value with the factory or codec for its domain."
+    );
+  }
 
-  return register(
-    (handle as ModelCodec<unknown, unknown>).name,
-    Schema.decodeUnknownSync(schemaOf(handle as Handle), strictOptions)(input)
-  );
+  return decodeModel(schemaOf(handle as Handle), input);
 }
 
 export function render<S extends Codec>(
@@ -1134,11 +1273,8 @@ export function verified(handle: unknown, value: unknown): unknown {
 
   const schema = schemaOf(handle as Handle);
 
-  return register(
-    (handle as ModelCodec<unknown, unknown>).name,
-    Schema.decodeUnknownSync(
-      schema,
-      strictOptions
-    )(Schema.encodeUnknownSync(schema, strictOptions)(value))
+  return decodeModel(
+    schema,
+    Schema.encodeUnknownSync(schema, strictOptions)(value)
   );
 }

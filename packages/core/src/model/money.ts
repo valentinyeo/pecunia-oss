@@ -2,7 +2,7 @@ import { Effect, Option, Predicate, Result, Schema } from "effect";
 
 import { convertOperation } from "./base-amount.js";
 import type { Exact } from "./codec.js";
-import { parse } from "./codec.js";
+import { decodeModel } from "./codec.js";
 import { minorUnitsOf } from "./convert-minor.js";
 import { ConvertedAmount, ConvertedAmountSchema } from "./converted-amount.js";
 import type {
@@ -69,7 +69,7 @@ const mismatch = (
   Effect.fail(currencyMismatch({ left, right }));
 
 const moneyOf = (currency: CurrencyCode, minor: MinorUnits): Money =>
-  parse(MoneySchema, { currency, minor });
+  decodeModel(MoneySchema, { currency, minor });
 
 const combineRun = (
   left: Money,
@@ -146,7 +146,7 @@ const sourceAmountRun = (amounts: Amounts): Money =>
 export const sourceOfAmounts = sourceAmountRun;
 
 const sameCurrencyAmountRun = (amount: Money): SameCurrencyAmount =>
-  parse(
+  decodeModel(
     SameCurrencyAmountSchema,
     // oxlint-disable-next-line anti-slop-effect/no-manual-tagged-construction -- the tag is written once here because the codec handle is the only strict door
     { _tag: "SameCurrency", amount }
@@ -156,9 +156,9 @@ const amountsSample = (): Amounts =>
   Result.getOrThrow(
     ConvertedAmount.converting(
       moneySample(),
-      parse(CurrencyCodeSchema, "GBP"),
+      decodeModel(CurrencyCodeSchema, "GBP"),
       rateSample(),
-      parse(DateOnlySchema, "2024-01-30")
+      decodeModel(DateOnlySchema, "2024-01-30")
     )
   );
 

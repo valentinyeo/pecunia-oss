@@ -1,7 +1,7 @@
 import { Option, Result } from "effect";
 import type { Schema } from "effect";
 
-import { parse } from "./codec.js";
+import { decodeModel } from "./codec.js";
 import type { ConversionInputInvalid, ConversionOverflow } from "./errors.js";
 import { conversionInputInvalid, conversionOverflow } from "./errors.js";
 import {
@@ -69,7 +69,7 @@ export const minorUnitExponent: typeof minorUnitExponentOperation.apply =
 export const minorUnitsOf = (minor: bigint): Option.Option<MinorUnits> =>
   minor >= BigInt(Number.MIN_SAFE_INTEGER) &&
   minor <= BigInt(Number.MAX_SAFE_INTEGER)
-    ? Option.some(parse(MinorUnitsSchema, Number(minor)))
+    ? Object.freeze(Option.some(decodeModel(MinorUnitsSchema, Number(minor))))
     : Option.none();
 
 const divideRoundHalfAwayFromZero = (

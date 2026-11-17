@@ -3,7 +3,7 @@
 
 import { Effect, Result, Schema } from "effect";
 
-import { assertNoForeignKeys, nestedRefusal, parse } from "./codec.js";
+import { assertNoForeignKeys, decodeModel, nestedRefusal } from "./codec.js";
 import type { Handle } from "./codec.js";
 import type { CurrencyCode, DateOnly, Money } from "./primitives.js";
 import {
@@ -67,12 +67,13 @@ export const carries = (
   withHandle({ domain, kind: "carries", sample } as const, handle);
 
 export const moneySample = (): Money =>
-  parse(MoneySchema, { currency: "EUR", minor: 1000 });
+  decodeModel(MoneySchema, { currency: "EUR", minor: 1000 });
 
 export const codeSample = (code = "EUR"): CurrencyCode =>
-  parse(CurrencyCodeSchema, code);
+  decodeModel(CurrencyCodeSchema, code);
 
-export const dateSample = (): DateOnly => parse(DateOnlySchema, "2024-01-30");
+export const dateSample = (): DateOnly =>
+  decodeModel(DateOnlySchema, "2024-01-30");
 
 export const moneyArgument = () => carries("Money", MoneySchema, moneySample);
 
