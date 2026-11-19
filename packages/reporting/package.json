@@ -1,0 +1,61 @@
+{
+  "name": "@pecunia/reporting",
+  "version": "0.1.0",
+  "private": true,
+  "files": [
+    "dist",
+    "src"
+  ],
+  "type": "module",
+  "sideEffects": false,
+  "types": "./src/index.ts",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./capabilities": {
+      "types": "./src/capabilities.ts",
+      "import": "./dist/capabilities.js",
+      "default": "./dist/capabilities.js"
+    },
+    "./contracts": {
+      "types": "./src/contracts.ts",
+      "import": "./dist/contracts.js",
+      "default": "./dist/contracts.js"
+    },
+    "./demo": {
+      "types": "./src/demo.js",
+      "import": "./dist/demo.js",
+      "default": "./dist/demo.js"
+    },
+    "./memory": {
+      "types": "./src/memory.js",
+      "import": "./dist/memory.js",
+      "default": "./dist/memory.js"
+    }
+  },
+  "scripts": {
+    "typecheck": "effect-tsrs diagnostics --project tsconfig.json --strict --type-check",
+    "typecheck:tsc": "tsc --noEmit -p tsconfig.json",
+    "typecheck:fast": "tsrs --noEmit -p tsconfig.json",
+    "test": "vitest run",
+    "build": "tsc -p tsconfig.build.json",
+    "check": "pnpm run typecheck",
+    "pretest": "pnpm run --silent build",
+    "lint": "oxlint --format agent ."
+  },
+  "dependencies": {
+    "@pecunia/access": "workspace:*",
+    "@pecunia/capability": "workspace:*",
+    "@pecunia/core": "workspace:*",
+    "effect": "4.1.4"
+  },
+  "devDependencies": {
+    "@effect/vitest": "4.1.4",
+    "@types/node": "24.19.2",
+    "typescript": "7.0.2",
+    "vitest": "5.1.0"
+  }
+}
