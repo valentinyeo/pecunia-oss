@@ -26,12 +26,12 @@
       "default": "./dist/contracts.js"
     },
     "./demo": {
-      "types": "./src/demo.js",
+      "types": "./src/demo.ts",
       "import": "./dist/demo.js",
       "default": "./dist/demo.js"
     },
     "./memory": {
-      "types": "./src/memory.js",
+      "types": "./src/memory.ts",
       "import": "./dist/memory.js",
       "default": "./dist/memory.js"
     }

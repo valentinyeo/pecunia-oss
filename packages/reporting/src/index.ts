@@ -230,4 +230,8 @@ export {
 
 export { memoryReportSourceLayer } from "./memory.js";
 
-export type { MemoryRate, MemoryReportSeed } from "./memory.js";
+export type {
+  MemoryRate,
+  MemoryReportBook,
+  MemoryReportSeed,
+} from "./memory.js";

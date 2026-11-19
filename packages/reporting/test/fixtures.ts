@@ -26,11 +26,15 @@ import {
   YearMonthSchema,
 } from "../src/model.js";
 
+const modulus = 2_147_483_647;
+
+const multiplier = 48_271;
+
 export const seeded = (seed: number) => {
-  let state = seed % 4_294_967_296;
+  let state = (seed % (modulus - 1)) + 1;
 
   return (bound: number): number => {
-    state = (state * 1_664_525 + 1_013_904_223) % 4_294_967_296;
+    state = (state * multiplier) % modulus;
 
     return state % bound;
   };
@@ -112,6 +116,14 @@ export const classificationOf = (
 
   if (kind === "Excluded") {
     return { _tag: "Excluded", ruleId: uuidOf(904) };
+  }
+
+  if (kind === "SelfTransfer") {
+    return {
+      _tag: "SelfTransfer",
+      counterpartProfileId: null,
+      ruleId: uuidOf(906),
+    };
   }
 
   if (kind === "Refund") {

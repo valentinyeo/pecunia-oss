@@ -1,5 +1,5 @@
 import { expect, it } from "@effect/vitest";
-import { Effect, Option } from "effect";
+import { Effect } from "effect";
 
 import { boundOf } from "../src/date.js";
 import {
@@ -58,6 +58,15 @@ const generatedBook = (size: number) =>
     )
   );
 
+const countedLine = (): LineSeed => ({
+  classification: "None",
+  direction: "out",
+  id: 1,
+  minor: 12_345,
+  status: "posted",
+  valueDate: "2024-03-10",
+});
+
 const variantOf = (line: LineSeed, slot: number): LineSeed => {
   if (slot === 0) {
     return { ...line, status: "pending" as const };
@@ -90,6 +99,107 @@ const signedTotal = (flows: readonly Flow[], kind: string): number => {
   return total;
 };
 
+it.effect("the generator draws every flow kind and every status", () =>
+  Effect.gen(function* generatorCoverage() {
+    const kinds = new Set<string>();
+    const drawnStatuses = new Set<string>();
+
+    for (let index = 0; index < CASES; index += 1) {
+      const transactions = generatedBook(8);
+      const flows = yield* flowsOf(transactions, currencyOf("EUR"));
+
+      for (const flow of flows) {
+        kinds.add(flow.kind);
+      }
+
+      for (const transaction of transactions) {
+        drawnStatuses.add(transaction.status);
+      }
+    }
+
+    expect([...kinds].toSorted()).toStrictEqual([
+      "ignored",
+      "income",
+      "otherIn",
+      "refund",
+      "spend",
+      "tax",
+    ]);
+    expect([...drawnStatuses].toSorted()).toStrictEqual([
+      "pending",
+      "posted",
+      "reversed",
+    ]);
+  })
+);
+
+it.effect(
+  "reversed, excluded and self-transfer lines stay out while an unclassified incoming line counts as other in",
+  () =>
+    Effect.gen(function* countedEdgeLines() {
+      const transactions = [
+        transactionOf({
+          direction: "in",
+          id: 101,
+          minor: 1100,
+          valueDate: "2024-05-02",
+        }),
+        transactionOf({
+          classification: "Income",
+          direction: "in",
+          id: 102,
+          minor: 2500,
+          valueDate: "2024-05-03",
+        }),
+        transactionOf({
+          direction: "out",
+          id: 103,
+          minor: 4200,
+          valueDate: "2024-05-04",
+        }),
+        transactionOf({
+          direction: "out",
+          id: 104,
+          minor: 7000,
+          status: "reversed",
+          valueDate: "2024-05-05",
+        }),
+        transactionOf({
+          classification: "Excluded",
+          direction: "out",
+          id: 105,
+          minor: 8000,
+          valueDate: "2024-05-06",
+        }),
+        transactionOf({
+          classification: "SelfTransfer",
+          direction: "out",
+          id: 106,
+          minor: 9000,
+          valueDate: "2024-05-07",
+        }),
+      ];
+
+      const flows = yield* flowsOf(transactions, currencyOf("EUR"));
+      const may = boundOf(dateOf("2024-05-01"), dateOf("2024-05-31"));
+      const totals = yield* totalsOf(flowsIn(flows, may), currencyOf("EUR"));
+
+      expect(flowsIn(flows, may).map((flow) => flow.kind)).toStrictEqual([
+        "otherIn",
+        "income",
+        "spend",
+      ]);
+      expect(totals.incomeMinor).toBe(2500);
+      expect(totals.otherInMinor).toBe(1100);
+      expect(totals.refundMinor).toBe(0);
+      expect(totals.spendMinor).toBe(4200);
+      expect(totals.taxMinor).toBe(0);
+      expect(totals.moneyInMinor).toBe(3600);
+      expect(totals.moneyOutMinor).toBe(4200);
+      expect(totals.netMinor).toBe(-600);
+    })
+);
+
 it.effect(
   "totals keep every unit, and each part adds up to its side and the net",
   () =>
@@ -121,27 +231,29 @@ it.effect(
   "a pending, reversed, internal, excluded or neutral line moves no total",
   () =>
     Effect.gen(function* ignoredLinesMoveNothing() {
-      for (let index = 0; index < CASES; index += 1) {
-        const line = lineAt(index + 1, "2024-03-10");
+      const control = yield* totalsOf(
+        countedFlows(
+          yield* flowsOf([transactionOf(countedLine())], currencyOf("EUR"))
+        ),
+        currencyOf("EUR")
+      );
 
-        const base = yield* totalsOf(
+      expect(control.spendMinor).toBe(12_345);
+
+      for (let slot = 0; slot < 5; slot += 1) {
+        const totals = yield* totalsOf(
           countedFlows(
-            yield* flowsOf([transactionOf(line)], currencyOf("EUR"))
+            yield* flowsOf(
+              [transactionOf(variantOf(countedLine(), slot))],
+              currencyOf("EUR")
+            )
           ),
           currencyOf("EUR")
         );
 
-        const variant = variantOf(line, index % 5);
-
-        const moved = yield* totalsOf(
-          countedFlows(
-            yield* flowsOf([transactionOf(variant)], currencyOf("EUR"))
-          ),
-          currencyOf("EUR")
-        );
-
-        expect(moved.moneyInMinor - base.moneyInMinor).toBe(0);
-        expect(moved.moneyOutMinor - base.moneyOutMinor).toBe(0);
+        expect(totals.moneyInMinor).toBe(0);
+        expect(totals.moneyOutMinor).toBe(0);
+        expect(totals.netMinor).toBe(0);
       }
     })
 );
@@ -343,8 +455,9 @@ it.effect(
       );
 
       expect(total).toBe(10_000);
-      expect(mixed[0]?.shareBasisPoints).toBeGreaterThan(0);
-      expect(Option.isSome(Option.some(1))).toBe(true);
+      expect(mixed.map((share) => share.shareBasisPoints)).toStrictEqual([
+        15_000, -5000,
+      ]);
     })
 );
 

@@ -21,5 +21,7 @@ export const demoCapabilityLayer = Layer.mergeAll(
   Layer.succeed(CurrentPerson, demoPerson)
 );
 
-export const strangerLayer = (person: Person) =>
+export const personLayer = (person: Person) =>
   Layer.mergeAll(demoServiceLayer, Layer.succeed(CurrentPerson, person));
+
+export const strangerLayer = (person: Person) => personLayer(person);

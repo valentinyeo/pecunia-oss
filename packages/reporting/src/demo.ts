@@ -10,9 +10,14 @@ import type {
 import { codecs, parse } from "@pecunia/core/model";
 import { Schema } from "effect";
 
-import type { MemoryRate, MemoryReportSeed } from "./memory.js";
+import type {
+  MemoryRate,
+  MemoryReportBook,
+  MemoryReportSeed,
+} from "./memory.js";
 import type {
   AccountBalance,
+  CategoryId,
   CurrencyCode,
   DateOnly,
   ProfileId,
@@ -27,6 +32,18 @@ export const demoProfileId: ProfileId = parse(
 export const demoBaseCurrency: CurrencyCode = parse(codecs.currencyCode, "EUR");
 
 export const demoToday: DateOnly = parse(codecs.dateOnly, "2024-03-15");
+
+export const secondProfileId: ProfileId = parse(
+  codecs.profileId,
+  "0192f0c1-0002-7abc-8def-000000000002"
+);
+
+export const secondBaseCurrency: CurrencyCode = parse(
+  codecs.currencyCode,
+  "GBP"
+);
+
+export const secondToday: DateOnly = parse(codecs.dateOnly, "2024-06-15");
 
 const id = (group: number, index: number): string =>
   `0192f0c1-${String(group).padStart(4, "0")}-7abc-8def-${String(index).padStart(12, "0")}`;
@@ -141,7 +158,10 @@ interface WireLine {
   readonly valueDate: string;
 }
 
-const lineOf = (line: WireLine): Transaction => {
+const lineOf = (
+  line: WireLine,
+  profileId: ProfileId = demoProfileId
+): Transaction => {
   const occurredAt = at(line.valueDate);
 
   return parse(codecs.transaction, {
@@ -156,7 +176,7 @@ const lineOf = (line: WireLine): Transaction => {
     note: "",
     occurredAt,
     payeeId: line.payee,
-    profileId: demoProfileId,
+    profileId,
     providerAccountId: line.account,
     raw: {
       description: line.merchant,
@@ -403,7 +423,8 @@ const categoryOf = (
   name: string,
   spendingType: "business" | "mixed" | "personal",
   parentId: string | null,
-  archivedAt: string | null
+  archivedAt: string | null,
+  profileId: ProfileId = demoProfileId
 ): Category =>
   parse(codecs.category, {
     archivedAt,
@@ -411,7 +432,7 @@ const categoryOf = (
     id: categoryId,
     name,
     parentId,
-    profileId: demoProfileId,
+    profileId,
     spendingType,
   });
 
@@ -446,7 +467,8 @@ export const demoCategories: readonly Category[] = [
 const payeeOf = (
   payeeId: string,
   name: string,
-  kind: "client" | "employer" | "merchant" | "tax_authority"
+  kind: "client" | "employer" | "merchant" | "tax_authority",
+  profileId: ProfileId = demoProfileId
 ): Payee =>
   parse(codecs.payee, {
     archivedAt: null,
@@ -454,7 +476,7 @@ const payeeOf = (
     id: payeeId,
     kind,
     name,
-    profileId: demoProfileId,
+    profileId,
   });
 
 export const demoPayees: readonly Payee[] = [
@@ -542,13 +564,130 @@ export const demoRates: readonly MemoryRate[] = [
   { from: usdCurrency, rate: parse(codecs.rate, "0.92"), to: demoBaseCurrency },
 ];
 
+const secondCategoryIds = {
+  housing: id(17, 1),
+} as const;
+
+const secondPayeeIds = {
+  garden: id(33, 1),
+  housing: id(33, 2),
+} as const;
+
+const secondAccounts = {
+  current: id(3, 1),
+} as const;
+
+export const demoLivingCategoryId: CategoryId = parse(
+  codecs.categoryId,
+  categoryNames.living
+);
+
+export const secondHousingCategoryId: CategoryId = parse(
+  codecs.categoryId,
+  secondCategoryIds.housing
+);
+
+export const secondCategories: readonly Category[] = [
+  categoryOf(
+    secondCategoryIds.housing,
+    "Housing",
+    "personal",
+    null,
+    null,
+    secondProfileId
+  ),
+];
+
+export const secondPayees: readonly Payee[] = [
+  payeeOf(
+    secondPayeeIds.garden,
+    "Example Garden Ltd",
+    "client",
+    secondProfileId
+  ),
+  payeeOf(secondPayeeIds.housing, "Demo Housing", "merchant", secondProfileId),
+];
+
+export const secondTransactions: readonly Transaction[] = [
+  lineOf(
+    {
+      account: secondAccounts.current,
+      amounts: same("GBP", 7000),
+      categorization: uncategorised,
+      classification: incomeFrom(secondPayeeIds.garden),
+      direction: "in",
+      merchant: "Example Garden Ltd",
+      payee: secondPayeeIds.garden,
+      reference: "INV-2024-101 Example Garden",
+      status: "posted",
+      transactionId: id(49, 1),
+      valueDate: "2024-06-04",
+    },
+    secondProfileId
+  ),
+  lineOf(
+    {
+      account: secondAccounts.current,
+      amounts: same("GBP", 2500),
+      categorization: confirmed(secondCategoryIds.housing, "2024-06-06"),
+      classification: unclassified,
+      direction: "out",
+      merchant: "Demo Housing",
+      payee: secondPayeeIds.housing,
+      reference: "RENT-06",
+      status: "posted",
+      transactionId: id(49, 2),
+      valueDate: "2024-06-06",
+    },
+    secondProfileId
+  ),
+  lineOf(
+    {
+      account: secondAccounts.current,
+      amounts: same("GBP", 900),
+      categorization: confirmed(secondCategoryIds.housing, "2024-06-08"),
+      classification: unclassified,
+      direction: "out",
+      merchant: "Demo Housing",
+      payee: secondPayeeIds.housing,
+      reference: "RENT-07",
+      status: "pending",
+      transactionId: id(49, 3),
+      valueDate: "2024-06-08",
+    },
+    secondProfileId
+  ),
+];
+
+export const secondAccountsBalances: readonly AccountBalance[] = [
+  balanceOf(
+    secondAccounts.current,
+    "Second Demo Bank Current",
+    "current",
+    secondBaseCurrency,
+    30_000
+  ),
+];
+
+export const secondBook: MemoryReportBook = {
+  accounts: secondAccountsBalances,
+  baseCurrency: secondBaseCurrency,
+  categories: secondCategories,
+  obligations: [],
+  payees: secondPayees,
+  profileId: secondProfileId,
+  rates: [],
+  today: secondToday,
+  transactions: secondTransactions,
+};
+
 export const demoPerson: Person = Schema.decodeSync(PersonSchema)({
   email: "demo@example.com",
   memberships: [{ profileId: demoProfileId, role: "owner" }],
   personId: "person-demo",
 });
 
-export const demoReportSeed: MemoryReportSeed = {
+export const demoBook: MemoryReportBook = {
   accounts: demoAccounts,
   baseCurrency: demoBaseCurrency,
   categories: demoCategories,
@@ -558,4 +697,10 @@ export const demoReportSeed: MemoryReportSeed = {
   rates: demoRates,
   today: demoToday,
   transactions: demoTransactions,
+};
+
+export const demoReportSeed: MemoryReportSeed = {
+  books: [demoBook, secondBook],
+  emptyBaseCurrency: demoBaseCurrency,
+  emptyToday: demoToday,
 };

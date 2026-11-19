@@ -113,13 +113,13 @@ Every place the old app put a behaviour. A place with no row is a behaviour nobo
 | Someone with read-only access opens every page and changes nothing | shell: every page | built | file:packages/access/src/authorize.ts |
 | A switcher in the header chooses which book every page shows, and the browser remembers it | shell: every page | planned | no ticket yet |
 | An outside login gate in front of the whole app decides who gets in | shell: every page | dropped | the new app signs people in itself with email and password, so the outside gate has no job left to do |
-| Money in, money out and the net for a chosen period | route: dashboard | planned | no ticket yet |
-| Total balance across every account and savings jar, converted to one currency | route: dashboard | planned | no ticket yet |
-| Spend split by the currency it was paid in | route: dashboard | planned | no ticket yet |
-| A daily spending chart for the chosen period | route: dashboard | planned | no ticket yet |
-| The most recent payments on the front page | route: dashboard | planned | no ticket yet |
-| Tax payments still owed, read from the accounting provider | route: dashboard | planned | no ticket yet |
-| One period picker shared by the money pages: day, week, month, quarter, year, all, or a named month | route: dashboard | planned | no ticket yet |
+| Money in, money out and the net for a chosen period | route: dashboard | built | capability:readDashboard |
+| Total balance across every account and savings jar, converted to one currency | route: dashboard | built | capability:readDashboard |
+| Spend split by the currency it was paid in | route: dashboard | built | capability:readDashboard |
+| A daily spending chart for the chosen period | route: dashboard | built | capability:readDashboard |
+| The most recent payments on the front page | route: dashboard | built | capability:readDashboard |
+| Tax payments still owed, read from the accounting provider | route: dashboard | planned | ticket:SOFT-2394 |
+| One period picker shared by the money pages: day, week, month, quarter, year, all, or a named month | route: dashboard | built | file:packages/reporting/src/date.ts |
 | A page of payments, filtered by direction, category, date and text | route: transactions | built | capability:listBankLines |
 | New payments only: what arrived since the last import | route: transactions | planned | no ticket yet |
 | Set one category on many selected payments at once | route: transactions | planned | no ticket yet |
@@ -129,9 +129,9 @@ Every place the old app put a behaviour. A place with no row is a behaviour nobo
 | Write a note on one payment | route: transaction detail | built | capability:editBankLine |
 | Mark one payment confirmed | route: transaction detail | built | capability:reviewBankLine |
 | Rename the merchant on one payment | route: transaction detail | planned | no ticket yet |
-| Spend per category for a period, with each category's share of the total | route: categories | planned | no ticket yet |
-| A parent category takes its children's spend in every total | route: categories | planned | no ticket yet |
-| A count of the categories a book holds | route: categories | planned | no ticket yet |
+| Spend per category for a period, with each category's share of the total | route: categories | built | capability:readCategories |
+| A parent category takes its children's spend in every total | route: categories | built | capability:readCategories |
+| A count of the categories a book holds | route: categories | built | capability:readCategories |
 | Create a category with a name, a colour and a parent | route: category management | planned | no ticket yet |
 | Edit a category | route: category management | planned | no ticket yet |
 | Delete a category | route: category management | planned | no ticket yet |
@@ -152,14 +152,14 @@ Every place the old app put a behaviour. A place with no row is a behaviour nobo
 | Mark every payment from one merchant confirmed | route: merchant detail | planned | no ticket yet |
 | Rename a merchant everywhere it appears | route: merchant detail | planned | no ticket yet |
 | Mark a merchant as a repeat payment, or stop treating it as one | route: merchant detail | planned | ticket:SOFT-2395 |
-| Personal against business spend for a period | route: spending | planned | no ticket yet |
-| A doughnut by category and a stacked monthly trend | route: spending | planned | no ticket yet |
-| One category's payments, and tagging a payment as reviewed from there | route: spending category | planned | no ticket yet |
-| Income by client, read from the transfer reference rather than the merchant | route: income | planned | no ticket yet |
-| Income narrowed to one client, with a monthly chart | route: income | planned | no ticket yet |
-| Money in that is a refund is kept apart from income | route: income | planned | no ticket yet |
-| One month's statement: spend by category, daily spend, top merchants, repeat payments and every payment | route: months | planned | no ticket yet |
-| A list of the months the book already holds | route: months | planned | no ticket yet |
+| Personal against business spend for a period | route: spending | built | capability:readSpending |
+| A doughnut by category and a stacked monthly trend | route: spending | built | capability:readSpending |
+| One category's payments, and tagging a payment as reviewed from there | route: spending category | built | capability:readCategoryPayments, capability:reviewBankLine |
+| Income by client, read from the transfer reference rather than the merchant | route: income | built | capability:readIncome |
+| Income narrowed to one client, with a monthly chart | route: income | built | capability:readIncome |
+| Money in that is a refund is kept apart from income | route: income | built | capability:readIncome |
+| One month's statement: spend by category, daily spend, top merchants, repeat payments and every payment | route: months | built | capability:readMonth |
+| A list of the months the book already holds | route: months | built | capability:listMonths |
 | Merchants with no category, listed so one can be picked | route: review | planned | no ticket yet |
 | Ask a language model to suggest categories for what is left | route: review | planned | no ticket yet |
 | Accept every suggestion waiting for review in one go | route: review | planned | no ticket yet |
@@ -226,12 +226,12 @@ Every place the old app put a behaviour. A place with no row is a behaviour nobo
 | A shared bearer token guards the assistant door | tool: every tool | planned | ticket:SOFT-2401 |
 | An assistant call can read across every profile at once | tool: every tool | dropped | the new app scopes every call to one profile, so there is no all-profiles mode, and an assistant names the profile it means |
 | An assistant runs read-only SQL against the book | tool: raw query | dropped | the new app answers only through typed capabilities, so an assistant never reaches the database directly |
-| An assistant asks for spend by category over a date range | tool: spending summary | planned | no ticket yet |
+| An assistant asks for spend by category over a date range | tool: spending summary | built | capability:spendingSummary |
 | An assistant asks what changed since a point in time | tool: changes list | planned | no ticket yet |
 | An assistant asks whether a sync is running | tool: sync status | planned | no ticket yet |
 | An assistant asks for the Self Assessment payments due | tool: tax due | planned | no ticket yet |
-| An assistant asks for income by client | tool: income summary | planned | no ticket yet |
-| An assistant asks for month by month money in, money out and net | tool: monthly totals | planned | no ticket yet |
+| An assistant asks for income by client | tool: income summary | built | capability:incomeSummary |
+| An assistant asks for month by month money in, money out and net | tool: monthly totals | built | capability:monthlyTotals |
 | An assistant asks for the active repeat payments | tool: subscriptions | planned | ticket:SOFT-2395 |
 | An assistant searches payments by merchant, reference or description | tool: payment search | planned | no ticket yet |
 | An assistant asks which payments in a month still need an invoice | tool: missing invoices | planned | ticket:SOFT-2493 |
