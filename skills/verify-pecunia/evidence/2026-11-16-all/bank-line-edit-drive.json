@@ -1,0 +1,1083 @@
+{
+  "observations": [
+    {
+      "id": "bank-line-edit-sets-category-and-note",
+      "value": "category=0192f0c1-000d-75e9-8fd7-fd7e43c901ee note=Demo note written by the verify drive"
+    },
+    {
+      "id": "bank-line-edit-keeps-the-line-in-its-profile",
+      "value": "lineId=0192f0c1-0027-7c11-8261-2619d29e6868 profileId=0192f0c1-0001-702d-8484-48490b729601"
+    },
+    {
+      "id": "bank-line-edit-stores-category-and-note",
+      "operation": "listBankLines",
+      "value": [
+        {
+          "accountId": "0192f0c1-0006-7b7b-8ffd-ffde623dd8df",
+          "amount": {
+            "currency": "EUR",
+            "minor": 5200
+          },
+          "baseAmount": {
+            "currency": "EUR",
+            "minor": 5200
+          },
+          "category": {
+            "value": "0192f0c1-000e-7d8a-8a87-a87dd2b6c1ba"
+          },
+          "direction": "out",
+          "id": "0192f0c1-0032-754e-8db8-db8922229d3c",
+          "note": "",
+          "occurredAt": 1765184400000,
+          "profileId": "0192f0c1-0001-702d-8484-48490b729601",
+          "raw": {
+            "description": "Cloud hosting",
+            "merchant": "Demo Cloud Hosting",
+            "reference": ""
+          },
+          "review": {
+            "_tag": "Reviewed",
+            "at": 1765270800000
+          },
+          "status": "pending",
+          "valueDate": "2025-12-08"
+        },
+        {
+          "accountId": "0192f0c1-0006-7b7b-8ffd-ffde623dd8df",
+          "amount": {
+            "currency": "EUR",
+            "minor": 8900
+          },
+          "baseAmount": {
+            "currency": "EUR",
+            "minor": 8900
+          },
+          "category": {
+            "value": "0192f0c1-0011-79f9-8c9a-c9af5a7eff0d"
+          },
+          "direction": "out",
+          "id": "0192f0c1-0031-7ab6-8c3b-c3bb339364f8",
+          "note": "Team breakfast",
+          "occurredAt": 1762160400000,
+          "profileId": "0192f0c1-0001-702d-8484-48490b729601",
+          "raw": {
+            "description": "Team breakfast",
+            "merchant": "Demo Coffee",
+            "reference": ""
+          },
+          "review": {
+            "_tag": "Awaiting"
+          },
+          "status": "posted",
+          "valueDate": "2025-11-03"
+        },
+        {
+          "accountId": "0192f0c1-0006-7b7b-8ffd-ffde623dd8df",
+          "amount": {
+            "currency": "EUR",
+            "minor": 3500
+          },
+          "baseAmount": {
+            "currency": "EUR",
+            "minor": 3500
+          },
+          "category": {},
+          "direction": "in",
+          "id": "0192f0c1-0030-7085-8d2f-d2f021323f32",
+          "note": "",
+          "occurredAt": 1759741200000,
+          "profileId": "0192f0c1-0001-702d-8484-48490b729601",
+          "raw": {
+            "description": "Refund from Demo Design Tool",
+            "merchant": "Demo Design Tool",
+            "reference": ""
+          },
+          "review": {
+            "_tag": "Reviewed",
+            "at": 1760000400000
+          },
+          "status": "posted",
+          "valueDate": "2025-10-06"
+        },
+        {
+          "accountId": "0192f0c1-0006-7b7b-8ffd-ffde623dd8df",
+          "amount": {
+            "currency": "EUR",
+            "minor": 250000
+          },
+          "baseAmount": {
+            "currency": "EUR",
+            "minor": 250000
+          },
+          "category": {},
+          "direction": "out",
+          "id": "0192f0c1-002f-7574-8f47-f477afee2375",
+          "note": "",
+          "occurredAt": 1756803600000,
+          "profileId": "0192f0c1-0001-702d-8484-48490b729601",
+          "raw": {
+            "description": "Demo VAT payment",
+            "merchant": "Demo Tax Office",
+            "reference": "TAX-VAT-2025"
+          },
+          "review": {
+            "_tag": "Reviewed",
+            "at": 1757235600000
+          },
+          "status": "posted",
+          "valueDate": "2025-09-02"
+        },
+        {
+          "accountId": "0192f0c1-0006-7b7b-8ffd-ffde623dd8df",
+          "amount": {
+            "currency": "EUR",
+            "minor": 1500
+          },
+          "baseAmount": {
+            "currency": "EUR",
+            "minor": 1500
+          },
+          "category": {},
+          "direction": "out",
+          "id": "0192f0c1-002e-70b6-8abf-abfcf0a3117a",
+          "note": "",
+          "occurredAt": 1754298000000,
+          "profileId": "0192f0c1-0001-702d-8484-48490b729601",
+          "raw": {
+            "description": "Internal demo movement",
+            "merchant": "",
+            "reference": "0000123"
+          },
+          "review": {
+            "_tag": "Reviewed",
+            "at": 1754384400000
+          },
+          "status": "posted",
+          "valueDate": "2025-08-04"
+        },
+        {
+          "accountId": "0192f0c1-0006-7b7b-8ffd-ffde623dd8df",
+          "amount": {
+            "currency": "EUR",
+            "minor": 60000
+          },
+          "baseAmount": {
+            "currency": "EUR",
+            "minor": 60000
+          },
+          "category": {},
+          "direction": "neutral",
+          "id": "0192f0c1-002d-72a8-8fd3-fd3ae1482dc5",
+          "note": "",
+          "occurredAt": 1751360400000,
+          "profileId": "0192f0c1-0001-702d-8484-48490b729601",
+          "raw": {
+            "description": "Transfer to Demo Person",
+            "merchant": "",
+            "reference": ""
+          },
+          "review": {
+            "_tag": "Reviewed",
+            "at": 1751533200000
+          },
+          "status": "posted",
+          "valueDate": "2025-07-01"
+        },
+        {
+          "accountId": "0192f0c1-0006-7b7b-8ffd-ffde623dd8df",
+          "amount": {
+            "currency": "EUR",
+            "minor": 100000
+          },
+          "baseAmount": {
+            "currency": "EUR",
+            "minor": 100000
+          },
+          "category": {},
+          "direction": "neutral",
+          "id": "0192f0c1-002c-7e06-8db2-db29cc906e10",
+          "note": "",
+          "occurredAt": 1749978000000,
+          "profileId": "0192f0c1-0001-702d-8484-48490b729601",
+          "raw": {
+            "description": "Moved to Demo Savings",
+            "merchant": "",
+            "reference": ""
+          },
+          "review": {
+            "_tag": "Awaiting"
+          },
+          "status": "posted",
+          "valueDate": "2025-06-15"
+        },
+        {
+          "accountId": "0192f0c1-0006-7b7b-8ffd-ffde623dd8df",
+          "amount": {
+            "currency": "GBP",
+            "minor": 12000
+          },
+          "baseAmount": {
+            "currency": "EUR",
+            "minor": 14040
+          },
+          "category": {
+            "value": "0192f0c1-0010-744d-827c-27cf38c20ebb"
+          },
+          "direction": "out",
+          "id": "0192f0c1-002b-79a6-8b1a-b1ab7e790030",
+          "note": "",
+          "occurredAt": 1746781200000,
+          "profileId": "0192f0c1-0001-702d-8484-48490b729601",
+          "raw": {
+            "description": "Demo Rail ticket",
+            "merchant": "Demo Rail",
+            "reference": ""
+          },
+          "review": {
+            "_tag": "Reviewed",
+            "at": 1747126800000
+          },
+          "status": "posted",
+          "valueDate": "2025-05-09"
+        },
+        {
+          "accountId": "0192f0c1-0006-7b7b-8ffd-ffde623dd8df",
+          "amount": {
+            "currency": "EUR",
+            "minor": 4250
+          },
+          "baseAmount": {
+            "currency": "EUR",
+            "minor": 4250
+          },
+          "category": {
+            "value": "0192f0c1-0011-79f9-8c9a-c9af5a7eff0d"
+          },
+          "direction": "out",
+          "id": "0192f0c1-002a-7549-8811-8111b948c159",
+          "note": "Client lunch",
+          "occurredAt": 1743584400000,
+          "profileId": "0192f0c1-0001-702d-8484-48490b729601",
+          "raw": {
+            "description": "Client lunch",
+            "merchant": "Demo Coffee",
+            "reference": ""
+          },
+          "review": {
+            "_tag": "Reviewed",
+            "at": 1743670800000
+          },
+          "status": "posted",
+          "valueDate": "2025-04-02"
+        },
+        {
+          "accountId": "0192f0c1-0006-7b7b-8ffd-ffde623dd8df",
+          "amount": {
+            "currency": "USD",
+            "minor": 2999
+          },
+          "baseAmount": {
+            "currency": "EUR",
+            "minor": 2765
+          },
+          "category": {
+            "value": "0192f0c1-000f-755b-8ae4-ae47d20b52cf"
+          },
+          "direction": "out",
+          "id": "0192f0c1-0029-768c-8adb-adbefc188d19",
+          "note": "",
+          "occurredAt": 1741683600000,
+          "profileId": "0192f0c1-0001-702d-8484-48490b729601",
+          "raw": {
+            "description": "Design subscription",
+            "merchant": "Demo Design Tool",
+            "reference": ""
+          },
+          "review": {
+            "_tag": "Reviewed",
+            "at": 1741942800000
+          },
+          "status": "posted",
+          "valueDate": "2025-03-11"
+        },
+        {
+          "accountId": "0192f0c1-0006-7b7b-8ffd-ffde623dd8df",
+          "amount": {
+            "currency": "EUR",
+            "minor": 299000
+          },
+          "baseAmount": {
+            "currency": "EUR",
+            "minor": 299000
+          },
+          "category": {
+            "value": "0192f0c1-000e-7d8a-8a87-a87dd2b6c1ba"
+          },
+          "direction": "out",
+          "id": "0192f0c1-0028-7018-8357-3578945c907b",
+          "note": "Renewed after the demo renewal reminder",
+          "occurredAt": 1738573200000,
+          "profileId": "0192f0c1-0001-702d-8484-48490b729601",
+          "raw": {
+            "description": "Cloud hosting",
+            "merchant": "Demo Cloud Hosting",
+            "reference": ""
+          },
+          "review": {
+            "_tag": "Reviewed",
+            "at": 1738746000000
+          },
+          "status": "posted",
+          "valueDate": "2025-02-03"
+        },
+        {
+          "accountId": "0192f0c1-0006-7b7b-8ffd-ffde623dd8df",
+          "amount": {
+            "currency": "EUR",
+            "minor": 480000
+          },
+          "baseAmount": {
+            "currency": "EUR",
+            "minor": 480000
+          },
+          "category": {
+            "value": "0192f0c1-000d-75e9-8fd7-fd7e43c901ee"
+          },
+          "direction": "in",
+          "id": "0192f0c1-0027-7c11-8261-2619d29e6868",
+          "note": "Demo note written by the verify drive",
+          "occurredAt": 1736154000000,
+          "profileId": "0192f0c1-0001-702d-8484-48490b729601",
+          "raw": {
+            "description": "Invoice payment",
+            "merchant": "Example Ltd",
+            "reference": ""
+          },
+          "review": {
+            "_tag": "Reviewed",
+            "at": 1736240400000
+          },
+          "status": "posted",
+          "valueDate": "2025-01-06"
+        }
+      ]
+    },
+    {
+      "id": "bank-line-edit-refuses-an-unknown-line",
+      "value": "UnknownBankLine"
+    },
+    {
+      "id": "bank-line-edit-unknown-line-stores-nothing",
+      "operation": "listBankLines",
+      "value": [
+        {
+          "accountId": "0192f0c1-0006-7b7b-8ffd-ffde623dd8df",
+          "amount": {
+            "currency": "EUR",
+            "minor": 5200
+          },
+          "baseAmount": {
+            "currency": "EUR",
+            "minor": 5200
+          },
+          "category": {
+            "value": "0192f0c1-000e-7d8a-8a87-a87dd2b6c1ba"
+          },
+          "direction": "out",
+          "id": "0192f0c1-0032-754e-8db8-db8922229d3c",
+          "note": "",
+          "occurredAt": 1765184400000,
+          "profileId": "0192f0c1-0001-702d-8484-48490b729601",
+          "raw": {
+            "description": "Cloud hosting",
+            "merchant": "Demo Cloud Hosting",
+            "reference": ""
+          },
+          "review": {
+            "_tag": "Reviewed",
+            "at": 1765270800000
+          },
+          "status": "pending",
+          "valueDate": "2025-12-08"
+        },
+        {
+          "accountId": "0192f0c1-0006-7b7b-8ffd-ffde623dd8df",
+          "amount": {
+            "currency": "EUR",
+            "minor": 8900
+          },
+          "baseAmount": {
+            "currency": "EUR",
+            "minor": 8900
+          },
+          "category": {
+            "value": "0192f0c1-0011-79f9-8c9a-c9af5a7eff0d"
+          },
+          "direction": "out",
+          "id": "0192f0c1-0031-7ab6-8c3b-c3bb339364f8",
+          "note": "Team breakfast",
+          "occurredAt": 1762160400000,
+          "profileId": "0192f0c1-0001-702d-8484-48490b729601",
+          "raw": {
+            "description": "Team breakfast",
+            "merchant": "Demo Coffee",
+            "reference": ""
+          },
+          "review": {
+            "_tag": "Awaiting"
+          },
+          "status": "posted",
+          "valueDate": "2025-11-03"
+        },
+        {
+          "accountId": "0192f0c1-0006-7b7b-8ffd-ffde623dd8df",
+          "amount": {
+            "currency": "EUR",
+            "minor": 3500
+          },
+          "baseAmount": {
+            "currency": "EUR",
+            "minor": 3500
+          },
+          "category": {},
+          "direction": "in",
+          "id": "0192f0c1-0030-7085-8d2f-d2f021323f32",
+          "note": "",
+          "occurredAt": 1759741200000,
+          "profileId": "0192f0c1-0001-702d-8484-48490b729601",
+          "raw": {
+            "description": "Refund from Demo Design Tool",
+            "merchant": "Demo Design Tool",
+            "reference": ""
+          },
+          "review": {
+            "_tag": "Reviewed",
+            "at": 1760000400000
+          },
+          "status": "posted",
+          "valueDate": "2025-10-06"
+        },
+        {
+          "accountId": "0192f0c1-0006-7b7b-8ffd-ffde623dd8df",
+          "amount": {
+            "currency": "EUR",
+            "minor": 250000
+          },
+          "baseAmount": {
+            "currency": "EUR",
+            "minor": 250000
+          },
+          "category": {},
+          "direction": "out",
+          "id": "0192f0c1-002f-7574-8f47-f477afee2375",
+          "note": "",
+          "occurredAt": 1756803600000,
+          "profileId": "0192f0c1-0001-702d-8484-48490b729601",
+          "raw": {
+            "description": "Demo VAT payment",
+            "merchant": "Demo Tax Office",
+            "reference": "TAX-VAT-2025"
+          },
+          "review": {
+            "_tag": "Reviewed",
+            "at": 1757235600000
+          },
+          "status": "posted",
+          "valueDate": "2025-09-02"
+        },
+        {
+          "accountId": "0192f0c1-0006-7b7b-8ffd-ffde623dd8df",
+          "amount": {
+            "currency": "EUR",
+            "minor": 1500
+          },
+          "baseAmount": {
+            "currency": "EUR",
+            "minor": 1500
+          },
+          "category": {},
+          "direction": "out",
+          "id": "0192f0c1-002e-70b6-8abf-abfcf0a3117a",
+          "note": "",
+          "occurredAt": 1754298000000,
+          "profileId": "0192f0c1-0001-702d-8484-48490b729601",
+          "raw": {
+            "description": "Internal demo movement",
+            "merchant": "",
+            "reference": "0000123"
+          },
+          "review": {
+            "_tag": "Reviewed",
+            "at": 1754384400000
+          },
+          "status": "posted",
+          "valueDate": "2025-08-04"
+        },
+        {
+          "accountId": "0192f0c1-0006-7b7b-8ffd-ffde623dd8df",
+          "amount": {
+            "currency": "EUR",
+            "minor": 60000
+          },
+          "baseAmount": {
+            "currency": "EUR",
+            "minor": 60000
+          },
+          "category": {},
+          "direction": "neutral",
+          "id": "0192f0c1-002d-72a8-8fd3-fd3ae1482dc5",
+          "note": "",
+          "occurredAt": 1751360400000,
+          "profileId": "0192f0c1-0001-702d-8484-48490b729601",
+          "raw": {
+            "description": "Transfer to Demo Person",
+            "merchant": "",
+            "reference": ""
+          },
+          "review": {
+            "_tag": "Reviewed",
+            "at": 1751533200000
+          },
+          "status": "posted",
+          "valueDate": "2025-07-01"
+        },
+        {
+          "accountId": "0192f0c1-0006-7b7b-8ffd-ffde623dd8df",
+          "amount": {
+            "currency": "EUR",
+            "minor": 100000
+          },
+          "baseAmount": {
+            "currency": "EUR",
+            "minor": 100000
+          },
+          "category": {},
+          "direction": "neutral",
+          "id": "0192f0c1-002c-7e06-8db2-db29cc906e10",
+          "note": "",
+          "occurredAt": 1749978000000,
+          "profileId": "0192f0c1-0001-702d-8484-48490b729601",
+          "raw": {
+            "description": "Moved to Demo Savings",
+            "merchant": "",
+            "reference": ""
+          },
+          "review": {
+            "_tag": "Awaiting"
+          },
+          "status": "posted",
+          "valueDate": "2025-06-15"
+        },
+        {
+          "accountId": "0192f0c1-0006-7b7b-8ffd-ffde623dd8df",
+          "amount": {
+            "currency": "GBP",
+            "minor": 12000
+          },
+          "baseAmount": {
+            "currency": "EUR",
+            "minor": 14040
+          },
+          "category": {
+            "value": "0192f0c1-0010-744d-827c-27cf38c20ebb"
+          },
+          "direction": "out",
+          "id": "0192f0c1-002b-79a6-8b1a-b1ab7e790030",
+          "note": "",
+          "occurredAt": 1746781200000,
+          "profileId": "0192f0c1-0001-702d-8484-48490b729601",
+          "raw": {
+            "description": "Demo Rail ticket",
+            "merchant": "Demo Rail",
+            "reference": ""
+          },
+          "review": {
+            "_tag": "Reviewed",
+            "at": 1747126800000
+          },
+          "status": "posted",
+          "valueDate": "2025-05-09"
+        },
+        {
+          "accountId": "0192f0c1-0006-7b7b-8ffd-ffde623dd8df",
+          "amount": {
+            "currency": "EUR",
+            "minor": 4250
+          },
+          "baseAmount": {
+            "currency": "EUR",
+            "minor": 4250
+          },
+          "category": {
+            "value": "0192f0c1-0011-79f9-8c9a-c9af5a7eff0d"
+          },
+          "direction": "out",
+          "id": "0192f0c1-002a-7549-8811-8111b948c159",
+          "note": "Client lunch",
+          "occurredAt": 1743584400000,
+          "profileId": "0192f0c1-0001-702d-8484-48490b729601",
+          "raw": {
+            "description": "Client lunch",
+            "merchant": "Demo Coffee",
+            "reference": ""
+          },
+          "review": {
+            "_tag": "Reviewed",
+            "at": 1743670800000
+          },
+          "status": "posted",
+          "valueDate": "2025-04-02"
+        },
+        {
+          "accountId": "0192f0c1-0006-7b7b-8ffd-ffde623dd8df",
+          "amount": {
+            "currency": "USD",
+            "minor": 2999
+          },
+          "baseAmount": {
+            "currency": "EUR",
+            "minor": 2765
+          },
+          "category": {
+            "value": "0192f0c1-000f-755b-8ae4-ae47d20b52cf"
+          },
+          "direction": "out",
+          "id": "0192f0c1-0029-768c-8adb-adbefc188d19",
+          "note": "",
+          "occurredAt": 1741683600000,
+          "profileId": "0192f0c1-0001-702d-8484-48490b729601",
+          "raw": {
+            "description": "Design subscription",
+            "merchant": "Demo Design Tool",
+            "reference": ""
+          },
+          "review": {
+            "_tag": "Reviewed",
+            "at": 1741942800000
+          },
+          "status": "posted",
+          "valueDate": "2025-03-11"
+        },
+        {
+          "accountId": "0192f0c1-0006-7b7b-8ffd-ffde623dd8df",
+          "amount": {
+            "currency": "EUR",
+            "minor": 299000
+          },
+          "baseAmount": {
+            "currency": "EUR",
+            "minor": 299000
+          },
+          "category": {
+            "value": "0192f0c1-000e-7d8a-8a87-a87dd2b6c1ba"
+          },
+          "direction": "out",
+          "id": "0192f0c1-0028-7018-8357-3578945c907b",
+          "note": "Renewed after the demo renewal reminder",
+          "occurredAt": 1738573200000,
+          "profileId": "0192f0c1-0001-702d-8484-48490b729601",
+          "raw": {
+            "description": "Cloud hosting",
+            "merchant": "Demo Cloud Hosting",
+            "reference": ""
+          },
+          "review": {
+            "_tag": "Reviewed",
+            "at": 1738746000000
+          },
+          "status": "posted",
+          "valueDate": "2025-02-03"
+        },
+        {
+          "accountId": "0192f0c1-0006-7b7b-8ffd-ffde623dd8df",
+          "amount": {
+            "currency": "EUR",
+            "minor": 480000
+          },
+          "baseAmount": {
+            "currency": "EUR",
+            "minor": 480000
+          },
+          "category": {
+            "value": "0192f0c1-000d-75e9-8fd7-fd7e43c901ee"
+          },
+          "direction": "in",
+          "id": "0192f0c1-0027-7c11-8261-2619d29e6868",
+          "note": "Demo note written by the verify drive",
+          "occurredAt": 1736154000000,
+          "profileId": "0192f0c1-0001-702d-8484-48490b729601",
+          "raw": {
+            "description": "Invoice payment",
+            "merchant": "Example Ltd",
+            "reference": ""
+          },
+          "review": {
+            "_tag": "Reviewed",
+            "at": 1736240400000
+          },
+          "status": "posted",
+          "valueDate": "2025-01-06"
+        }
+      ]
+    },
+    {
+      "id": "bank-line-edit-refuses-a-foreign-category",
+      "value": "UnknownCategory"
+    },
+    {
+      "id": "bank-line-edit-foreign-category-stores-nothing",
+      "operation": "listBankLines",
+      "value": [
+        {
+          "accountId": "0192f0c1-0006-7b7b-8ffd-ffde623dd8df",
+          "amount": {
+            "currency": "EUR",
+            "minor": 5200
+          },
+          "baseAmount": {
+            "currency": "EUR",
+            "minor": 5200
+          },
+          "category": {
+            "value": "0192f0c1-000e-7d8a-8a87-a87dd2b6c1ba"
+          },
+          "direction": "out",
+          "id": "0192f0c1-0032-754e-8db8-db8922229d3c",
+          "note": "",
+          "occurredAt": 1765184400000,
+          "profileId": "0192f0c1-0001-702d-8484-48490b729601",
+          "raw": {
+            "description": "Cloud hosting",
+            "merchant": "Demo Cloud Hosting",
+            "reference": ""
+          },
+          "review": {
+            "_tag": "Reviewed",
+            "at": 1765270800000
+          },
+          "status": "pending",
+          "valueDate": "2025-12-08"
+        },
+        {
+          "accountId": "0192f0c1-0006-7b7b-8ffd-ffde623dd8df",
+          "amount": {
+            "currency": "EUR",
+            "minor": 8900
+          },
+          "baseAmount": {
+            "currency": "EUR",
+            "minor": 8900
+          },
+          "category": {
+            "value": "0192f0c1-0011-79f9-8c9a-c9af5a7eff0d"
+          },
+          "direction": "out",
+          "id": "0192f0c1-0031-7ab6-8c3b-c3bb339364f8",
+          "note": "Team breakfast",
+          "occurredAt": 1762160400000,
+          "profileId": "0192f0c1-0001-702d-8484-48490b729601",
+          "raw": {
+            "description": "Team breakfast",
+            "merchant": "Demo Coffee",
+            "reference": ""
+          },
+          "review": {
+            "_tag": "Awaiting"
+          },
+          "status": "posted",
+          "valueDate": "2025-11-03"
+        },
+        {
+          "accountId": "0192f0c1-0006-7b7b-8ffd-ffde623dd8df",
+          "amount": {
+            "currency": "EUR",
+            "minor": 3500
+          },
+          "baseAmount": {
+            "currency": "EUR",
+            "minor": 3500
+          },
+          "category": {},
+          "direction": "in",
+          "id": "0192f0c1-0030-7085-8d2f-d2f021323f32",
+          "note": "",
+          "occurredAt": 1759741200000,
+          "profileId": "0192f0c1-0001-702d-8484-48490b729601",
+          "raw": {
+            "description": "Refund from Demo Design Tool",
+            "merchant": "Demo Design Tool",
+            "reference": ""
+          },
+          "review": {
+            "_tag": "Reviewed",
+            "at": 1760000400000
+          },
+          "status": "posted",
+          "valueDate": "2025-10-06"
+        },
+        {
+          "accountId": "0192f0c1-0006-7b7b-8ffd-ffde623dd8df",
+          "amount": {
+            "currency": "EUR",
+            "minor": 250000
+          },
+          "baseAmount": {
+            "currency": "EUR",
+            "minor": 250000
+          },
+          "category": {},
+          "direction": "out",
+          "id": "0192f0c1-002f-7574-8f47-f477afee2375",
+          "note": "",
+          "occurredAt": 1756803600000,
+          "profileId": "0192f0c1-0001-702d-8484-48490b729601",
+          "raw": {
+            "description": "Demo VAT payment",
+            "merchant": "Demo Tax Office",
+            "reference": "TAX-VAT-2025"
+          },
+          "review": {
+            "_tag": "Reviewed",
+            "at": 1757235600000
+          },
+          "status": "posted",
+          "valueDate": "2025-09-02"
+        },
+        {
+          "accountId": "0192f0c1-0006-7b7b-8ffd-ffde623dd8df",
+          "amount": {
+            "currency": "EUR",
+            "minor": 1500
+          },
+          "baseAmount": {
+            "currency": "EUR",
+            "minor": 1500
+          },
+          "category": {},
+          "direction": "out",
+          "id": "0192f0c1-002e-70b6-8abf-abfcf0a3117a",
+          "note": "",
+          "occurredAt": 1754298000000,
+          "profileId": "0192f0c1-0001-702d-8484-48490b729601",
+          "raw": {
+            "description": "Internal demo movement",
+            "merchant": "",
+            "reference": "0000123"
+          },
+          "review": {
+            "_tag": "Reviewed",
+            "at": 1754384400000
+          },
+          "status": "posted",
+          "valueDate": "2025-08-04"
+        },
+        {
+          "accountId": "0192f0c1-0006-7b7b-8ffd-ffde623dd8df",
+          "amount": {
+            "currency": "EUR",
+            "minor": 60000
+          },
+          "baseAmount": {
+            "currency": "EUR",
+            "minor": 60000
+          },
+          "category": {},
+          "direction": "neutral",
+          "id": "0192f0c1-002d-72a8-8fd3-fd3ae1482dc5",
+          "note": "",
+          "occurredAt": 1751360400000,
+          "profileId": "0192f0c1-0001-702d-8484-48490b729601",
+          "raw": {
+            "description": "Transfer to Demo Person",
+            "merchant": "",
+            "reference": ""
+          },
+          "review": {
+            "_tag": "Reviewed",
+            "at": 1751533200000
+          },
+          "status": "posted",
+          "valueDate": "2025-07-01"
+        },
+        {
+          "accountId": "0192f0c1-0006-7b7b-8ffd-ffde623dd8df",
+          "amount": {
+            "currency": "EUR",
+            "minor": 100000
+          },
+          "baseAmount": {
+            "currency": "EUR",
+            "minor": 100000
+          },
+          "category": {},
+          "direction": "neutral",
+          "id": "0192f0c1-002c-7e06-8db2-db29cc906e10",
+          "note": "",
+          "occurredAt": 1749978000000,
+          "profileId": "0192f0c1-0001-702d-8484-48490b729601",
+          "raw": {
+            "description": "Moved to Demo Savings",
+            "merchant": "",
+            "reference": ""
+          },
+          "review": {
+            "_tag": "Awaiting"
+          },
+          "status": "posted",
+          "valueDate": "2025-06-15"
+        },
+        {
+          "accountId": "0192f0c1-0006-7b7b-8ffd-ffde623dd8df",
+          "amount": {
+            "currency": "GBP",
+            "minor": 12000
+          },
+          "baseAmount": {
+            "currency": "EUR",
+            "minor": 14040
+          },
+          "category": {
+            "value": "0192f0c1-0010-744d-827c-27cf38c20ebb"
+          },
+          "direction": "out",
+          "id": "0192f0c1-002b-79a6-8b1a-b1ab7e790030",
+          "note": "",
+          "occurredAt": 1746781200000,
+          "profileId": "0192f0c1-0001-702d-8484-48490b729601",
+          "raw": {
+            "description": "Demo Rail ticket",
+            "merchant": "Demo Rail",
+            "reference": ""
+          },
+          "review": {
+            "_tag": "Reviewed",
+            "at": 1747126800000
+          },
+          "status": "posted",
+          "valueDate": "2025-05-09"
+        },
+        {
+          "accountId": "0192f0c1-0006-7b7b-8ffd-ffde623dd8df",
+          "amount": {
+            "currency": "EUR",
+            "minor": 4250
+          },
+          "baseAmount": {
+            "currency": "EUR",
+            "minor": 4250
+          },
+          "category": {
+            "value": "0192f0c1-0011-79f9-8c9a-c9af5a7eff0d"
+          },
+          "direction": "out",
+          "id": "0192f0c1-002a-7549-8811-8111b948c159",
+          "note": "Client lunch",
+          "occurredAt": 1743584400000,
+          "profileId": "0192f0c1-0001-702d-8484-48490b729601",
+          "raw": {
+            "description": "Client lunch",
+            "merchant": "Demo Coffee",
+            "reference": ""
+          },
+          "review": {
+            "_tag": "Reviewed",
+            "at": 1743670800000
+          },
+          "status": "posted",
+          "valueDate": "2025-04-02"
+        },
+        {
+          "accountId": "0192f0c1-0006-7b7b-8ffd-ffde623dd8df",
+          "amount": {
+            "currency": "USD",
+            "minor": 2999
+          },
+          "baseAmount": {
+            "currency": "EUR",
+            "minor": 2765
+          },
+          "category": {
+            "value": "0192f0c1-000f-755b-8ae4-ae47d20b52cf"
+          },
+          "direction": "out",
+          "id": "0192f0c1-0029-768c-8adb-adbefc188d19",
+          "note": "",
+          "occurredAt": 1741683600000,
+          "profileId": "0192f0c1-0001-702d-8484-48490b729601",
+          "raw": {
+            "description": "Design subscription",
+            "merchant": "Demo Design Tool",
+            "reference": ""
+          },
+          "review": {
+            "_tag": "Reviewed",
+            "at": 1741942800000
+          },
+          "status": "posted",
+          "valueDate": "2025-03-11"
+        },
+        {
+          "accountId": "0192f0c1-0006-7b7b-8ffd-ffde623dd8df",
+          "amount": {
+            "currency": "EUR",
+            "minor": 299000
+          },
+          "baseAmount": {
+            "currency": "EUR",
+            "minor": 299000
+          },
+          "category": {
+            "value": "0192f0c1-000e-7d8a-8a87-a87dd2b6c1ba"
+          },
+          "direction": "out",
+          "id": "0192f0c1-0028-7018-8357-3578945c907b",
+          "note": "Renewed after the demo renewal reminder",
+          "occurredAt": 1738573200000,
+          "profileId": "0192f0c1-0001-702d-8484-48490b729601",
+          "raw": {
+            "description": "Cloud hosting",
+            "merchant": "Demo Cloud Hosting",
+            "reference": ""
+          },
+          "review": {
+            "_tag": "Reviewed",
+            "at": 1738746000000
+          },
+          "status": "posted",
+          "valueDate": "2025-02-03"
+        },
+        {
+          "accountId": "0192f0c1-0006-7b7b-8ffd-ffde623dd8df",
+          "amount": {
+            "currency": "EUR",
+            "minor": 480000
+          },
+          "baseAmount": {
+            "currency": "EUR",
+            "minor": 480000
+          },
+          "category": {
+            "value": "0192f0c1-000d-75e9-8fd7-fd7e43c901ee"
+          },
+          "direction": "in",
+          "id": "0192f0c1-0027-7c11-8261-2619d29e6868",
+          "note": "Demo note written by the verify drive",
+          "occurredAt": 1736154000000,
+          "profileId": "0192f0c1-0001-702d-8484-48490b729601",
+          "raw": {
+            "description": "Invoice payment",
+            "merchant": "Example Ltd",
+            "reference": ""
+          },
+          "review": {
+            "_tag": "Reviewed",
+            "at": 1736240400000
+          },
+          "status": "posted",
+          "valueDate": "2025-01-06"
+        }
+      ]
+    }
+  ],
+  "mutatingCalls": 2
+}

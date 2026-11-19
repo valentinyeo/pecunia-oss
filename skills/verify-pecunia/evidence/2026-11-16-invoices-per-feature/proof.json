@@ -1,0 +1,114 @@
+{
+  "branch": "verify-skill",
+  "checks": [
+    {
+      "actual": "unnamed=0 unexported=0 planned=0 status=0 problems=0 exit=0",
+      "expected": "unnamed=0 unexported=0 planned=0 status=0 problems=0 exit=0",
+      "feature": "invoices",
+      "id": "feature-map-matches-capabilities",
+      "passed": true,
+      "step": "feature-map"
+    },
+    {
+      "actual": "wrongDeclarations=0 wrongRows=0 columns=11",
+      "expected": "wrongDeclarations=0 wrongRows=0 columns=11",
+      "feature": "invoices",
+      "id": "money-is-integer-minor-units",
+      "passed": true,
+      "step": "generic"
+    },
+    {
+      "actual": "wrongCurrencies=0 columns=13",
+      "expected": "wrongCurrencies=0 columns=13",
+      "feature": "invoices",
+      "id": "currency-is-an-iso-code",
+      "passed": true,
+      "step": "generic"
+    },
+    {
+      "actual": "integrity=ok foreignKeyViolations=0 tablesWithOrphans=0 scopedTables=17",
+      "expected": "integrity=ok foreignKeyViolations=0 tablesWithOrphans=0 scopedTables=17",
+      "feature": "invoices",
+      "id": "every-row-belongs-to-a-profile",
+      "passed": true,
+      "step": "generic"
+    },
+    {
+      "actual": "nonPlaceholderEmails=0 profiles=Demo Person,Example Ltd",
+      "expected": "nonPlaceholderEmails=0 profiles=Demo Person,Example Ltd",
+      "feature": "invoices",
+      "id": "demo-book-holds-made-up-identities",
+      "passed": true,
+      "step": "generic"
+    },
+    {
+      "actual": "0",
+      "expected": "0",
+      "feature": "invoices",
+      "id": "invoice-matches-its-line",
+      "passed": true,
+      "step": "invoices"
+    },
+    {
+      "actual": "4250 documents=0",
+      "expected": "4250 documents=0",
+      "feature": "invoices",
+      "id": "invoice-exception-has-no-document",
+      "passed": true,
+      "step": "invoices"
+    },
+    {
+      "actual": "0",
+      "expected": "0",
+      "feature": "invoices",
+      "id": "invoice-unarchived",
+      "passed": true,
+      "step": "invoices"
+    },
+    {
+      "actual": "0",
+      "expected": "0",
+      "feature": "invoices",
+      "id": "invoice-archived",
+      "passed": true,
+      "step": "invoices"
+    },
+    {
+      "actual": "0",
+      "expected": "0",
+      "feature": "invoices",
+      "id": "invoice-vendors",
+      "passed": true,
+      "step": "invoices"
+    },
+    {
+      "actual": "0",
+      "expected": "0",
+      "feature": "invoices",
+      "id": "invoice-archive-states",
+      "passed": true,
+      "step": "invoices"
+    }
+  ],
+  "commit": "1fb6b3bc",
+  "declared": 11,
+  "demoBookSha256": "527991d3898ec8fdce1029ee97f92a7c25f955c54e2375b38566f95f32537191",
+  "evaluated": 11,
+  "failed": 0,
+  "failedSteps": 0,
+  "failures": [],
+  "feature": "invoices",
+  "node": "v24.18.0",
+  "passed": true,
+  "ranAt": "2026-11-16T20:40:32Z",
+  "seed": {
+    "command": "pnpm --filter @pecunia/database db:seed:demo /tmp/pecunia-verify-Eu6GBW/demo.sqlite"
+  },
+  "stepExpectations": {
+    "feature-map": 1,
+    "generic": 4,
+    "invoices": 6
+  },
+  "steps": 4,
+  "total": 11
+}
