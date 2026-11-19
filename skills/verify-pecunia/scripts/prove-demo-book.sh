@@ -79,6 +79,7 @@ DATABASE="$SCRATCH/demo.sqlite"
 SEED_LOG="$SCRATCH/seed.log"
 BUILD_LOG="$SCRATCH/build.log"
 MAP_LOG="$SCRATCH/feature-map.log"
+PARITY_LOG="$SCRATCH/parity.log"
 DRIVE_JSON="$SCRATCH/bank-import-drive.json"
 BUILD_COMMAND="pnpm turbo run build --filter=@pecunia/bank-import..."
 BUILD_LINES_COMMAND="pnpm turbo run build --filter=@pecunia/bank-lines..."
@@ -133,6 +134,17 @@ step_feature_map() {
   problems=$(printf '%s\n' "$map_line" | sed -E 's/^SUMMARY .* problems=([0-9]+).*/\1/')
   exit_status=$(steps_command_exit map)
   steps_observe feature-map-matches-capabilities "unnamed=${unnamed:-missing} unexported=${unexported:-missing} planned=${planned:-missing} status=${mismatched:-missing} problems=${problems:-missing} exit=${exit_status:-missing}"
+}
+
+step_parity() {
+  local parity_line problems exit_status
+  parity_line=$(steps_run_command parity node "$SCRIPT_DIR/check-parity.mjs" 2> "$PARITY_LOG")
+  if [ -s "$PARITY_LOG" ]; then
+    cat "$PARITY_LOG" >&2
+  fi
+  problems=$(printf '%s\n' "$parity_line" | sed -E 's/^SUMMARY .* problems=([0-9]+).*/\1/')
+  exit_status=$(steps_command_exit parity)
+  steps_observe parity-matches-old-behaviours "problems=${problems:-missing} exit=${exit_status:-missing}"
 }
 
 step_generic() {
