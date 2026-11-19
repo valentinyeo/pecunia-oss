@@ -1,0 +1,171 @@
+import { Schema } from "effect";
+
+export const CurrencyCodeSchema = Schema.NonEmptyString.check(
+  Schema.isPattern(/^[A-Z]{3}$/u)
+).pipe(Schema.brand("CurrencyCode"));
+
+export type CurrencyCode = typeof CurrencyCodeSchema.Type;
+
+export const MinorUnitsSchema = Schema.Int.check(
+  Schema.makeFilter(Number.isSafeInteger, {
+    expected: "an integer a number holds exactly",
+  })
+).pipe(Schema.brand("MinorUnits"));
+
+export type MinorUnits = typeof MinorUnitsSchema.Type;
+
+export const MoneySchema = Schema.Struct({
+  currency: CurrencyCodeSchema,
+  minor: MinorUnitsSchema,
+}).pipe(Schema.brand("Money"));
+
+export type Money = typeof MoneySchema.Type;
+
+export const QuantitySchema = Schema.Int.check(
+  Schema.isGreaterThanOrEqualTo(0)
+).pipe(Schema.brand("Quantity"));
+
+export type Quantity = typeof QuantitySchema.Type;
+
+const monthLengths = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+
+const isLeapYear = (year: number): boolean =>
+  year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0);
+
+const monthLength = (year: number, month: number): number =>
+  month === 2 && isLeapYear(year) ? 29 : (monthLengths[month - 1] ?? 0);
+
+const isCalendarDate = (text: string): boolean => {
+  const [year = 0, month = 0, day = 0] = text.split("-").map(Number);
+
+  return (
+    month >= 1 && month <= 12 && day >= 1 && day <= monthLength(year, month)
+  );
+};
+
+export const DateOnlySchema = Schema.String.check(
+  Schema.isPattern(/^\d{4}-\d{2}-\d{2}$/u),
+  Schema.makeFilter(isCalendarDate, {
+    expected: "a calendar date that exists",
+  })
+).pipe(Schema.brand("DateOnly"));
+
+export type DateOnly = typeof DateOnlySchema.Type;
+
+const timestampPattern =
+  /^(?<date>\d{4}-\d{2}-\d{2})T(?<hours>\d{2}):(?<minutes>\d{2}):(?<seconds>\d{2})\.(?<millis>\d{3})Z$/u;
+
+const isClockTime = ([hours, minutes, seconds]: readonly string[]): boolean =>
+  Number(hours) <= 23 && Number(minutes) <= 59 && Number(seconds) <= 59;
+
+const isCanonicalInstant = (text: string): boolean => {
+  const [, date = "", hours = "", minutes = "", seconds = ""] =
+    timestampPattern.exec(text) ?? [];
+
+  return isCalendarDate(date) && isClockTime([hours, minutes, seconds]);
+};
+
+export const TimestampSchema = Schema.String.check(
+  Schema.isPattern(timestampPattern),
+  Schema.makeFilter(isCanonicalInstant, {
+    expected: "a calendar instant written as YYYY-MM-DDTHH:mm:ss.sssZ",
+  })
+).pipe(Schema.brand("Timestamp"));
+
+export type Timestamp = typeof TimestampSchema.Type;
+
+export interface TimestampParts {
+  readonly day: number;
+  readonly hour: number;
+  readonly millisecond: number;
+  readonly minute: number;
+  readonly month: number;
+  readonly second: number;
+  readonly year: number;
+}
+
+const Uuid7 = Schema.String.check(Schema.isUUID(7));
+
+export const ProfileIdSchema = Uuid7.pipe(Schema.brand("ProfileId"));
+
+export type ProfileId = typeof ProfileIdSchema.Type;
+
+export const MemberIdSchema = Uuid7.pipe(Schema.brand("MemberId"));
+
+export type MemberId = typeof MemberIdSchema.Type;
+
+export const ProviderIdSchema = Schema.String.pipe(Schema.brand("ProviderId"));
+
+export type ProviderId = typeof ProviderIdSchema.Type;
+
+export const ProviderAccountIdSchema = Uuid7.pipe(
+  Schema.brand("ProviderAccountId")
+);
+
+export type ProviderAccountId = typeof ProviderAccountIdSchema.Type;
+
+export const PayeeIdSchema = Uuid7.pipe(Schema.brand("PayeeId"));
+
+export type PayeeId = typeof PayeeIdSchema.Type;
+
+export const CategoryIdSchema = Uuid7.pipe(Schema.brand("CategoryId"));
+
+export type CategoryId = typeof CategoryIdSchema.Type;
+
+export const RuleIdSchema = Uuid7.pipe(Schema.brand("RuleId"));
+
+export type RuleId = typeof RuleIdSchema.Type;
+
+export const AliasIdSchema = Uuid7.pipe(Schema.brand("AliasId"));
+
+export type AliasId = typeof AliasIdSchema.Type;
+
+export const TransactionIdSchema = Uuid7.pipe(Schema.brand("TransactionId"));
+
+export type TransactionId = typeof TransactionIdSchema.Type;
+
+export const SubscriptionIdSchema = Uuid7.pipe(Schema.brand("SubscriptionId"));
+
+export type SubscriptionId = typeof SubscriptionIdSchema.Type;
+
+export const HoldingIdSchema = Uuid7.pipe(Schema.brand("HoldingId"));
+
+export type HoldingId = typeof HoldingIdSchema.Type;
+
+export const PlatformIdSchema = Schema.String.pipe(Schema.brand("PlatformId"));
+
+export type PlatformId = typeof PlatformIdSchema.Type;
+
+export const SyncRunIdSchema = Uuid7.pipe(Schema.brand("SyncRunId"));
+
+export type SyncRunId = typeof SyncRunIdSchema.Type;
+
+export const DocumentIdSchema = Uuid7.pipe(Schema.brand("DocumentId"));
+
+export type DocumentId = typeof DocumentIdSchema.Type;
+
+export const InvoiceSourceIdSchema = Uuid7.pipe(
+  Schema.brand("InvoiceSourceId")
+);
+
+export type InvoiceSourceId = typeof InvoiceSourceIdSchema.Type;
+
+export const ArchiveTargetIdSchema = Uuid7.pipe(
+  Schema.brand("ArchiveTargetId")
+);
+
+export type ArchiveTargetId = typeof ArchiveTargetIdSchema.Type;
+
+export const TaxProfileIdSchema = Uuid7.pipe(Schema.brand("TaxProfileId"));
+
+export type TaxProfileId = typeof TaxProfileIdSchema.Type;
+
+export const TaxObligationIdSchema = Uuid7.pipe(
+  Schema.brand("TaxObligationId")
+);
+
+export type TaxObligationId = typeof TaxObligationIdSchema.Type;
+
+export const ReportIdSchema = Uuid7.pipe(Schema.brand("ReportId"));
+
+export type ReportId = typeof ReportIdSchema.Type;
