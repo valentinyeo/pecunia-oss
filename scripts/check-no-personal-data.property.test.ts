@@ -278,8 +278,24 @@ const inNumber = (parts: readonly string[], random: Random) => {
 const sortCodeValue = (random: Random) =>
   inNumber([random.digits(2), random.digits(2), random.digits(2)], random);
 
+const readsAsYear = (group: string) => {
+  const value = Number(group);
+
+  return value >= 1900 && value <= 2099;
+};
+
+const accountGroup = (random: Random) => {
+  let group = random.digits(4);
+
+  while (readsAsYear(group)) {
+    group = random.digits(4);
+  }
+
+  return group;
+};
+
 const accountValue = (random: Random) =>
-  inNumber([random.digits(4), random.digits(4)], random);
+  inNumber([accountGroup(random), accountGroup(random)], random);
 
 const pairDocument = (random: Random) => {
   const sort = sortCodeValue(random);
@@ -812,6 +828,8 @@ interface Encoder {
 const QUOTED_PRINTABLE_PIECE = (byte: number) =>
   `=${byte.toString(16).toUpperCase().padStart(2, "0")}`;
 
+const HEX_START = /^[0-9A-Fa-f]/u;
+
 const quotedPrintableLine = (line: string, width = 75) => {
   const bytes = [...new TextEncoder().encode(line)];
 
@@ -832,7 +850,7 @@ const quotedPrintableLine = (line: string, width = 75) => {
   let current = "";
 
   for (const piece of pieces) {
-    if (current.length + piece.length > width) {
+    if (current.length + piece.length > width && !HEX_START.test(piece)) {
       wrapped.push(`${current}=`);
 
       current = "";
@@ -981,7 +999,8 @@ const reference = (random: Random) =>
 const plainSortCode = (random: Random) =>
   `${random.digits(2)}-${random.digits(2)}-${random.digits(2)}`;
 
-const plainAccount = (random: Random) => random.digits(8);
+const plainAccount = (random: Random) =>
+  accountGroup(random) + accountGroup(random);
 
 const plainEmail = (random: Random) =>
   `${random.pick(EMAIL_LOCALS)}@${random.pick(EMAIL_DOMAINS)}`;
@@ -1484,7 +1503,7 @@ const CONTAINER_KINDS: readonly ContainerKind[] = [
     name: "bank-pair",
     path: "apps/cli/demo.yaml",
     value: (random) =>
-      `sort code ${plainSortCode(random)} account number ${plainAccount(random)}`,
+      `sort code ${plainSortCode(random)} account number ${plainAccount(random)} end`,
   },
 ];
 
@@ -1994,7 +2013,7 @@ const PREFIX_PAYLOADS: readonly PayloadKind[] = [
     path: "apps/cli/demo.yaml",
     rules: ["bank-account"],
     text: (random) =>
-      `sort code ${plainSortCode(random)} account number ${plainAccount(random)}`,
+      `sort code ${plainSortCode(random)} account number ${plainAccount(random)} end`,
   },
 ];
 

@@ -222,11 +222,52 @@ const ACCOUNT_DIGITS = 8;
 
 const PAIR_DIGITS = SORT_CODE_DIGITS + ACCOUNT_DIGITS;
 
-const PAIR_WINDOW = 120;
+const BANK_PHRASE =
+  /sort[ _-]?code|sortcode|account|acct|accno|a\/c|bank|iban|bic|routing/iu;
 
-const PAIR_CONTEXT = 24;
+const BANK_LABEL =
+  /(?:sort[ _-]?code|sortcode|account|acct|accno|a\/c|bank|iban|bic|routing)(?:[ _-]*(?:number|no|nr|num|code|id|details|reference|ref))?$/iu;
 
-const BANK_WORD = /sort|account|accno|bank|iban|routing/iu;
+const BANK_LAST_TOKEN =
+  /^(?:sort[ _-]?code|sortcode|account|acct|accno|bank|iban|bic|routing)(?:[ _-]?(?:number|num|no|nr|id|code|details|reference|ref))?$/iu;
+
+const LABEL_FILLERS = new Set([
+  "a",
+  "an",
+  "and",
+  "are",
+  "at",
+  "be",
+  "been",
+  "for",
+  "in",
+  "is",
+  "of",
+  "on",
+  "or",
+  "please",
+  "quote",
+  "that",
+  "the",
+  "this",
+  "to",
+  "was",
+  "were",
+  "with",
+  "your",
+]);
+
+const LABEL_TOKENS = 3;
+
+const LABEL_WINDOW = 48;
+
+const WORD_TOKEN = /[A-Za-z][A-Za-z0-9_]*/gu;
+
+const WORD_CHARACTER = /[\p{L}\p{N}_]/u;
+
+const FIRST_YEAR = 1900;
+
+const LAST_YEAR = 2099;
 
 const DATE_ANY =
   /[0-9]{4}[./-][0-9]{1,2}[./-][0-9]{1,2}|[0-9]{1,2}[./-][0-9]{1,2}[./-][0-9]{4}/gu;
@@ -877,7 +918,13 @@ const ibanSpansOf = (view: GuardView): IbanSpans => {
     .flatMap((start) => {
       const span = ibanCandidateAt(view.source.text, start);
 
-      return span === undefined ? [] : [span];
+      if (span === undefined) {
+        return [];
+      }
+
+      return SENTENCE_BREAK.test(view.source.text.slice(span.start, span.end))
+        ? []
+        : [span];
     })
     .filter((span) => !squeezed || readsFromWordStart(view.source, span));
 
@@ -909,9 +956,13 @@ interface DigitRun {
   readonly start: number;
 }
 
+interface SortRun extends DigitRun {
+  readonly carries: boolean;
+}
+
 interface BankAtoms {
   readonly accounts: readonly DigitRun[];
-  readonly sortCodes: readonly DigitRun[];
+  readonly sortCodes: readonly SortRun[];
 }
 
 interface DigitGroup {
@@ -934,10 +985,16 @@ const DIGITS_WITH_GAPS =
 const gapBetween = (source: TextSource, left: number, right: number) =>
   right === left + 1 ? source.gapAt(left) : source.text.slice(left + 1, right);
 
+const SENTENCE_BREAK = /[.][\s]|[\s][.]/u;
+
 const runsAsOneNumber = (source: TextSource, left: number, right: number) => {
   const gap = gapBetween(source, left, right);
 
-  return BANK_GAP.test(gap) && !(right > left + 1 && LINE_BREAK.test(gap));
+  return (
+    BANK_GAP.test(gap) &&
+    !(right > left + 1 && LINE_BREAK.test(gap)) &&
+    !SENTENCE_BREAK.test(gap)
+  );
 };
 
 const readsAsBankNumber = (
@@ -1045,26 +1102,39 @@ const readsAsBase64Token = (source: TextSource, group: DigitGroup) => {
   );
 };
 
-const BANK_ATOM_CACHE = new WeakMap<TextSource, BankAtoms>();
+const BANK_ATOM_CACHE = new WeakMap<GuardView, BankAtoms>();
 
-const bankAtomsOf = (source: TextSource): BankAtoms => {
-  const cached = BANK_ATOM_CACHE.get(source);
+const bankAtomsOf = (view: GuardView): BankAtoms => {
+  const cached = BANK_ATOM_CACHE.get(view);
 
   if (cached !== undefined) {
     return cached;
   }
 
-  const built = bankAtomsIn(source);
+  const built = bankAtomsIn(view);
 
-  BANK_ATOM_CACHE.set(source, built);
+  BANK_ATOM_CACHE.set(view, built);
 
   return built;
 };
 
-const bankAtomsIn = (source: TextSource): BankAtoms => {
+const bankAtomsIn = (view: GuardView): BankAtoms => {
+  const { source } = view;
   const accounts: DigitRun[] = [];
 
-  const sortCodes: DigitRun[] = [];
+  const sortCodes: SortRun[] = [];
+
+  const carriesOf = (group: DigitGroup) =>
+    group.digits.some((position, index) => {
+      const previous = group.digits[index - 1];
+
+      return (
+        previous !== undefined &&
+        source.text
+          .slice(previous + 1, position)
+          .replaceAll(FORMATTING_NOISE, "").length > 0
+      );
+    });
 
   const collects = (group: DigitGroup) => {
     const { digits } = group;
@@ -1078,16 +1148,24 @@ const bankAtomsIn = (source: TextSource): BankAtoms => {
       return;
     }
 
+    const run: SortRun = {
+      carries: carriesOf(group),
+      end: group.end,
+      start: group.start,
+    };
+
     if (
       length === SORT_CODE_DIGITS &&
-      readsAsBankNumber(source, digits, SORT_BOUNDARIES)
+      readsAsBankNumber(source, digits, SORT_BOUNDARIES) &&
+      tokenBoundary(view, run)
     ) {
-      sortCodes.push({ end: group.end, start: group.start });
+      sortCodes.push(run);
     }
 
     if (
       length === ACCOUNT_DIGITS &&
-      readsAsBankNumber(source, digits, ACCOUNT_BOUNDARIES)
+      readsAsBankNumber(source, digits, ACCOUNT_BOUNDARIES) &&
+      readsAsAccountToken(view, run)
     ) {
       accounts.push({ end: group.end, start: group.start });
     }
@@ -1104,20 +1182,32 @@ const bankAtomsIn = (source: TextSource): BankAtoms => {
 
     const sortLast = digits.slice(ACCOUNT_DIGITS);
 
-    if (readsAsBankNumber(source, sortFirst, SORT_BOUNDARIES)) {
-      sortCodes.push(groupOf(sortFirst));
+    if (
+      readsAsBankNumber(source, sortFirst, SORT_BOUNDARIES) &&
+      tokenBoundary(view, groupOf(sortFirst))
+    ) {
+      sortCodes.push({ ...groupOf(sortFirst), carries: carriesOf(group) });
     }
 
-    if (readsAsBankNumber(source, accountLast, ACCOUNT_BOUNDARIES)) {
+    if (
+      readsAsBankNumber(source, accountLast, ACCOUNT_BOUNDARIES) &&
+      readsAsAccountToken(view, groupOf(accountLast))
+    ) {
       accounts.push(groupOf(accountLast));
     }
 
-    if (readsAsBankNumber(source, accountFirst, ACCOUNT_BOUNDARIES)) {
+    if (
+      readsAsBankNumber(source, accountFirst, ACCOUNT_BOUNDARIES) &&
+      readsAsAccountToken(view, groupOf(accountFirst))
+    ) {
       accounts.push(groupOf(accountFirst));
     }
 
-    if (readsAsBankNumber(source, sortLast, SORT_BOUNDARIES)) {
-      sortCodes.push(groupOf(sortLast));
+    if (
+      readsAsBankNumber(source, sortLast, SORT_BOUNDARIES) &&
+      tokenBoundary(view, groupOf(sortLast))
+    ) {
+      sortCodes.push({ ...groupOf(sortLast), carries: carriesOf(group) });
     }
   };
 
@@ -1143,8 +1233,86 @@ const rawRun = (source: TextSource, run: DigitRun): DigitRun => ({
 const overlaps = (run: DigitRun, spans: readonly DigitRun[]) =>
   spans.some((span) => span.start < run.end && run.start < span.end);
 
-const distanceBetween = (left: DigitRun, right: DigitRun) =>
-  left.start >= right.end ? left.start - right.end : right.start - left.end;
+interface ViewText {
+  readonly end: (position: number) => number;
+  readonly start: (position: number) => number;
+  readonly text: string;
+}
+
+const viewTextOf = (view: GuardView): ViewText => {
+  const { raw, rawEndOf, rawStartOf, text } = view.source;
+
+  return SQUEEZED_VIEWS.has(view.id)
+    ? { end: rawEndOf, start: rawStartOf, text: raw }
+    : {
+        end: (position) => position,
+        start: (position) => position,
+        text,
+      };
+};
+
+const tokenBoundary = (view: GuardView, run: DigitRun) => {
+  const boundaries = viewTextOf(view);
+
+  return (
+    !WORD_CHARACTER.test(
+      boundaries.text[boundaries.start(run.start) - 1] ?? ""
+    ) && !WORD_CHARACTER.test(boundaries.text[boundaries.end(run.end)] ?? "")
+  );
+};
+
+const yearIn = (digits: readonly number[], from: number) => {
+  const value = Number(digits.slice(from, from + 4).join(""));
+
+  return value >= FIRST_YEAR && value <= LAST_YEAR;
+};
+
+const readsAsCompactDate = (digits: readonly number[]) => {
+  if (!yearIn(digits, 0)) {
+    return false;
+  }
+
+  const month = Number(digits.slice(4, 6).join(""));
+
+  const day = Number(digits.slice(6, 8).join(""));
+
+  const serial = digits.slice(4, 6).join("");
+
+  return (
+    (month >= 1 && month <= 12 && day >= 1 && day <= 31) || serial === "00"
+  );
+};
+
+const readsAsReferenceYear = (
+  digits: readonly number[],
+  splitAtFour: boolean
+) =>
+  readsAsCompactDate(digits) ||
+  (splitAtFour && yearIn(digits, ACCOUNT_DIGITS - 4));
+
+const readsAsAccountToken = (view: GuardView, run: DigitRun) => {
+  if (!tokenBoundary(view, run)) {
+    return false;
+  }
+
+  const written = view.source.text.slice(run.start, run.end);
+
+  // oxlint-disable-next-line typescript/no-misused-spread -- a written account number holds digits and separators only.
+  const digitPositions = [...written].flatMap((character, index) =>
+    DIGIT.test(character) ? [index] : []
+  );
+
+  const splitAtFour =
+    digitPositions.length > ACCOUNT_DIGITS - 4 &&
+    (digitPositions[ACCOUNT_DIGITS - 4] ?? 0) -
+      (digitPositions[ACCOUNT_DIGITS - 5] ?? 0) >
+      1;
+
+  // oxlint-disable-next-line typescript/no-misused-spread -- digitsOf returns ASCII digits and nothing else.
+  const digits = [...digitsOf(written)].map(Number);
+
+  return !readsAsReferenceYear(digits, splitAtFour);
+};
 
 const FORMATTING_NOISE = /[\u200B-\u200D\u2060\uFEFF]/gu;
 
@@ -1297,16 +1465,32 @@ const recordOf = (raw: string, position: number): LineSpan => {
   return { end, start };
 };
 
+const quoteParity = (raw: string, from: number, to: number) => {
+  let quotes = 0;
+
+  for (let index = from; index < to; index += 1) {
+    if (raw[index] === '"') {
+      quotes += 1;
+    }
+  }
+
+  return quotes % 2 === 1;
+};
+
 const csvRecordEnd = (raw: string, position: number): number => {
-  let quoted = false;
+  const line = lineBoundsAt(raw, position);
+
+  let quoted = quoteParity(raw, line.start, position);
 
   for (let index = position; index < raw.length; index += 1) {
     const character = raw[index];
 
+    if (character === "\n" || character === "\r") {
+      return quoted ? raw.length : index;
+    }
+
     if (character === '"') {
       quoted = !quoted;
-    } else if (!quoted && (character === "\n" || character === "\r")) {
-      return index;
     }
   }
 
@@ -1365,19 +1549,170 @@ const crossesRawLine = (
   return RECORD_BREAK.test(source.raw.slice(from, to));
 };
 
-const labelledBefore = (
-  source: TextSource,
-  left: DigitRun,
-  right: DigitRun
-) => {
-  const first = Math.min(
-    source.rawStartOf(left.start),
-    source.rawStartOf(right.start)
+const wordsBefore = (text: string, position: number): readonly string[] => {
+  const from = Math.max(0, position - LABEL_WINDOW);
+
+  const window = text.slice(from, position).replaceAll(FORMATTING_NOISE, "");
+
+  return [...window.matchAll(WORD_TOKEN)]
+    .map((match) => match[0])
+    .slice(-LABEL_TOKENS);
+};
+
+const labelledAt = (text: string, position: number) => {
+  const tokens = wordsBefore(text, position)
+    .filter((token) => !LABEL_FILLERS.has(token.toLowerCase()))
+    .slice(-2);
+
+  const last = tokens.at(-1) ?? "";
+
+  return BANK_LABEL.test(tokens.join(" ")) || BANK_LAST_TOKEN.test(last);
+};
+
+const labelledBefore = (view: GuardView, run: DigitRun) => {
+  const { source } = view;
+
+  return (
+    labelledAt(source.text, run.start) ||
+    (SQUEEZED_VIEWS.has(view.id) &&
+      labelledAt(source.raw, source.rawStartOf(run.start)))
+  );
+};
+
+const FIELD_VALUE_TAIL = /[:=][ \t]*["'`[]?[ \t]*$/u;
+
+const fieldValueAt = (text: string, position: number) =>
+  FIELD_VALUE_TAIL.test(
+    text.slice(Math.max(0, position - LABEL_WINDOW), position)
   );
 
-  return BANK_WORD.test(
-    source.raw.slice(Math.max(0, first - PAIR_CONTEXT), first)
+const fieldValueBefore = (view: GuardView, run: DigitRun) => {
+  const { source } = view;
+
+  return (
+    fieldValueAt(source.text, run.start) ||
+    (SQUEEZED_VIEWS.has(view.id) &&
+      fieldValueAt(source.raw, source.rawStartOf(run.start)))
   );
+};
+
+const pairGap = (source: TextSource, left: DigitRun, right: DigitRun) => {
+  const first = left.start < right.start ? left : right;
+
+  const second = first === left ? right : left;
+
+  return source.text.slice(first.end, second.start);
+};
+
+const LINE_BREAKS_ALL = /\r\n|\r|\n/gu;
+
+const GAP_SEPARATORS = new Set([",", "/", "|", ":", ";", "-"]);
+
+const tightGap = (gap: string) => {
+  const breaks = [...gap.matchAll(LINE_BREAKS_ALL)].length;
+
+  if (breaks > 1) {
+    return false;
+  }
+
+  const rest = gap.replaceAll(LINE_BREAKS_ALL, "").replaceAll(/\s/gu, "");
+
+  return rest.length === 0 || (rest.length === 1 && GAP_SEPARATORS.has(rest));
+};
+
+const CELL_DELIMITER = /[,\t|]/u;
+
+const cellsIn = (line: string) => line.split(CELL_DELIMITER).length >= 3;
+
+const recordStartAbove = (raw: string, row: LineSpan): LineSpan => {
+  let reached = row;
+
+  let first = row;
+
+  for (;;) {
+    const previous = previousLine(raw, reached);
+
+    if (
+      previous === undefined ||
+      BLANK_LINE.test(raw.slice(previous.start, previous.end))
+    ) {
+      return first;
+    }
+
+    reached = previous;
+
+    first = previous;
+  }
+};
+
+const tableWitness = (view: GuardView, left: DigitRun, right: DigitRun) => {
+  const boundaries = viewTextOf(view);
+
+  const raw = boundaries.text;
+
+  const leftLine = lineBoundsAt(raw, boundaries.start(left.start));
+
+  const rightLine = lineBoundsAt(raw, boundaries.start(right.start));
+
+  const first = leftLine.start < rightLine.start ? leftLine : rightLine;
+
+  const last = leftLine.end > rightLine.end ? leftLine : rightLine;
+
+  if (last.end - first.start > RECORD_LIMIT) {
+    return false;
+  }
+
+  const headerLine = recordStartAbove(raw, first);
+
+  const header = raw.slice(headerLine.start, headerLine.end);
+
+  const row = raw.slice(first.start, last.end);
+
+  return (
+    headerLine.start < first.start &&
+    cellsIn(header) &&
+    cellsIn(row) &&
+    (BANK_PHRASE.test(header) || BANK_PHRASE.test(row))
+  );
+};
+
+const carriesPair = (
+  source: TextSource,
+  view: GuardView,
+  sortCode: SortRun,
+  account: DigitRun
+) => {
+  const labelledSort = labelledBefore(view, sortCode);
+
+  const labelledAccount = labelledBefore(view, account);
+
+  if (!sortCode.carries && !labelledSort && !labelledAccount) {
+    return tableWitness(view, sortCode, account);
+  }
+
+  if (labelledSort && labelledAccount) {
+    return true;
+  }
+
+  if (
+    (labelledSort && fieldValueBefore(view, account)) ||
+    (labelledAccount && fieldValueBefore(view, sortCode))
+  ) {
+    return true;
+  }
+
+  if (tableWitness(view, sortCode, account)) {
+    return true;
+  }
+
+  if (
+    SQUEEZED_VIEWS.has(view.id) &&
+    crossesRawLine(source, sortCode, account)
+  ) {
+    return false;
+  }
+
+  return tightGap(pairGap(source, sortCode, account));
 };
 
 const sameRecord = (record: RecordText, left: DigitRun, right: DigitRun) => {
@@ -1406,48 +1741,6 @@ const sameRecord = (record: RecordText, left: DigitRun, right: DigitRun) => {
   const span = recordOf(raw, first);
 
   return span.start <= second && second <= span.end;
-};
-
-const readsAsCsvRecord = (source: TextSource, position: number) => {
-  const { text } = source;
-
-  let from = position;
-
-  while (from > 0 && text[from - 1] !== "\n") {
-    from -= 1;
-  }
-
-  let to = position;
-
-  while (to < text.length && text[to] !== "\n") {
-    to += 1;
-  }
-
-  const row = text.slice(from, to).replace(CARRIAGE_RETURN, "");
-
-  const headerEnd = text.indexOf("\n");
-
-  const header = text.slice(0, headerEnd === -1 ? text.length : headerEnd);
-
-  return (
-    csvSpans(row).length > 2 &&
-    BANK_WORD.test(header) &&
-    row.length <= RECORD_LIMIT
-  );
-};
-
-const nearestContext = (text: string, runs: readonly DigitRun[]) => {
-  const first = Math.max(
-    0,
-    Math.min(...runs.map((run) => run.start)) - PAIR_CONTEXT
-  );
-
-  const last = Math.min(
-    text.length,
-    Math.max(...runs.map((run) => run.end)) + PAIR_CONTEXT
-  );
-
-  return text.slice(first, last).replaceAll(FORMATTING_NOISE, "");
 };
 
 const csvSpans = (line: string): readonly DigitRun[] => {
@@ -1638,7 +1931,7 @@ const bankRule = ({ allow, filePath, view }: RuleContext) => {
 
   const ibans = rawSpans(source, ibanSpansOf(view).suppressors);
 
-  const { accounts, sortCodes } = bankAtomsOf(source);
+  const { accounts, sortCodes } = bankAtomsOf(view);
 
   return sortCodes.flatMap((sortCode) => {
     if (overlaps(rawRun(source, sortCode), ibans)) {
@@ -1668,17 +1961,11 @@ const bankRule = ({ allow, filePath, view }: RuleContext) => {
         return false;
       }
 
-      const near = distanceBetween(sortCode, account) <= PAIR_WINDOW;
-
       if (!sameRecord(record, sortCode, account)) {
         return false;
       }
 
-      if (
-        SQUEEZED_VIEWS.has(view.id) &&
-        crossesRawLine(source, sortCode, account) &&
-        !labelledBefore(source, sortCode, account)
-      ) {
+      if (!carriesPair(source, view, sortCode, account)) {
         return false;
       }
 
@@ -1686,19 +1973,10 @@ const bankRule = ({ allow, filePath, view }: RuleContext) => {
         return false;
       }
 
-      if (
-        allowsDigits(
-          allow,
-          filePath,
-          source.text.slice(account.start, account.end)
-        )
-      ) {
-        return false;
-      }
-
-      return (
-        BANK_WORD.test(nearestContext(source.text, [sortCode, account])) ||
-        (!near && readsAsCsvRecord(source, sortCode.start))
+      return !allowsDigits(
+        allow,
+        filePath,
+        source.text.slice(account.start, account.end)
       );
     });
 
