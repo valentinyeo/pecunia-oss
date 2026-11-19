@@ -21,6 +21,7 @@ import {
 } from "../../client/pecunia/route.js";
 import { dashboardScreen } from "./dashboard.js";
 import { frame } from "./frame.js";
+import { investmentsScreen } from "./investments.js";
 import { routeTitle } from "./navigation.js";
 import { styles } from "./pecunia.stylex.js";
 
@@ -61,7 +62,7 @@ const screen = (model: PecuniaModel, h: HtmlBuilder<PecuniaMessage>): Html =>
   AppRoute.match<Html>(model.route, {
     Budgets: () => laterScreen(model, h),
     Dashboard: () => dashboardScreen(model.dashboard, h),
-    Investments: () => laterScreen(model, h),
+    Investments: () => investmentsScreen(model.investments, h),
     NotFound: () => notFound(h),
     Settings: () => laterScreen(model, h),
     Subscriptions: () => laterScreen(model, h),
