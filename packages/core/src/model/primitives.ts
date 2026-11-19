@@ -1,6 +1,4 @@
-import { DateTime, Schema } from "effect";
-
-import { decodeModel } from "./codec.js";
+import { Schema } from "effect";
 
 export const CurrencyCodeSchema = Schema.NonEmptyString.check(
   Schema.isPattern(/^[A-Z]{3}$/u)
@@ -85,23 +83,6 @@ export interface TimestampParts {
   readonly second: number;
   readonly year: number;
 }
-
-export const timestampOf = (text: string): Timestamp =>
-  decodeModel(TimestampSchema, text);
-
-export const timestampParts = (timestamp: Timestamp): TimestampParts => {
-  const parts = DateTime.toPartsUtc(DateTime.makeUnsafe(timestamp));
-
-  return Object.freeze({
-    day: parts.day,
-    hour: parts.hour,
-    millisecond: parts.millisecond,
-    minute: parts.minute,
-    month: parts.month,
-    second: parts.second,
-    year: parts.year,
-  });
-};
 
 const Uuid7 = Schema.String.check(Schema.isUUID(7));
 

@@ -746,3 +746,97 @@ describe("the sixty-fifth verdict reproductions stay closed", () => {
     ).toBe(false);
   });
 });
+
+const ownershipForgeries = (): readonly {
+  readonly name: string;
+  readonly value: unknown;
+}[] => {
+  const timestamp = Result.getOrThrow(
+    model.codecs.timestamp.decode("2024-02-01T09:00:00.000Z")
+  );
+
+  const money = moneyOf("EUR", 1000);
+  const nonePrototype = Object.getPrototypeOf(Option.none()) as object;
+
+  return [
+    // oxlint-disable-next-line unicorn/new-for-builtins, eslint/no-new-wrappers -- the gate must refuse a boxed primitive, and only the constructor builds one
+    { name: "a String object", value: new String(timestamp) },
+    // oxlint-disable-next-line unicorn/new-for-builtins, eslint/no-new-wrappers -- the gate must refuse a boxed primitive, and only the constructor builds one
+    { name: "a Number object", value: new Number(1200) },
+    {
+      name: "a timestamp carrying money",
+      value: Object.assign(timestamp, money),
+    },
+    {
+      name: "a singleton carrying money",
+      value: Object.assign(Object.create(nonePrototype) as object, {
+        rate: rateOf("0.85"),
+        value: money,
+      }),
+    },
+  ];
+};
+
+const exportedFunctions = (): readonly (readonly [
+  string,
+  (argument: unknown) => unknown,
+])[] =>
+  Object.entries(model).flatMap(([name, value]) => {
+    if (typeof value !== "function") {
+      return [];
+    }
+
+    const own: (readonly [string, (argument: unknown) => unknown])[] = [
+      [name, value as (argument: unknown) => unknown],
+    ];
+
+    for (const member of Object.getOwnPropertyNames(value)) {
+      const memberValue: unknown = Reflect.get(value, member);
+
+      if (typeof memberValue === "function") {
+        own.push([
+          `${name}.${member}`,
+          memberValue as (argument: unknown) => unknown,
+        ]);
+      }
+    }
+
+    return own;
+  });
+
+describe("an exempt function never hands back structure it built from an untrusted argument", () => {
+  it("refuses or returns a primitive at argument 1 for every forgery", () => {
+    let cases = 0;
+
+    for (const [name, call] of exportedFunctions()) {
+      if (!Object.hasOwn(exemptOperations, name)) {
+        continue;
+      }
+
+      for (const forgery of ownershipForgeries()) {
+        let outcome: unknown;
+        let refused = false;
+
+        try {
+          outcome = call(forgery.value);
+        } catch {
+          refused = true;
+        }
+
+        if (refused) {
+          cases += 1;
+
+          continue;
+        }
+
+        expect(
+          typeof outcome === "object" && outcome !== null,
+          `${name} returned structure built from ${forgery.name}`
+        ).toBe(false);
+        cases += 1;
+      }
+    }
+
+    expect(cases).toBeGreaterThanOrEqual(40);
+  });
+});

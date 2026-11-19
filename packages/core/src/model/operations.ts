@@ -13,6 +13,7 @@ import {
 } from "./money.js";
 import type { OperationEntry } from "./operation.js";
 import { rateTextOperation } from "./rate.js";
+import { timestampOfOperation, timestampPartsOperation } from "./timestamp.js";
 
 export const operations = {
   "BaseAmount.atRate": atRateOperation.entry,
@@ -27,6 +28,8 @@ export const operations = {
   sameCurrencyAmount: sameCurrencyAmountOperation.entry,
   sourceAmount: sourceAmountOperation.entry,
   subtractMoney: subtractMoneyOperation.entry,
+  timestampOf: timestampOfOperation.entry,
+  timestampParts: timestampPartsOperation.entry,
 } as const satisfies Readonly<Record<string, OperationEntry>>;
 
 export const exemptOperations = {
@@ -56,10 +59,6 @@ export const exemptOperations = {
   rateUnavailable:
     "an error factory whose field struct holds branded primitives and runs verified in its constructor",
   render: "the gate itself, and it takes the schema it gates with",
-  timestampOf:
-    "a factory that turns an ISO instant into a branded string through the codec, so it holds no domain object",
-  timestampParts:
-    "a read that takes a branded string and returns frozen primitives, so it holds no domain object",
   verified: "the gate itself, and it takes the schema it gates with",
 } as const satisfies Readonly<Record<string, string>>;
 

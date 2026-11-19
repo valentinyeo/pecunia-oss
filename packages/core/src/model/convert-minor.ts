@@ -22,6 +22,7 @@ import {
   rateText,
 } from "./rate.js";
 import type { Rate } from "./rate.js";
+import { ownedNone, ownedSome } from "./registry.js";
 
 const minorUnitExponents = new Map([
   ["BHD", 3],
@@ -69,8 +70,8 @@ export const minorUnitExponent: typeof minorUnitExponentOperation.apply =
 export const minorUnitsOf = (minor: bigint): Option.Option<MinorUnits> =>
   minor >= BigInt(Number.MIN_SAFE_INTEGER) &&
   minor <= BigInt(Number.MAX_SAFE_INTEGER)
-    ? Object.freeze(Option.some(decodeModel(MinorUnitsSchema, Number(minor))))
-    : Option.none();
+    ? ownedSome(decodeModel(MinorUnitsSchema, Number(minor)))
+    : ownedNone();
 
 const divideRoundHalfAwayFromZero = (
   numerator: bigint,

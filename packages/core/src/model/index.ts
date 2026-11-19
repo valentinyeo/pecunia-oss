@@ -115,7 +115,7 @@ export type {
   Transaction,
 } from "./types.js";
 
-export { timestampOf, timestampParts } from "./primitives.js";
+export { timestampOf, timestampParts } from "./timestamp.js";
 
 export type { TimestampParts } from "./primitives.js";
 

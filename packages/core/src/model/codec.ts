@@ -17,6 +17,7 @@ import {
   foreignLabel,
   isMade,
   madeAs,
+  ownedNone,
   ownPrototype,
   seal,
 } from "./registry.js";
@@ -831,8 +832,20 @@ const walkNode = (
   return undefined;
 };
 
-const frozenWrapper = (value: object): boolean =>
-  Array.isArray(value) || Option.isSome(value as Option.Option<unknown>);
+const sealSlot = (
+  parent: object,
+  key: Key,
+  ast: SchemaAST.AST | undefined,
+  seen: WeakSet<object>,
+  inherited: string | undefined
+): void => {
+  const current: unknown = Reflect.get(parent, key);
+  const owned = sealDecoded(ast, current, seen, inherited);
+
+  if (owned !== current) {
+    Reflect.set(parent, key, owned);
+  }
+};
 
 const sealChildren = (
   node: SchemaAST.AST,
@@ -843,19 +856,14 @@ const sealChildren = (
   if (Predicate.isTagged(node, "Objects")) {
     for (const field of node.propertySignatures) {
       if (Object.hasOwn(value, field.name)) {
-        sealDecoded(
-          field.type,
-          Reflect.get(value, field.name),
-          seen,
-          inherited
-        );
+        sealSlot(value, field.name, field.type, seen, inherited);
       }
     }
 
     for (const signature of node.indexSignatures) {
       for (const key of Reflect.ownKeys(value)) {
         if (!node.propertySignatures.some((field) => field.name === key)) {
-          sealDecoded(signature.type, Reflect.get(value, key), seen, inherited);
+          sealSlot(value, key, signature.type, seen, inherited);
         }
       }
     }
@@ -864,8 +872,8 @@ const sealChildren = (
   }
 
   if (Predicate.isTagged(node, "Arrays")) {
-    for (const entry of value as readonly unknown[]) {
-      sealDecoded(node.rest[0], entry, seen, inherited);
+    for (const index of (value as readonly unknown[]).keys()) {
+      sealSlot(value, index, node.rest[0], seen, inherited);
     }
 
     return;
@@ -900,7 +908,7 @@ const sealChildren = (
 
     if (Option.isOption(value)) {
       if (Option.isSome(value)) {
-        sealDecoded(parameter, value.value, seen, inherited);
+        sealSlot(value, "value", parameter, seen, inherited);
       }
 
       return;
@@ -910,18 +918,39 @@ const sealChildren = (
   }
 };
 
-function sealDecoded(
+function sealDecoded<T>(
   ast: SchemaAST.AST | undefined,
-  value: unknown,
+  value: T,
   seen: WeakSet<object>,
   inherited: string | undefined
-): void {
+): T {
   if (ast === undefined || typeof value !== "object" || value === null) {
-    return;
+    return value;
+  }
+
+  if (Option.isOption(value)) {
+    if (Option.isNone(value)) {
+      return ownedNone() as T;
+    }
+
+    if (seen.has(value)) {
+      return value;
+    }
+
+    seen.add(value);
+
+    const node = suspendOf(ast);
+    const kind = kindNames.get(node) ?? kindNames.get(ast) ?? inherited;
+
+    sealChildren(node, value, seen, kind);
+    seal("Option", value);
+    Object.freeze(value);
+
+    return value;
   }
 
   if (seen.has(value)) {
-    return;
+    return value;
   }
 
   seen.add(value);
@@ -931,13 +960,15 @@ function sealDecoded(
 
   sealChildren(node, value, seen, kind);
 
-  if (kind !== undefined && !Array.isArray(value) && !Option.isOption(value)) {
+  if (kind !== undefined && !Array.isArray(value)) {
     seal(kind, value);
   }
 
-  if (frozenWrapper(value)) {
+  if (Array.isArray(value)) {
     Object.freeze(value);
   }
+
+  return value;
 }
 
 const violationMessage = (violation: Violation): string => {
@@ -1102,16 +1133,13 @@ export function codec<S extends Codec>(
       strictResult(assertNoForeignKeys(input, handle), () =>
         Result.map(
           Schema.decodeUnknownResult(schema, strictOptions)(input),
-          (decoded) => {
+          (decoded) =>
             sealDecoded(
               schema.ast,
               decoded,
               new WeakSet<object>(),
               kindNames.get(schema.ast)
-            );
-
-            return decoded;
-          }
+            )
         )
       ),
     encode: (value) =>
@@ -1142,14 +1170,12 @@ export const decodeModel = <S extends Codec>(
 
   const decoded = Schema.decodeUnknownSync(schema, strictOptions)(input);
 
-  sealDecoded(
+  return sealDecoded(
     schema.ast,
     decoded,
     new WeakSet<object>(),
     kindNames.get(schema.ast)
   );
-
-  return decoded;
 };
 
 export function parse<T, E>(handle: ModelCodec<T, E>, input: unknown): T;

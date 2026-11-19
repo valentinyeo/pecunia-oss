@@ -1,5 +1,5 @@
 // oxlint-disable anti-slop/no-reflect-get, anti-slop/no-runtime-typeof, anti-slop/no-object-parameters, anti-slop/no-unknown-parameters, anti-slop/require-safety-comment-for-type-assertion, typescript/no-unsafe-type-assertion, typescript/no-unsafe-assignment -- this module is the one identity boundary: it labels what the model made and names what it did not
-import { DateTime } from "effect";
+import { DateTime, Option } from "effect";
 
 const madeKind = new WeakMap<object, string>();
 
@@ -31,6 +31,27 @@ export const seal = <T>(kind: string, value: T): T => {
 
   return value;
 };
+
+const prototypeOf = (value: object): object => {
+  const prototype: unknown = Object.getPrototypeOf(value);
+
+  return typeof prototype === "object" && prototype !== null
+    ? prototype
+    : Object.prototype;
+};
+
+ownPrototype(prototypeOf(Option.none()));
+
+ownPrototype(prototypeOf(Option.some(null)));
+
+export const ownedNone = (): Option.Option<never> => {
+  const none: Option.Option<never> = Object.create(prototypeOf(Option.none()));
+
+  return seal("Option", none);
+};
+
+export const ownedSome = <A>(value: A): Option.Option<A> =>
+  seal("Option", Option.some(value));
 
 export const isMade = (value: unknown): boolean =>
   typeof value === "object" && value !== null && madeKind.has(value);

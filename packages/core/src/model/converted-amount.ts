@@ -41,7 +41,7 @@ import {
 } from "./primitives.js";
 import { RateSchema, rateArgument, rateSample } from "./rate.js";
 import type { Rate } from "./rate.js";
-import { seal } from "./registry.js";
+import { ownedNone, ownedSome, seal } from "./registry.js";
 
 const conversionProof: unique symbol = Symbol("Converted");
 
@@ -135,7 +135,7 @@ export class ConvertedAmount {
 
   static #fromStored(stored: StoredConversion): Option.Option<ConvertedAmount> {
     if (stored.source.currency === stored.base.currency) {
-      return Option.none();
+      return ownedNone();
     }
 
     const base = BaseAmount.atRate(
@@ -145,18 +145,16 @@ export class ConvertedAmount {
     );
 
     if (Result.isFailure(base) || base.success.minor !== stored.base.minor) {
-      return Option.none();
+      return ownedNone();
     }
 
-    return Object.freeze(
-      Option.some(
-        new ConvertedAmount({
-          asOf: stored.asOf,
-          base: base.success,
-          rate: stored.rate,
-          source: stored.source,
-        })
-      )
+    return ownedSome(
+      new ConvertedAmount({
+        asOf: stored.asOf,
+        base: base.success,
+        rate: stored.rate,
+        source: stored.source,
+      })
     );
   }
 

@@ -12,6 +12,7 @@ import {
   QuantitySchema,
   TimestampSchema,
 } from "./primitives.js";
+import { ownedNone, ownedSome } from "./registry.js";
 
 export const InvestmentPlatformSchema = Schema.Struct({
   connector: Schema.Literals(["manual", "trading212"]),
@@ -94,7 +95,7 @@ const decodedHolding = (
   const fields = decodedFields(holding);
 
   if (holding.state !== "pending") {
-    return Option.some({
+    return ownedSome({
       ...fields,
       lastPrice: Option.getOrNull(holding.lastPrice),
       pricedAt: Option.getOrNull(holding.pricedAt),
@@ -103,10 +104,10 @@ const decodedHolding = (
   }
 
   if (Option.isSome(holding.lastPrice) || Option.isSome(holding.pricedAt)) {
-    return Option.none();
+    return ownedNone();
   }
 
-  return Option.some({
+  return ownedSome({
     ...fields,
     lastPrice: null,
     pricedAt: null,

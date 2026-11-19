@@ -4,7 +4,15 @@
 // oxlint-disable anti-slop/no-object-parameters, anti-slop/no-runtime-typeof, anti-slop/no-reflect-get -- the adversarial property test walks untrusted decoded trees on purpose
 
 import { expect, it } from "@effect/vitest";
-import { DateTime, Effect, Option, Predicate, Result, Schema } from "effect";
+import {
+  Chunk,
+  DateTime,
+  Effect,
+  Option,
+  Predicate,
+  Result,
+  Schema,
+} from "effect";
 import type { SchemaAST } from "effect";
 import { describe } from "vitest";
 
@@ -17,8 +25,12 @@ import type {
   CarriesArgument,
   OperationEntry,
 } from "../../src/model/operation.js";
-import { exemptOperations, operations } from "../../src/model/operations.js";
-import { madeAs } from "../../src/model/registry.js";
+import {
+  exemptOperations,
+  operationEntries,
+  operations,
+} from "../../src/model/operations.js";
+import { isMade, madeAs } from "../../src/model/registry.js";
 
 interface Handle {
   readonly name: string;
@@ -3788,5 +3800,324 @@ describe("every slot names the kind it takes and every value holds only model da
     }
 
     expect(cases).toBeGreaterThanOrEqual(700);
+  });
+});
+
+const OWNERSHIP_SEED = 0x5c_31_9a_e7;
+
+interface SharedEffectValue {
+  readonly name: string;
+  readonly value: unknown;
+}
+
+const singletonRows: readonly (readonly [string, unknown, unknown])[] = [
+  ["Option.none()", Option.none(), Option.none()],
+  ["Option.some(null)", Option.some(null), Option.some(null)],
+  ["Chunk.empty()", Chunk.empty(), Chunk.empty()],
+];
+
+const effectSingletons = (): readonly SharedEffectValue[] =>
+  singletonRows.flatMap(([name, first, second]) =>
+    first === second ? [{ name, value: first }] : []
+  );
+
+interface OwnershipWalk {
+  readonly lines: string[];
+  readonly nodes: number;
+}
+
+type NodeChild = readonly [string, unknown];
+
+const nodeChildren = (value: object, path: string): readonly NodeChild[] => {
+  if (Option.isOption(value)) {
+    return Option.isSome(value) ? [[`${path}.value`, value.value]] : [];
+  }
+
+  if (Array.isArray(value)) {
+    return (value as readonly unknown[]).map(
+      (entry, index) => [`${path}[${String(index)}]`, entry] as const
+    );
+  }
+
+  return Reflect.ownKeys(value).map(
+    (key) => [`${path}.${String(key)}`, Reflect.get(value, key)] as const
+  );
+};
+
+const ownershipWalk = (
+  value: unknown,
+  path: string,
+  label: string,
+  shared: readonly SharedEffectValue[]
+): OwnershipWalk => {
+  if (typeof value !== "object" || value === null) {
+    return { lines: [], nodes: 0 };
+  }
+
+  const sharedName = shared.find(
+    (candidate) => candidate.value === value
+  )?.name;
+
+  if (sharedName !== undefined) {
+    return { lines: [`${label}${path} is the shared ${sharedName}`], nodes: 0 };
+  }
+
+  const lines = Object.isFrozen(value) ? [] : [`${label}${path} is not frozen`];
+  const owned = Option.isOption(value) || Array.isArray(value) || isMade(value);
+
+  if (!owned) {
+    lines.push(`${label}${path} is a node the model does not own`);
+  }
+
+  let nodes = 1;
+
+  for (const [childPath, child] of nodeChildren(value, path)) {
+    const walk = ownershipWalk(child, childPath, label, shared);
+
+    lines.push(...walk.lines);
+    nodes += walk.nodes;
+  }
+
+  return { lines, nodes };
+};
+
+const domainSlots = (): readonly {
+  readonly entry: OperationEntry;
+  readonly index: number;
+}[] =>
+  operationEntries.flatMap((entry) =>
+    entry.arguments.flatMap((spec, index) =>
+      spec.kind === "carries" ? [{ entry, index }] : []
+    )
+  );
+
+const singletonForgery = (): object =>
+  Object.assign(
+    Object.create(Object.getPrototypeOf(Option.none()) as object) as object,
+    { rate: "0.85", value: "EUR" }
+  );
+
+const refusalMessageOf = (run: () => unknown): string => {
+  try {
+    run();
+
+    return "accepted";
+  } catch (error) {
+    return error instanceof Error ? error.message : String(error);
+  }
+};
+
+describe("the model owns every node it hands out", () => {
+  it("hands out only frozen, model-owned nodes and no Effect singleton, seeded", () => {
+    const shared = effectSingletons();
+    const keys = Object.keys(codecs) as readonly (keyof typeof codecs)[];
+    let cases = 0;
+    let nodes = 0;
+
+    expect(
+      shared.length,
+      "no Effect singleton holds one identity"
+    ).toBeGreaterThanOrEqual(2);
+
+    for (const [key, handle] of Object.entries(codecs) as readonly [
+      string,
+      Handle,
+    ][]) {
+      for (const wire of sealSamples.get(handle) ?? []) {
+        const decoded = handle.decode(wire);
+        const label = `codec ${key}`;
+
+        expect(
+          Result.isSuccess(decoded),
+          `${label} rejects its own valid sample`
+        ).toBe(true);
+
+        if (Result.isFailure(decoded)) {
+          continue;
+        }
+
+        const walk = ownershipWalk(decoded.success, "$", label, shared);
+
+        expect(
+          walk.lines,
+          `${label} carries a node it does not own`
+        ).toStrictEqual([]);
+        nodes += walk.nodes;
+        cases += 1;
+      }
+    }
+
+    for (let step = 0; step < 1400; step += 1) {
+      const key = keys[step % keys.length] ?? "money";
+      const handle: Handle = codecs[key];
+      const wires = sealSamples.get(handle) ?? [];
+      const input = wires[step % wires.length];
+      const label = `seed ${String(OWNERSHIP_SEED)} step ${String(step)} ${key}`;
+      const decoded = handle.decode(input);
+
+      expect(
+        Result.isSuccess(decoded),
+        `${label} rejects its own valid sample`
+      ).toBe(true);
+
+      if (Result.isFailure(decoded)) {
+        continue;
+      }
+
+      const walk = ownershipWalk(decoded.success, "$", label, shared);
+
+      expect(
+        walk.lines,
+        `${label} carries a node it does not own`
+      ).toStrictEqual([]);
+      nodes += walk.nodes;
+      cases += 1;
+    }
+
+    expect(cases).toBeGreaterThanOrEqual(700);
+    expect(nodes).toBeGreaterThanOrEqual(700);
+  });
+
+  it("refuses a wrapper, a boxed number and a shared singleton at every domain slot, seeded", () => {
+    const money = moneyOf("EUR", 1000);
+
+    const forgeries = [
+      { name: "a String object", value: new String(at) },
+      { name: "a Number object", value: new Number(1200) },
+      { name: "a timestamp carrying money", value: Object.assign(at, money) },
+      { name: "a shared singleton carrying money", value: singletonForgery() },
+    ] as const;
+
+    const slots = domainSlots();
+    const draw = seededDraw(OWNERSHIP_SEED + 7);
+    let cases = 0;
+
+    expect(
+      slots.length,
+      "the table declares domain slots"
+    ).toBeGreaterThanOrEqual(12);
+
+    for (const slot of slots) {
+      for (const forgery of forgeries) {
+        const label = `${slot.entry.name} argument ${String(slot.index + 1)} ${forgery.name}`;
+        const call = [...slot.entry.samples()];
+
+        call[slot.index] = forgery.value;
+
+        const message = sealRefusal(slot.entry, call);
+
+        expect(message, `${label} accepted`).not.toBe("accepted");
+        expect(message, `${label} does not name the argument`).toContain(
+          `${slot.entry.name} argument ${String(slot.index + 1)}`
+        );
+        cases += 1;
+      }
+    }
+
+    for (let step = 0; step < 800; step += 1) {
+      const slot = draw(slots);
+      const forgery = draw(forgeries);
+      const where = `${slot.entry.name} argument ${String(slot.index + 1)}`;
+      const label = `seed ${String(OWNERSHIP_SEED + 7)} step ${String(step)} ${where} ${forgery.name}`;
+      const call = [...slot.entry.samples()];
+
+      call[slot.index] = forgery.value;
+
+      const message = sealRefusal(slot.entry, call);
+
+      expect(message, `${label} accepted`).not.toBe("accepted");
+      expect(message, `${label} does not name the argument`).toContain(where);
+      cases += 1;
+    }
+
+    expect(cases).toBeGreaterThanOrEqual(700);
+  });
+
+  it("owns the None it hands out, so one attach cannot poison the next decode, as the seventy-seventh door showed", () => {
+    const invoice = parse(codecs.invoiceDocument, invoiceWire(false));
+    const amount = invoice.amount;
+
+    expect(Option.isNone(amount), "a null amount decodes to None").toBe(true);
+    expect(amount, "decode returns the shared None").not.toBe(Option.none());
+    expect(Object.isFrozen(amount), "a decoded None is frozen").toBe(true);
+    expect(isMade(amount), "a decoded None is registered").toBe(true);
+    expect(
+      () =>
+        Object.assign(amount, {
+          rate: rateOf("0.85"),
+          value: moneyOf("EUR", 1000),
+        }),
+      "an attach on a decoded None throws"
+    ).toThrow();
+
+    const again = parse(codecs.invoiceDocument, invoiceWire(false));
+
+    expect(again.amount, "two decodes share one None").not.toBe(amount);
+    expect(() => render(codecs.invoiceDocument, again)).not.toThrow();
+    expect(Result.isSuccess(codecs.invoiceDocument.encode(again))).toBe(true);
+    expect(() => render(codecs.invoiceDocument, invoice)).not.toThrow();
+
+    const source = parse(codecs.invoiceSource, invoiceSourceWire);
+
+    expect(Option.isNone(source.vendorPayeeId)).toBe(true);
+    expect(source.vendorPayeeId).not.toBe(Option.none());
+    expect(() =>
+      Object.assign(source.vendorPayeeId, { rate: moneyOf("EUR", 1000) })
+    ).toThrow();
+
+    const sourceAgain = parse(codecs.invoiceSource, invoiceSourceWire);
+
+    expect(() => render(codecs.invoiceSource, sourceAgain)).not.toThrow();
+    expect(Result.isSuccess(codecs.invoiceSource.encode(sourceAgain))).toBe(
+      true
+    );
+
+    const restored = model.ConvertedAmount.restore({
+      _tag: "Converted",
+      asOf: dateOf("2024-01-30"),
+      base: { currency: currencyOf("EUR"), minor: moneyOf("EUR", 1000).minor },
+      rate: rateOf("0.85"),
+      source: moneyOf("EUR", 1000),
+    });
+
+    expect(Option.isNone(restored), "a same-currency restore is None").toBe(
+      true
+    );
+    expect(restored, "a factory returns the shared None").not.toBe(
+      Option.none()
+    );
+    expect(Object.isFrozen(restored), "a factory None is frozen").toBe(true);
+    expect(isMade(restored), "a factory None is registered").toBe(true);
+  });
+});
+
+describe("a timestamp takes a registered Timestamp at the seventy-seventh door", () => {
+  const money = moneyOf("EUR", 1000);
+  const wrapped = Object.assign(at, money);
+
+  it("refuses a timestamp that carries money at timestampParts", () => {
+    const message = refusalMessageOf(() => model.timestampParts(wrapped));
+
+    expect(message).toContain("timestampParts argument 1");
+    expect(message).toContain("Timestamp");
+    expect(message).toContain("String");
+  });
+
+  it("refuses a timestamp that carries money at timestampOf", () => {
+    const message = refusalMessageOf(() => model.timestampOf(wrapped));
+
+    expect(message).toContain("timestampOf argument 1");
+    expect(message).toContain("Timestamp");
+    expect(message).toContain("String");
+  });
+
+  it("still reads the parts of a registered timestamp", () => {
+    const parts = model.timestampParts(at);
+
+    expect(parts.year).toBe(2024);
+    expect(parts.month).toBe(1);
+    expect(parts.day).toBe(31);
+    expect(model.timestampOf(at)).toBe(at);
+    expect(Object.isFrozen(parts)).toBe(true);
   });
 });
