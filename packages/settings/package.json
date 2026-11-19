@@ -24,6 +24,11 @@
       "types": "./src/settings-memory.ts",
       "import": "./dist/settings-memory.js",
       "default": "./dist/settings-memory.js"
+    },
+    "./store": {
+      "types": "./src/settings-store.ts",
+      "import": "./dist/settings-store.js",
+      "default": "./dist/settings-store.js"
     }
   },
   "scripts": {
