@@ -28,10 +28,13 @@ Every demo-book run also runs these, whichever feature you select:
 - `every-row-belongs-to-a-profile`
 - `demo-book-holds-made-up-identities`
 - `feature-map-matches-capabilities`
+- `parity-matches-old-behaviours`
 
 ## Keeping the map honest
 
 `scripts/check-feature-map.mjs` reads every capability implemented in the packages and apps and fails by name when one is on no feature page and not in the table below, when a page marks a feature `planned` while a capability for it exists, or when a page, the status table, and the repository disagree.
+
+`../parity/README.md` is the neighbouring map, one row per behaviour the old private app had, with `built`, `planned` or `dropped` and the ticket or reason behind it. `scripts/check-parity.mjs` reads it and fails by name when a row has no status or where, when a `built` row points at a capability, command or file that is not here, when a `planned` row names no ticket, when a `dropped` row gives no reason, or when a behaviour appears twice. `--gaps` prints the planned rows with no ticket.
 
 The expectation ids in a page must match the declarations in `scripts/step-table.json` exactly: the verdict fails when a page lists an id the table does not declare, and when the table declares an id no page covers. A behavior the app no longer does is either doc drift or a product regression: fix the map for drift, report the regression and keep it out of the map fix.
 

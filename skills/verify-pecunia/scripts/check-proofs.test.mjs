@@ -766,7 +766,7 @@ test("each page expectation id is declared once and resolves to a value", () => 
     step.expectations.map((expectation) => expectation.id)
   );
 
-  assert.equal(new Set(pageExpectations.crossCutting).size, 5);
+  assert.equal(new Set(pageExpectations.crossCutting).size, 6);
   assert.equal(new Set(ids).size, ids.length, "a page repeats an id");
   assert.deepEqual(
     [...tableIds].toSorted((left, right) => left.localeCompare(right)),
