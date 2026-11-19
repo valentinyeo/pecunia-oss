@@ -402,6 +402,7 @@ const JOIN_HINT = new RegExp(
   [
     `[^\\s]=[^A-Za-z0-9\\r\\n]{0,8}${LINE_BREAK_SOURCE}`,
     `[A-Za-z0-9+/_-]{8,}={0,2}[ \\t]*${LINE_BREAK_SOURCE}[ \\t]*${WRAPPED_LINE_SOURCE}[^A-Za-z0-9+/_\\r\\n]{0,80}[ \\t]*[A-Za-z0-9+/_-]+`,
+    `[A-Za-z0-9+/_-]{16,}={0,2}[ \\t]*${LINE_BREAK_SOURCE}[^\\r\\n]{0,40}[A-Za-z0-9+/_-]{16,}`,
     `[A-Za-z0-9+/_-]{16,}={0,2}\\r(?!\\n)[A-Za-z0-9+/_-]{4,}`,
     `<[A-Za-z/!][^>\\r\\n]*${LINE_BREAK_SOURCE}[ \\t]*${WRAPPED_LINE_SOURCE}`,
   ].join("|"),
@@ -417,13 +418,17 @@ const BASE64_LEAD = new Set(["+", "/", "-", "_"]);
 
 const CONTINUATION_LEAD = new Set(["+", "/", "-"]);
 
+const AMBIGUOUS_LEAD = new Set(["+", "-", "/", "_", "="]);
+
+type LeadReading = ReadonlySet<string>;
+
+const NO_LEADS: LeadReading = new Set();
+
 const BASE64_LINE = /^[A-Za-z0-9+/_-]{8,}={0,2}$/u;
 
 const ORDINAL_LEAD = /^\d{1,4}[.)][ \t]+/u;
 
 const MARKUP_LEAD = /^<[A-Za-z/!][^<>]*>/u;
-
-const CELL_BREAK = /[|\t]/gu;
 
 const LETTER_OR_DIGIT_CHARACTER = /[\p{L}\p{N}]/u;
 
@@ -435,7 +440,8 @@ const readsAsBase64Run = (run: string) =>
 const layerLength = (
   line: string,
   index: number,
-  continuation: boolean
+  continuation: boolean,
+  keep: LeadReading
 ): number => {
   const rest = line.slice(index);
 
@@ -469,6 +475,10 @@ const layerLength = (
     return 0;
   }
 
+  if (AMBIGUOUS_LEAD.has(head)) {
+    return keep.has(head) ? 0 : 1;
+  }
+
   if (
     BASE64_LEAD.has(head) &&
     readsAsBase64Run(rest.replace(TRAILING_SPACE, ""))
@@ -486,11 +496,15 @@ const layerLength = (
   return 1;
 };
 
-const payloadStart = (line: string, continuation: boolean): number => {
+const payloadStart = (
+  line: string,
+  continuation: boolean,
+  keep: LeadReading
+): number => {
   let index = 0;
 
   for (;;) {
-    const step = layerLength(line, index, continuation);
+    const step = layerLength(line, index, continuation, keep);
 
     if (step === 0) {
       return index;
@@ -500,81 +514,150 @@ const payloadStart = (line: string, continuation: boolean): number => {
   }
 };
 
-interface LineBounds {
-  readonly end: number;
+interface TableCell {
   readonly start: number;
+  readonly text: string;
 }
 
-const cellBounds = (line: string, from: number): LineBounds | undefined => {
-  let chosen: LineBounds | undefined;
+interface RawCell {
+  readonly start: number;
+  readonly text: string;
+}
 
-  let cursor = from + 1;
+interface LineReading {
+  readonly cells: readonly TableCell[] | undefined;
+  readonly content: string;
+  readonly contentStart: number;
+  readonly separator: boolean;
+}
 
-  for (;;) {
-    CELL_BREAK.lastIndex = cursor;
+interface StrippedLine extends LineReading {
+  readonly continuation: boolean;
+  readonly lineStart: number;
+  readonly raw: string;
+}
 
-    const breakAt = CELL_BREAK.exec(line);
+interface Piece {
+  readonly start: number;
+  readonly text: string;
+}
 
-    const end = breakAt?.index ?? line.length;
+const TABLE_SEPARATOR_CELL = /^:?-+:?$/u;
 
-    const cell = line.slice(cursor, end);
+const rawCells = (line: string, from: number): readonly RawCell[] => {
+  const cells: RawCell[] = [];
 
-    const start = cursor + payloadStart(cell, false);
+  let text = "";
 
-    const content = cell.slice(start - cursor).replace(TRAILING_SPACE, "");
+  let start = from;
 
-    if (content.length > 0) {
-      chosen = { end: start + content.length, start };
+  let index = from;
+
+  while (index < line.length) {
+    const character = line[index] ?? "";
+
+    if (character === "\\" && line[index + 1] === "|") {
+      text += "\\|";
+
+      index += 2;
+
+      continue;
     }
 
-    if (breakAt === null) {
-      return chosen;
+    if (character === "|") {
+      cells.push({ start, text });
+
+      text = "";
+
+      start = index + 1;
+
+      index += 1;
+
+      continue;
     }
 
-    cursor = end + 1;
-  }
-};
+    text += character;
 
-const contentBounds = (line: string, continuation: boolean): LineBounds => {
-  let start = payloadStart(line, continuation);
-
-  let end = line.length;
-
-  if (line[start] === "|") {
-    const cell = cellBounds(line, start);
-
-    if (cell === undefined) {
-      return { end: start, start };
-    }
-
-    const cellEnd = cell.end;
-
-    ({ start } = cell);
-
-    start += payloadStart(line.slice(start, cellEnd), continuation);
-
-    end = cellEnd;
+    index += 1;
   }
 
-  return { end, start };
+  cells.push({ start, text });
+
+  return cells;
 };
 
-export const containerContent = (line: string): string => {
-  const trimmed = line.replace(TRAILING_SPACE, "");
+const tableCells = (
+  line: string,
+  from: number,
+  keep: LeadReading
+): readonly TableCell[] =>
+  rawCells(line, from).flatMap((cell) => {
+    const trimmed = cell.text.replace(TRAILING_SPACE, "");
 
-  const { end, start } = contentBounds(trimmed, false);
+    const lead = payloadStart(trimmed, false, keep);
 
-  return trimmed.slice(start, end);
+    const text = trimmed.slice(lead);
+
+    return text.length === 0 ? [] : [{ start: cell.start + lead, text }];
+  });
+
+const readsAsSeparatorRow = (line: string, from: number) => {
+  const named = rawCells(line, from).filter(
+    (cell) => cell.text.trim().length > 0
+  );
+
+  return (
+    named.length > 0 &&
+    named.every((cell) => TABLE_SEPARATOR_CELL.test(cell.text.trim()))
+  );
 };
 
-const stripContainers = (text: string): DecodedText | undefined => {
-  if (!JOIN_HINT.test(text)) {
-    return undefined;
+const readLine = (
+  line: string,
+  continuation: boolean,
+  keep: LeadReading
+): LineReading => {
+  const start = payloadStart(line, continuation, keep);
+
+  if (line[start] !== "|") {
+    return {
+      cells: undefined,
+      content: line.slice(start),
+      contentStart: start,
+      separator: false,
+    };
   }
 
-  const parts: string[] = [];
+  const cells = tableCells(line, start, keep);
 
-  const origins: number[] = [];
+  const last = cells.at(-1);
+
+  return {
+    cells,
+    content: last?.text ?? "",
+    contentStart: last?.start ?? start,
+    separator: readsAsSeparatorRow(line, start),
+  };
+};
+
+export const containerContent = (line: string): string =>
+  readLine(line.replace(TRAILING_SPACE, ""), false, NO_LEADS).content;
+
+const shifted = (reading: LineReading, offset: number): LineReading => ({
+  cells: reading.cells?.map((cell) => ({
+    start: cell.start + offset,
+    text: cell.text,
+  })),
+  content: reading.content,
+  contentStart: reading.contentStart + offset,
+  separator: reading.separator,
+});
+
+const strippedLines = (
+  text: string,
+  keep: LeadReading
+): readonly StrippedLine[] => {
+  const lines: StrippedLine[] = [];
 
   let position = 0;
 
@@ -589,30 +672,339 @@ const stripContainers = (text: string): DecodedText | undefined => {
 
     const line = text.slice(position, lineEnd).replace(TRAILING_SPACE, "");
 
-    const { end, start } = contentBounds(line, continuation);
+    const reading = readLine(line, continuation, keep);
 
-    const content = line.slice(start, end);
-
-    parts.push(content);
-
-    for (let index = 0; index < content.length; index += 1) {
-      origins.push(position + start + index);
-    }
+    lines.push({
+      ...shifted(reading, position),
+      continuation,
+      lineStart: position,
+      raw: line,
+    });
 
     if (lineBreak === null) {
       break;
     }
 
-    parts.push("\n");
-
-    origins.push(lineBreak.index + lineBreak[0].length - 1);
-
-    continuation = content.replace(TRAILING_SPACE, "").endsWith("=");
+    continuation = reading.content.endsWith("=");
 
     position = lineBreak.index + lineBreak[0].length;
   }
 
+  return lines;
+};
+
+const joinedView = (
+  pieces: readonly Piece[],
+  separator: string
+): DecodedText => {
+  const parts: string[] = [];
+
+  const origins: number[] = [];
+
+  for (const [index, piece] of pieces.entries()) {
+    if (index > 0) {
+      parts.push(separator);
+
+      origins.push(
+        ...Array.from({ length: separator.length }, () => piece.start)
+      );
+    }
+
+    parts.push(piece.text);
+
+    origins.push(
+      ...Array.from(
+        { length: piece.text.length },
+        (_, step) => piece.start + step
+      )
+    );
+  }
+
   return { origins: Int32Array.from(origins), text: parts.join("") };
+};
+
+const prefixView = (lines: readonly StrippedLine[]): DecodedText =>
+  joinedView(
+    lines.map((line) => ({ start: line.contentStart, text: line.content })),
+    "\n"
+  );
+
+const rowView = (rows: readonly StrippedLine[]): DecodedText => {
+  const parts: string[] = [];
+
+  const origins: number[] = [];
+
+  for (const [index, row] of rows.entries()) {
+    if (index > 0) {
+      parts.push("\n");
+
+      origins.push(row.lineStart);
+    }
+
+    for (const [cellIndex, cell] of (row.cells ?? []).entries()) {
+      if (cellIndex > 0) {
+        parts.push(" ");
+
+        origins.push(cell.start);
+      }
+
+      parts.push(cell.text);
+
+      origins.push(
+        ...Array.from(
+          { length: cell.text.length },
+          (_, step) => cell.start + step
+        )
+      );
+    }
+  }
+
+  return { origins: Int32Array.from(origins), text: parts.join("") };
+};
+
+const tableViews = (lines: readonly StrippedLine[]): readonly DecodedText[] => {
+  const views: DecodedText[] = [];
+
+  let block: StrippedLine[] = [];
+
+  const flush = () => {
+    const rows = block.filter(
+      (line) =>
+        !line.separator && line.cells !== undefined && line.cells.length > 0
+    );
+
+    block = [];
+
+    if (rows.length === 0) {
+      return;
+    }
+
+    const columns = Math.max(...rows.map((row) => row.cells?.length ?? 0));
+
+    for (let column = 0; column < columns; column += 1) {
+      views.push(
+        joinedView(
+          rows.map((row) => {
+            const cell = row.cells?.[column];
+
+            return cell ?? { start: row.lineStart, text: "" };
+          }),
+          "\n"
+        )
+      );
+    }
+
+    if (columns > 1) {
+      views.push(rowView(rows));
+    }
+  };
+
+  for (const line of lines) {
+    if (line.cells === undefined) {
+      flush();
+
+      continue;
+    }
+
+    block.push(line);
+  }
+
+  flush();
+
+  return views;
+};
+
+const ambiguousLeadsIn = (fragment: string): readonly string[] => {
+  const found: string[] = [];
+
+  let index = 0;
+
+  for (;;) {
+    const step = layerLength(fragment, index, false, NO_LEADS);
+
+    if (step === 0) {
+      return found;
+    }
+
+    const head = fragment[index] ?? "";
+
+    if (step === 1 && AMBIGUOUS_LEAD.has(head)) {
+      found.push(head);
+    }
+
+    index += step;
+  }
+};
+
+interface LeadScan {
+  readonly lines: readonly string[];
+  readonly table: ReadonlySet<string>;
+}
+
+const scanLeads = (text: string): LeadScan => {
+  const lines: string[] = [];
+
+  const table = new Set<string>();
+
+  for (const line of text.split(LINE_SPLIT)) {
+    const trimmed = line.replace(TRAILING_SPACE, "");
+
+    for (const character of ambiguousLeadsIn(trimmed)) {
+      lines.push(character);
+    }
+
+    if (!trimmed.includes("|")) {
+      continue;
+    }
+
+    for (const fragment of trimmed.split(/(?<!\\)\|/u)) {
+      for (const character of ambiguousLeadsIn(fragment)) {
+        table.add(character);
+      }
+    }
+  }
+
+  return { lines, table };
+};
+
+interface LeadPolicy {
+  readonly classes: readonly string[];
+  readonly keep: LeadReading;
+}
+
+const leadPolicies = (classes: readonly string[]): readonly LeadPolicy[] => {
+  const policies: LeadPolicy[] = [{ classes: [], keep: NO_LEADS }];
+
+  for (const character of classes) {
+    policies.push({ classes: [character], keep: new Set([character]) });
+  }
+
+  if (classes.length > 1) {
+    policies.push({ classes, keep: AMBIGUOUS_LEAD });
+  }
+
+  return policies;
+};
+
+const touchesTable = (policy: LeadPolicy, tableClasses: ReadonlySet<string>) =>
+  policy.classes.length === 0 ||
+  policy.classes.some((character) => tableClasses.has(character));
+
+const WRAP_CHUNK = /^[A-Za-z0-9+/_-]{4,}={0,2}$/u;
+
+const readsAsWrapChunk = (content: string) =>
+  content.endsWith("=") || content.startsWith("=") || WRAP_CHUNK.test(content);
+
+const reread = (
+  lines: readonly StrippedLine[],
+  keep: LeadReading,
+  indexes: ReadonlySet<number>
+): readonly StrippedLine[] =>
+  lines.flatMap((line, index) =>
+    indexes.has(index)
+      ? [
+          {
+            ...shifted(
+              readLine(line.raw, line.continuation, keep),
+              line.lineStart
+            ),
+            continuation: line.continuation,
+            lineStart: line.lineStart,
+            raw: line.raw,
+          },
+        ]
+      : []
+  );
+
+const joinsWith = (left: StrippedLine, right: StrippedLine) =>
+  left.content.endsWith("=") ||
+  (readsAsWrapChunk(left.content) && readsAsWrapChunk(right.content));
+
+const wrapRuns = (lines: readonly StrippedLine[]): ReadonlySet<number> => {
+  const indexes = new Set<number>();
+
+  for (const [index, line] of lines.entries()) {
+    if (line.content.length === 0) {
+      indexes.add(index);
+    }
+  }
+
+  for (let index = 0; index + 1 < lines.length; index += 1) {
+    const left = lines[index];
+
+    const right = lines[index + 1];
+
+    if (left === undefined || right === undefined) {
+      continue;
+    }
+
+    if (left.content.length === 0 || right.content.length === 0) {
+      continue;
+    }
+
+    if (!joinsWith(left, right)) {
+      continue;
+    }
+
+    for (const nearby of [index - 1, index, index + 1, index + 2]) {
+      if (nearby >= 0 && nearby < lines.length) {
+        indexes.add(nearby);
+      }
+    }
+  }
+
+  return indexes;
+};
+
+const TABLE_HINT = new RegExp(
+  [
+    `\\|[^\\r\\n]*=[ \\t]*(?:\\|[^\\r\\n]*)?${LINE_BREAK_SOURCE}[^\\r\\n]*\\|`,
+    `\\|[^\\r\\n]*[A-Za-z0-9+/_-]{8,}[^\\r\\n]*${LINE_BREAK_SOURCE}[^\\r\\n]*\\|`,
+  ].join("|"),
+  "u"
+);
+
+const stripContainers = (text: string): readonly DecodedText[] => {
+  if (!JOIN_HINT.test(text) && !TABLE_HINT.test(text)) {
+    return [];
+  }
+
+  const views: DecodedText[] = [];
+
+  const seen = new Set<string>();
+
+  const add = (view: DecodedText) => {
+    if (seen.has(view.text)) {
+      return;
+    }
+
+    seen.add(view.text);
+
+    views.push(view);
+  };
+
+  const scan = scanLeads(text);
+
+  const plain = strippedLines(text, NO_LEADS);
+
+  const wrapped = wrapRuns(plain);
+
+  for (const policy of leadPolicies([...new Set(scan.lines)].toSorted())) {
+    const lines =
+      policy.classes.length === 0 ? plain : reread(plain, policy.keep, wrapped);
+
+    add(prefixView(lines));
+
+    if (!touchesTable(policy, scan.table)) {
+      continue;
+    }
+
+    for (const view of tableViews(lines)) {
+      add(view);
+    }
+  }
+
+  return views;
 };
 
 interface Decoder {
@@ -786,7 +1178,7 @@ export interface DecodeChains {
     readonly stripped: readonly string[];
     readonly written: readonly string[];
   };
-  readonly stripped: StrippedChain | undefined;
+  readonly stripped: readonly StrippedChain[];
 }
 
 const chainFrom = (start: DecodedText, record?: Recorder): DecodeChain => {
@@ -824,28 +1216,24 @@ export const decodeChains = (text: string): DecodeChains => {
     written.add(id);
   });
 
-  const containerView = stripContainers(text);
+  const chains: StrippedChain[] = [];
 
-  if (containerView === undefined) {
-    return {
-      asWritten,
-      ranOn: { stripped: [], written: [...written] },
-      stripped: undefined,
-    };
+  for (const view of stripContainers(text)) {
+    const chain = chainFrom(view, (id) => {
+      stripped.add(id);
+    });
+
+    chains.push({
+      settled: chain.settled,
+      text: chain.unwrapped.text,
+      view: view.text,
+    });
   }
-
-  const chain = chainFrom(containerView, (id) => {
-    stripped.add(id);
-  });
 
   return {
     asWritten,
     ranOn: { stripped: [...stripped], written: [...written] },
-    stripped: {
-      settled: chain.settled,
-      text: chain.unwrapped.text,
-      view: containerView.text,
-    },
+    stripped: chains,
   };
 };
 

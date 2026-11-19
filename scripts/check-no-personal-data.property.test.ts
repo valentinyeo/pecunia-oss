@@ -2207,3 +2207,226 @@ describe("a container prefix is read by what it is not, not from a list", () => 
     expect(noisy).toEqual([]);
   }, 300_000);
 });
+
+const EVERY_READING_SEED = SEED + 807_080;
+
+const EVERY_READING_CASES = 1560;
+
+const EVERY_READING_HARMLESS = 640;
+
+const DIFF_MARKERS = ["+", "-", " "] as const;
+
+const tableRowOf = (cells: readonly string[]) => `| ${cells.join(" | ")} |`;
+
+const tableOf = (
+  columns: number,
+  at: number,
+  lines: readonly string[]
+): readonly string[] => [
+  tableRowOf(
+    Array.from({ length: columns }, (_, index) => `column ${index + 1}`)
+  ),
+  tableRowOf(Array.from({ length: columns }, () => "---")),
+  ...lines.map((line) =>
+    tableRowOf(
+      Array.from({ length: columns }, (_, index) =>
+        index === at ? line : "saved"
+      )
+    )
+  ),
+];
+
+const diffOf = (
+  marker: string,
+  spaced: boolean,
+  lines: readonly string[]
+): readonly string[] => [
+  `@@ -1,${lines.length} +1,${lines.length} @@`,
+  ...lines.map((line) => `${marker}${spaced ? " " : ""}${line}`),
+];
+
+const everyReadingLabel = (
+  seed: number,
+  index: number,
+  parts: readonly (string | number)[]
+) => `seed ${seed} case ${index} ${parts.join(" ")}`;
+
+const wrappedCase = (
+  random: Random,
+  text: string,
+  encode: (value: string, random: Random) => string,
+  endings: readonly string[]
+) => {
+  const lines = payloadLines(encode(text, random));
+
+  const columns = random.between(2, 5);
+
+  const at = random.pick([0, Math.floor((columns - 1) / 2), columns - 1]);
+
+  const layout = random.pick(["table", "diff"] as const);
+
+  const block =
+    layout === "table"
+      ? tableOf(columns, at, lines)
+      : diffOf(random.pick(DIFF_MARKERS), random.pick([true, false]), lines);
+
+  const depth = random.between(0, 3);
+
+  const prefixes = Array.from({ length: depth }, () =>
+    random.pick(CONTAINER_PREFIXES)
+  );
+
+  const indents = Array.from({ length: depth }, () => random.between(0, 8));
+
+  const ending = random.pick(endings);
+
+  return {
+    document: layered(block.join("\n"), prefixes, indents, ending),
+    label: [
+      layout,
+      `columns ${columns}`,
+      `at ${at}`,
+      `depth ${depth}`,
+      `prefixes ${JSON.stringify(prefixes)}`,
+      `indents ${JSON.stringify(indents)}`,
+      `ending ${JSON.stringify(ending)}`,
+    ],
+  };
+};
+
+const HARMLESS_WRAPS = DECODER_WRAPS.filter(
+  (wrap) => wrap.name !== "tag" && wrap.name !== "zero-width"
+);
+
+const HARMLESS_VALUES: readonly {
+  readonly name: string;
+  readonly path: string;
+  readonly text: (random: Random) => string;
+}[] = [
+  {
+    name: "sort-only",
+    path: "docs/payments.md",
+    text: (random) => `sort code ${plainSortCode(random)}`,
+  },
+  {
+    name: "placeholder-mailbox",
+    path: "docs/mail-export.md",
+    text: (random) =>
+      `${random.pick(mailboxNames)}@${random.pick(PLACEHOLDER_DOMAINS)}`,
+  },
+  {
+    name: "non-checksum-iban",
+    path: "docs/payments.md",
+    text: (random) => nonChecksumIban(random),
+  },
+  {
+    name: "example-hostname",
+    path: "README.md",
+    text: () => "example.pages.dev",
+  },
+];
+
+const HARMLESS_RECORDS: readonly {
+  readonly build: (sort: string, account: string) => string;
+  readonly name: string;
+  readonly path: string;
+}[] = [
+  {
+    build: (sort, account) =>
+      [`sort_code: ${sort}`, "", `account_number: ${account}`].join("\n"),
+    name: "blank-line-split",
+    path: "apps/cli/demo.yaml",
+  },
+  {
+    build: (sort, account) =>
+      [
+        "first:",
+        `  sort_code: ${sort}`,
+        "second:",
+        `  account_number: ${account}`,
+      ].join("\n"),
+    name: "separate-entries",
+    path: "apps/cli/demo.yaml",
+  },
+];
+
+describe("a container is read every way it can be read", () => {
+  it(`reads ${EVERY_READING_CASES} seeded tables and diffs over every decoder`, () => {
+    const random = makeRandom(EVERY_READING_SEED);
+
+    const missed: string[] = [];
+
+    for (let index = 0; index < EVERY_READING_CASES; index += 1) {
+      const kind = random.pick(PREFIX_PAYLOADS);
+
+      const wrap = random.pick(DECODER_WRAPS);
+
+      const { document, label } = wrappedCase(
+        random,
+        kind.text(random),
+        wrap.encode,
+        LINE_ENDINGS
+      );
+
+      const rules = rulesOf(kind.path, document);
+
+      if (!kind.rules.every((rule) => rules.includes(rule))) {
+        missed.push(
+          `${everyReadingLabel(EVERY_READING_SEED, index, [kind.name, wrap.name, ...label, JSON.stringify(rules)])}: ${document}`
+        );
+      }
+    }
+
+    expect(missed).toEqual([]);
+  }, 600_000);
+
+  it(`keeps ${EVERY_READING_HARMLESS} seeded harmless values quiet in every reading`, () => {
+    const random = makeRandom(EVERY_READING_SEED + 1);
+
+    const noisy: string[] = [];
+
+    for (let index = 0; index < EVERY_READING_HARMLESS; index += 1) {
+      if (index % 3 === 2) {
+        const split = random.pick(HARMLESS_RECORDS);
+
+        const ending = random.pick(LINE_ENDINGS);
+
+        const text = split
+          .build(plainSortCode(random), plainAccount(random))
+          .split("\n")
+          .join(ending);
+
+        const rules = rulesOf(split.path, text);
+
+        if (rules.length > 0) {
+          noisy.push(
+            `${everyReadingLabel(EVERY_READING_SEED + 1, index, [split.name, `ending ${JSON.stringify(ending)}`, JSON.stringify(rules)])}: ${text}`
+          );
+        }
+
+        continue;
+      }
+
+      const document = random.pick(HARMLESS_VALUES);
+
+      const wrap = random.pick(HARMLESS_WRAPS);
+
+      const { document: built, label } = wrappedCase(
+        random,
+        document.text(random),
+        wrap.encode,
+        LINE_ENDINGS
+      );
+
+      const rules = rulesOf(document.path, built);
+
+      if (rules.length > 0) {
+        noisy.push(
+          `${everyReadingLabel(EVERY_READING_SEED + 1, index, [document.name, wrap.name, ...label, JSON.stringify(rules)])}: ${built}`
+        );
+      }
+    }
+
+    expect(noisy).toEqual([]);
+  }, 600_000);
+});

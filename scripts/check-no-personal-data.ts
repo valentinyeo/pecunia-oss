@@ -643,7 +643,7 @@ export interface GuardView {
 
 interface BuiltViews {
   readonly settled: boolean;
-  readonly view: (id: ViewId) => GuardView;
+  readonly views: (id: ViewId) => readonly GuardView[];
 }
 
 const buildViews = (text: string): BuiltViews => {
@@ -693,17 +693,36 @@ const buildViews = (text: string): BuiltViews => {
       : viewSource(text, unwrapped.text, undefined, starts)
   );
 
-  sources.set(
-    "stripped",
-    chains.stripped === undefined ||
-      chains.stripped.text.text === unwrapped.text.text
-      ? (sources.get("unwrapped") ?? raw)
-      : viewSource(text, chains.stripped.text, chains.stripped.view, starts)
-  );
+  const strippedSources: TextSource[] = [];
+
+  const seenStripped = new Set<string>();
+
+  for (const chain of chains.stripped) {
+    if (
+      chain.text.text === unwrapped.text.text ||
+      seenStripped.has(chain.text.text)
+    ) {
+      continue;
+    }
+
+    seenStripped.add(chain.text.text);
+
+    strippedSources.push(viewSource(text, chain.text, chain.view, starts));
+  }
+
+  const single = (id: ViewId): GuardView => ({
+    id,
+    source: sources.get(id) ?? raw,
+  });
 
   return {
-    settled: chains.asWritten.settled && (chains.stripped?.settled ?? true),
-    view: (id) => ({ id, source: sources.get(id) ?? raw }),
+    settled:
+      chains.asWritten.settled &&
+      chains.stripped.every((chain) => chain.settled),
+    views: (id) =>
+      id === "stripped"
+        ? strippedSources.map((source) => ({ id, source }))
+        : [single(id)],
   };
 };
 
@@ -1960,7 +1979,7 @@ export const findPersonalData = (
     return [];
   }
 
-  const { settled, view } = buildViews(text);
+  const { settled, views } = buildViews(text);
 
   const findings: PersonalDataFinding[] = [];
 
@@ -1972,17 +1991,17 @@ export const findPersonalData = (
         continue;
       }
 
-      const guarded = view(viewId);
+      for (const guarded of views(viewId)) {
+        if (scanned.has(guarded.source)) {
+          continue;
+        }
 
-      if (scanned.has(guarded.source)) {
-        continue;
+        scanned.add(guarded.source);
+
+        findings.push(
+          ...RULES[rule]({ allow, filePath, settled, text, view: guarded })
+        );
       }
-
-      scanned.add(guarded.source);
-
-      findings.push(
-        ...RULES[rule]({ allow, filePath, settled, text, view: guarded })
-      );
     }
   }
 

@@ -819,19 +819,21 @@ describe("every decoder reads both views", () => {
   it("runs every decoder in the table on the container-stripped text too", () => {
     const chains = decodeChains(containerText);
 
-    expect(chains.stripped === undefined).toBe(false);
+    expect(chains.stripped.length).toBeGreaterThan(0);
 
     expect([...chains.ranOn.stripped].toSorted()).toEqual(
       DECODERS.map((decoder) => decoder.id).toSorted()
     );
 
-    expect(chains.stripped?.text.text).toContain(`demo.person@${mailHost}`);
+    expect(
+      chains.stripped.map((chain) => chain.text.text).join("\n")
+    ).toContain(`demo.person@${mailHost}`);
   });
 
   it("skips the container-stripped view when no line needs a wrapper removed", () => {
-    expect(
-      decodeChains("A line of prose.\nAnother line.").stripped === undefined
-    ).toBe(true);
+    expect(decodeChains("A line of prose.\nAnother line.").stripped).toEqual(
+      []
+    );
   });
 });
 
@@ -931,9 +933,87 @@ describe("the seventh verdict's reproductions", () => {
       "docs/mail-export.md",
       ["1. demo.person@mail=", `2. ${mailHost}`].join("\n"),
     ],
+    [
+      "v74 unspaced diff additions around a soft break",
+      "docs/mail-export.md",
+      ["+demo.person@mail=", `+${mailHost}`].join("\n"),
+    ],
+    [
+      "v74 first table column around a soft break",
+      "docs/mail-export.md",
+      [
+        "| Exported body | Status |",
+        "| --- | --- |",
+        "| demo.person@mail= | saved |",
+        `| ${mailHost} | saved |`,
+      ].join("\n"),
+    ],
+    [
+      "v74 middle table column behind escaped pipes",
+      "docs/mail-export.md",
+      [
+        "| Note | Exported body | Status |",
+        "| --- | --- | --- |",
+        "| a \\| b | demo.person@mail= | saved |",
+        `| c \\| d | ${mailHost} | saved |`,
+      ].join("\n"),
+    ],
+    [
+      "v74 short row in a table column that pads",
+      "docs/mail-export.md",
+      [
+        "| Status | Note | Exported body |",
+        "| --- | --- | --- |",
+        "| saved | a | demo.person@mail= |",
+        `| saved | ${mailHost} |`,
+      ].join("\n"),
+    ],
+    [
+      "v74 table column inside a diff hunk",
+      "docs/mail-export.md",
+      [
+        "@@ -1,2 +1,4 @@",
+        "+| Exported body | Status |",
+        "+| --- | --- |",
+        "+| demo.person@mail= | saved |",
+        `+| ${mailHost} | saved |`,
+      ].join("\n"),
+    ],
   ])("fails on %s", (_label, filePath, text) => {
     expect(ruleOf(filePath, text).length).toBeGreaterThan(0);
   });
+
+  it("fails on a wrapped base64 payload in the first table column", () => {
+    const lines = base64Lines(
+      `Invoice contact demo.person@${mailHost}`,
+      40
+    ).map((line) => `| ${line} | saved |`);
+
+    expect(
+      ruleOf(
+        "docs/mail-export.md",
+        ["| Exported body | Status |", "| --- | --- |", ...lines].join("\n")
+      )
+    ).toEqual(["email"]);
+  });
+
+  it.each(LINE_ENDINGS)(
+    "keeps a blank line that ends a table quiet with %j line endings",
+    (ending) => {
+      expect(
+        ruleOf(
+          "docs/mail-export.md",
+          [
+            "| Exported body | Status |",
+            "| --- | --- |",
+            "| demo.person@mail= | saved |",
+            "",
+            `| ${mailHost} | saved |`,
+          ].join(ending)
+        )
+      ).toEqual([]);
+    }
+  );
 
   it("fails on base64 additions split across diff lines", () => {
     const lines = base64Lines(
