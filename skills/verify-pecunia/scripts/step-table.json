@@ -1,6 +1,7 @@
 {
   "demoNumbers": {
     "featureMap": "unnamed=0 unexported=0 planned=0 status=0 problems=0 exit=0",
+    "parity": "problems=0 exit=0",
     "moneyIsInteger": "wrongDeclarations=0 wrongRows=0 columns=11",
     "currencyIsIsoCode": "wrongCurrencies=0 columns=13",
     "everyRowInProfile": "integrity=ok foreignKeyViolations=0 tablesWithOrphans=0 scopedTables=17",
@@ -44,6 +45,7 @@
       "seed",
       "build",
       "feature-map",
+      "parity",
       "generic",
       "accounts-and-bank-lines",
       "bank-line-list",
@@ -61,6 +63,7 @@
       "seed",
       "build",
       "feature-map",
+      "parity",
       "generic",
       "accounts-and-bank-lines",
       "bank-line-list",
@@ -70,15 +73,34 @@
     "categories-and-rules": [
       "seed",
       "feature-map",
+      "parity",
       "generic",
       "categories-and-rules"
     ],
-    "dashboard-sums": ["seed", "feature-map", "generic", "dashboard-sums"],
-    "subscriptions": ["seed", "feature-map", "generic", "subscriptions"],
-    "investments": ["seed", "feature-map", "generic", "investments"],
-    "fx-conversion": ["seed", "feature-map", "generic", "fx-conversion"],
-    "tax": ["seed", "feature-map", "generic", "tax"],
-    "invoices": ["seed", "feature-map", "generic", "invoices"]
+    "dashboard-sums": [
+      "seed",
+      "feature-map",
+      "parity",
+      "generic",
+      "dashboard-sums"
+    ],
+    "subscriptions": [
+      "seed",
+      "feature-map",
+      "parity",
+      "generic",
+      "subscriptions"
+    ],
+    "investments": ["seed", "feature-map", "parity", "generic", "investments"],
+    "fx-conversion": [
+      "seed",
+      "feature-map",
+      "parity",
+      "generic",
+      "fx-conversion"
+    ],
+    "tax": ["seed", "feature-map", "parity", "generic", "tax"],
+    "invoices": ["seed", "feature-map", "parity", "generic", "invoices"]
   },
   "steps": [
     {
@@ -107,6 +129,19 @@
         {
           "id": "feature-map-matches-capabilities",
           "equalsDemoNumber": "featureMap"
+        }
+      ]
+    },
+    {
+      "id": "parity",
+      "commands": ["parity"],
+      "outputs": [],
+      "artifacts": [],
+      "capabilities": [],
+      "expectations": [
+        {
+          "id": "parity-matches-old-behaviours",
+          "equalsDemoNumber": "parity"
         }
       ]
     },
