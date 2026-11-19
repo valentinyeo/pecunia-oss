@@ -143,7 +143,7 @@ node skills/verify-pecunia/scripts/check-parity.mjs
 node skills/verify-pecunia/scripts/check-parity.mjs --gaps
 ```
 
-The check fails by name when a row has no status or where, when a built row points at a capability no package implements, a command `apps/cli` does not define or a file that is not here, when a planned row names neither a ticket URL nor `no ticket yet`, when a dropped row gives no reason of at least six words, when a behaviour appears twice, or when an old place in the inventory has no row. `--gaps` prints the planned behaviours with no ticket, which is the list to turn into tickets. Every demo-book run includes it as the `parity-matches-old-behaviours` expectation, and `scripts/check-parity.test.ts` runs it in `pnpm test`.
+The check fails by name when a row has no status or where, when a built row points at a capability no package implements, a command `apps/cli` does not define or a file that is not here, when a planned row names neither a ticket id nor `no ticket yet`, when a dropped row gives no reason of at least six words, when a behaviour appears twice, or when an old place in the inventory has no row. `--gaps` prints the planned behaviours with no ticket, which is the list to turn into tickets. Every demo-book run includes it as the `parity-matches-old-behaviours` expectation, and `scripts/check-parity.test.ts` runs it in `pnpm test`.
 
 ## Helpers
 

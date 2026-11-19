@@ -39,7 +39,7 @@ const PLACE_KINDS = new Set(["page", "shell", "job", "sync", "import", "tool"]);
 
 const NO_TICKET = "no ticket yet";
 
-const TICKET_URL = /^https:\/\/app\.hypertask\.ai\/detail\/project-\d+\/\d+$/u;
+const TICKET_ID = /^SOFT-\d+$/u;
 
 const LINK = /^[a-z]+:\/\//u;
 
@@ -399,16 +399,16 @@ for (const cells of behaviourRows) {
     if (where === NO_TICKET) {
       gaps.push(behaviour);
     } else if (where.startsWith("ticket:")) {
-      if (!TICKET_URL.test(where.slice("ticket:".length))) {
+      if (!TICKET_ID.test(where.slice("ticket:".length))) {
         fail(
           "ticket",
-          `"${behaviour}" names ${where}; a planned row names ticket: and one app.hypertask.ai detail URL`
+          `"${behaviour}" names ${where}; a planned row names ticket:SOFT-<number>`
         );
       }
     } else {
       fail(
         "ticket",
-        `"${behaviour}" is planned and names no ticket URL; write ticket:https://app.hypertask.ai/detail/project-<id>/<number> or ${NO_TICKET}`
+        `"${behaviour}" is planned and names no ticket id; write ticket:SOFT-<number> or ${NO_TICKET}`
       );
     }
   }

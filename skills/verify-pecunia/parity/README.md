@@ -25,7 +25,7 @@ The first command reads this page and the repository and fails by name when:
 - a row has no status, or a status that is not exactly `built`, `planned` or `dropped`;
 - a row has no where;
 - a `built` row points at a capability no package implements, a command `apps/cli` does not define, or a file that is not in the repository;
-- a `planned` row names neither a ticket URL nor `no ticket yet`;
+- a `planned` row names neither a ticket id nor `no ticket yet`;
 - a `dropped` row gives no reason of at least six words, or points at a link instead of saying why;
 - the same behaviour appears twice;
 - a row names an old place the inventory below does not list;
@@ -151,7 +151,7 @@ Every place the old app put a behaviour. A place with no row is a behaviour nobo
 | One merchant: spend by category, monthly spend, and its payments with paging | route: merchant detail | planned | no ticket yet |
 | Mark every payment from one merchant confirmed | route: merchant detail | planned | no ticket yet |
 | Rename a merchant everywhere it appears | route: merchant detail | planned | no ticket yet |
-| Mark a merchant as a repeat payment, or stop treating it as one | route: merchant detail | planned | ticket:https://app.hypertask.ai/detail/project-2060/2395 |
+| Mark a merchant as a repeat payment, or stop treating it as one | route: merchant detail | planned | ticket:SOFT-2395 |
 | Personal against business spend for a period | route: spending | planned | no ticket yet |
 | A doughnut by category and a stacked monthly trend | route: spending | planned | no ticket yet |
 | One category's payments, and tagging a payment as reviewed from there | route: spending category | planned | no ticket yet |
@@ -163,30 +163,30 @@ Every place the old app put a behaviour. A place with no row is a behaviour nobo
 | Merchants with no category, listed so one can be picked | route: review | planned | no ticket yet |
 | Ask a language model to suggest categories for what is left | route: review | planned | no ticket yet |
 | Accept every suggestion waiting for review in one go | route: review | planned | no ticket yet |
-| Repeat payments with their monthly and annual cost and the next charge date | route: subscriptions | planned | ticket:https://app.hypertask.ai/detail/project-2060/2395 |
-| Confirm or dismiss a repeat payment the app found | route: subscriptions | planned | ticket:https://app.hypertask.ai/detail/project-2060/2395 |
-| Mark a payment as recurring, or as not recurring | route: subscriptions | planned | ticket:https://app.hypertask.ai/detail/project-2060/2395 |
-| Cancel a repeat payment for one profile only, with an undo | route: subscriptions | planned | ticket:https://app.hypertask.ai/detail/project-2060/2395 |
-| Set a repeat payment's category and push it onto its past payments | route: subscriptions | planned | ticket:https://app.hypertask.ai/detail/project-2060/2395 |
-| Turn tracking of a repeat payment on and off | route: subscriptions | planned | ticket:https://app.hypertask.ai/detail/project-2060/2395 |
-| Find repeat payments from the payment history | route: subscriptions | planned | ticket:https://app.hypertask.ai/detail/project-2060/2395 |
+| Repeat payments with their monthly and annual cost and the next charge date | route: subscriptions | planned | ticket:SOFT-2395 |
+| Confirm or dismiss a repeat payment the app found | route: subscriptions | planned | ticket:SOFT-2395 |
+| Mark a payment as recurring, or as not recurring | route: subscriptions | planned | ticket:SOFT-2395 |
+| Cancel a repeat payment for one profile only, with an undo | route: subscriptions | planned | ticket:SOFT-2395 |
+| Set a repeat payment's category and push it onto its past payments | route: subscriptions | planned | ticket:SOFT-2395 |
+| Turn tracking of a repeat payment on and off | route: subscriptions | planned | ticket:SOFT-2395 |
+| Find repeat payments from the payment history | route: subscriptions | planned | ticket:SOFT-2395 |
 | A six month spend projection from the repeat payments | route: forecast | dropped | the app never served this page, because the router never mounted it, so no user could open it and there is no user behaviour to carry over |
-| Holdings grouped by platform with price, value and gain | route: investments | planned | ticket:https://app.hypertask.ai/detail/project-2060/2396 |
-| Add a holding by hand | route: investments | planned | ticket:https://app.hypertask.ai/detail/project-2060/2396 |
-| Edit a holding | route: investments | planned | ticket:https://app.hypertask.ai/detail/project-2060/2396 |
-| Delete a holding | route: investments | planned | ticket:https://app.hypertask.ai/detail/project-2060/2396 |
-| Value a holding in the profile's currency | route: investments | planned | ticket:https://app.hypertask.ai/detail/project-2060/2396 |
-| A holding with no price yet shows as unknown rather than zero | route: investments | planned | ticket:https://app.hypertask.ai/detail/project-2060/2396 |
+| Holdings grouped by platform with price, value and gain | route: investments | planned | ticket:SOFT-2396 |
+| Add a holding by hand | route: investments | planned | ticket:SOFT-2396 |
+| Edit a holding | route: investments | planned | ticket:SOFT-2396 |
+| Delete a holding | route: investments | planned | ticket:SOFT-2396 |
+| Value a holding in the profile's currency | route: investments | planned | ticket:SOFT-2396 |
+| A holding with no price yet shows as unknown rather than zero | route: investments | planned | ticket:SOFT-2396 |
 | The investments page is open to one hard-coded profile | route: investments | dropped | the old page refused everyone but one profile identifier, and the new app scopes every profile the same way, so there is nothing to carry over |
-| Payments that need an invoice, with a status on each one | route: invoices | planned | ticket:https://app.hypertask.ai/detail/project-2060/2493 |
-| Payments with no invoice counted for a month | route: invoices | planned | ticket:https://app.hypertask.ai/detail/project-2060/2493 |
-| Download the stored invoice for a payment, or remove it | route: invoices | planned | ticket:https://app.hypertask.ai/detail/project-2060/2493 |
-| A JSON feed of invoice status for other tools | route: invoices | planned | ticket:https://app.hypertask.ai/detail/project-2060/2493 |
-| Map a merchant on the statement to a vendor and to where its invoices come from | route: invoice sources | planned | ticket:https://app.hypertask.ai/detail/project-2060/2493 |
-| Add and delete an invoice source | route: invoice sources | planned | ticket:https://app.hypertask.ai/detail/project-2060/2493 |
-| Saved reports and explorations, newest first | route: reports | planned | ticket:https://app.hypertask.ai/detail/project-2060/2399 |
-| A report is stored once per address and updated in place | route: reports | planned | ticket:https://app.hypertask.ai/detail/project-2060/2399 |
-| Open one saved report, for the owner only | route: report page | planned | ticket:https://app.hypertask.ai/detail/project-2060/2399 |
+| Payments that need an invoice, with a status on each one | route: invoices | planned | ticket:SOFT-2493 |
+| Payments with no invoice counted for a month | route: invoices | planned | ticket:SOFT-2493 |
+| Download the stored invoice for a payment, or remove it | route: invoices | planned | ticket:SOFT-2493 |
+| A JSON feed of invoice status for other tools | route: invoices | planned | ticket:SOFT-2493 |
+| Map a merchant on the statement to a vendor and to where its invoices come from | route: invoice sources | planned | ticket:SOFT-2493 |
+| Add and delete an invoice source | route: invoice sources | planned | ticket:SOFT-2493 |
+| Saved reports and explorations, newest first | route: reports | planned | ticket:SOFT-2399 |
+| A report is stored once per address and updated in place | route: reports | planned | ticket:SOFT-2399 |
+| Open one saved report, for the owner only | route: report page | planned | ticket:SOFT-2399 |
 | One box searches payments, merchants, categories and holdings | route: search | planned | no ticket yet |
 | Suggestions appear while typing in the search box | route: search | planned | no ticket yet |
 | Sync one profile on demand, and read the imported, skipped and failed counts | route: update | planned | no ticket yet |
@@ -203,7 +203,7 @@ Every place the old app put a behaviour. A place with no row is a behaviour nobo
 | A sync works in chunks and skips a profile that is already syncing | job: scheduled sync | planned | no ticket yet |
 | A run left running for more than three minutes is marked failed | job: scheduled sync | planned | no ticket yet |
 | Categorisation runs after a nightly sync | job: scheduled sync | planned | no ticket yet |
-| The broker holdings sync is started through the app on the same schedule | job: scheduled sync | planned | ticket:https://app.hypertask.ai/detail/project-2060/2396 |
+| The broker holdings sync is started through the app on the same schedule | job: scheduled sync | planned | ticket:SOFT-2396 |
 | Tax dues are synced on the same schedule | job: scheduled sync | planned | no ticket yet |
 | A profile that has not synced for twelve hours, or that failed in the last day, is reported as a problem | job: sync health | planned | no ticket yet |
 | Business accounts: the statement is downloaded with a signed request | sync: bank statements | planned | no ticket yet |
@@ -211,19 +211,19 @@ Every place the old app put a behaviour. A place with no row is a behaviour nobo
 | A statement that returns nothing falls back to the activities feed | sync: bank statements | planned | no ticket yet |
 | Personal accounts: the activities feed is read without a signed request | sync: bank activities | planned | no ticket yet |
 | Daily exchange rates from a public rates service, cached for the day | sync: exchange rates | planned | no ticket yet |
-| Share prices from one market source, with a second source for crypto | sync: market prices | planned | ticket:https://app.hypertask.ai/detail/project-2060/2396 |
-| Holdings and their quantities come from the broker's own API | sync: broker holdings | planned | ticket:https://app.hypertask.ai/detail/project-2060/2396 |
+| Share prices from one market source, with a second source for crypto | sync: market prices | planned | ticket:SOFT-2396 |
+| Holdings and their quantities come from the broker's own API | sync: broker holdings | planned | ticket:SOFT-2396 |
 | Self Assessment payments due come from the accounting provider, and a payment that disappears upstream is removed | sync: tax dues | planned | no ticket yet |
 | A statement export file is imported into one account | import: bank csv | built | capability:importBankFile |
 | Importing the same file again adds no second copy of a line | import: bank csv | built | capability:importBankFile |
 | A line the importer cannot read is named by its line number and the reason | import: bank csv | built | capability:importBankFile |
 | The import asks which account the file belongs to | import: bank csv | built | capability:listImportTargets |
 | An import into an account the profile does not hold is refused by name | import: bank csv | built | capability:importBankFile |
-| A PDF is stored against one payment | import: invoice pdf | planned | ticket:https://app.hypertask.ai/detail/project-2060/2493 |
-| Existing invoice files are registered with a fingerprint so none is stored twice | import: legacy invoices | planned | ticket:https://app.hypertask.ai/detail/project-2060/2493 |
-| Each invoice document is archived to one folder tree with one reserved file id | import: archive to drive | planned | ticket:https://app.hypertask.ai/detail/project-2060/2493 |
+| A PDF is stored against one payment | import: invoice pdf | planned | ticket:SOFT-2493 |
+| Existing invoice files are registered with a fingerprint so none is stored twice | import: legacy invoices | planned | ticket:SOFT-2493 |
+| Each invoice document is archived to one folder tree with one reserved file id | import: archive to drive | planned | ticket:SOFT-2493 |
 | Every capability is also a tool an assistant can call over MCP | tool: every tool | built | command:mcp |
-| A shared bearer token guards the assistant door | tool: every tool | planned | ticket:https://app.hypertask.ai/detail/project-2060/2401 |
+| A shared bearer token guards the assistant door | tool: every tool | planned | ticket:SOFT-2401 |
 | An assistant call can read across every profile at once | tool: every tool | dropped | the new app scopes every call to one profile, so there is no all-profiles mode, and an assistant names the profile it means |
 | An assistant runs read-only SQL against the book | tool: raw query | dropped | the new app answers only through typed capabilities, so an assistant never reaches the database directly |
 | An assistant asks for spend by category over a date range | tool: spending summary | planned | no ticket yet |
@@ -232,20 +232,20 @@ Every place the old app put a behaviour. A place with no row is a behaviour nobo
 | An assistant asks for the Self Assessment payments due | tool: tax due | planned | no ticket yet |
 | An assistant asks for income by client | tool: income summary | planned | no ticket yet |
 | An assistant asks for month by month money in, money out and net | tool: monthly totals | planned | no ticket yet |
-| An assistant asks for the active repeat payments | tool: subscriptions | planned | ticket:https://app.hypertask.ai/detail/project-2060/2395 |
+| An assistant asks for the active repeat payments | tool: subscriptions | planned | ticket:SOFT-2395 |
 | An assistant searches payments by merchant, reference or description | tool: payment search | planned | no ticket yet |
-| An assistant asks which payments in a month still need an invoice | tool: missing invoices | planned | ticket:https://app.hypertask.ai/detail/project-2060/2493 |
-| An assistant saves one invoice file against a payment | tool: invoice attach | planned | ticket:https://app.hypertask.ai/detail/project-2060/2493 |
-| An assistant links unlinked invoices to payments from the same company within five days | tool: invoice linking | planned | ticket:https://app.hypertask.ai/detail/project-2060/2493 |
-| An assistant saves a report page | tool: report save | planned | ticket:https://app.hypertask.ai/detail/project-2060/2399 |
-| An assistant lists the saved reports | tool: report list | planned | ticket:https://app.hypertask.ai/detail/project-2060/2399 |
-| An assistant registers invoice files that predate the archive | tool: legacy invoices | planned | ticket:https://app.hypertask.ai/detail/project-2060/2493 |
-| An assistant counts how many outgoing payments have an invoice, month by month | tool: invoice coverage | planned | ticket:https://app.hypertask.ai/detail/project-2060/2493 |
-| An assistant records a written reason for a payment with no invoice | tool: invoice exception | planned | ticket:https://app.hypertask.ai/detail/project-2060/2493 |
-| An assistant sets a business's archive folder root | tool: archive root | planned | ticket:https://app.hypertask.ai/detail/project-2060/2493 |
-| An assistant pages through the archived invoice documents | tool: archive documents | planned | ticket:https://app.hypertask.ai/detail/project-2060/2493 |
-| An assistant reads one stored invoice file | tool: document content | planned | ticket:https://app.hypertask.ai/detail/project-2060/2493 |
-| An assistant reserves one archive file id per document, then confirms it | tool: archive record | planned | ticket:https://app.hypertask.ai/detail/project-2060/2493 |
+| An assistant asks which payments in a month still need an invoice | tool: missing invoices | planned | ticket:SOFT-2493 |
+| An assistant saves one invoice file against a payment | tool: invoice attach | planned | ticket:SOFT-2493 |
+| An assistant links unlinked invoices to payments from the same company within five days | tool: invoice linking | planned | ticket:SOFT-2493 |
+| An assistant saves a report page | tool: report save | planned | ticket:SOFT-2399 |
+| An assistant lists the saved reports | tool: report list | planned | ticket:SOFT-2399 |
+| An assistant registers invoice files that predate the archive | tool: legacy invoices | planned | ticket:SOFT-2493 |
+| An assistant counts how many outgoing payments have an invoice, month by month | tool: invoice coverage | planned | ticket:SOFT-2493 |
+| An assistant records a written reason for a payment with no invoice | tool: invoice exception | planned | ticket:SOFT-2493 |
+| An assistant sets a business's archive folder root | tool: archive root | planned | ticket:SOFT-2493 |
+| An assistant pages through the archived invoice documents | tool: archive documents | planned | ticket:SOFT-2493 |
+| An assistant reads one stored invoice file | tool: document content | planned | ticket:SOFT-2493 |
+| An assistant reserves one archive file id per document, then confirms it | tool: archive record | planned | ticket:SOFT-2493 |
 
 ## Side by side on the demo book
 
