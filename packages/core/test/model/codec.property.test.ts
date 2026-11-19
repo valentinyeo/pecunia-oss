@@ -1,4 +1,4 @@
-// oxlint-disable anti-slop/no-unknown-parameters, anti-slop/no-unknown-returns, anti-slop/no-unsafe-dictionary-type, anti-slop/no-manual-tagged-construction, anti-slop/no-reflect-apply, anti-slop/no-known-value-widening, anti-slop-effect/no-manual-tagged-construction, typescript/no-unsafe-type-assertion, typescript/no-misused-spread -- the adversarial property test builds wire fixtures and untrusted inputs by hand
+// oxlint-disable anti-slop/no-unknown-parameters, anti-slop/no-unknown-returns, anti-slop/no-unsafe-dictionary-type, anti-slop/no-manual-tagged-construction, anti-slop/no-reflect-apply, anti-slop/no-known-value-widening, anti-slop-effect/no-manual-tagged-construction, typescript/no-unsafe-type-assertion, typescript/no-misused-spread, unicorn/new-for-builtins, eslint/no-new-wrappers -- the adversarial property test builds wire fixtures and untrusted inputs by hand, including a String wrapper around a timestamp
 
 // oxlint-disable anti-slop/require-safety-comment-for-type-assertion, eslint/prefer-object-spread, eslint/prefer-destructuring, typescript/no-unnecessary-type-assertion, effect-tests/no-manual-effect-runtime-in-tests -- the adversarial property test injects strays through untyped handles by design
 // oxlint-disable anti-slop/no-object-parameters, anti-slop/no-runtime-typeof, anti-slop/no-reflect-get -- the adversarial property test walks untrusted decoded trees on purpose
@@ -13,7 +13,10 @@ import type { ModelCodec } from "../../src/model/codec.js";
 import { codecs } from "../../src/model/codecs.js";
 import { ConvertedAmount } from "../../src/model/converted-amount.js";
 import * as model from "../../src/model/index.js";
-import type { OperationEntry } from "../../src/model/operation.js";
+import type {
+  CarriesArgument,
+  OperationEntry,
+} from "../../src/model/operation.js";
 import { exemptOperations, operations } from "../../src/model/operations.js";
 import { madeAs } from "../../src/model/registry.js";
 
@@ -37,10 +40,7 @@ interface WireFixture extends Wire {
   readonly vary?: boolean;
 }
 
-const at = parse(
-  model.codecs.timestamp,
-  DateTime.makeUnsafe("2024-01-31T10:00:00Z")
-);
+const at = parse(model.codecs.timestamp, "2024-01-31T10:00:00.000Z");
 
 const str = (seed: number): string =>
   `018f2b7c-1234-7abc-8def-${String(seed).padStart(12, "0")}`;
@@ -746,10 +746,7 @@ const isOptionNode = (value: Record<string, unknown>): boolean =>
   Object.keys(value).every((key) => key === "_tag" || key === "value");
 
 const isNode = (value: unknown): value is Record<string, unknown> =>
-  Predicate.isObject(value) &&
-  !Array.isArray(value) &&
-  !DateTime.isDateTime(value) &&
-  !isOptionNode(value);
+  Predicate.isObject(value) && !Array.isArray(value) && !isOptionNode(value);
 
 const objectPaths = (
   value: unknown,
@@ -958,7 +955,7 @@ describe("one codec owns parsing for every exported model schema", () => {
       expect(
         Object.keys(handle).toSorted(),
         `${name} hides its schema`
-      ).toStrictEqual(["decode", "encode", "name"]);
+      ).toStrictEqual(["decode", "encode", "kinds", "name"]);
       expect(Schema.isSchema(handle)).toStrictEqual(false);
     }
   });
@@ -1884,10 +1881,6 @@ const nodeRefs = (
     return;
   }
 
-  if (DateTime.isDateTime(value)) {
-    return;
-  }
-
   for (const childKey of Object.keys(value)) {
     nodeRefs(
       Reflect.get(value, childKey),
@@ -2062,7 +2055,7 @@ const curatedDoors: readonly {
   {
     handle: codecs.timestamp as never,
     name: "Timestamp",
-    wire: DateTime.makeUnsafe("2024-02-01T09:00:00Z"),
+    wire: "2024-02-01T09:00:00.000Z",
   },
   {
     handle: codecs.transaction as never,
@@ -2277,26 +2270,25 @@ describe("every node rejects a foreign own key attached any way", () => {
       })
     ).toThrow(/rate/u);
 
-    const timestamp = parse(
-      codecs.timestamp,
-      DateTime.makeUnsafe("2024-02-01T09:00:00Z")
-    );
+    const timestamp = parse(codecs.timestamp, "2024-02-01T09:00:00.000Z");
 
-    Object.assign(timestamp, { rate: rateOf("0.85") });
+    const wrapped = Object.assign(new String(timestamp), {
+      rate: rateOf("0.85"),
+    });
 
     const transaction = parse(codecs.transaction, transactionWire(true));
-    const forgedTimestamp = { ...transaction, createdAt: timestamp };
+    const forgedTimestamp = { ...transaction, createdAt: wrapped };
 
     expect(
       Result.isFailure(codecs.transaction.encode(forgedTimestamp as never))
     ).toBe(true);
 
     expect(() => render(codecs.transaction, forgedTimestamp as never)).toThrow(
-      /rate/u
+      /String/u
     );
 
     expect(() => verified(codecs.transaction, forgedTimestamp)).toThrow(
-      /rate/u
+      /String/u
     );
 
     const target = parse(codecs.archiveTarget, archiveTargetWire);
@@ -2422,8 +2414,6 @@ const unionDoors: readonly UnionDoor[] = [
     ].map(ruleWire),
   },
 ];
-
-const stampOf = () => DateTime.makeUnsafe("2024-02-01T09:00:00Z");
 
 const forgedMoneyOf = (): object =>
   Object.assign({ currency: "EUR", minor: 1000 }, { rate: "0.85" });
@@ -2586,107 +2576,113 @@ describe("a union resolves to one branch before it checks keys", () => {
   });
 });
 
-describe("a readable timestamp stays a storable timestamp", () => {
-  const readApis = Object.entries(DateTime as Readonly<Record<string, unknown>>)
-    .filter(
-      (entry): entry is [string, (self: object) => unknown] =>
-        typeof entry[1] === "function"
-    )
-    .map(([name, api]) => ({
-      name,
-      read: (value: object): void => {
-        const result = attemptCall(() => api(value));
+const messageOf = (run: () => unknown): string => {
+  const outcome = attemptCall(run);
 
-        if (typeof result === "function") {
-          attemptCall(() => (result as (self: object) => unknown)(value));
-        }
-      },
-    }));
+  if (Predicate.isError(outcome)) {
+    return outcome.message;
+  }
 
-  it("round-trips a timestamp after every DateTime read API", () => {
-    let cases = 0;
+  if (Result.isResult(outcome) && Result.isFailure(outcome)) {
+    return (outcome.failure as { readonly message: string }).message;
+  }
 
-    for (const { name, read } of readApis) {
-      const value = stampOf();
+  return "accepted";
+};
 
-      read(value);
+const cachedStampOf = (): object => {
+  const stamp = DateTime.makeUnsafe("2024-02-01T09:00:00Z");
+  const parts = DateTime.toPartsUtc(stamp);
 
-      const label = `${name} seed ${SEED}`;
-      const decoded = codecs.timestamp.decode(value);
-
-      expect(
-        Result.isFailure(decoded) ? decoded.failure.message : "accepted",
-        `${label} decode`
-      ).toBe("accepted");
-
-      expect(
-        Result.isFailure(codecs.timestamp.encode(value as never)),
-        `${label} encode`
-      ).toBe(false);
-
-      expect(
-        () => verified(codecs.timestamp, value),
-        `${label} verified`
-      ).not.toThrow();
-
-      cases += 1;
-    }
-
-    expect(cases).toBeGreaterThanOrEqual(80);
+  Object.defineProperty(stamp, "partsUtc", {
+    value: Object.assign(new Map([["rate", rateOf("0.85")]]), parts),
   });
 
-  it("rejects a foreign key attached after a DateTime read API", () => {
-    const readApisWithCaches = readApis.filter(({ name }) =>
-      [
-        "getPart",
-        "getPartUtc",
-        "toParts",
-        "toPartsUtc",
-        "toEpochMillis",
-        "formatIso",
-      ].includes(name)
+  return stamp;
+};
+
+describe("no Effect DateTime crosses the model boundary", () => {
+  it("keeps a timestamp a primitive the codec round-trips", () => {
+    const stamp = parse(codecs.timestamp, "2024-02-01T09:00:00.000Z");
+
+    expect(typeof stamp).toBe("string");
+    expect(stamp).toBe("2024-02-01T09:00:00.000Z");
+    expect(render(codecs.timestamp, stamp)).toBe("2024-02-01T09:00:00.000Z");
+    expect(verified(codecs.timestamp, stamp)).toBe(stamp);
+
+    const parts = model.timestampParts(stamp);
+
+    expect(parts).toStrictEqual({
+      day: 1,
+      hour: 9,
+      millisecond: 0,
+      minute: 0,
+      month: 2,
+      second: 0,
+      year: 2024,
+    });
+    expect(Object.getPrototypeOf(parts)).toBe(Object.prototype);
+    expect(Object.isFrozen(parts)).toBe(true);
+    expect(DateTime.isDateTime(parts)).toBe(false);
+    expect(model.timestampParts(stamp)).not.toBe(model.timestampParts(stamp));
+  });
+
+  it("refuses a DateTime carrying a cached rate at every timestamp door", () => {
+    const stamp = cachedStampOf();
+
+    expect(
+      messageOf(() => codecs.timestamp.decode(stamp)),
+      "decode"
+    ).toContain("DateTime");
+    expect(
+      messageOf(() => codecs.timestamp.encode(stamp as never)),
+      "encode"
+    ).toContain("DateTime");
+    expect(messageOf(() => render(codecs.timestamp, stamp as never))).toContain(
+      "DateTime"
     );
+    expect(
+      messageOf(() => verified(codecs.timestamp, stamp)),
+      "verified"
+    ).toContain("DateTime");
+  });
 
-    expect(readApisWithCaches.length).toBeGreaterThanOrEqual(5);
+  it("refuses a DateTime that hides a rate inside a transaction", () => {
+    const transaction = parse(codecs.transaction, transactionWire(true));
+    const forged = { ...transaction, createdAt: cachedStampOf() };
 
-    for (const { name, read } of readApisWithCaches) {
-      for (const method of attachMethods) {
-        const value = stampOf();
-        const holder: { current: unknown } = { current: value };
+    expect(Result.isFailure(codecs.transaction.encode(forged as never))).toBe(
+      true
+    );
+    expect(
+      messageOf(() => codecs.transaction.encode(forged as never))
+    ).toContain("DateTime");
+    expect(
+      messageOf(() => render(codecs.transaction, forged as never))
+    ).toContain("DateTime");
+    expect(messageOf(() => verified(codecs.transaction, forged))).toContain(
+      "DateTime"
+    );
+  });
 
-        read(value);
+  it("refuses a timestamp where a rate belongs, as the second seventy-fifth door showed", () => {
+    const stamp = parse(codecs.timestamp, "2024-02-01T09:00:00.000Z");
+    const smuggled = Object.assign(stamp, rateOf("0.85"));
 
-        const label = `timestamp ${name} ${method} seed ${SEED}`;
+    const message = messageOf(() => model.rateText(smuggled as never));
 
-        const restore = attachForeign(
-          {
-            key: undefined,
-            label,
-            node: value,
-            parent: undefined,
-          },
-          holder,
-          method,
-          "rate",
-          "0.85"
-        );
+    expect(message).toContain("rateText argument 1");
+    expect(message).toContain("Rate");
+    expect(message).toContain("String");
+  });
 
-        if (restore === undefined) {
-          continue;
-        }
+  it("refuses a registered value of another kind naming both kinds, as the first seventy-fifth door showed", () => {
+    const money = moneyOf("EUR", 1000);
+    const message = messageOf(() => model.rateText(money as never));
 
-        try {
-          expectEveryDoorRejects(
-            codecs.timestamp as never,
-            holder.current,
-            "rate",
-            label
-          );
-        } finally {
-          restore();
-        }
-      }
-    }
+    expect(message).toContain("rateText argument 1");
+    expect(message).toContain("RateSchema");
+    expect(message).toContain("MoneySchema");
   });
 });
 
@@ -3145,10 +3141,6 @@ const sealWalk = (
     return 0;
   }
 
-  if (DateTime.isDateTime(value)) {
-    return 0;
-  }
-
   if (Option.isOption(value)) {
     expect(
       Option.isNone(value) || Object.isFrozen(value),
@@ -3219,17 +3211,8 @@ const refusalIn = (
   }
 };
 
-const slotMatches = (
-  handle: Handle,
-  domain: string,
-  sampleKind: string | undefined,
-  valueKind: string | undefined
-): boolean =>
-  sampleKind === valueKind ||
-  handle.name === `${domain}Schema` ||
-  (domain === "Amounts" &&
-    (handle === (codecs.amounts as Handle) ||
-      handle === (codecs.convertedAmount as Handle)));
+const slotMatches = (spec: CarriesArgument, valueKind: string): boolean =>
+  spec.kinds.includes(valueKind);
 
 describe("every value is sealed where the model built it", () => {
   it("has a valid sample for every codec in the table", () => {
@@ -3302,14 +3285,7 @@ describe("every value is sealed where the model built it", () => {
 
           const call = [...entry.samples()];
 
-          if (
-            !slotMatches(
-              handle,
-              spec.domain,
-              madeAs(spec.sample() as object),
-              valueKind
-            )
-          ) {
+          if (!slotMatches(spec, valueKind)) {
             continue;
           }
 
@@ -3483,5 +3459,334 @@ describe("the verdict reproductions stay refused, naming the argument and the ki
     expect(() =>
       Object.assign(model.sameCurrencyAmount(money), { rate: "0.85" })
     ).toThrow(/rate/u);
+  });
+});
+
+const KIND_SEED = 0x91_75_2c_4d;
+
+const seededDraw = (seed: number): (<T>(rows: readonly T[]) => T) => {
+  let state = seed;
+
+  return <T>(rows: readonly T[]): T => {
+    state = (state * 1_664_525 + 1_013_904_223) % 4_294_967_296;
+
+    const index = Math.floor((state / 4_294_967_296) * rows.length);
+
+    return rows[index] as T;
+  };
+};
+
+const kindSamples = (): ReadonlyMap<string, unknown> => {
+  const rows = new Map<string, unknown>();
+
+  for (const handle of Object.values(codecs) as readonly Handle[]) {
+    const wires = sealSamples.get(handle) ?? [];
+    const input = wires[0];
+
+    const decoded: Result.Result<unknown, Schema.SchemaError> | undefined =
+      input === undefined ? undefined : handle.decode(input);
+
+    if (decoded === undefined || Result.isFailure(decoded)) {
+      continue;
+    }
+
+    if (typeof decoded.success !== "object" || decoded.success === null) {
+      continue;
+    }
+
+    const kind = madeAs(decoded.success);
+
+    if (kind !== undefined && !rows.has(kind)) {
+      rows.set(kind, decoded.success);
+    }
+  }
+
+  return rows;
+};
+
+const carriesSlots = (): readonly {
+  readonly entry: OperationEntry;
+  readonly index: number;
+  readonly spec: CarriesArgument;
+}[] =>
+  Object.values(operations).flatMap((entry) =>
+    entry.arguments.flatMap((spec, index) =>
+      spec.kind === "carries" ? [{ entry, index, spec }] : []
+    )
+  );
+
+const prototypeNames = (value: object): string => {
+  const prototype: unknown = Object.getPrototypeOf(value);
+
+  if (prototype === null) {
+    return "a null-prototype object";
+  }
+
+  const constructor: unknown = Reflect.get(prototype as object, "constructor");
+
+  const name: unknown =
+    typeof constructor === "function"
+      ? Reflect.get(constructor, "name")
+      : undefined;
+
+  return typeof name === "string" && name.length > 0
+    ? name
+    : "an anonymous class";
+};
+
+const allowedPrototypes = (): ReadonlySet<unknown> => {
+  const money = moneyOf("EUR", 1000);
+
+  const converted = Result.getOrThrow(
+    model.ConvertedAmount.converting(
+      moneyOf("USD", 1000),
+      currencyOf("EUR"),
+      rateOf("0.85"),
+      dateOf("2024-01-30")
+    )
+  );
+
+  return new Set<unknown>([
+    Object.prototype,
+    Array.prototype,
+    Object.getPrototypeOf(money),
+    Object.getPrototypeOf(Option.some(money)),
+    Object.getPrototypeOf(Option.none()),
+    Object.getPrototypeOf(converted.base),
+    Object.getPrototypeOf(converted),
+  ]);
+};
+
+const foreignNodesIn = (
+  value: unknown,
+  path: string,
+  label: string,
+  allowed: ReadonlySet<unknown>,
+  out: string[]
+): void => {
+  if (value === null) {
+    return;
+  }
+
+  if (typeof value === "function") {
+    out.push(`${label}${path} is a function`);
+
+    return;
+  }
+
+  if (typeof value !== "object") {
+    return;
+  }
+
+  if (DateTime.isDateTime(value)) {
+    out.push(`${label}${path} is an Effect DateTime`);
+
+    return;
+  }
+
+  if (value instanceof Map || value instanceof Set) {
+    out.push(`${label}${path} is a ${prototypeNames(value)}`);
+
+    return;
+  }
+
+  if (value instanceof Error) {
+    return;
+  }
+
+  if (!allowed.has(Object.getPrototypeOf(value))) {
+    out.push(`${label}${path} is an instance of ${prototypeNames(value)}`);
+
+    return;
+  }
+
+  if (Option.isOption(value)) {
+    if (Option.isSome(value)) {
+      foreignNodesIn(value.value, `${path}.value`, label, allowed, out);
+    }
+
+    return;
+  }
+
+  if (Array.isArray(value)) {
+    for (const [index, entry] of value.entries()) {
+      foreignNodesIn(entry, `${path}[${String(index)}]`, label, allowed, out);
+    }
+
+    return;
+  }
+
+  for (const key of Reflect.ownKeys(value)) {
+    foreignNodesIn(
+      Reflect.get(value as object, key),
+      `${path}.${String(key)}`,
+      label,
+      allowed,
+      out
+    );
+  }
+};
+
+const attachRefusals = (): readonly {
+  readonly name: string;
+  readonly run: (value: object) => void;
+}[] => [
+  {
+    name: "Object.defineProperty",
+    run: (value) => {
+      Object.defineProperty(value, "rate", {
+        configurable: true,
+        value: "0.85",
+      });
+    },
+  },
+  {
+    name: "Object.assign",
+    run: (value) => {
+      Object.assign(value, { rate: "0.85" });
+    },
+  },
+  {
+    name: "a symbol key",
+    run: (value) => {
+      Object.defineProperty(value, Symbol("rate"), { value: "0.85" });
+    },
+  },
+  {
+    name: "delete",
+    run: (value) => {
+      const [first] = Reflect.ownKeys(value);
+
+      if (first !== undefined) {
+        Reflect.deleteProperty(value, first);
+      }
+    },
+  },
+];
+
+const frozenOrUnchanged = (
+  value: object,
+  attach: (target: object) => void
+): boolean => {
+  const before = Reflect.ownKeys(value);
+  const held = before.map((key) => Reflect.get(value, key) as unknown);
+
+  try {
+    attach(value);
+  } catch {
+    return true;
+  }
+
+  const after = Reflect.ownKeys(value);
+
+  return (
+    after.length === before.length &&
+    after.every(
+      (key, index) =>
+        key === before[index] && Reflect.get(value, key) === held[index]
+    )
+  );
+};
+
+describe("every slot names the kind it takes and every value holds only model data", () => {
+  it("refuses a registered value of every other kind at every carries slot, seeded", () => {
+    const draw = seededDraw(KIND_SEED);
+    const samples = kindSamples();
+    const slots = carriesSlots();
+    let cases = 0;
+
+    expect(slots.length).toBeGreaterThanOrEqual(12);
+    expect(samples.size).toBeGreaterThanOrEqual(20);
+
+    for (let step = 0; step < 800; step += 1) {
+      const { entry, index, spec } = draw(slots);
+
+      const rows = [...samples.entries()].filter(
+        ([kind]) => !spec.kinds.includes(kind)
+      );
+
+      const [actual, value] = draw(rows);
+      const label = `seed ${String(KIND_SEED)} step ${String(step)} ${entry.name} argument ${String(index + 1)}`;
+      const call = [...entry.samples()];
+
+      call[index] = value;
+
+      const message = sealRefusal(entry, call);
+
+      expect(message, `${label} accepted a ${actual}`).not.toBe("accepted");
+      expect(message, `${label} does not name the argument`).toContain(
+        `${entry.name} argument ${String(index + 1)}`
+      );
+      expect(message, `${label} does not name the ${actual} it got`).toContain(
+        actual
+      );
+
+      for (const kind of spec.kinds) {
+        expect(
+          message,
+          `${label} does not name the ${kind} it takes`
+        ).toContain(kind);
+      }
+
+      cases += 1;
+    }
+
+    expect(cases).toBeGreaterThanOrEqual(700);
+  });
+
+  it("hands out a graph of model data only, from every codec", () => {
+    const allowed = allowedPrototypes();
+    let nodes = 0;
+
+    for (const [key, handle] of Object.entries(codecs) as readonly [
+      string,
+      Handle,
+    ][]) {
+      const wires = sealSamples.get(handle) ?? [];
+
+      for (const wire of wires) {
+        const decoded = handle.decode(wire);
+
+        expect(
+          Result.isSuccess(decoded),
+          `${key} rejects its own valid sample`
+        ).toBe(true);
+
+        if (Result.isFailure(decoded)) {
+          continue;
+        }
+
+        const out: string[] = [];
+
+        foreignNodesIn(decoded.success, "$", key, allowed, out);
+
+        expect(out, `${key} carries a foreign node`).toStrictEqual([]);
+        nodes += 1;
+      }
+    }
+
+    expect(nodes).toBeGreaterThanOrEqual(85);
+  });
+
+  it("refuses a late attach on every registered value, seeded", () => {
+    const draw = seededDraw(KIND_SEED + 1);
+    const samples = [...kindSamples().values()];
+    const attaches = attachRefusals();
+    let cases = 0;
+
+    for (let step = 0; step < 800; step += 1) {
+      const value = draw(samples) as object;
+      const attach = draw(attaches);
+      const label = `seed ${String(KIND_SEED)} step ${String(step)} ${attach.name}`;
+
+      expect(Object.isFrozen(value), `${label} is not frozen`).toBe(true);
+      expect(
+        frozenOrUnchanged(value, attach.run),
+        `${label} changed the value`
+      ).toBe(true);
+      cases += 1;
+    }
+
+    expect(cases).toBeGreaterThanOrEqual(700);
   });
 });

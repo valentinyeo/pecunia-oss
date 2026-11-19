@@ -1,4 +1,6 @@
-import { Schema } from "effect";
+import { DateTime, Schema } from "effect";
+
+import { decodeModel } from "./codec.js";
 
 export const CurrencyCodeSchema = Schema.NonEmptyString.check(
   Schema.isPattern(/^[A-Z]{3}$/u)
@@ -52,11 +54,54 @@ export const DateOnlySchema = Schema.String.check(
 
 export type DateOnly = typeof DateOnlySchema.Type;
 
-export const TimestampSchema = Schema.DateTimeUtc.pipe(
-  Schema.brand("Timestamp")
-);
+const timestampPattern =
+  /^(?<date>\d{4}-\d{2}-\d{2})T(?<hours>\d{2}):(?<minutes>\d{2}):(?<seconds>\d{2})\.(?<millis>\d{3})Z$/u;
+
+const isClockTime = ([hours, minutes, seconds]: readonly string[]): boolean =>
+  Number(hours) <= 23 && Number(minutes) <= 59 && Number(seconds) <= 59;
+
+const isCanonicalInstant = (text: string): boolean => {
+  const [, date = "", hours = "", minutes = "", seconds = ""] =
+    timestampPattern.exec(text) ?? [];
+
+  return isCalendarDate(date) && isClockTime([hours, minutes, seconds]);
+};
+
+export const TimestampSchema = Schema.String.check(
+  Schema.isPattern(timestampPattern),
+  Schema.makeFilter(isCanonicalInstant, {
+    expected: "a calendar instant written as YYYY-MM-DDTHH:mm:ss.sssZ",
+  })
+).pipe(Schema.brand("Timestamp"));
 
 export type Timestamp = typeof TimestampSchema.Type;
+
+export interface TimestampParts {
+  readonly day: number;
+  readonly hour: number;
+  readonly millisecond: number;
+  readonly minute: number;
+  readonly month: number;
+  readonly second: number;
+  readonly year: number;
+}
+
+export const timestampOf = (text: string): Timestamp =>
+  decodeModel(TimestampSchema, text);
+
+export const timestampParts = (timestamp: Timestamp): TimestampParts => {
+  const parts = DateTime.toPartsUtc(DateTime.makeUnsafe(timestamp));
+
+  return Object.freeze({
+    day: parts.day,
+    hour: parts.hour,
+    millisecond: parts.millisecond,
+    minute: parts.minute,
+    month: parts.month,
+    second: parts.second,
+    year: parts.year,
+  });
+};
 
 const Uuid7 = Schema.String.check(Schema.isUUID(7));
 

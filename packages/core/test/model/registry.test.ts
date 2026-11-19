@@ -1,4 +1,4 @@
-import { DateTime, Effect, Result } from "effect";
+import { Effect, Result } from "effect";
 // oxlint-disable anti-slop-effect/no-manual-tagged-construction, effect-tests/no-manual-effect-runtime-in-tests, anti-slop/no-unknown-returns, eslint/prefer-object-spread, typescript/no-unsafe-type-assertion, typescript/no-unsafe-assignment, typescript/no-unnecessary-type-assertion, typescript/no-misused-spread, typescript/no-unsafe-argument, anti-slop/require-safety-comment-for-type-assertion, anti-slop/no-unknown-parameters, anti-slop/no-known-value-widening, anti-slop/no-manual-tagged-construction, anti-slop/no-reflect-get, anti-slop/no-runtime-typeof, anti-slop/no-object-parameters, anti-slop/no-known-value-widening -- the registry test forges copies on purpose so every door has to refuse them
 import { describe, expect, it } from "vitest";
 
@@ -58,19 +58,13 @@ const transactionOf = () =>
     amounts: { _tag: "SameCurrency", amount: { currency: "EUR", minor: 1000 } },
     categorization: { _tag: "None" },
     classification: { _tag: "None" },
-    createdAt: parse(
-      codecs.timestamp,
-      DateTime.makeUnsafe("2024-01-31T10:00:00Z")
-    ),
+    createdAt: parse(codecs.timestamp, "2024-01-31T10:00:00.000Z"),
     direction: "out",
     externalId: "demo-external",
     fee: null,
     id: "018f2b7c-1234-7abc-8def-0123456789b2",
     note: "",
-    occurredAt: parse(
-      codecs.timestamp,
-      DateTime.makeUnsafe("2024-01-31T10:00:00Z")
-    ),
+    occurredAt: parse(codecs.timestamp, "2024-01-31T10:00:00.000Z"),
     payeeId: null,
     profileId: "018f2b7c-1234-7abc-8def-0123456789ab",
     providerAccountId: "018f2b7c-1234-7abc-8def-0123456789cd",

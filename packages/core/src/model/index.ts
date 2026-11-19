@@ -115,6 +115,10 @@ export type {
   Transaction,
 } from "./types.js";
 
+export { timestampOf, timestampParts } from "./primitives.js";
+
+export type { TimestampParts } from "./primitives.js";
+
 export { codecs } from "./codecs.js";
 
 export { parse, render, verified } from "./codec.js";

@@ -11,16 +11,15 @@
 // oxlint-disable eslint/func-style, eslint/no-use-before-define -- the shape walk and its branch resolver call each other, so both are hoisted declarations
 
 import type { SchemaAST } from "effect";
-import {
-  DateTime,
-  Option,
-  Predicate,
-  Result,
-  Schema,
-  SchemaIssue,
-} from "effect";
+import { Option, Predicate, Result, Schema, SchemaIssue } from "effect";
 
-import { foreignLabel, ownPrototype, seal } from "./registry.js";
+import {
+  foreignLabel,
+  isMade,
+  madeAs,
+  ownPrototype,
+  seal,
+} from "./registry.js";
 
 type Codec = Schema.Top & {
   readonly DecodingServices: never;
@@ -48,7 +47,58 @@ export interface Gate {
   readonly where: string;
 }
 
+const kindMessage = (
+  gate: Gate,
+  kinds: readonly string[],
+  actual: string
+): string =>
+  `${gate.where} expects ${gate.domain}: the value is made as ${actual}, and this slot takes ${kinds.join(" or ")}. Fix: build it with the factory or codec for ${gate.domain}.`;
+
+export const kindsOf = (handle: Handle): readonly string[] => {
+  if (
+    handle === null ||
+    (typeof handle !== "object" && typeof handle !== "function")
+  ) {
+    return [];
+  }
+
+  const schema = schemaOf(handle);
+  const declared = declaredKinds.get(handle) ?? declaredKinds.get(schema);
+
+  if (declared !== undefined) {
+    return declared;
+  }
+
+  const kind = schema.ast === undefined ? undefined : kindNames.get(schema.ast);
+
+  return kind === undefined ? [] : [kind];
+};
+
+export const kindRefusal = (
+  value: unknown,
+  kinds: readonly string[],
+  gate: Gate
+): Schema.SchemaError | undefined => {
+  if (kinds.length === 0 || !isMade(value)) {
+    return undefined;
+  }
+
+  const actual = madeAs(value as object) ?? "unknown";
+
+  if (kinds.includes(actual)) {
+    return undefined;
+  }
+
+  return new Schema.SchemaError(
+    new SchemaIssue.InvalidValue(
+      { message: kindMessage(gate, kinds, actual) },
+      value
+    )
+  );
+};
+
 export interface CodecHandle<T, Encoded> {
+  readonly kinds: readonly string[];
   readonly name: string;
   readonly decode: (input: unknown) => Result.Result<T, Schema.SchemaError>;
   readonly encode: (value: T) => Result.Result<Encoded, Schema.SchemaError>;
@@ -61,6 +111,8 @@ export type Handle = Codec | ModelCodec<unknown, unknown>;
 const schemaTable = new WeakMap<object, Codec>();
 
 const kindNames = new WeakMap<object, string>();
+
+const declaredKinds = new WeakMap<object, readonly string[]>();
 
 const isHandle = (value: Handle): value is ModelCodec<unknown, unknown> =>
   typeof Reflect.get(value, "decode") === "function";
@@ -83,7 +135,6 @@ type Fields = readonly SchemaAST.PropertySignature[];
 
 type ShapeKind =
   | "array"
-  | "datetime"
   | "error"
   | "map"
   | "option-none"
@@ -276,150 +327,6 @@ const literalNamesOf = (ast: SchemaAST.AST): ReadonlySet<Key> | undefined => {
 
 const emptyKeys: ReadonlySet<Key> = new Set<Key>();
 
-type PrimitiveType =
-  | "bigint"
-  | "boolean"
-  | "function"
-  | "null"
-  | "number"
-  | "string"
-  | "symbol"
-  | "undefined";
-
-type Template =
-  | { readonly type: PrimitiveType }
-  | {
-      readonly type: "object";
-      readonly fields: ReadonlyMap<Key, Template>;
-    };
-
-const templateOf = (value: unknown): Template => {
-  if (value === null) {
-    return { type: "null" };
-  }
-
-  if (typeof value === "object") {
-    const fields = new Map<Key, Template>();
-
-    for (const key of ownKeysOf(value)) {
-      fields.set(key, templateOf(Reflect.get(value, key)));
-    }
-
-    return { type: "object", fields };
-  }
-
-  return { type: typeof value as PrimitiveType };
-};
-
-const templateMatches = (template: Template, value: unknown): boolean => {
-  if (template.type === "null") {
-    return value === null;
-  }
-
-  if (template.type !== "object") {
-    return typeof value === template.type;
-  }
-
-  if (typeof value !== "object" || value === null) {
-    return false;
-  }
-
-  const own = ownKeysOf(value);
-
-  return (
-    own.length === template.fields.size &&
-    own.every((key) => {
-      const field = template.fields.get(key);
-
-      return (
-        field !== undefined && templateMatches(field, Reflect.get(value, key))
-      );
-    })
-  );
-};
-
-interface DateTimeAxes {
-  readonly keys: ReadonlySet<Key>;
-  readonly templates: ReadonlyMap<Key, readonly Template[]>;
-}
-
-const attempt = (run: () => unknown): unknown => {
-  try {
-    return run();
-  } catch (error) {
-    return error;
-  }
-};
-
-const dateTimeApis: readonly ((self: object) => unknown)[] = Object.values(
-  DateTime as Readonly<Record<string, unknown>>
-).filter(
-  (value): value is (self: object) => unknown => typeof value === "function"
-);
-
-const dateTimeProbe = (seeds: readonly (() => object)[]): DateTimeAxes => {
-  const keys = new Set<Key>();
-  const templates = new Map<Key, Template[]>();
-
-  const observe = (instance: object): void => {
-    for (const key of ownKeysOf(instance)) {
-      const seen = templates.get(key) ?? [];
-      const value: unknown = Reflect.get(instance, key);
-
-      keys.add(key);
-
-      if (!seen.some((template) => templateMatches(template, value))) {
-        seen.push(templateOf(value));
-      }
-
-      templates.set(key, seen);
-    }
-  };
-
-  for (const seed of seeds) {
-    observe(seed());
-  }
-
-  for (const api of dateTimeApis) {
-    for (const seed of seeds) {
-      const instance = seed();
-      const result = attempt(() => api(instance));
-
-      if (typeof result === "function") {
-        attempt(() => (result as (self: object) => unknown)(instance));
-      }
-
-      observe(instance);
-    }
-  }
-
-  return { keys, templates };
-};
-
-const utcAxes = dateTimeProbe([
-  () => DateTime.makeUnsafe("2024-01-31T10:00:00Z"),
-]);
-
-const zonedAxes = dateTimeProbe([
-  () => DateTime.makeZonedUnsafe("2024-01-31T10:00:00Z", { timeZone: 0 }),
-  () => DateTime.makeZonedUnsafe("2024-01-31T10:00:00Z", { timeZone: "UTC" }),
-]);
-
-const dateTimeAxes = (node: object): DateTimeAxes =>
-  DateTime.isZoned(node as DateTime.DateTime) ? zonedAxes : utcAxes;
-
-const dateTimeAllowed = (context: ShapeContext): ReadonlySet<Key> =>
-  dateTimeAxes(context.node).keys;
-
-const dateTimeAdmits = (context: ShapeContext, key: Key): boolean => {
-  const admitted = dateTimeAxes(context.node).templates.get(key);
-  const value: unknown = Reflect.get(context.node, key);
-
-  return (
-    admitted?.some((template) => templateMatches(template, value)) ?? false
-  );
-};
-
 const errorInfrastructureKeys: ReadonlySet<Key> = new Set<Key>();
 
 const someKeys: ReadonlySet<Key> = new Set<Key>(
@@ -566,11 +473,6 @@ const errorAllowed = (context: ShapeContext): ReadonlySet<Key> | undefined => {
 
 const shapeTable: Readonly<Record<ShapeKind, ShapeRule>> = {
   array: { allowed: arrayAllowed, children: arrayChildren },
-  datetime: {
-    admits: dateTimeAdmits,
-    allowed: dateTimeAllowed,
-    children: noChildren,
-  },
   error: { allowed: errorAllowed, children: structChildren },
   map: { allowed: () => emptyKeys, children: noChildren },
   "option-none": { allowed: () => noneKeys, children: noChildren },
@@ -592,10 +494,6 @@ const runtimeKind = (
   value: object,
   ast?: SchemaAST.AST
 ): ShapeKind | undefined => {
-  if (DateTime.isDateTime(value)) {
-    return "datetime";
-  }
-
   if (Array.isArray(value)) {
     return "array";
   }
@@ -855,7 +753,9 @@ const shapeRefusal = (value: object): string | undefined => {
     return undefined;
   }
 
-  return isDomainInstance(value) ? undefined : prototypeLabel(value);
+  return isDomainInstance(value)
+    ? undefined
+    : (foreignLabel(value) ?? prototypeLabel(value));
 };
 
 const walkNode = (
@@ -1116,8 +1016,15 @@ export const foreignRefusal = (
 export const nestedRefusal = (
   value: unknown,
   handle: Handle,
-  gate: Gate
+  gate: Gate,
+  kinds: readonly string[] = kindsOf(handle)
 ): Schema.SchemaError | undefined => {
+  const wrongKind = kindRefusal(value, kinds, gate);
+
+  if (wrongKind !== undefined) {
+    return wrongKind;
+  }
+
   if (foreignLabel(value) !== undefined) {
     return foreignRefusal(value, handle, gate);
   }
@@ -1140,7 +1047,9 @@ export const assertMade = (
   handle: Handle,
   gate: Gate
 ): void => {
-  const failure = foreignRefusal(value, handle, gate);
+  const failure =
+    kindRefusal(value, kindsOf(handle), gate) ??
+    foreignRefusal(value, handle, gate);
 
   if (failure !== undefined) {
     throw failure;
@@ -1173,13 +1082,16 @@ export function codec<S extends Codec>(
 
 export function codec<S extends Codec>(
   name: string,
-  schema: S
+  schema: S,
+  kinds?: readonly string[]
 ): ModelCodec<S["Type"], S["Encoded"]>;
 export function codec<S extends Codec>(
   nameOrSchema: string | S,
-  maybeSchema?: S
+  maybeSchema?: S,
+  maybeKinds?: readonly string[]
 ): ModelCodec<S["Type"], S["Encoded"]> {
   const name = typeof nameOrSchema === "string" ? nameOrSchema : "Model";
+  const kinds = maybeKinds ?? [name];
 
   const schema = (
     typeof nameOrSchema === "string" ? maybeSchema : nameOrSchema
@@ -1210,11 +1122,14 @@ export function codec<S extends Codec>(
         }),
         () => Schema.encodeUnknownResult(schema, strictOptions)(value)
       ),
+    kinds,
     name,
   };
 
   schemaTable.set(handle, schema);
   kindNames.set(schema.ast, name);
+  declaredKinds.set(handle, kinds);
+  declaredKinds.set(schema, kinds);
 
   return handle;
 }
@@ -1269,6 +1184,19 @@ export function render(handle: unknown, value: unknown): unknown {
 export function verified<S extends Codec>(schema: S, value: unknown): S["Type"];
 export function verified<T, E>(handle: ModelCodec<T, E>, value: unknown): T;
 export function verified(handle: unknown, value: unknown): unknown {
+  const { name } = handle as ModelCodec<unknown, unknown>;
+
+  const wrongKind = isModelCodec(handle)
+    ? kindRefusal(value, kindsOf(handle as Handle), {
+        domain: name,
+        where: `verified of ${name}`,
+      })
+    : undefined;
+
+  if (wrongKind !== undefined) {
+    throw wrongKind;
+  }
+
   ensureExactShape(value, handle as Handle);
 
   const schema = schemaOf(handle as Handle);

@@ -164,7 +164,14 @@ const amountsSample = (): Amounts =>
 
 export const sourceAmountOperation: Operation<[Amounts], Money> =
   valueOperation({
-    arguments: [carries("Amounts", AmountsSchema, amountsSample)],
+    arguments: [
+      carries("Amounts", AmountsSchema, amountsSample, [
+        "AmountsSchema",
+        "ConvertedAmount",
+        "ConvertedAmountSchema",
+        "SameCurrencyAmountSchema",
+      ]),
+    ],
     name: "sourceAmount",
     run: sourceAmountRun,
     samples: () => [amountsSample()],

@@ -1,4 +1,6 @@
 // oxlint-disable anti-slop/no-reflect-get, anti-slop/no-runtime-typeof, anti-slop/no-object-parameters, anti-slop/no-unknown-parameters, anti-slop/require-safety-comment-for-type-assertion, typescript/no-unsafe-type-assertion, typescript/no-unsafe-assignment -- this module is the one identity boundary: it labels what the model made and names what it did not
+import { DateTime } from "effect";
+
 const madeKind = new WeakMap<object, string>();
 
 const ownPrototypes = new WeakSet<object>();
@@ -59,6 +61,10 @@ export const foreignLabel = (value: unknown): string | undefined => {
 
   if (isMade(value)) {
     return undefined;
+  }
+
+  if (DateTime.isDateTime(value)) {
+    return "an Effect DateTime";
   }
 
   if (value instanceof Map) {

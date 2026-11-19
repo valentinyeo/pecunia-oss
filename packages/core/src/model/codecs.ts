@@ -99,7 +99,12 @@ import {
 export const codecs = {
   ...errorCodecs,
   aliasId: codec("AliasIdSchema", AliasIdSchema),
-  amounts: codec("AmountsSchema", AmountsSchema),
+  amounts: codec("AmountsSchema", AmountsSchema, [
+    "AmountsSchema",
+    "ConvertedAmount",
+    "ConvertedAmountSchema",
+    "SameCurrencyAmountSchema",
+  ]),
   appSetting: codec("AppSettingSchema", AppSettingSchema),
   archiveState: codec("ArchiveStateSchema", ArchiveStateSchema),
   archiveTargetId: codec("ArchiveTargetIdSchema", ArchiveTargetIdSchema),
@@ -109,7 +114,10 @@ export const codecs = {
   categoryId: codec("CategoryIdSchema", CategoryIdSchema),
   category: codec("CategorySchema", CategorySchema),
   classification: codec("ClassificationSchema", ClassificationSchema),
-  convertedAmount: codec("ConvertedAmountSchema", ConvertedAmountSchema),
+  convertedAmount: codec("ConvertedAmountSchema", ConvertedAmountSchema, [
+    "ConvertedAmount",
+    "ConvertedAmountSchema",
+  ]),
   currencyCode: codec("CurrencyCodeSchema", CurrencyCodeSchema),
   dateOnly: codec("DateOnlySchema", DateOnlySchema),
   direction: codec("DirectionSchema", DirectionSchema),

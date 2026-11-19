@@ -691,13 +691,20 @@ describe("operation metadata hands out names and samples only", () => {
     expect(Result.isFailure(model.codecs.money.encode(strayed))).toBe(true);
   });
 
-  it("keeps every argument spec to a name, a kind and a sample", () => {
+  it("keeps every argument spec to a name, a kind, the kinds it takes and a sample", () => {
     for (const entry of operationEntries) {
       for (const argument of entry.arguments) {
         expect(
           Object.keys(argument).toSorted(),
           `${entry.name} spec keys`
-        ).toStrictEqual(["domain", "kind", "sample"]);
+        ).toStrictEqual(
+          [
+            "domain",
+            "kind",
+            "sample",
+            ...(argument.kind === "carries" ? ["kinds"] : []),
+          ].toSorted()
+        );
       }
     }
   });

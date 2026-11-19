@@ -3,7 +3,12 @@
 
 import { Effect, Result, Schema } from "effect";
 
-import { assertNoForeignKeys, decodeModel, nestedRefusal } from "./codec.js";
+import {
+  assertNoForeignKeys,
+  decodeModel,
+  kindsOf,
+  nestedRefusal,
+} from "./codec.js";
 import type { Handle } from "./codec.js";
 import type { CurrencyCode, DateOnly, Money } from "./primitives.js";
 import {
@@ -15,6 +20,7 @@ import {
 export interface CarriesArgument {
   readonly domain: string;
   readonly kind: "carries";
+  readonly kinds: readonly string[];
   readonly sample: () => unknown;
 }
 
@@ -62,9 +68,19 @@ const handleOf = (spec: ArgumentSpec): Handle => {
 export const carries = (
   domain: string,
   handle: Handle,
-  sample: () => unknown
-): CarriesArgument =>
-  withHandle({ domain, kind: "carries", sample } as const, handle);
+  sample: () => unknown,
+  kinds?: readonly string[]
+): CarriesArgument => {
+  const spec: CarriesArgument = { domain, kind: "carries", kinds: [], sample };
+
+  withHandle(spec, handle);
+  Object.defineProperty(spec, "kinds", {
+    enumerable: true,
+    get: (): readonly string[] => kinds ?? kindsOf(handle),
+  });
+
+  return spec;
+};
 
 export const moneySample = (): Money =>
   decodeModel(MoneySchema, { currency: "EUR", minor: 1000 });
@@ -134,10 +150,15 @@ const guarded = (
       continue;
     }
 
-    const failure = nestedRefusal(argument, handleOf(spec), {
-      domain: spec.domain,
-      where: `${name} argument ${String(index + 1)}`,
-    });
+    const failure = nestedRefusal(
+      argument,
+      handleOf(spec),
+      {
+        domain: spec.domain,
+        where: `${name} argument ${String(index + 1)}`,
+      },
+      spec.kinds
+    );
 
     if (failure !== undefined) {
       return { failure };

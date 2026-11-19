@@ -1,6 +1,6 @@
 // oxlint-disable anti-slop/no-unknown-parameters, anti-slop/no-object-parameters -- these two helpers are the strict decode boundary the rule tests call with made-up wire literals
 import { describe, expect, it } from "@effect/vitest";
-import { DateTime, Effect, Option, Schema } from "effect";
+import { Effect, Option, Schema } from "effect";
 
 import { strictOptions, parse } from "../../src/model/codec.js";
 import { codecs } from "../../src/model/codecs.js";
@@ -26,7 +26,7 @@ import {
   TransactionSchema,
 } from "../../src/model/transaction.js";
 
-const at = parse(codecs.timestamp, DateTime.makeUnsafe("2024-01-31T10:00:00Z"));
+const at = parse(codecs.timestamp, "2024-01-31T10:00:00.000Z");
 
 const profileId = parse(
   codecs.profileId,

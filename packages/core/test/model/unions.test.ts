@@ -1,5 +1,5 @@
 // oxlint-disable typescript/no-misused-spread, typescript/no-unsafe-type-assertion, anti-slop/require-safety-comment-for-type-assertion -- this test forges a plain copy of a class instance on purpose, because a copy that loses the prototype must never reach the model
-import { DateTime, Result, Schema } from "effect";
+import { Result, Schema } from "effect";
 import { describe, expect, it } from "vitest";
 
 import type { BaseAmount } from "../../src/model/base-amount.js";
@@ -29,10 +29,9 @@ import {
   ClassificationSchema,
 } from "../../src/model/transaction.js";
 
-const timestampOf = (text: string) =>
-  parse(codecs.timestamp, DateTime.makeUnsafe(text));
+const timestampOf = (text: string) => parse(codecs.timestamp, text);
 
-const at = timestampOf("2024-01-31T10:00:00Z");
+const at = timestampOf("2024-01-31T10:00:00.000Z");
 
 const profileId = parse(
   codecs.profileId,
