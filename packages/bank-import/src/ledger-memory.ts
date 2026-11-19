@@ -80,7 +80,20 @@ export const memoryImportLedgerLayer = (targets: readonly ImportTarget[]) => {
         );
       });
 
-      return ImportLedger.of({ findTarget, listTargets, record });
+      const storedLines = (
+        profileId: ProfileId,
+        accountId: ProviderAccountId
+      ) => {
+        const prefix = [profileId, accountId, ""].join(KEY_SEPARATOR);
+
+        return Effect.map(Ref.get(ledger), (current) =>
+          HashMap.toEntries(current)
+            .filter(([key]) => key.startsWith(prefix))
+            .map(([, line]) => line)
+        );
+      };
+
+      return ImportLedger.of({ findTarget, listTargets, record, storedLines });
     })
   );
 };

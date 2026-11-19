@@ -29,5 +29,9 @@ export class ImportLedger extends Context.Service<
       accountId: ProviderAccountId,
       lines: readonly FingerprintedLine[]
     ) => Effect.Effect<RecordedLines, ImportUnavailable>;
+    readonly storedLines: (
+      profileId: ProfileId,
+      accountId: ProviderAccountId
+    ) => Effect.Effect<readonly FingerprintedLine[], ImportUnavailable>;
   }
 >()("@pecunia/bank-import/ImportLedger") {}
