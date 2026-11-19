@@ -653,6 +653,79 @@ const shifted = (reading: LineReading, offset: number): LineReading => ({
   separator: reading.separator,
 });
 
+const PIPE_PRESENT = /\|/u;
+
+const tableReading = (line: StrippedLine, keep: LeadReading): StrippedLine => {
+  const start = payloadStart(line.raw, line.continuation, keep);
+
+  const cells = tableCells(line.raw, start, keep).map((cell) => ({
+    start: cell.start + line.lineStart,
+    text: cell.text,
+  }));
+
+  const last = cells.at(-1);
+
+  return {
+    ...line,
+    cells,
+    content: last?.text ?? line.content,
+    contentStart: last?.start ?? line.contentStart,
+    separator: readsAsSeparatorRow(line.raw, start),
+  };
+};
+
+const withPipeOptionalTables = (
+  lines: readonly StrippedLine[],
+  keep: LeadReading
+): readonly StrippedLine[] => {
+  const out = [...lines];
+
+  let index = 0;
+
+  while (index < lines.length) {
+    const header = lines[index];
+
+    const separator = lines[index + 1];
+
+    const opensTable =
+      header !== undefined &&
+      separator !== undefined &&
+      header.cells === undefined &&
+      PIPE_PRESENT.test(header.raw) &&
+      PIPE_PRESENT.test(separator.raw) &&
+      readsAsSeparatorRow(
+        separator.raw,
+        payloadStart(separator.raw, separator.continuation, keep)
+      );
+
+    if (!opensTable) {
+      index += 1;
+
+      continue;
+    }
+
+    let cursor = index;
+
+    while (cursor < lines.length) {
+      const line = lines[cursor];
+
+      if (line === undefined || !PIPE_PRESENT.test(line.raw)) {
+        break;
+      }
+
+      if (line.cells === undefined) {
+        out[cursor] = tableReading(line, keep);
+      }
+
+      cursor += 1;
+    }
+
+    index = cursor;
+  }
+
+  return out;
+};
+
 const strippedLines = (
   text: string,
   keep: LeadReading
@@ -690,7 +763,7 @@ const strippedLines = (
     position = lineBreak.index + lineBreak[0].length;
   }
 
-  return lines;
+  return withPipeOptionalTables(lines, keep);
 };
 
 const joinedView = (
@@ -960,6 +1033,7 @@ const TABLE_HINT = new RegExp(
   [
     `\\|[^\\r\\n]*=[ \\t]*(?:\\|[^\\r\\n]*)?${LINE_BREAK_SOURCE}[^\\r\\n]*\\|`,
     `\\|[^\\r\\n]*[A-Za-z0-9+/_-]{8,}[^\\r\\n]*${LINE_BREAK_SOURCE}[^\\r\\n]*\\|`,
+    `=[^\\r\\n]{0,8}${LINE_BREAK_SOURCE}[^\\r\\n]*\\|`,
   ].join("|"),
   "u"
 );

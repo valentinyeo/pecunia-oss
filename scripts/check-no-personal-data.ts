@@ -1349,6 +1349,37 @@ const recordTextOf = (view: GuardView): RecordText =>
     ? { at: view.source.rawStartOf, text: view.source.raw }
     : { at: (position) => position, text: view.source.text };
 
+const crossesRawLine = (
+  source: TextSource,
+  left: DigitRun,
+  right: DigitRun
+) => {
+  const leftEnd = source.rawEndOf(left.end);
+
+  const rightStart = source.rawStartOf(right.start);
+
+  const from = Math.min(leftEnd, rightStart);
+
+  const to = Math.max(leftEnd, rightStart);
+
+  return RECORD_BREAK.test(source.raw.slice(from, to));
+};
+
+const labelledBefore = (
+  source: TextSource,
+  left: DigitRun,
+  right: DigitRun
+) => {
+  const first = Math.min(
+    source.rawStartOf(left.start),
+    source.rawStartOf(right.start)
+  );
+
+  return BANK_WORD.test(
+    source.raw.slice(Math.max(0, first - PAIR_CONTEXT), first)
+  );
+};
+
 const sameRecord = (record: RecordText, left: DigitRun, right: DigitRun) => {
   const raw = record.text;
 
@@ -1640,6 +1671,14 @@ const bankRule = ({ allow, filePath, view }: RuleContext) => {
       const near = distanceBetween(sortCode, account) <= PAIR_WINDOW;
 
       if (!sameRecord(record, sortCode, account)) {
+        return false;
+      }
+
+      if (
+        SQUEEZED_VIEWS.has(view.id) &&
+        crossesRawLine(source, sortCode, account) &&
+        !labelledBefore(source, sortCode, account)
+      ) {
         return false;
       }
 

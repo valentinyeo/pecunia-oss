@@ -983,6 +983,68 @@ describe("the seventh verdict's reproductions", () => {
     expect(ruleOf(filePath, text).length).toBeGreaterThan(0);
   });
 
+  it.each([
+    [
+      "no outer pipes on any row",
+      [
+        "Exported body | Status",
+        "--- | ---",
+        "demo.person@mail= | saved",
+        `${mailHost} | saved`,
+      ],
+    ],
+    [
+      "outer pipes on the rows but not the header",
+      [
+        "Exported body | Status",
+        "--- | ---",
+        "| demo.person@mail= | saved |",
+        `| ${mailHost} | saved |`,
+      ],
+    ],
+    [
+      "a ragged row with extra cells",
+      [
+        "Status | Exported body | Note",
+        "--- | --- | ---",
+        "saved | demo.person@mail= | a | extra",
+        `saved | ${mailHost} | b | extra`,
+      ],
+    ],
+    [
+      "a row with a missing trailing cell",
+      [
+        "Status | Exported body | Note",
+        "--- | --- | ---",
+        "saved | demo.person@mail=",
+        `saved | ${mailHost}`,
+      ],
+    ],
+  ])("fails on a table written with %s", (_label, lines) => {
+    expect(ruleOf("docs/mail-export.md", lines.join("\n"))).toEqual(["email"]);
+  });
+
+  it("passes a pipe row that no separator row turns into a table", () => {
+    const lines = [
+      "Exported body | Status",
+      "demo.person@mail= | saved",
+      `${mailHost} | saved`,
+    ];
+
+    expect(ruleOf("docs/mail-export.md", lines.join("\n"))).toEqual([]);
+  });
+
+  it("fails on a wrapped address in the first column of a table without outer pipes", () => {
+    const lines = [
+      "| Exported body | Status |",
+      "| --- | --- |",
+      "| demo.person@mail= | saved",
+      `| ${mailHost} | saved |`,
+    ];
+
+    expect(ruleOf("docs/mail-export.md", lines.join("\n"))).toEqual(["email"]);
+  });
+
   it("fails on a wrapped base64 payload in the first table column", () => {
     const lines = base64Lines(
       `Invoice contact demo.person@${mailHost}`,
