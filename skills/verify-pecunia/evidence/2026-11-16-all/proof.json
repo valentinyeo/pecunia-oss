@@ -1,0 +1,620 @@
+{
+  "branch": "verify-skill",
+  "checks": [
+    {
+      "actual": "unnamed=0 unexported=0 planned=0 status=0 problems=0 exit=0",
+      "expected": "unnamed=0 unexported=0 planned=0 status=0 problems=0 exit=0",
+      "feature": "all",
+      "id": "feature-map-matches-capabilities",
+      "passed": true,
+      "step": "feature-map"
+    },
+    {
+      "actual": "wrongDeclarations=0 wrongRows=0 columns=11",
+      "expected": "wrongDeclarations=0 wrongRows=0 columns=11",
+      "feature": "all",
+      "id": "money-is-integer-minor-units",
+      "passed": true,
+      "step": "generic"
+    },
+    {
+      "actual": "wrongCurrencies=0 columns=13",
+      "expected": "wrongCurrencies=0 columns=13",
+      "feature": "all",
+      "id": "currency-is-an-iso-code",
+      "passed": true,
+      "step": "generic"
+    },
+    {
+      "actual": "integrity=ok foreignKeyViolations=0 tablesWithOrphans=0 scopedTables=17",
+      "expected": "integrity=ok foreignKeyViolations=0 tablesWithOrphans=0 scopedTables=17",
+      "feature": "all",
+      "id": "every-row-belongs-to-a-profile",
+      "passed": true,
+      "step": "generic"
+    },
+    {
+      "actual": "nonPlaceholderEmails=0 profiles=Demo Person,Example Ltd",
+      "expected": "nonPlaceholderEmails=0 profiles=Demo Person,Example Ltd",
+      "feature": "all",
+      "id": "demo-book-holds-made-up-identities",
+      "passed": true,
+      "step": "generic"
+    },
+    {
+      "actual": "0",
+      "expected": "0",
+      "feature": "all",
+      "id": "bank-lines-stay-in-their-account",
+      "passed": true,
+      "step": "accounts-and-bank-lines"
+    },
+    {
+      "actual": "0",
+      "expected": "0",
+      "feature": "all",
+      "id": "bank-lines-never-repeat",
+      "passed": true,
+      "step": "accounts-and-bank-lines"
+    },
+    {
+      "actual": "Demo Bank (bank),Demo Broker (investment)",
+      "expected": "Demo Bank (bank),Demo Broker (investment)",
+      "feature": "all",
+      "id": "demo-accounts",
+      "passed": true,
+      "step": "accounts-and-bank-lines"
+    },
+    {
+      "actual": "2",
+      "expected": "2",
+      "feature": "all",
+      "id": "demo-sync-runs",
+      "passed": true,
+      "step": "accounts-and-bank-lines"
+    },
+    {
+      "actual": "true",
+      "expected": "true",
+      "feature": "all",
+      "id": "sync-import-count-matches-lines",
+      "passed": true,
+      "step": "accounts-and-bank-lines"
+    },
+    {
+      "actual": "0",
+      "expected": "0",
+      "feature": "all",
+      "id": "sync-failure-names-itself",
+      "passed": true,
+      "step": "accounts-and-bank-lines"
+    },
+    {
+      "actual": "true",
+      "expected": "true",
+      "feature": "all",
+      "id": "sync-rejections-match-count",
+      "passed": true,
+      "step": "accounts-and-bank-lines"
+    },
+    {
+      "actual": "label=Demo Bank kind=bank base=EUR provider=Wise",
+      "expected": "label=Demo Bank kind=bank base=EUR provider=Wise",
+      "feature": "all",
+      "id": "import-targets-listed",
+      "passed": true,
+      "step": "accounts-and-bank-lines"
+    },
+    {
+      "actual": "imported=5 alreadyImported=0 rejected=0",
+      "expected": "imported=5 alreadyImported=0 rejected=0",
+      "feature": "all",
+      "id": "import-writes-every-line",
+      "passed": true,
+      "step": "accounts-and-bank-lines"
+    },
+    {
+      "actual": "5 records",
+      "expected": "5 records",
+      "feature": "all",
+      "id": "import-stores-every-line",
+      "passed": true,
+      "step": "accounts-and-bank-lines"
+    },
+    {
+      "actual": "imported=0 alreadyImported=5",
+      "expected": "imported=0 alreadyImported=5",
+      "feature": "all",
+      "id": "import-replay-adds-nothing",
+      "passed": true,
+      "step": "accounts-and-bank-lines"
+    },
+    {
+      "actual": "5 records",
+      "expected": "5 records",
+      "feature": "all",
+      "id": "import-replay-stores-nothing",
+      "passed": true,
+      "step": "accounts-and-bank-lines"
+    },
+    {
+      "actual": "imported=1 rejected=1 reason=bad-date",
+      "expected": "imported=1 rejected=1 reason=bad-date",
+      "feature": "all",
+      "id": "import-names-a-rejected-line",
+      "passed": true,
+      "step": "accounts-and-bank-lines"
+    },
+    {
+      "actual": "6 records",
+      "expected": "6 records",
+      "feature": "all",
+      "id": "import-rejected-line-stores-once",
+      "passed": true,
+      "step": "accounts-and-bank-lines"
+    },
+    {
+      "actual": "ImportAccountNotFound",
+      "expected": "ImportAccountNotFound",
+      "feature": "all",
+      "id": "import-refuses-unknown-account",
+      "passed": true,
+      "step": "accounts-and-bank-lines"
+    },
+    {
+      "actual": "6 records",
+      "expected": "6 records",
+      "feature": "all",
+      "id": "import-unknown-account-stores-nothing",
+      "passed": true,
+      "step": "accounts-and-bank-lines"
+    },
+    {
+      "actual": "total=12 demoLines=12 awaiting=2",
+      "expected": "total=12 demoLines=12 awaiting=2",
+      "feature": "all",
+      "id": "bank-line-list-returns-the-demo-book",
+      "passed": true,
+      "step": "bank-line-list"
+    },
+    {
+      "actual": "true",
+      "expected": "true",
+      "feature": "all",
+      "id": "bank-line-list-orders-newest-first",
+      "passed": true,
+      "step": "bank-line-list"
+    },
+    {
+      "actual": "lines=8 allOut=true bookOut=8",
+      "expected": "lines=8 allOut=true bookOut=8",
+      "feature": "all",
+      "id": "bank-line-list-filters-by-direction",
+      "passed": true,
+      "step": "bank-line-list"
+    },
+    {
+      "actual": "first=5 second=5 overlap=0",
+      "expected": "first=5 second=5 overlap=0",
+      "feature": "all",
+      "id": "bank-line-list-pages-without-repeats",
+      "passed": true,
+      "step": "bank-line-list"
+    },
+    {
+      "actual": "category=0192f0c1-000d-75e9-8fd7-fd7e43c901ee note=Demo note written by the verify drive",
+      "expected": "category=0192f0c1-000d-75e9-8fd7-fd7e43c901ee note=Demo note written by the verify drive",
+      "feature": "all",
+      "id": "bank-line-edit-sets-category-and-note",
+      "passed": true,
+      "step": "bank-line-edit"
+    },
+    {
+      "actual": "12 records",
+      "expected": "12 records",
+      "feature": "all",
+      "id": "bank-line-edit-stores-category-and-note",
+      "passed": true,
+      "step": "bank-line-edit"
+    },
+    {
+      "actual": "12 records",
+      "expected": "12 records",
+      "feature": "all",
+      "id": "bank-line-edit-unknown-line-stores-nothing",
+      "passed": true,
+      "step": "bank-line-edit"
+    },
+    {
+      "actual": "12 records",
+      "expected": "12 records",
+      "feature": "all",
+      "id": "bank-line-edit-foreign-category-stores-nothing",
+      "passed": true,
+      "step": "bank-line-edit"
+    },
+    {
+      "actual": "lineId=0192f0c1-0027-7c11-8261-2619d29e6868 profileId=0192f0c1-0001-702d-8484-48490b729601",
+      "expected": "lineId=0192f0c1-0027-7c11-8261-2619d29e6868 profileId=0192f0c1-0001-702d-8484-48490b729601",
+      "feature": "all",
+      "id": "bank-line-edit-keeps-the-line-in-its-profile",
+      "passed": true,
+      "step": "bank-line-edit"
+    },
+    {
+      "actual": "UnknownBankLine",
+      "expected": "UnknownBankLine",
+      "feature": "all",
+      "id": "bank-line-edit-refuses-an-unknown-line",
+      "passed": true,
+      "step": "bank-line-edit"
+    },
+    {
+      "actual": "UnknownCategory",
+      "expected": "UnknownCategory",
+      "feature": "all",
+      "id": "bank-line-edit-refuses-a-foreign-category",
+      "passed": true,
+      "step": "bank-line-edit"
+    },
+    {
+      "actual": "tag=Reviewed hasTime=true",
+      "expected": "tag=Reviewed hasTime=true",
+      "feature": "all",
+      "id": "bank-line-review-marks-the-line",
+      "passed": true,
+      "step": "bank-line-review"
+    },
+    {
+      "actual": "12 records",
+      "expected": "12 records",
+      "feature": "all",
+      "id": "bank-line-review-shows-in-the-list",
+      "passed": true,
+      "step": "bank-line-review"
+    },
+    {
+      "actual": "12 records",
+      "expected": "12 records",
+      "feature": "all",
+      "id": "bank-line-review-viewer-stores-nothing",
+      "passed": true,
+      "step": "bank-line-review"
+    },
+    {
+      "actual": "Forbidden",
+      "expected": "Forbidden",
+      "feature": "all",
+      "id": "bank-line-review-refuses-a-viewer",
+      "passed": true,
+      "step": "bank-line-review"
+    },
+    {
+      "actual": "0",
+      "expected": "0",
+      "feature": "all",
+      "id": "applied-rule-sets-category",
+      "passed": true,
+      "step": "categories-and-rules"
+    },
+    {
+      "actual": "0",
+      "expected": "0",
+      "feature": "all",
+      "id": "classification-rule-sets-classification",
+      "passed": true,
+      "step": "categories-and-rules"
+    },
+    {
+      "actual": "0",
+      "expected": "0",
+      "feature": "all",
+      "id": "rule-targets-stay-in-profile",
+      "passed": true,
+      "step": "categories-and-rules"
+    },
+    {
+      "actual": "0",
+      "expected": "0",
+      "feature": "all",
+      "id": "merchant-aliases-stay-in-profile",
+      "passed": true,
+      "step": "categories-and-rules"
+    },
+    {
+      "actual": "0192f0c1-0015-727a-8b92-b929ac9448a7 category-match=1 priority=10 enabled=1",
+      "expected": "0192f0c1-0015-727a-8b92-b929ac9448a7 category-match=1 priority=10 enabled=1",
+      "feature": "all",
+      "id": "demo-rule-sweeps-its-line",
+      "passed": true,
+      "step": "categories-and-rules"
+    },
+    {
+      "actual": "328955",
+      "expected": "328955",
+      "feature": "all",
+      "id": "dashboard-spend",
+      "passed": true,
+      "step": "dashboard-sums"
+    },
+    {
+      "actual": "transaction-demo-02,transaction-demo-03,transaction-demo-04,transaction-demo-05,transaction-demo-11",
+      "expected": "transaction-demo-02,transaction-demo-03,transaction-demo-04,transaction-demo-05,transaction-demo-11",
+      "feature": "all",
+      "id": "dashboard-spend-lines",
+      "passed": true,
+      "step": "dashboard-sums"
+    },
+    {
+      "actual": "480000",
+      "expected": "480000",
+      "feature": "all",
+      "id": "dashboard-income",
+      "passed": true,
+      "step": "dashboard-sums"
+    },
+    {
+      "actual": "160000",
+      "expected": "160000",
+      "feature": "all",
+      "id": "dashboard-transfers",
+      "passed": true,
+      "step": "dashboard-sums"
+    },
+    {
+      "actual": "1500",
+      "expected": "1500",
+      "feature": "all",
+      "id": "dashboard-excluded",
+      "passed": true,
+      "step": "dashboard-sums"
+    },
+    {
+      "actual": "transaction-demo-12",
+      "expected": "transaction-demo-12",
+      "feature": "all",
+      "id": "dashboard-pending",
+      "passed": true,
+      "step": "dashboard-sums"
+    },
+    {
+      "actual": "299000",
+      "expected": "299000",
+      "feature": "all",
+      "id": "dashboard-category",
+      "passed": true,
+      "step": "dashboard-sums"
+    },
+    {
+      "actual": "299000",
+      "expected": "299000",
+      "feature": "all",
+      "id": "dashboard-parent-category",
+      "passed": true,
+      "step": "dashboard-sums"
+    },
+    {
+      "actual": "0",
+      "expected": "0",
+      "feature": "all",
+      "id": "subscriptions-have-a-frequency-rule",
+      "passed": true,
+      "step": "subscriptions"
+    },
+    {
+      "actual": "1",
+      "expected": "1",
+      "feature": "all",
+      "id": "subscriptions-active",
+      "passed": true,
+      "step": "subscriptions"
+    },
+    {
+      "actual": "358800",
+      "expected": "358800",
+      "feature": "all",
+      "id": "subscriptions-annual-cost",
+      "passed": true,
+      "step": "subscriptions"
+    },
+    {
+      "actual": "1",
+      "expected": "1",
+      "feature": "all",
+      "id": "subscriptions-cancelled",
+      "passed": true,
+      "step": "subscriptions"
+    },
+    {
+      "actual": "Demo Bitcoin value=8640000 gain=8040000; Demo World ETF value=780000000 gain=779550000",
+      "expected": "Demo Bitcoin value=8640000 gain=8040000; Demo World ETF value=780000000 gain=779550000",
+      "feature": "all",
+      "id": "holdings-value-math",
+      "passed": true,
+      "step": "investments"
+    },
+    {
+      "actual": "0",
+      "expected": "0",
+      "feature": "all",
+      "id": "holdings-stay-whole-cents",
+      "passed": true,
+      "step": "investments"
+    },
+    {
+      "actual": "1",
+      "expected": "1",
+      "feature": "all",
+      "id": "holdings-pending-unknown",
+      "passed": true,
+      "step": "investments"
+    },
+    {
+      "actual": "788640000",
+      "expected": "788640000",
+      "feature": "all",
+      "id": "holdings-known-value",
+      "passed": true,
+      "step": "investments"
+    },
+    {
+      "actual": "0",
+      "expected": "0",
+      "feature": "all",
+      "id": "holdings-platforms",
+      "passed": true,
+      "step": "investments"
+    },
+    {
+      "actual": "0",
+      "expected": "0",
+      "feature": "all",
+      "id": "conversion-rounds-exactly",
+      "passed": true,
+      "step": "fx-conversion"
+    },
+    {
+      "actual": "0",
+      "expected": "0",
+      "feature": "all",
+      "id": "conversion-keeps-same-currency",
+      "passed": true,
+      "step": "fx-conversion"
+    },
+    {
+      "actual": "0",
+      "expected": "0",
+      "feature": "all",
+      "id": "conversion-has-a-monthly-rate",
+      "passed": true,
+      "step": "fx-conversion"
+    },
+    {
+      "actual": "transaction-demo-03 2999 USD -> 2765 EUR at 0.922; transaction-demo-05 12000 GBP -> 14040 EUR at 1.17",
+      "expected": "transaction-demo-03 2999 USD -> 2765 EUR at 0.922; transaction-demo-05 12000 GBP -> 14040 EUR at 1.17",
+      "feature": "all",
+      "id": "conversion-recorded-lines",
+      "passed": true,
+      "step": "fx-conversion"
+    },
+    {
+      "actual": "0",
+      "expected": "0",
+      "feature": "all",
+      "id": "tax-settles-once",
+      "passed": true,
+      "step": "tax"
+    },
+    {
+      "actual": "0",
+      "expected": "0",
+      "feature": "all",
+      "id": "tax-unpaid-has-no-settlement",
+      "passed": true,
+      "step": "tax"
+    },
+    {
+      "actual": "250000",
+      "expected": "250000",
+      "feature": "all",
+      "id": "tax-paid-total",
+      "passed": true,
+      "step": "tax"
+    },
+    {
+      "actual": "312500",
+      "expected": "312500",
+      "feature": "all",
+      "id": "tax-unpaid-total",
+      "passed": true,
+      "step": "tax"
+    },
+    {
+      "actual": "GB 4-6",
+      "expected": "GB 4-6",
+      "feature": "all",
+      "id": "tax-year",
+      "passed": true,
+      "step": "tax"
+    },
+    {
+      "actual": "0",
+      "expected": "0",
+      "feature": "all",
+      "id": "invoice-matches-its-line",
+      "passed": true,
+      "step": "invoices"
+    },
+    {
+      "actual": "4250 documents=0",
+      "expected": "4250 documents=0",
+      "feature": "all",
+      "id": "invoice-exception-has-no-document",
+      "passed": true,
+      "step": "invoices"
+    },
+    {
+      "actual": "0",
+      "expected": "0",
+      "feature": "all",
+      "id": "invoice-unarchived",
+      "passed": true,
+      "step": "invoices"
+    },
+    {
+      "actual": "0",
+      "expected": "0",
+      "feature": "all",
+      "id": "invoice-archived",
+      "passed": true,
+      "step": "invoices"
+    },
+    {
+      "actual": "0",
+      "expected": "0",
+      "feature": "all",
+      "id": "invoice-vendors",
+      "passed": true,
+      "step": "invoices"
+    },
+    {
+      "actual": "0",
+      "expected": "0",
+      "feature": "all",
+      "id": "invoice-archive-states",
+      "passed": true,
+      "step": "invoices"
+    }
+  ],
+  "commit": "2c85018a",
+  "declared": 73,
+  "demoBookSha256": "527991d3898ec8fdce1029ee97f92a7c25f955c54e2375b38566f95f32537191",
+  "evaluated": 73,
+  "failed": 0,
+  "failedSteps": 0,
+  "failures": [],
+  "feature": "all",
+  "node": "v24.18.0",
+  "passed": true,
+  "ranAt": "2026-11-16T22:13:11Z",
+  "seed": {
+    "command": "pnpm --filter @pecunia/database db:seed:demo /tmp/pecunia-verify-x7ARGM/demo.sqlite"
+  },
+  "stepExpectations": {
+    "feature-map": 1,
+    "generic": 4,
+    "accounts-and-bank-lines": 16,
+    "bank-line-list": 4,
+    "bank-line-edit": 7,
+    "bank-line-review": 4,
+    "categories-and-rules": 5,
+    "dashboard-sums": 8,
+    "subscriptions": 4,
+    "investments": 5,
+    "fx-conversion": 4,
+    "tax": 5,
+    "invoices": 6
+  },
+  "steps": 15,
+  "total": 73
+}

@@ -128,6 +128,16 @@ const testFileGlobs: readonly string[] = [
 
 const testFilesScope: RuleScope = { kind: "files", files: testFileGlobs };
 
+const verifySkillScriptScope: RuleScope = {
+  kind: "files",
+  files: ["skills/verify-pecunia/scripts/**/*.mjs"],
+};
+
+const verifySkillUntypedScope = (reason: string): AllowlistEntry => ({
+  reason,
+  scopes: [verifySkillScriptScope],
+});
+
 const foldkitTestOnly: AllowlistEntry = {
   reason:
     "Foldkit program rules describe runtime UI construction, and a test file builds no program or view.",
@@ -223,6 +233,21 @@ const offRuleAllowlist = {
       "Test files build promise-shaped doubles and request fixtures that the name-based check misreads.",
     scopes: [testFilesScope],
   },
+  "typescript/no-unsafe-argument": verifySkillUntypedScope(
+    "The verify skill scripts are plain .mjs with no type declarations, so every value read from a node API or from proof JSON arrives as an untyped value that this rule reports on every use."
+  ),
+  "typescript/no-unsafe-assignment": verifySkillUntypedScope(
+    "The verify skill scripts are plain .mjs with no type declarations, so each assignment from a node API or from parsed proof JSON is untyped and this rule reports it."
+  ),
+  "typescript/no-unsafe-call": verifySkillUntypedScope(
+    "The verify skill scripts are plain .mjs with no type declarations, so each call on a value read from a node API or from proof JSON is untyped and this rule reports it."
+  ),
+  "typescript/no-unsafe-member-access": verifySkillUntypedScope(
+    "The verify skill scripts are plain .mjs with no type declarations, so each member read on a value from a node API or from proof JSON is untyped and this rule reports it."
+  ),
+  "typescript/no-unsafe-return": verifySkillUntypedScope(
+    "The verify skill scripts are plain .mjs with no type declarations, so a helper that returns a value from a node API or from proof JSON returns an untyped value and this rule reports it."
+  ),
   "typescript/promise-function-async": {
     reason:
       "It demands async on every promise-returning callback, and Effect handlers and platform methods return promises without it.",
