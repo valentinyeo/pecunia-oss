@@ -37,6 +37,10 @@ const REPORT = "report-march";
 
 const title = (length: number): string => "a".repeat(length);
 
+const GLYPH = "\u{1F600}";
+
+const titleGlyphs = (length: number): string => GLYPH.repeat(length);
+
 const withStore = <A, E>(effect: Effect.Effect<A, E, ReportStore>) =>
   effect.pipe(Effect.provide(memoryReportStoreLayer));
 
@@ -150,6 +154,46 @@ describe("parseReportDraft", () => {
     )
   );
 
+  it.effect("refuses a line separator in the title", () =>
+    withStore(
+      Effect.gen(function* lineSeparatorTitle() {
+        const failure = yield* Effect.flip(save(REPORT, "Demo\u2028report"));
+
+        expect(failure).toHaveProperty("field", "title");
+      })
+    )
+  );
+
+  it.effect("refuses a paragraph separator in the title", () =>
+    withStore(
+      Effect.gen(function* paragraphSeparatorTitle() {
+        const failure = yield* Effect.flip(save(REPORT, "Demo\u2029report"));
+
+        expect(failure).toHaveProperty("field", "title");
+      })
+    )
+  );
+
+  it.effect("a title of 120 emoji is accepted", () =>
+    withStore(
+      Effect.gen(function* emojiTitle() {
+        const saved = yield* save(REPORT, titleGlyphs(120));
+
+        expect(saved.title).toBe(titleGlyphs(120));
+      })
+    )
+  );
+
+  it.effect("refuses a title of 121 emoji and names the title", () =>
+    withStore(
+      Effect.gen(function* longEmojiTitle() {
+        const failure = yield* Effect.flip(save(REPORT, titleGlyphs(121)));
+
+        expect(failure).toHaveProperty("field", "title");
+      })
+    )
+  );
+
   it.effect("refuses a body over 200000 characters and names the body", () =>
     withStore(
       Effect.gen(function* longBody() {
@@ -245,6 +289,68 @@ describe("access", () => {
   );
 
   it.effect(
+    "a viewer gets the same answer for a missing and an existing id on the profile",
+    () =>
+      withStore(
+        Effect.gen(function* viewerExistingId() {
+          const existingId = "report-viewer-home";
+
+          yield* saveReport(
+            owner,
+            home,
+            draft(existingId, "Home report", "SECRET-BODY")
+          );
+
+          const missing = yield* Effect.flip(
+            getReport(viewer, home, reportId("report-missing-viewer"))
+          );
+
+          const existing = yield* Effect.flip(
+            getReport(viewer, home, reportId(existingId))
+          );
+
+          expect(missing).toBeInstanceOf(Forbidden);
+          expect(existing).toStrictEqual(missing);
+        })
+      )
+  );
+
+  it.effect(
+    "a viewer gets the same answer when deleting a missing and an existing id on the profile",
+    () =>
+      withStore(
+        Effect.gen(function* viewerDeleteExistingId() {
+          const existingId = "report-viewer-delete";
+
+          yield* saveReport(
+            owner,
+            home,
+            draft(existingId, "Home report", "SECRET-BODY")
+          );
+
+          const missing = yield* Effect.flip(
+            deleteReport(viewer, home, reportId("report-missing-viewer-delete"))
+          );
+
+          const existing = yield* Effect.flip(
+            deleteReport(viewer, home, reportId(existingId))
+          );
+
+          expect(missing).toBeInstanceOf(Forbidden);
+          expect(existing).toStrictEqual(missing);
+
+          const stillThere = yield* getReport(
+            owner,
+            home,
+            reportId(existingId)
+          );
+
+          expect(stillThere.body).toBe("SECRET-BODY");
+        })
+      )
+  );
+
+  it.effect(
     "a stranger gets the same answer for a missing and a foreign id",
     () =>
       withStore(
@@ -265,6 +371,72 @@ describe("access", () => {
 
           expect(missing).toBeInstanceOf(Forbidden);
           expect(foreign).toStrictEqual(missing);
+        })
+      )
+  );
+
+  it.effect(
+    "a stranger gets the same answer for a missing and an existing id on the profile",
+    () =>
+      withStore(
+        Effect.gen(function* strangerExistingId() {
+          const existingId = "report-stranger-home";
+
+          yield* saveReport(
+            owner,
+            home,
+            draft(existingId, "Home report", "SECRET-BODY")
+          );
+
+          const missing = yield* Effect.flip(
+            getReport(stranger, home, reportId("report-missing-stranger"))
+          );
+
+          const existing = yield* Effect.flip(
+            getReport(stranger, home, reportId(existingId))
+          );
+
+          expect(missing).toBeInstanceOf(Forbidden);
+          expect(existing).toStrictEqual(missing);
+        })
+      )
+  );
+
+  it.effect(
+    "a stranger gets the same answer when deleting a missing and an existing id on the profile",
+    () =>
+      withStore(
+        Effect.gen(function* strangerDeleteExistingId() {
+          const existingId = "report-stranger-delete";
+
+          yield* saveReport(
+            owner,
+            home,
+            draft(existingId, "Home report", "SECRET-BODY")
+          );
+
+          const missing = yield* Effect.flip(
+            deleteReport(
+              stranger,
+              home,
+              reportId("report-missing-stranger-delete")
+            )
+          );
+
+          const existing = yield* Effect.flip(
+            deleteReport(stranger, home, reportId(existingId))
+          );
+
+          expect(missing).toBeInstanceOf(Forbidden);
+          expect(existing).toStrictEqual(missing);
+
+          const stillThere = yield* getReport(
+            owner,
+            home,
+            reportId(existingId)
+          );
+
+          expect(stillThere.body).toBe("SECRET-BODY");
         })
       )
   );

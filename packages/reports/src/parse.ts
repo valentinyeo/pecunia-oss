@@ -24,7 +24,7 @@ const RULES: Readonly<Record<ReportField, string>> = {
   body: "A report body holds at most 200000 characters as plain text",
   id: "A report id is 1 to 64 characters",
   title:
-    "A report title is 1 to 120 characters after trimming, with no control characters",
+    "A report title is 1 to 120 characters after trimming, with no control, line, or paragraph separator characters",
 };
 
 const decodeTitle = Schema.decodeUnknownResult(ReportTitleSchema);

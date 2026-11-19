@@ -5,26 +5,55 @@ export const REPORT_TITLE_MAX_LENGTH = 120;
 
 export const REPORT_BODY_MAX_LENGTH = 200_000;
 
-const controlCharacters = /[\p{Cc}]/u;
+const disallowedTitleCharacters = /[\p{Cc}\p{Zl}\p{Zp}]/u;
+
+const codePointLength = (text: string): number => {
+  let length = 0;
+
+  for (const _ of text) {
+    length += 1;
+  }
+
+  return length;
+};
+
+const withinCodePointMax =
+  (maximum: number) =>
+  (text: string): boolean =>
+    codePointLength(text) <= maximum;
+
+const withinCodePointMin =
+  (minimum: number) =>
+  (text: string): boolean =>
+    codePointLength(text) >= minimum;
 
 export const ReportIdSchema = Schema.NonEmptyString.check(
-  Schema.isMaxLength(64)
+  Schema.makeFilter(withinCodePointMax(64), {
+    expected: "a report id of at most 64 characters",
+  })
 ).pipe(Schema.brand("ReportId"));
 
 export type ReportId = typeof ReportIdSchema.Type;
 
 export const ReportTitleSchema = Schema.Trim.check(
-  Schema.isMinLength(1),
-  Schema.isMaxLength(REPORT_TITLE_MAX_LENGTH),
-  Schema.makeFilter((title: string) => !controlCharacters.test(title), {
-    expected: "a title with no control characters",
+  Schema.makeFilter(withinCodePointMin(1), {
+    expected: "a title of at least 1 character",
+  }),
+  Schema.makeFilter(withinCodePointMax(REPORT_TITLE_MAX_LENGTH), {
+    expected: `a title of at most ${REPORT_TITLE_MAX_LENGTH} characters`,
+  }),
+  Schema.makeFilter((title: string) => !disallowedTitleCharacters.test(title), {
+    expected:
+      "a title with no control, line, or paragraph separator characters",
   })
 ).pipe(Schema.brand("ReportTitle"));
 
 export type ReportTitle = typeof ReportTitleSchema.Type;
 
 export const ReportBodySchema = Schema.String.check(
-  Schema.isMaxLength(REPORT_BODY_MAX_LENGTH)
+  Schema.makeFilter(withinCodePointMax(REPORT_BODY_MAX_LENGTH), {
+    expected: `a body of at most ${REPORT_BODY_MAX_LENGTH} characters`,
+  })
 ).pipe(Schema.brand("ReportBody"));
 
 export type ReportBody = typeof ReportBodySchema.Type;

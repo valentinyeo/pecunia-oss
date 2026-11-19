@@ -329,12 +329,36 @@ const readPhase = (context: CaseContext) =>
     }
   });
 
+const ensureHomeReport = (context: CaseContext) =>
+  Effect.gen(function* seedHomeReport() {
+    const homeName = firstOf(context.profileNames);
+    const home = profileId(homeName);
+    const homeOwner = ownerAt(context, 0);
+    const homeRows = rowsOf(context, homeName);
+    const [existing] = homeRows;
+
+    if (existing !== undefined) {
+      return existing.id;
+    }
+
+    const saved = yield* saveReport(
+      homeOwner,
+      home,
+      draft(`report-home-${context.caseIndex}`, "Home report", "SECRET-BODY")
+    );
+
+    context.rowsByProfile.set(homeName, [...homeRows, saved]);
+
+    return saved.id;
+  });
+
 const accessPhase = (context: CaseContext) =>
   Effect.gen(function* refusesOutsiders() {
     const { caseIndex, foreignId, profileNames, stranger, viewer } = context;
 
     const home = profileId(firstOf(profileNames));
     const missingId = reportId(`report-missing-${caseIndex}`);
+    const existingId = yield* ensureHomeReport(context);
 
     const viewerSave = yield* Effect.flip(
       saveReport(viewer, home, draft("report-viewer", "Viewer", "Demo"))
@@ -350,12 +374,20 @@ const accessPhase = (context: CaseContext) =>
       getReport(viewer, home, foreignId)
     );
 
+    const viewerExisting = yield* Effect.flip(
+      getReport(viewer, home, existingId)
+    );
+
     const viewerDelete = yield* Effect.flip(
       deleteReport(viewer, home, foreignId)
     );
 
     const viewerDeleteMissing = yield* Effect.flip(
       deleteReport(viewer, home, missingId)
+    );
+
+    const viewerDeleteExisting = yield* Effect.flip(
+      deleteReport(viewer, home, existingId)
     );
 
     expect(viewerSave, `case ${caseIndex}: a viewer saved`).toBeInstanceOf(
@@ -375,6 +407,14 @@ const accessPhase = (context: CaseContext) =>
       viewerForeign,
       `case ${caseIndex}: a viewer learned the report exists`
     ).toStrictEqual(viewerMissing);
+    expect(
+      viewerExisting,
+      `case ${caseIndex}: a viewer read a report on the profile`
+    ).toStrictEqual(viewerMissing);
+    expect(
+      viewerDeleteExisting,
+      `case ${caseIndex}: a viewer deleted a report on the profile`
+    ).toStrictEqual(viewerDeleteMissing);
 
     const strangerList = yield* Effect.flip(listReports(stranger, home));
 
@@ -390,12 +430,20 @@ const accessPhase = (context: CaseContext) =>
       getReport(stranger, home, foreignId)
     );
 
+    const strangerExisting = yield* Effect.flip(
+      getReport(stranger, home, existingId)
+    );
+
     const strangerDelete = yield* Effect.flip(
       deleteReport(stranger, home, foreignId)
     );
 
     const strangerDeleteMissing = yield* Effect.flip(
       deleteReport(stranger, home, missingId)
+    );
+
+    const strangerDeleteExisting = yield* Effect.flip(
+      deleteReport(stranger, home, existingId)
     );
 
     expect(strangerList, `case ${caseIndex}: a stranger listed`).toBeInstanceOf(
@@ -415,6 +463,14 @@ const accessPhase = (context: CaseContext) =>
     expect(
       strangerDelete,
       `case ${caseIndex}: a stranger learned via delete whether the report exists`
+    ).toStrictEqual(strangerDeleteMissing);
+    expect(
+      strangerExisting,
+      `case ${caseIndex}: a stranger read a report on the profile`
+    ).toStrictEqual(strangerMissing);
+    expect(
+      strangerDeleteExisting,
+      `case ${caseIndex}: a stranger deleted a report on the profile`
     ).toStrictEqual(strangerDeleteMissing);
   });
 
