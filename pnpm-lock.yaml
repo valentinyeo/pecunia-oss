@@ -527,6 +527,9 @@ importers:
       '@pecunia/motion':
         specifier: workspace:*
         version: link:../../packages/motion
+      '@pecunia/settings':
+        specifier: workspace:*
+        version: link:../../packages/settings
       '@pecunia/site':
         specifier: workspace:*
         version: link:../site
