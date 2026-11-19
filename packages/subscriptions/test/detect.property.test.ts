@@ -18,11 +18,21 @@ import type {
   Payee,
   PayeeId,
 } from "../src/model.js";
-import { NOMINAL_DAYS } from "../src/schedule.js";
 
 const CASES = 600;
 
+const AMOUNT_CASES = 400;
+
 const IRREGULAR_CASES = 300;
+
+const LITERAL_BANDS: Readonly<
+  Record<Frequency, { readonly max: number; readonly min: number }>
+> = {
+  annual: { max: 380, min: 350 },
+  monthly: { max: 35, min: 25 },
+  quarterly: { max: 100, min: 80 },
+  weekly: { max: 9, min: 5 },
+};
 
 interface Random {
   readonly int: (min: number, max: number) => number;
@@ -71,19 +81,25 @@ const payeeOf = (text: string): Payee =>
 const chargesOf = (input: {
   readonly direction: Direction;
   readonly gaps: readonly number[];
-  readonly minor: number;
+  readonly minors: readonly number[];
   readonly payeeId: PayeeId;
 }): readonly Charge[] => {
   const charges: Charge[] = [];
   let cursor = "2020-01-01";
 
-  for (const gap of input.gaps) {
+  for (const [index, gap] of input.gaps.entries()) {
+    const minor = input.minors[index];
+
+    if (minor === undefined) {
+      throw new Error("A generated charge needs one amount per gap");
+    }
+
     cursor = shiftDays(cursor, gap);
 
     charges.push(
       Schema.decodeSync(ChargeSchema)({
-        amount: { currency: "EUR", minor: input.minor },
-        baseAmount: { currency: "EUR", minor: input.minor },
+        amount: { currency: "EUR", minor },
+        baseAmount: { currency: "EUR", minor },
         categoryId: null,
         direction: input.direction,
         on: cursor,
@@ -95,6 +111,9 @@ const chargesOf = (input: {
 
   return charges;
 };
+
+const repeatsOf = (value: number, count: number): readonly number[] =>
+  Array.from({ length: count }, () => value);
 
 const only = (
   found: readonly DetectedRepeatPayment[]
@@ -117,15 +136,21 @@ it("finds a cadence inside the band of its frequency", () => {
   for (let index = 0; index < CASES; index += 1) {
     const frequency: Frequency = random.pick(FREQUENCIES);
     const count = random.int(3, 9);
-    const minor = random.int(1, 100_000);
+    const band = LITERAL_BANDS[frequency];
     const id = payeeIdOf(`payee-${index}`);
 
-    const gaps = Array.from(
-      { length: count },
-      () => NOMINAL_DAYS[frequency] + random.int(-2, 2)
+    const gaps = Array.from({ length: count }, () =>
+      random.int(band.min, band.max)
     );
 
-    const charges = chargesOf({ direction: "out", gaps, minor, payeeId: id });
+    const minors = Array.from({ length: count }, () => random.int(1, 100_000));
+
+    const charges = chargesOf({
+      direction: "out",
+      gaps,
+      minors,
+      payeeId: id,
+    });
 
     const candidate = only(
       detectRepeatPayments(charges, [payeeOf(`payee-${index}`)])
@@ -140,14 +165,121 @@ it("finds a cadence inside the band of its frequency", () => {
     expect(candidate.frequency).toBe(frequency);
     expect(candidate.payeeId).toBe(id);
     expect(candidate.payeeName).toBe(`Demo payee-${index}`);
-    expect(candidate.typicalAmount.minor).toBe(minor);
     expect(candidate.typicalAmount.currency).toBe("EUR");
-    expect(candidate.typicalBaseAmount.minor).toBe(minor);
+    expect(candidate.typicalBaseAmount.currency).toBe("EUR");
+    expect(candidate.typicalBaseAmount.minor).toBe(
+      candidate.typicalAmount.minor
+    );
     expect(candidate.occurrenceCount).toBe(count);
     expect(candidate.lastChargedOn).toBe(last.on);
     expect(candidate.nextExpectedOn > candidate.lastChargedOn).toBe(true);
     expect(candidate.confidence).toBeGreaterThan(0);
     expect(candidate.confidence).toBeLessThanOrEqual(1);
+
+    checked += 1;
+  }
+
+  expect(checked).toBe(CASES);
+});
+
+it("keeps the typical charge between the smallest and largest charge", () => {
+  const random = makeRandom(0x5e_e1_de_04);
+  let checked = 0;
+
+  for (let index = 0; index < AMOUNT_CASES; index += 1) {
+    const frequency: Frequency = random.pick(FREQUENCIES);
+    const count = random.int(3, 9);
+    const band = LITERAL_BANDS[frequency];
+    const id = payeeIdOf(`bounded-${index}`);
+
+    const gaps = Array.from({ length: count }, () =>
+      random.int(band.min, band.max)
+    );
+
+    const minors = Array.from({ length: count }, () => random.int(1, 100_000));
+
+    const candidate = only(
+      detectRepeatPayments(
+        chargesOf({ direction: "out", gaps, minors, payeeId: id }),
+        [payeeOf(`bounded-${index}`)]
+      )
+    );
+
+    expect(candidate.typicalAmount.minor).toBeGreaterThanOrEqual(
+      Math.min(...minors)
+    );
+    expect(candidate.typicalAmount.minor).toBeLessThanOrEqual(
+      Math.max(...minors)
+    );
+    expect(candidate.typicalBaseAmount.minor).toBe(
+      candidate.typicalAmount.minor
+    );
+
+    checked += 1;
+  }
+
+  expect(checked).toBe(AMOUNT_CASES);
+});
+
+it("picks a middle charge as the typical charge of an odd count", () => {
+  const random = makeRandom(0x5e_e1_de_05);
+  let checked = 0;
+
+  for (let index = 0; index < AMOUNT_CASES; index += 1) {
+    const frequency: Frequency = random.pick(FREQUENCIES);
+    const count = random.int(1, 4) * 2 + 1;
+    const band = LITERAL_BANDS[frequency];
+    const id = payeeIdOf(`middle-${index}`);
+
+    const gaps = Array.from({ length: count }, () =>
+      random.int(band.min, band.max)
+    );
+
+    const minors = Array.from({ length: count }, () => random.int(1, 100_000));
+
+    const candidate = only(
+      detectRepeatPayments(
+        chargesOf({ direction: "out", gaps, minors, payeeId: id }),
+        [payeeOf(`middle-${index}`)]
+      )
+    );
+
+    const ordered = [...minors].toSorted((left, right) => left - right);
+
+    expect(candidate.frequency).toBe(frequency);
+    expect(candidate.typicalAmount.minor).toBe(ordered[(count - 1) / 2]);
+
+    checked += 1;
+  }
+
+  expect(checked).toBe(AMOUNT_CASES);
+});
+
+it("claims the band its gaps sit inside", () => {
+  const random = makeRandom(0x5e_e1_de_06);
+  let checked = 0;
+
+  for (let index = 0; index < CASES; index += 1) {
+    const frequency: Frequency = random.pick(FREQUENCIES);
+    const count = random.int(3, 9);
+    const band = LITERAL_BANDS[frequency];
+    const id = payeeIdOf(`banded-${index}`);
+
+    const gaps = Array.from({ length: count }, () =>
+      random.int(band.min, band.max)
+    );
+
+    const minors = Array.from({ length: count }, () => random.int(1, 100_000));
+
+    const candidate = only(
+      detectRepeatPayments(
+        chargesOf({ direction: "out", gaps, minors, payeeId: id }),
+        [payeeOf(`banded-${index}`)]
+      )
+    );
+
+    expect(candidate.frequency).toBe(frequency);
+    expect(candidate.occurrenceCount).toBe(count);
 
     checked += 1;
   }
@@ -164,7 +296,8 @@ it("claims nothing when the gaps match no frequency", () => {
     const minor = random.int(1, 100_000);
     const id = payeeIdOf(`irregular-${index}`);
     const gaps = Array.from({ length: count }, () => random.int(1, 4));
-    const charges = chargesOf({ direction: "out", gaps, minor, payeeId: id });
+    const minors = repeatsOf(minor, count);
+    const charges = chargesOf({ direction: "out", gaps, minors, payeeId: id });
 
     expect(
       detectRepeatPayments(charges, [payeeOf(`irregular-${index}`)])
@@ -182,12 +315,16 @@ it("claims nothing from two payments, an unknown payee or incoming money", () =>
 
   for (let index = 0; index < IRREGULAR_CASES; index += 1) {
     const count = random.int(1, 2);
-    const gaps = Array.from({ length: count }, () => random.int(25, 35));
     const minor = random.int(1, 100_000);
 
     expect(
       detectRepeatPayments(
-        chargesOf({ direction: "out", gaps, minor, payeeId: id }),
+        chargesOf({
+          direction: "out",
+          gaps: Array.from({ length: count }, () => random.int(25, 35)),
+          minors: repeatsOf(minor, count),
+          payeeId: id,
+        }),
         [payeeOf("payee-too-short")]
       )
     ).toEqual([]);
@@ -197,7 +334,7 @@ it("claims nothing from two payments, an unknown payee or incoming money", () =>
         chargesOf({
           direction: "in",
           gaps: [0, 30, 30, 30],
-          minor,
+          minors: [minor, minor, minor, minor],
           payeeId: id,
         }),
         [payeeOf("payee-too-short")]
@@ -209,7 +346,7 @@ it("claims nothing from two payments, an unknown payee or incoming money", () =>
         chargesOf({
           direction: "out",
           gaps: [0, 30, 30, 30],
-          minor,
+          minors: [minor, minor, minor, minor],
           payeeId: id,
         }),
         []

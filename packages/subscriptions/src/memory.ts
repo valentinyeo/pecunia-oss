@@ -163,7 +163,16 @@ export const memorySubscriptionStoreLayer = (seed: MemorySubscriptionSeed) =>
           );
 
           if (current !== undefined) {
-            const confirmed = confirmSubscription(current, requested.status.at);
+            const confirmed = confirmSubscription(
+              current.frequency === requested.frequency
+                ? current
+                : {
+                    ...current,
+                    frequency: requested.frequency,
+                    nextExpectedOn: requested.nextExpectedOn,
+                  },
+              requested.status.at
+            );
 
             return [
               confirmed,

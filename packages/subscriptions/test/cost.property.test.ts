@@ -77,6 +77,13 @@ const STATUS_TAGS: readonly [StatusTag, ...StatusTag[]] = [
   "NotRecurring",
 ];
 
+const LITERAL_CHARGES_PER_YEAR: Readonly<Record<Frequency, number>> = {
+  annual: 1,
+  monthly: 12,
+  quarterly: 4,
+  weekly: 52,
+};
+
 const subscriptionOf = (input: {
   readonly baseAmount: Payment;
   readonly frequency: Frequency;
@@ -146,7 +153,7 @@ it("keeps the annual cost exact and the monthly cost inside one minor unit", () 
 
     expect(annual.success.currency).toBe(amount.currency);
     expect(BigInt(annual.success.minor)).toBe(
-      BigInt(minor) * BigInt(CHARGES_PER_YEAR[frequency])
+      BigInt(minor) * BigInt(LITERAL_CHARGES_PER_YEAR[frequency])
     );
 
     const monthly = monthlyOf(annual.success);

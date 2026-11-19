@@ -151,7 +151,7 @@ Every place the old app put a behaviour. A place with no row is a behaviour nobo
 | One merchant: spend by category, monthly spend, and its payments with paging | route: merchant detail | planned | no ticket yet |
 | Mark every payment from one merchant confirmed | route: merchant detail | planned | no ticket yet |
 | Rename a merchant everywhere it appears | route: merchant detail | planned | no ticket yet |
-| Mark a merchant as a repeat payment, or stop treating it as one | route: merchant detail | planned | ticket:SOFT-2395 |
+| Mark a merchant as a repeat payment, or stop treating it as one | route: merchant detail | built | capability:markRepeatPayment, capability:changeSubscriptionStatus |
 | Personal against business spend for a period | route: spending | planned | no ticket yet |
 | A doughnut by category and a stacked monthly trend | route: spending | planned | no ticket yet |
 | One category's payments, and tagging a payment as reviewed from there | route: spending category | planned | no ticket yet |
@@ -163,13 +163,13 @@ Every place the old app put a behaviour. A place with no row is a behaviour nobo
 | Merchants with no category, listed so one can be picked | route: review | planned | no ticket yet |
 | Ask a language model to suggest categories for what is left | route: review | planned | no ticket yet |
 | Accept every suggestion waiting for review in one go | route: review | planned | no ticket yet |
-| Repeat payments with their monthly and annual cost and the next charge date | route: subscriptions | planned | ticket:SOFT-2395 |
-| Confirm or dismiss a repeat payment the app found | route: subscriptions | planned | ticket:SOFT-2395 |
-| Mark a payment as recurring, or as not recurring | route: subscriptions | planned | ticket:SOFT-2395 |
-| Cancel a repeat payment for one profile only, with an undo | route: subscriptions | planned | ticket:SOFT-2395 |
-| Set a repeat payment's category and push it onto its past payments | route: subscriptions | planned | ticket:SOFT-2395 |
-| Turn tracking of a repeat payment on and off | route: subscriptions | planned | ticket:SOFT-2395 |
-| Find repeat payments from the payment history | route: subscriptions | planned | ticket:SOFT-2395 |
+| Repeat payments with their monthly and annual cost and the next charge date | route: subscriptions | built | capability:listSubscriptions |
+| Confirm or dismiss a repeat payment the app found | route: subscriptions | built | capability:changeSubscriptionStatus |
+| Mark a payment as recurring, or as not recurring | route: subscriptions | built | capability:changeSubscriptionStatus |
+| Cancel a repeat payment for one profile only, with an undo | route: subscriptions | built | capability:changeSubscriptionStatus |
+| Set a repeat payment's category and push it onto its past payments | route: subscriptions | built | capability:setSubscriptionCategory |
+| Turn tracking of a repeat payment on and off | route: subscriptions | built | capability:changeSubscriptionStatus |
+| Find repeat payments from the payment history | route: subscriptions | built | capability:findRepeatPayments |
 | A six month spend projection from the repeat payments | route: forecast | dropped | the app never served this page, because the router never mounted it, so no user could open it and there is no user behaviour to carry over |
 | Holdings grouped by platform with price, value and gain | route: investments | planned | ticket:SOFT-2396 |
 | Add a holding by hand | route: investments | planned | ticket:SOFT-2396 |

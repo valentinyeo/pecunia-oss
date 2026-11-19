@@ -16,15 +16,27 @@ const payment = Schema.decodeSync(PaymentSchema);
 
 const medianOf = (values: readonly number[]): number => {
   const ordered = [...values].toSorted((left, right) => left - right);
-  const middle = ordered[Math.floor((ordered.length - 1) / 2)];
+  const lower = ordered[Math.floor((ordered.length - 1) / 2)];
 
-  if (middle === undefined) {
+  if (lower === undefined) {
     throw new Error(
       "A median needs at least one value. Fix: call `medianOf` only with the charges of one payee."
     );
   }
 
-  return middle;
+  if (ordered.length % 2 === 1) {
+    return lower;
+  }
+
+  const upper = ordered[Math.floor(ordered.length / 2)];
+
+  if (upper === undefined) {
+    throw new Error(
+      "A median needs both of its middle values. Fix: call `medianOf` only with a non-empty list."
+    );
+  }
+
+  return lower + Math.floor((upper - lower) / 2);
 };
 
 const orderedByDate = (charges: readonly Charge[]): readonly Charge[] =>
@@ -39,19 +51,38 @@ const intervalsOf = (charges: readonly Charge[]): readonly number[] =>
     return previous === undefined ? [] : [daysBetween(previous.on, charge.on)];
   });
 
-const dominantCurrency = (charges: readonly Charge[]): CurrencyCode => {
-  const counts = new Map<CurrencyCode, number>();
+interface CurrencyTally {
+  readonly count: number;
+  readonly first: number;
+}
 
-  for (const charge of charges) {
-    counts.set(
-      charge.amount.currency,
-      (counts.get(charge.amount.currency) ?? 0) + 1
-    );
+const tallyOf = (
+  charges: readonly Charge[],
+  currencyOf: (charge: Charge) => CurrencyCode
+): ReadonlyMap<CurrencyCode, CurrencyTally> => {
+  const tallies = new Map<CurrencyCode, CurrencyTally>();
+
+  for (const [index, charge] of charges.entries()) {
+    const code = currencyOf(charge);
+    const tally = tallies.get(code);
+
+    tallies.set(code, {
+      count: (tally?.count ?? 0) + 1,
+      first: tally?.first ?? index,
+    });
   }
 
-  const ranked = [...counts.entries()].toSorted(
-    ([leftCurrency, leftCount], [rightCurrency, rightCount]) =>
-      rightCount - leftCount || (leftCurrency < rightCurrency ? -1 : 1)
+  return tallies;
+};
+
+type TallyEntry = readonly [CurrencyCode, CurrencyTally];
+
+const mostUsed = (
+  tallies: ReadonlyMap<CurrencyCode, CurrencyTally>,
+  compareTies: (left: TallyEntry, right: TallyEntry) => number
+): CurrencyCode => {
+  const ranked = [...tallies.entries()].toSorted(
+    (left, right) => right[1].count - left[1].count || compareTies(left, right)
   );
 
   const [top] = ranked;
@@ -64,6 +95,18 @@ const dominantCurrency = (charges: readonly Charge[]): CurrencyCode => {
 
   return top[0];
 };
+
+const dominantCurrency = (charges: readonly Charge[]): CurrencyCode =>
+  mostUsed(
+    tallyOf(charges, (charge) => charge.amount.currency),
+    ([leftCurrency], [rightCurrency]) => (leftCurrency < rightCurrency ? -1 : 1)
+  );
+
+const dominantBaseCurrency = (charges: readonly Charge[]): CurrencyCode =>
+  mostUsed(
+    tallyOf(charges, (charge) => charge.baseAmount.currency),
+    ([, left], [, right]) => left.first - right.first
+  );
 
 const candidateOf = (
   charges: readonly Charge[],
@@ -89,11 +132,15 @@ const candidateOf = (
     (charge) => charge.amount.currency === currency
   );
 
-  const template = inCurrency.at(0);
-
-  if (template === undefined) {
+  if (inCurrency.length === 0) {
     return Option.none();
   }
+
+  const baseCurrency = dominantBaseCurrency(inCurrency);
+
+  const inBaseCurrency = inCurrency.filter(
+    (charge) => charge.baseAmount.currency === baseCurrency
+  );
 
   const nominal = NOMINAL_DAYS[frequency];
 
@@ -114,8 +161,8 @@ const candidateOf = (
       minor: medianOf(inCurrency.map((charge) => charge.amount.minor)),
     }),
     typicalBaseAmount: payment({
-      currency: template.baseAmount.currency,
-      minor: medianOf(inCurrency.map((charge) => charge.baseAmount.minor)),
+      currency: baseCurrency,
+      minor: medianOf(inBaseCurrency.map((charge) => charge.baseAmount.minor)),
     }),
   });
 };

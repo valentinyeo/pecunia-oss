@@ -223,6 +223,42 @@ it.effect("marks a merchant as a repeat payment once, for one profile", () =>
   }).pipe(Effect.provide(asOwner))
 );
 
+it.effect(
+  "takes the frequency the caller marks an existing repeat payment with",
+  () =>
+    Effect.gen(function* remeasureExistingRepeatPayment() {
+      const marked = yield* markRepeatPayment.handler({
+        frequency: "monthly",
+        payeeId: coffeePayeeId,
+        profileId: demoProfileId,
+      });
+
+      expect(marked.id).toBe(coffeeSubscriptionId);
+      expect(marked.frequency).toBe("monthly");
+      expect(marked.status._tag).toBe("Confirmed");
+      expect(marked.cost.annual).toEqual({ currency: "EUR", minor: 51_000 });
+      expect(marked.cost.monthly).toEqual({ currency: "EUR", minor: 4250 });
+      expect(Option.getOrThrow(marked.nextCharge)).toBe("2025-11-28");
+
+      const again = yield* markRepeatPayment.handler({
+        frequency: "monthly",
+        payeeId: coffeePayeeId,
+        profileId: demoProfileId,
+      });
+
+      expect(again.id).toBe(marked.id);
+      expect(again.frequency).toBe("monthly");
+      expect(again.cost).toEqual(marked.cost);
+      expect(again.status).toEqual(marked.status);
+
+      const counted = yield* listSubscriptions.handler(listRequest(active));
+
+      expect(counted.subscriptions).toHaveLength(2);
+      expect(counted.activeAnnual).toEqual({ currency: "EUR", minor: 409_800 });
+      expect(counted.activeMonthly).toEqual({ currency: "EUR", minor: 34_150 });
+    }).pipe(Effect.provide(asOwner))
+);
+
 it.effect("cancels one profile's repeat payment and undoes it", () =>
   Effect.gen(function* cancelAndUndo() {
     const cancelled = yield* cancel(cloudSubscriptionId);
