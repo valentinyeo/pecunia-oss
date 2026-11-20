@@ -11,10 +11,10 @@ The map is the maintained verification source. A proof that drives one convenien
 | [Accounts and bank lines](accounts-and-bank-lines.md) | partly built | import capabilities, no transport | `--feature accounts-and-bank-lines` |
 | [Categories and rules](categories-and-rules.md) | planned | none | `--feature categories-and-rules` |
 | [Dashboard sums](dashboard-sums.md) | planned | none | `--feature dashboard-sums` |
-| [Subscriptions](subscriptions.md) | planned | none | `--feature subscriptions` |
+| [Subscriptions](subscriptions.md) | partly built | capabilities, no screen or transport | `--feature subscriptions` |
 | [Investments](investments.md) | planned | none | `--feature investments` |
 | [FX conversion](fx-conversion.md) | planned | none | `--feature fx-conversion` |
-| [Tax](tax.md) | planned | none | `--feature tax` |
+| [Tax](tax.md) | partly built | `listTaxDues` and `syncTaxDues` capabilities, no transport | `--feature tax` |
 | [Invoices](invoices.md) | planned | none | `--feature invoices` |
 | [AI tools](ai-tools.md) | partly built | the six tool capabilities and their dispatcher, no transport | `--feature ai-tools` |
 
