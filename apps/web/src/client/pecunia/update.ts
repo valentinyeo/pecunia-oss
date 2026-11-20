@@ -4,19 +4,27 @@ import { UrlRequest } from "foldkit/navigation";
 import { toString as urlToString } from "foldkit/url";
 import type { Url } from "foldkit/url";
 
+import type { BankLinesGateway } from "./bank-lines/gateway.js";
+import type { BankLinesMessageValue } from "./bank-lines/message.js";
+import { LineScope } from "./bank-lines/model.js";
+import type { LineScopeValue } from "./bank-lines/model.js";
+import {
+  openBrowse,
+  openReview,
+  update as updateBankLines,
+} from "./bank-lines/update.js";
 import { LoadExternal, Navigate, ReadLocation } from "./command.js";
 import { Message } from "./message.js";
 import type { PecuniaMessage } from "./message.js";
 import { initialModel } from "./model.js";
-import type { PecuniaModel } from "./model.js";
+import type { AccessRoleValue, PecuniaModel } from "./model.js";
 import { AppRoute, parseRoute } from "./route.js";
 import type { AppRouteValue } from "./route.js";
+import type { SearchMessageValue } from "./search/message.js";
+import { openSearch, update as updateSearch } from "./search/update.js";
 import type { SettingsGateway } from "./settings/gateway.js";
 import type { SettingsMessageValue } from "./settings/message.js";
-import type {
-  SettingsRoleValue,
-  SettingsScreenValue,
-} from "./settings/model.js";
+import type { SettingsScreenValue } from "./settings/model.js";
 import {
   open as openSettings,
   update as updateSettings,
@@ -25,11 +33,17 @@ import {
 export type PecuniaReturn = Update.Return<
   PecuniaModel,
   PecuniaMessage,
-  SettingsGateway
+  BankLinesGateway | SettingsGateway
 >;
 
 const gotSettingsMessage = (message: SettingsMessageValue): PecuniaMessage =>
   Message.GotSettingsMessage({ message });
+
+const gotBankLinesMessage = (message: BankLinesMessageValue): PecuniaMessage =>
+  Message.GotBankLinesMessage({ message });
+
+const gotSearchMessage = (message: SearchMessageValue): PecuniaMessage =>
+  Message.GotSearchMessage({ message });
 
 const openSettingsScreen = Update.foldChildStep({
   read: (model: PecuniaModel) => Option.some(model.settings),
@@ -44,12 +58,57 @@ const foldSettings = Update.foldChild({
   update: (
     screen: SettingsScreenValue,
     input: Readonly<{
-      access: SettingsRoleValue;
+      access: AccessRoleValue;
       message: SettingsMessageValue;
     }>
   ) => updateSettings(screen, input.access, input.message),
   write: (model, settings) => ({ ...model, settings }),
 });
+
+const foldBankLines = Update.foldChild({
+  read: (model: PecuniaModel) => Option.some(model.bankLines),
+  toParentMessage: gotBankLinesMessage,
+  update: (
+    screen: PecuniaModel["bankLines"],
+    input: Readonly<{
+      access: AccessRoleValue;
+      message: BankLinesMessageValue;
+    }>
+  ) => updateBankLines(screen, input.access, input.message),
+  write: (model, bankLines) => ({ ...model, bankLines }),
+});
+
+const foldSearch = Update.foldChild({
+  read: (model: PecuniaModel) => Option.some(model.search),
+  toParentMessage: gotSearchMessage,
+  update: (screen: PecuniaModel["search"], message: SearchMessageValue) =>
+    updateSearch(screen, message),
+  write: (model, search) => ({ ...model, search }),
+});
+
+const openBankLines = (scope: LineScopeValue) =>
+  Update.foldChildStep({
+    read: (model: PecuniaModel) => Option.some(model.bankLines),
+    toParentMessage: gotBankLinesMessage,
+    update: (screen: PecuniaModel["bankLines"]) =>
+      openBrowse(scope, "", screen),
+    write: (model, bankLines) => ({ ...model, bankLines }),
+  });
+
+const openReviewScreen = Update.foldChildStep({
+  read: (model: PecuniaModel) => Option.some(model.bankLines),
+  toParentMessage: gotBankLinesMessage,
+  update: openReview,
+  write: (model, bankLines) => ({ ...model, bankLines }),
+});
+
+const openSearchScreen = (query: string) =>
+  Update.foldChildStep({
+    read: (model: PecuniaModel) => Option.some(model.search),
+    toParentMessage: gotSearchMessage,
+    update: (screen: PecuniaModel["search"]) => openSearch(query, screen),
+    write: (model, search) => ({ ...model, search }),
+  });
 
 const enterRoute = (
   model: PecuniaModel,
@@ -62,9 +121,13 @@ const enterRoute = (
     Dashboard: () => ({ model: next }),
     Investments: () => ({ model: next }),
     NotFound: () => ({ model: next }),
+    Review: () => openReviewScreen(next),
+    Search: ({ q }) => openSearchScreen(Option.getOrElse(q, () => ""))(next),
     Settings: () => openSettingsScreen(next),
+    Spending: ({ categoryId }) =>
+      openBankLines(LineScope.Category({ categoryId }))(next),
     Subscriptions: () => ({ model: next }),
-    Transactions: () => ({ model: next }),
+    Transactions: () => openBankLines(LineScope.All())(next),
   });
 };
 
@@ -93,6 +156,10 @@ export const update = (
     ClickedTheme: ({ theme }) => ({ model: { ...model, theme } }),
     CompletedLoadExternal: () => ({ model }),
     CompletedNavigate: () => ({ model }),
+    GotBankLinesMessage: ({ message: bankLinesMessage }) =>
+      foldBankLines(model, { access: model.access, message: bankLinesMessage }),
+    GotSearchMessage: ({ message: searchMessage }) =>
+      foldSearch(model, searchMessage),
     GotSettingsMessage: ({ message: settingsMessage }) =>
       foldSettings(model, { access: model.access, message: settingsMessage }),
   });
