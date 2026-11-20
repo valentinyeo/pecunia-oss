@@ -1,6 +1,6 @@
 # Tax
 
-Status: partly built. `listTaxDues` and `syncTaxDues` exist on `main` with their package checks. No screen, RPC route, MCP tool, CLI command, D1 store, or live FreeAgent call reaches them yet.
+Status: partly built. `listTaxDues` and `syncTaxDues` exist in `packages/tax` with their package checks. No screen, RPC route, MCP tool, CLI command, D1 store, or live FreeAgent call reaches them yet.
 
 ## What it promises
 
