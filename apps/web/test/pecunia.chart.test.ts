@@ -114,6 +114,28 @@ describe("formatMinor", () => {
       );
     }
   });
+
+  it("writes a currency with no minor digits without a fraction", () => {
+    expect(formatMinor(minorUnits(1500), "JPY")).toBe("JPY 1,500");
+
+    expect(formatMinor(0, "JPY")).toBe("JPY 0");
+
+    expect(formatMinor(minorUnits(-1500), "JPY")).toBe("-JPY 1,500");
+  });
+
+  it("writes a currency with three minor digits with three", () => {
+    expect(formatMinor(minorUnits(1500), "KWD")).toBe("KWD 1.500");
+
+    expect(formatMinor(minorUnits(1), "KWD")).toBe("KWD 0.001");
+  });
+
+  it("keeps two minor digits for the demo currencies", () => {
+    expect(formatMinor(minorUnits(1500), "EUR")).toBe("€15.00");
+
+    expect(formatMinor(minorUnits(1), "GBP")).toBe("£0.01");
+
+    expect(formatMinor(minorUnits(788_640_000), "EUR")).toBe("€7,886,400.00");
+  });
 });
 
 describe("totalMinor", () => {

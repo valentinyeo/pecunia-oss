@@ -3,6 +3,7 @@ import type { Effect, Option } from "effect";
 
 import type { DuplicateHolding } from "./duplicate-holding.js";
 import type { InvestmentsUnavailable } from "./investments-unavailable.js";
+import type { MismatchedProfile } from "./mismatched-profile.js";
 import type {
   Holding,
   HoldingId,
@@ -20,7 +21,10 @@ export interface InvestmentStoreService {
   readonly insert: (
     profileId: ProfileId,
     holding: Holding
-  ) => Effect.Effect<Holding, InvestmentsUnavailable | DuplicateHolding>;
+  ) => Effect.Effect<
+    Holding,
+    DuplicateHolding | InvestmentsUnavailable | MismatchedProfile
+  >;
   readonly platforms: () => Effect.Effect<
     readonly InvestmentPlatform[],
     InvestmentsUnavailable
@@ -37,7 +41,7 @@ export interface InvestmentStoreService {
   readonly upsert: (
     profileId: ProfileId,
     holding: Holding
-  ) => Effect.Effect<UpsertOutcome, InvestmentsUnavailable>;
+  ) => Effect.Effect<UpsertOutcome, InvestmentsUnavailable | MismatchedProfile>;
 }
 
 export class InvestmentStore extends Context.Service<

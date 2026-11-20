@@ -1,10 +1,12 @@
-import { Effect, Layer, Option, Schema } from "effect";
+import { Effect, Layer, Option, Result, Schema } from "effect";
 
 import { BrokerPayloadRejected } from "./broker-payload-rejected.js";
 import { BrokerUnavailable } from "./broker-unavailable.js";
 import { BrokerHoldings } from "./broker.js";
 import { moneyOfText, quantityOfText } from "./decimal.js";
+import { positionValue } from "./exact.js";
 import {
+  BrokerCostBasisSchema,
   CurrencyCodeSchema,
   DateOnlySchema,
   HoldingNameSchema,
@@ -14,12 +16,13 @@ import {
 import type {
   AssetType,
   BrokerAccountId,
+  BrokerCostBasis,
   BrokerHolding,
   CurrencyCode,
   Money,
+  Quantity,
   Timestamp,
 } from "./model.js";
-import { positionValue } from "./valuation.js";
 
 export const TRADING212_INSTRUMENT_TYPES = [
   "STOCK",
@@ -100,6 +103,32 @@ const amountIn = (
       );
 };
 
+const costBasisOf = (
+  accountId: BrokerAccountId,
+  index: number,
+  quantity: Quantity,
+  average: Option.Option<Money>
+): Effect.Effect<BrokerCostBasis, BrokerPayloadRejected> =>
+  Option.match(average, {
+    onNone: () =>
+      Effect.succeed(
+        BrokerCostBasisSchema.cases.Unknown.make({ reason: "no-cost" })
+      ),
+    onSome: (price) =>
+      Result.match(positionValue(quantity, price), {
+        onFailure: () =>
+          Effect.fail(
+            rejection(
+              accountId,
+              `instruments[${index}].averagePrice`,
+              `An average price of ${price.minor} ${price.currency} minor units for this quantity is past the exact integer range.`
+            )
+          ),
+        onSuccess: (amount) =>
+          Effect.succeed(BrokerCostBasisSchema.cases.Known.make({ amount })),
+      }),
+  });
+
 const instrumentHolding = (
   accountId: BrokerAccountId,
   at: Timestamp,
@@ -179,9 +208,12 @@ const instrumentHolding = (
       instrument.averagePrice
     );
 
-    const costBasis = Option.isSome(averagePrice)
-      ? positionValue(quantity, averagePrice.value)
-      : Option.none();
+    const costBasis = yield* costBasisOf(
+      accountId,
+      index,
+      quantity,
+      averagePrice
+    );
 
     return {
       assetType: assetTypeOfTrading212(instrument.type),

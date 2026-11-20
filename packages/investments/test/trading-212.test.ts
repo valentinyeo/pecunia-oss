@@ -1,8 +1,8 @@
 import { expect, it } from "@effect/vitest";
-import { Effect, Option } from "effect";
+import { Effect, Option, Predicate, Result } from "effect";
 
 import { demoBrokerAccountId, demoTrading212Payload } from "../src/demo.js";
-import type { BrokerHolding } from "../src/model.js";
+import type { BrokerCostBasis, BrokerHolding } from "../src/model.js";
 import { trading212Holdings } from "../src/trading-212.js";
 
 const find = (
@@ -16,6 +16,24 @@ const find = (
   }
 
   return found;
+};
+
+const costOf = (holding: BrokerHolding): BrokerCostBasis => holding.costBasis;
+
+const knownCost = (holding: BrokerHolding): number => {
+  const cost = costOf(holding);
+
+  if (!Predicate.isTagged(cost, "Known")) {
+    throw new Error(`${holding.symbol} has no known cost basis`);
+  }
+
+  return cost.amount.minor;
+};
+
+const costReason = (holding: BrokerHolding): string => {
+  const cost = costOf(holding);
+
+  return Predicate.isTagged(cost, "Unknown") ? cost.reason : "known";
 };
 
 const withInstrument = (
@@ -47,7 +65,7 @@ it.effect("reads quantities and prices from the recorded Trading 212 API", () =>
 
     expect(Option.getOrThrow(world.price).minor).toBe(520_000);
 
-    expect(Option.getOrThrow(world.costBasis).minor).toBe(450_000);
+    expect(knownCost(world)).toBe(450_000);
 
     expect(Option.getOrThrow(world.pricedAt)).toBe("2026-01-05T09:00:00.000Z");
 
@@ -57,7 +75,7 @@ it.effect("reads quantities and prices from the recorded Trading 212 API", () =>
 
     expect(bitcoin.quantity).toBe(12_000_000);
 
-    expect(Option.getOrThrow(bitcoin.costBasis).minor).toBe(600_000);
+    expect(knownCost(bitcoin)).toBe(600_000);
 
     const pending = find(holdings, "DEMO-TECH");
 
@@ -131,6 +149,27 @@ it.effect("refuses an average price that is not a decimal at all", () =>
   })
 );
 
+it.effect(
+  "refuses an average price whose product with the quantity is out of range",
+  () =>
+    Effect.gen(function* refuseOverflowingCostBasis() {
+      const failure = yield* Effect.flip(
+        trading212Holdings(
+          demoBrokerAccountId,
+          withInstrument(0, {
+            averagePrice: "90071992547409.91",
+            currentPrice: "1.00",
+            quantity: "2",
+          })
+        )
+      );
+
+      expect(failure._tag).toBe("BrokerPayloadRejected");
+
+      expect(failure.field).toBe("instruments[0].averagePrice");
+    })
+);
+
 it.effect("keeps a holding without an average price and no cost basis", () =>
   Effect.gen(function* keepMissingAveragePrice() {
     const withoutAveragePrice = {
@@ -153,14 +192,14 @@ it.effect("keeps a holding without an average price and no cost basis", () =>
       withoutAveragePrice
     );
 
-    expect(find(missing, "DEMO-WORLD").costBasis._tag).toBe("None");
+    expect(costReason(find(missing, "DEMO-WORLD"))).toBe("no-cost");
 
     const nulled = yield* trading212Holdings(
       demoBrokerAccountId,
       withInstrument(0, { averagePrice: null })
     );
 
-    expect(find(nulled, "DEMO-WORLD").costBasis._tag).toBe("None");
+    expect(costReason(find(nulled, "DEMO-WORLD"))).toBe("no-cost");
   })
 );
 
@@ -189,4 +228,116 @@ it.effect("refuses a payload that is not a Trading 212 portfolio", () =>
 
     expect(failure.field).toBe("payload");
   })
+);
+
+const SEED = 239_621;
+
+const CASES = 400;
+
+const MODULUS = 2_147_483_647;
+
+const MULTIPLIER = 48_271;
+
+const seeded = (seed: number) => {
+  let state = seed % MODULUS;
+
+  if (state <= 0) {
+    state += MODULUS - 1;
+  }
+
+  return () => {
+    state = (state * MULTIPLIER) % MODULUS;
+
+    return (state - 1) / (MODULUS - 1);
+  };
+};
+
+const draw = seeded(SEED);
+
+const intBetween = (min: number, max: number) =>
+  min + Math.floor(draw() * (max - min + 1));
+
+const pick = <A>(values: readonly A[]): A => {
+  const value = values[intBetween(0, values.length - 1)];
+
+  if (value === undefined) {
+    throw new Error("pick needs at least one value");
+  }
+
+  return value;
+};
+
+const QUANTITY_SCALE = 1_000_000n;
+
+const roundHalfAwayFromZero = (numerator: bigint): bigint => {
+  const quotient = numerator / QUANTITY_SCALE;
+  const remainder = numerator % QUANTITY_SCALE;
+  const doubled = (remainder < 0n ? -remainder : remainder) * 2n;
+
+  return doubled >= QUANTITY_SCALE
+    ? quotient + (numerator < 0n ? -1n : 1n)
+    : quotient;
+};
+
+const quantityText = (micros: number): string => {
+  const whole = Math.trunc(micros / 1_000_000);
+
+  const fraction = String(micros % 1_000_000)
+    .padStart(6, "0")
+    .replace(/0+$/u, "");
+
+  return fraction.length === 0 ? String(whole) : `${whole}.${fraction}`;
+};
+
+const priceText = (minor: number): string =>
+  minor % 100 === 0
+    ? String(minor / 100)
+    : `${Math.trunc(minor / 100)}.${String(minor % 100).padStart(2, "0")}`;
+
+it.effect(
+  "keeps the exact cost basis or refuses the average price by field over 400 edge cases",
+  () =>
+    Effect.gen(function* checkCostBasisEdge() {
+      const edgeQuantities = [500_000, 1_000_000, 1_500_000, 2_000_000];
+
+      for (let index = 0; index < CASES; index += 1) {
+        const micros = pick(edgeQuantities);
+
+        const priceMinor = intBetween(
+          Number.MAX_SAFE_INTEGER - 4_000_000_000,
+          Number.MAX_SAFE_INTEGER
+        );
+
+        const expected = roundHalfAwayFromZero(
+          BigInt(micros) * BigInt(priceMinor)
+        );
+
+        const outcome = yield* Effect.result(
+          trading212Holdings(
+            demoBrokerAccountId,
+            withInstrument(0, {
+              averagePrice: priceText(priceMinor),
+              currentPrice: "1.00",
+              quantity: quantityText(micros),
+            })
+          )
+        );
+
+        if (expected > BigInt(Number.MAX_SAFE_INTEGER)) {
+          expect(Result.isFailure(outcome)).toBe(true);
+
+          expect(
+            Result.isFailure(outcome) ? outcome.failure.field : undefined
+          ).toBe("instruments[0].averagePrice");
+        } else {
+          expect(Result.isSuccess(outcome)).toBe(true);
+
+          const holdings = Result.isSuccess(outcome) ? outcome.success : [];
+
+          expect(knownCost(find(holdings, "DEMO-WORLD"))).toBe(
+            Number(expected)
+          );
+        }
+      }
+    })
 );

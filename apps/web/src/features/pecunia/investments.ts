@@ -53,7 +53,7 @@ const valueReason = (reason: UnknownValueReason): string =>
 
 const gainReason = (reason: UnknownGainReason): string =>
   Match.value(reason).pipe(
-    Match.when("no-cost-basis", () => "Cost basis not tracked"),
+    Match.when("no-cost", () => "Cost basis not tracked"),
     Match.when("no-rate", () => "No exchange rate"),
     Match.when("out-of-range", () => "Outside exact range"),
     Match.orElse(() => "Unknown")

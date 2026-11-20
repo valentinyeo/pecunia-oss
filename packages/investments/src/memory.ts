@@ -1,6 +1,7 @@
 import { Effect, Layer, Option, Ref } from "effect";
 
 import { DuplicateHolding } from "./duplicate-holding.js";
+import { MismatchedProfile } from "./mismatched-profile.js";
 import type {
   Holding,
   HoldingId,
@@ -32,6 +33,18 @@ const sameHolding = (
 const replace = (holdings: readonly Holding[], next: Holding) =>
   holdings.map((holding) => (holding.id === next.id ? next : holding));
 
+const mismatchedProfile = (profileId: ProfileId, holding: Holding) =>
+  new MismatchedProfile({
+    holdingProfileId: holding.profileId,
+    message: `Holding ${holding.symbol} names profile ${holding.profileId} and was written to profile ${profileId}.`,
+    profileId,
+    repair:
+      "Stamp the holding with the profile it is written to before calling the store, or write it to the profile it names.",
+  });
+
+const namesProfile = (profileId: ProfileId, holding: Holding) =>
+  holding.profileId === profileId;
+
 export const memoryInvestmentStoreLayer = (seed: InvestmentMemorySeed) =>
   Layer.effect(
     InvestmentStore,
@@ -54,6 +67,10 @@ export const memoryInvestmentStoreLayer = (seed: InvestmentMemorySeed) =>
         profileId: ProfileId,
         holding: Holding
       ) {
+        if (!namesProfile(profileId, holding)) {
+          return yield* mismatchedProfile(profileId, holding);
+        }
+
         const book = yield* Ref.get(state);
 
         if (book.some((candidate) => sameHolding(candidate, holding))) {
@@ -116,6 +133,10 @@ export const memoryInvestmentStoreLayer = (seed: InvestmentMemorySeed) =>
         profileId: ProfileId,
         holding: Holding
       ) {
+        if (!namesProfile(profileId, holding)) {
+          return yield* mismatchedProfile(profileId, holding);
+        }
+
         return yield* Ref.modify(
           state,
           (book): readonly [UpsertOutcome, readonly Holding[]] => {

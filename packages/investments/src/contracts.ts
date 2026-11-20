@@ -7,6 +7,7 @@ import { BrokerPayloadRejected } from "./broker-payload-rejected.js";
 import { BrokerUnavailable } from "./broker-unavailable.js";
 import { DuplicateHolding } from "./duplicate-holding.js";
 import { InvestmentsUnavailable } from "./investments-unavailable.js";
+import { MismatchedProfile } from "./mismatched-profile.js";
 import {
   AddHoldingRequestSchema,
   DeleteHoldingRequestSchema,
@@ -47,6 +48,7 @@ export const addHoldingContract = defineContract("addHolding", {
     InvestmentsUnavailable,
     DuplicateHolding,
     Forbidden,
+    MismatchedProfile,
     UnknownPlatform,
   ]),
   input: AddHoldingRequestSchema,
@@ -82,6 +84,7 @@ export const syncInvestmentHoldingsContract = defineContract(
       BrokerUnavailable,
       Forbidden,
       InvestmentsUnavailable,
+      MismatchedProfile,
       UnknownPlatform,
     ]),
     input: SyncHoldingsRequestSchema,

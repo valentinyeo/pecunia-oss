@@ -7,11 +7,13 @@ Status: partly built. The six investment capabilities exist in `packages/investm
 - A holding keeps quantity in millionths of a unit, the last price in integer minor units, and the cost basis in integer minor units.
 - Value is quantity x price in integer arithmetic, rounded once, half away from zero. A float never touches a position value.
 - A holding with no price has an unknown value, not a zero value. It stays out of the known total and says so.
+- Every checked multiply, add and conversion goes through one helper that answers a named reason: out of range, no rate, no price, or no cost. A failure never becomes an empty value.
+- An average price times a quantity past the exact integer range fails the sync by name and field: `instruments[<n>].averagePrice`. A holding with no average price is a different answer, `no-cost`, and it still lands.
 - A conversion that overflows is out of range, and a rate that is missing is a missing rate. The two never collapse into one.
 - A total past the exact integer range says so by name. The screen never reports zero unknowns while showing no total.
 - Price and currency are a pair. Cost basis and currency are a pair.
 - A pending holding carries no price. The schema rejects a price on a pending holding.
-- Every holding belongs to one profile. A member of one profile reads only that profile's holdings.
+- Every holding belongs to one profile. A member of one profile reads only that profile's holdings. The store refuses a holding written under a profile it does not name, by name.
 - Pecunia shows what a position is worth and what it cost. It never recommends buying, selling, or holding.
 
 ## Capabilities

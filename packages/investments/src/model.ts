@@ -1,5 +1,7 @@
-import { codecs, RATE_SCALE } from "@pecunia/core/model";
+import { codecs, minorUnitExponent, RATE_SCALE } from "@pecunia/core/model";
 import { Option, Result, Schema, SchemaGetter } from "effect";
+
+export { minorUnitExponent };
 
 export const CurrencyCodeSchema = Schema.NonEmptyString.check(
   Schema.isPattern(/^[A-Z]{3}$/u)
@@ -202,7 +204,7 @@ export const UnknownValueReasonSchema = Schema.Literals([
 export type UnknownValueReason = typeof UnknownValueReasonSchema.Type;
 
 export const UnknownGainReasonSchema = Schema.Literals([
-  "no-cost-basis",
+  "no-cost",
   "no-rate",
   "out-of-range",
 ]);
@@ -408,9 +410,16 @@ export const PriceRefreshSummarySchema = Schema.Struct({
 
 export type PriceRefreshSummary = typeof PriceRefreshSummarySchema.Type;
 
+export const BrokerCostBasisSchema = Schema.TaggedUnion({
+  Known: { amount: MoneySchema },
+  Unknown: { reason: Schema.Literals(["no-cost", "out-of-range"]) },
+});
+
+export type BrokerCostBasis = typeof BrokerCostBasisSchema.Type;
+
 export const BrokerHoldingSchema = Schema.Struct({
   assetType: AssetTypeSchema,
-  costBasis: Schema.OptionFromNullishOr(MoneySchema),
+  costBasis: BrokerCostBasisSchema,
   currency: CurrencyCodeSchema,
   name: HoldingNameSchema,
   openedOn: DateOnlySchema,

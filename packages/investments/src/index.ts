@@ -60,6 +60,8 @@ export { newHoldingId } from "./ids.js";
 
 export { InvestmentsUnavailable } from "./investments-unavailable.js";
 
+export { MismatchedProfile } from "./mismatched-profile.js";
+
 export { memoryInvestmentStoreLayer } from "./memory.js";
 
 export type { InvestmentMemorySeed } from "./memory.js";
@@ -70,6 +72,7 @@ export {
   AssetTypeSchema,
   AddHoldingRequestSchema,
   BrokerAccountIdSchema,
+  BrokerCostBasisSchema,
   BrokerHoldingSchema,
   CostBasisChangeSchema,
   CurrencyCodeSchema,
@@ -116,6 +119,7 @@ export type {
   AddHoldingRequest,
   AssetType,
   BrokerAccountId,
+  BrokerCostBasis,
   BrokerHolding,
   CostBasisChange,
   CurrencyCode,
@@ -227,12 +231,17 @@ export { UnknownPlatform } from "./unknown-platform.js";
 
 export {
   convertMoney,
+  differenceOf,
+  exactMoney,
+  positionValue,
+  sumOf,
+} from "./exact.js";
+
+export {
   holdingValue,
   holdingViewOf,
   portfolioOf,
-  positionValue,
   rateLookupOf,
-  safeMoney,
   unknownValue,
 } from "./valuation.js";
 

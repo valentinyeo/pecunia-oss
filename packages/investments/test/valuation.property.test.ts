@@ -1,7 +1,8 @@
-import { Match, Option, Predicate, Schema } from "effect";
+import { Match, Predicate, Result, Schema } from "effect";
 import { expect, it } from "vitest";
 
 import { demoProfileId, demoRates } from "../src/demo.js";
+import { positionValue } from "../src/exact.js";
 import {
   CurrencyCodeSchema,
   ExchangeRateSchema,
@@ -19,12 +20,7 @@ import type {
   HoldingValue,
   Money,
 } from "../src/model.js";
-import {
-  holdingValue,
-  portfolioOf,
-  positionValue,
-  rateLookupOf,
-} from "../src/valuation.js";
+import { holdingValue, portfolioOf, rateLookupOf } from "../src/valuation.js";
 
 const SEED = 20_260_105;
 
@@ -195,7 +191,7 @@ it("values a position from integer quantity and price over 600 seeded cases", ()
     const gain = gainOf(value);
 
     if (costBasisMinor === null) {
-      expect(gainReasonOf(gain)).toBe("no-cost-basis");
+      expect(gainReasonOf(gain)).toBe("no-cost");
     } else {
       expect(gainAmountOf(gain)).toBe(Number(expected) - costBasisMinor);
     }
@@ -392,7 +388,7 @@ it("rounds a literal exact half away from zero", () => {
   ];
 
   for (const [quantity, priceMinor, expected] of cases) {
-    const value = Option.getOrThrow(
+    const value = Result.getOrThrow(
       positionValue(quantityOf(quantity), moneyOf(priceMinor))
     );
 
@@ -412,7 +408,7 @@ it("rounds generated exact halves away from zero in both directions", () => {
       priceMinor > 0 ? 500_000n : -500_000n
     );
 
-    const value = Option.getOrThrow(
+    const value = Result.getOrThrow(
       positionValue(quantityOf(quantity), moneyOf(priceMinor))
     );
 

@@ -1,16 +1,23 @@
-import { Match } from "effect";
+import {
+  CurrencyCodeSchema,
+  minorUnitExponent,
+} from "@pecunia/investments/model";
+import { Match, Option, Schema } from "effect";
 
 import type { Minor } from "../../client/pecunia/money.js";
 
-const minorUnitsPerMajor = 100;
+const DIGITS_FOR_UNLISTED_CURRENCIES = 2;
+
+const minorDigitsOf = (currency: string): number =>
+  Option.match(Schema.decodeOption(CurrencyCodeSchema)(currency), {
+    onNone: () => DIGITS_FOR_UNLISTED_CURRENCIES,
+    onSome: minorUnitExponent,
+  });
 
 const grouped = (digits: string): string =>
   digits.length <= 3
     ? digits
     : `${grouped(digits.slice(0, -3))},${digits.slice(-3)}`;
-
-const padded = (minor: number): string =>
-  String(minor).padStart(2, "0").slice(-2);
 
 const symbolFor = (currency: string): string =>
   Match.value(currency).pipe(
@@ -24,10 +31,15 @@ export const formatMinor = (
   amountMinor: Minor | number,
   currency: string
 ): string => {
+  const digits = minorDigitsOf(currency);
+  const scale = 10 ** digits;
   const absolute = Math.abs(amountMinor);
-  const major = Math.trunc(absolute / minorUnitsPerMajor);
-  const minor = absolute % minorUnitsPerMajor;
+  const major = Math.trunc(absolute / scale);
+  const minor = absolute % scale;
   const sign = amountMinor < 0 ? "-" : "";
 
-  return `${sign}${symbolFor(currency)}${grouped(String(major))}.${padded(minor)}`;
+  const fraction =
+    digits === 0 ? "" : `.${String(minor).padStart(digits, "0")}`;
+
+  return `${sign}${symbolFor(currency)}${grouped(String(major))}${fraction}`;
 };

@@ -3,7 +3,7 @@ import { CurrentPerson, PersonSchema } from "@pecunia/access";
 import type { Person } from "@pecunia/access";
 import { Effect, Layer, Match, Option, Schema } from "effect";
 
-import type { BrokerHoldings } from "../src/broker.js";
+import { BrokerHoldings } from "../src/broker.js";
 import {
   addHolding,
   deleteHolding,
@@ -23,6 +23,8 @@ import {
 import { memoryInvestmentStoreLayer } from "../src/memory.js";
 import type { InvestmentMemorySeed } from "../src/memory.js";
 import {
+  BrokerCostBasisSchema,
+  BrokerHoldingSchema,
   CostBasisChangeSchema,
   CurrencyCodeSchema,
   DateOnlySchema,
@@ -38,6 +40,7 @@ import {
   TimestampSchema,
 } from "../src/model.js";
 import type {
+  BrokerHolding,
   Holding,
   HoldingPatch,
   HoldingValue,
@@ -103,6 +106,10 @@ const otherHoldingId = Schema.decodeSync(HoldingIdSchema)(
   "0192f0c1-0030-7000-8000-000000000001"
 );
 
+const leakHoldingId = Schema.decodeSync(HoldingIdSchema)(
+  "0192f0c1-0041-7000-8000-0000000000aa"
+);
+
 const otherOwner = Schema.decodeSync(PersonSchema)({
   email: "other-owner@example.com",
   memberships: [{ profileId: otherProfileId, role: "owner" }],
@@ -123,6 +130,26 @@ const otherHolding: Holding = Schema.decodeSync(HoldingSchema)({
   quantity: 1_000_000,
   state: "active",
   symbol: "OTHER-ETF",
+});
+
+const overflowingBroker: BrokerHolding = Schema.decodeSync(BrokerHoldingSchema)(
+  {
+    assetType: "etf",
+    costBasis: BrokerCostBasisSchema.cases.Unknown.make({
+      reason: "out-of-range",
+    }),
+    currency: "EUR",
+    name: "Demo Overflow ETF",
+    openedOn,
+    price: { currency: "EUR", minor: 100 },
+    pricedAt,
+    quantity: quantity(2_000_000),
+    symbol: "DEMO-OVERFLOW",
+  }
+);
+
+const overflowBrokerLayer = Layer.succeed(BrokerHoldings, {
+  fetch: () => Effect.succeed([overflowingBroker]),
 });
 
 const serviceLayerOf = (
@@ -499,6 +526,44 @@ it.effect("syncs holdings from the broker and keeps them on a second run", () =>
   )
 );
 
+it.effect(
+  "refuses a broker cost basis past the exact range instead of storing none",
+  () =>
+    withService(
+      Effect.gen(function* refuseBrokerCostOverflow() {
+        const scope = yield* writeScopeOf(owner, demoProfileId);
+
+        const service = yield* InvestmentService;
+
+        const failure = yield* Effect.flip(
+          service.sync(scope, {
+            accountId: demoBrokerAccountId,
+            platformId: demoTrading212PlatformId,
+          })
+        );
+
+        expect(failure._tag).toBe("BrokerPayloadRejected");
+
+        expect(failure).toMatchObject({
+          field: "averagePrice",
+          message:
+            "The broker cost basis for DEMO-OVERFLOW is past the exact integer range.",
+        });
+
+        const readScope = yield* readScopeOf(owner, demoProfileId);
+
+        const portfolio = yield* service.portfolio(readScope);
+
+        expect(
+          portfolio.groups.flatMap((group) =>
+            group.holdings.map((holding) => holding.symbol)
+          )
+        ).toStrictEqual(["DEMO-TECH", "DEMO-WORLD", "DEMO-BTC"]);
+      }),
+      serviceLayer(overflowBrokerLayer)
+    )
+);
+
 it.effect("fails the sync by name when the broker payload is wrong", () =>
   withService(
     Effect.gen(function* rejectBadPayload() {
@@ -689,6 +754,55 @@ it.effect("keeps each profile's holdings apart", () =>
       )
     )
   )
+);
+
+it.effect(
+  "refuses a store write under a profile the holding does not name",
+  () =>
+    Effect.gen(function* refuseLeak() {
+      const store = yield* InvestmentStore;
+
+      const leak: Holding = {
+        ...otherHolding,
+        id: leakHoldingId,
+        platformId: platformId("manual"),
+        symbol: "LEAK",
+      };
+
+      const inserted = yield* Effect.flip(store.insert(demoProfileId, leak));
+
+      expect(inserted._tag).toBe("MismatchedProfile");
+
+      expect(inserted).toMatchObject({
+        holdingProfileId: otherProfileId,
+        profileId: demoProfileId,
+      });
+
+      const upserted = yield* Effect.flip(store.upsert(demoProfileId, leak));
+
+      expect(upserted._tag).toBe("MismatchedProfile");
+
+      expect(
+        (yield* store.holdings(demoProfileId)).map((holding) => holding.symbol)
+      ).toStrictEqual(["DEMO-WORLD", "DEMO-BTC", "DEMO-TECH"]);
+
+      expect(
+        (yield* store.holdings(otherProfileId)).map((holding) => holding.symbol)
+      ).toStrictEqual(["OTHER-ETF"]);
+
+      const stamped = yield* store.insert(demoProfileId, {
+        ...leak,
+        profileId: demoProfileId,
+      });
+
+      expect(stamped.profileId).toBe(demoProfileId);
+
+      expect(
+        (yield* store.holdings(demoProfileId)).map((holding) => holding.symbol)
+      ).toStrictEqual(["DEMO-WORLD", "DEMO-BTC", "DEMO-TECH", "LEAK"]);
+    }).pipe(
+      Effect.provide(serviceLayerOf(twoProfileSeed, twoProfileCurrencies))
+    )
 );
 
 it("parses a money value exactly as integer minor units", () => {

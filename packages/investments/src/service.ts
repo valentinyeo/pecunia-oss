@@ -6,15 +6,18 @@ import {
   Layer,
   Option,
   Predicate,
+  Result,
   Schema,
 } from "effect";
 
+import { BrokerPayloadRejected } from "./broker-payload-rejected.js";
 import { BrokerHoldings } from "./broker.js";
 import type { DuplicateHolding } from "./duplicate-holding.js";
 import type { BrokerFailure } from "./holdings-sync-machine.js";
 import { runHoldingsSync } from "./holdings-sync-machine.js";
 import { newHoldingId } from "./ids.js";
 import type { InvestmentsUnavailable } from "./investments-unavailable.js";
+import type { MismatchedProfile } from "./mismatched-profile.js";
 import {
   CostBasisChangeSchema,
   HoldingSchema,
@@ -23,6 +26,7 @@ import {
   QuantityChangeSchema,
 } from "./model.js";
 import type {
+  BrokerAccountId,
   BrokerHolding,
   Holding,
   HoldingId,
@@ -87,39 +91,63 @@ const pricePatch = (
   quantity: QuantityChangeSchema.cases.Unchanged.make({}),
 });
 
+const storedCostBasis = (
+  accountId: BrokerAccountId,
+  broker: BrokerHolding
+): Effect.Effect<Option.Option<Money>, BrokerPayloadRejected> => {
+  if (Predicate.isTagged(broker.costBasis, "Known")) {
+    return Effect.succeedSome(broker.costBasis.amount);
+  }
+
+  return broker.costBasis.reason === "no-cost"
+    ? Effect.succeedNone
+    : Effect.fail(
+        new BrokerPayloadRejected({
+          accountId,
+          field: "averagePrice",
+          message: `The broker cost basis for ${broker.symbol} is past the exact integer range.`,
+          repair: `Fix the recorded broker payload so ${broker.symbol}'s average price times its quantity stays inside exact integers.`,
+        })
+      );
+};
+
 const storedHolding = (
+  accountId: BrokerAccountId,
   profileId: ProfileId,
   platformId: InvestmentPlatform["id"],
   broker: BrokerHolding,
   existing: Holding | undefined,
   millis: number
-) => {
-  const carriedPrice: Option.Option<Money> =
-    existing === undefined ? Option.none() : existing.lastPrice;
+) =>
+  Effect.gen(function* storeBrokerHolding() {
+    const carriedPrice: Option.Option<Money> =
+      existing === undefined ? Option.none() : existing.lastPrice;
 
-  const carriedAt: Option.Option<Timestamp> =
-    existing === undefined ? Option.none() : existing.pricedAt;
+    const carriedAt: Option.Option<Timestamp> =
+      existing === undefined ? Option.none() : existing.pricedAt;
 
-  const price = Option.isSome(broker.price) ? broker.price : carriedPrice;
+    const price = Option.isSome(broker.price) ? broker.price : carriedPrice;
 
-  const pricedAt = Option.isSome(broker.price) ? broker.pricedAt : carriedAt;
+    const pricedAt = Option.isSome(broker.price) ? broker.pricedAt : carriedAt;
 
-  return Schema.decodeEffect(HoldingSchema)({
-    assetType: broker.assetType,
-    costBasis: Option.getOrNull(broker.costBasis),
-    currency: broker.currency,
-    id: newHoldingId(millis),
-    lastPrice: Option.getOrNull(price),
-    name: broker.name,
-    openedOn: broker.openedOn,
-    platformId,
-    pricedAt: Option.getOrNull(pricedAt),
-    profileId,
-    quantity: broker.quantity,
-    state: "active",
-    symbol: broker.symbol,
-  }).pipe(Effect.orDie);
-};
+    const costBasis = yield* storedCostBasis(accountId, broker);
+
+    return yield* Schema.decodeEffect(HoldingSchema)({
+      assetType: broker.assetType,
+      costBasis: Option.getOrNull(costBasis),
+      currency: broker.currency,
+      id: newHoldingId(millis),
+      lastPrice: Option.getOrNull(price),
+      name: broker.name,
+      openedOn: broker.openedOn,
+      platformId,
+      pricedAt: Option.getOrNull(pricedAt),
+      profileId,
+      quantity: broker.quantity,
+      state: "active",
+      symbol: broker.symbol,
+    }).pipe(Effect.orDie);
+  });
 
 export class InvestmentService extends Context.Service<
   InvestmentService,
@@ -129,7 +157,10 @@ export class InvestmentService extends Context.Service<
       holding: NewHolding
     ) => Effect.Effect<
       Holding,
-      InvestmentsUnavailable | UnknownPlatform | DuplicateHolding
+      | DuplicateHolding
+      | InvestmentsUnavailable
+      | MismatchedProfile
+      | UnknownPlatform
     >;
     readonly edit: (
       scope: WriteScope,
@@ -153,7 +184,10 @@ export class InvestmentService extends Context.Service<
       request: SyncHoldings
     ) => Effect.Effect<
       SyncSummary,
-      InvestmentsUnavailable | UnknownPlatform | BrokerFailure
+      | BrokerFailure
+      | InvestmentsUnavailable
+      | MismatchedProfile
+      | UnknownPlatform
     >;
   }
 >()("@pecunia/investments/InvestmentService", {
@@ -295,6 +329,7 @@ export class InvestmentService extends Context.Service<
         }
 
         const stored = yield* storedHolding(
+          request.accountId,
           scope.profileId,
           request.platformId,
           holding,
@@ -330,9 +365,9 @@ export class InvestmentService extends Context.Service<
 
           const quote = yield* priceBook
             .quote(holding.symbol, holding.assetType)
-            .pipe(Effect.option);
+            .pipe(Effect.result);
 
-          if (Option.isNone(quote)) {
+          if (Result.isFailure(quote)) {
             unpriced += 1;
             continue;
           }
@@ -340,7 +375,7 @@ export class InvestmentService extends Context.Service<
           yield* store.update(
             scope.profileId,
             holding.id,
-            pricePatch(holding.id, quote.value.price, quote.value.asOf)
+            pricePatch(holding.id, quote.success.price, quote.success.asOf)
           );
 
           priced += 1;
