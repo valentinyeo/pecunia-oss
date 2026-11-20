@@ -38,7 +38,23 @@
     "taxUnpaidTotal": "312500",
     "taxYear": "GB 4-6",
     "invoiceException": "4250 documents=0",
-    "reviewMarks": "tag=Reviewed hasTime=true"
+    "reviewMarks": "tag=Reviewed hasTime=true",
+    "aiToolsCatalog": "list_categories:read,list_lines:read,get_line:read,suggest_category:write,confirm_category:write,list_reports:read",
+    "aiToolsCategories": "categories=2 names=Groceries,Travel",
+    "aiToolsLines": "lines=2 total=2 next=none",
+    "aiToolsLine": "line=0192f0c1-6005-7a2b-8c4d-5e6f70819322 category=none review=Awaiting",
+    "aiToolsSuggestion": "suggested=0192f0c1-6002-7a2b-8c4d-5e6f70819311 lineCategory=none",
+    "aiToolsConfirm": "line=0192f0c1-6005-7a2b-8c4d-5e6f70819322 category=0192f0c1-6002-7a2b-8c4d-5e6f70819311",
+    "aiToolsReports": "reports=2 kinds=exploration,report",
+    "aiToolsViewerCategories": "categories=2 names=Groceries,Travel",
+    "aiToolsViewerLines": "lines=2 total=2 next=none",
+    "aiToolsViewerLine": "line=0192f0c1-6005-7a2b-8c4d-5e6f70819322 category=0192f0c1-6002-7a2b-8c4d-5e6f70819311 review=Awaiting",
+    "aiToolsViewerReports": "reports=2 kinds=exploration,report",
+    "aiToolsViewerConfirm": "reason=notPermitted field=none",
+    "aiToolsViewerConfirmLeavesCategory": "line=0192f0c1-6005-7a2b-8c4d-5e6f70819322 category=0192f0c1-6002-7a2b-8c4d-5e6f70819311",
+    "aiToolsViewerSuggestStoresNothing": "suggestions=1 lines=0192f0c1-6005-7a2b-8c4d-5e6f70819322",
+    "aiToolsViewerWrite": "reason=notPermitted field=none",
+    "aiToolsUnknownTool": "reason=unknownTool field=none"
   },
   "features": {
     "all": [
@@ -57,7 +73,8 @@
       "investments",
       "fx-conversion",
       "tax",
-      "invoices"
+      "invoices",
+      "ai-tools"
     ],
     "accounts-and-bank-lines": [
       "seed",
@@ -100,7 +117,15 @@
       "fx-conversion"
     ],
     "tax": ["seed", "feature-map", "parity", "generic", "tax"],
-    "invoices": ["seed", "feature-map", "parity", "generic", "invoices"]
+    "invoices": ["seed", "feature-map", "parity", "generic", "invoices"],
+    "ai-tools": [
+      "seed",
+      "build",
+      "feature-map",
+      "parity",
+      "generic",
+      "ai-tools"
+    ]
   },
   "steps": [
     {
@@ -113,7 +138,7 @@
     },
     {
       "id": "build",
-      "commands": ["build-import", "build-lines"],
+      "commands": ["build-import", "build-lines", "build-ai-tools"],
       "outputs": ["build-log"],
       "artifacts": [],
       "capabilities": [],
@@ -358,6 +383,106 @@
         }
       ],
       "writeOperations": ["reviewBankLine"]
+    },
+    {
+      "id": "ai-tools",
+      "commands": ["ai-tools"],
+      "outputs": [],
+      "artifacts": ["ai-tools-drive.json"],
+      "capabilities": [
+        "list_categories",
+        "list_lines",
+        "get_line",
+        "suggest_category",
+        "confirm_category",
+        "list_reports"
+      ],
+      "writes": true,
+      "expectations": [
+        {
+          "id": "ai-tools-catalog",
+          "equalsDemoNumber": "aiToolsCatalog"
+        },
+        {
+          "id": "ai-tools-lists-categories",
+          "equalsDemoNumber": "aiToolsCategories",
+          "capability": "list_categories"
+        },
+        {
+          "id": "ai-tools-lists-lines",
+          "equalsDemoNumber": "aiToolsLines",
+          "capability": "list_lines"
+        },
+        {
+          "id": "ai-tools-reads-one-line",
+          "equalsDemoNumber": "aiToolsLine",
+          "capability": "get_line"
+        },
+        {
+          "id": "ai-tools-suggests-without-confirming",
+          "equalsDemoNumber": "aiToolsSuggestion",
+          "capability": "suggest_category"
+        },
+        {
+          "id": "ai-tools-confirms-a-category",
+          "equalsDemoNumber": "aiToolsConfirm",
+          "capability": "confirm_category"
+        },
+        {
+          "id": "ai-tools-confirmed-line-reads-back",
+          "readback": true,
+          "readOperation": "list_lines",
+          "equalsRecords": "aiToolsLinesAfterConfirm"
+        },
+        {
+          "id": "ai-tools-lists-reports",
+          "equalsDemoNumber": "aiToolsReports",
+          "capability": "list_reports"
+        },
+        {
+          "id": "ai-tools-viewer-lists-categories",
+          "equalsDemoNumber": "aiToolsViewerCategories",
+          "capability": "list_categories"
+        },
+        {
+          "id": "ai-tools-viewer-lists-lines",
+          "equalsDemoNumber": "aiToolsViewerLines",
+          "capability": "list_lines"
+        },
+        {
+          "id": "ai-tools-viewer-reads-one-line",
+          "equalsDemoNumber": "aiToolsViewerLine",
+          "capability": "get_line"
+        },
+        {
+          "id": "ai-tools-viewer-lists-reports",
+          "equalsDemoNumber": "aiToolsViewerReports",
+          "capability": "list_reports"
+        },
+        {
+          "id": "ai-tools-refuses-a-viewer-confirm",
+          "equalsDemoNumber": "aiToolsViewerConfirm",
+          "capability": "confirm_category"
+        },
+        {
+          "id": "ai-tools-viewer-confirm-changes-nothing",
+          "equalsDemoNumber": "aiToolsViewerConfirmLeavesCategory"
+        },
+        {
+          "id": "ai-tools-refuses-a-viewer-write",
+          "equalsDemoNumber": "aiToolsViewerWrite",
+          "capability": "suggest_category"
+        },
+        {
+          "id": "ai-tools-viewer-suggest-stores-nothing",
+          "equalsDemoNumber": "aiToolsViewerSuggestStoresNothing"
+        },
+        {
+          "id": "ai-tools-refuses-an-unknown-tool",
+          "equalsDemoNumber": "aiToolsUnknownTool"
+        }
+      ],
+      "writeOperations": ["suggest_category", "confirm_category"]
     },
     {
       "id": "categories-and-rules",
@@ -1363,6 +1488,62 @@
         },
         "status": "posted",
         "valueDate": "2025-03-11"
+      }
+    ],
+    "aiToolsLinesAfterConfirm": [
+      {
+        "accountId": "0192f0c1-6006-7a2b-8c4d-5e6f70819331",
+        "amount": {
+          "currency": "EUR",
+          "minor": 4250
+        },
+        "baseAmount": {
+          "currency": "EUR",
+          "minor": 4250
+        },
+        "category": "0192f0c1-6002-7a2b-8c4d-5e6f70819311",
+        "direction": "out",
+        "id": "0192f0c1-6005-7a2b-8c4d-5e6f70819322",
+        "note": "",
+        "occurredAt": 1708430400000,
+        "profileId": "0192f0c1-6001-7a2b-8c4d-5e6f70819301",
+        "raw": {
+          "description": "Client lunch",
+          "merchant": "Demo Coffee",
+          "reference": "DEMO-0002"
+        },
+        "review": {
+          "_tag": "Awaiting"
+        },
+        "status": "posted",
+        "valueDate": "2024-02-20"
+      },
+      {
+        "accountId": "0192f0c1-6006-7a2b-8c4d-5e6f70819331",
+        "amount": {
+          "currency": "EUR",
+          "minor": 12345
+        },
+        "baseAmount": {
+          "currency": "EUR",
+          "minor": 12345
+        },
+        "category": "0192f0c1-6003-7a2b-8c4d-5e6f70819312",
+        "direction": "out",
+        "id": "0192f0c1-6004-7a2b-8c4d-5e6f70819321",
+        "note": "",
+        "occurredAt": 1707566400000,
+        "profileId": "0192f0c1-6001-7a2b-8c4d-5e6f70819301",
+        "raw": {
+          "description": "Demo Rail ticket",
+          "merchant": "Demo Rail",
+          "reference": "DEMO-0001"
+        },
+        "review": {
+          "_tag": "Awaiting"
+        },
+        "status": "posted",
+        "valueDate": "2024-02-10"
       }
     ]
   }
