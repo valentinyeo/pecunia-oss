@@ -194,6 +194,7 @@ const readbackFields = {
     "valueDate",
     "review",
   ],
+  "ai-tools": ["id", "amount", "category", "note", "occurredAt", "status"],
 };
 
 const awaitingReview = () => Object.fromEntries([["_tag", "Awaiting"]]);
