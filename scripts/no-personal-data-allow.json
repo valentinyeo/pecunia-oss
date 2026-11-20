@@ -99,6 +99,11 @@
       "reason": "The planted account number in the guard's own test; it must fail there and nowhere else."
     },
     {
+      "path": "scripts/check-commit-identity.test.ts",
+      "value": "tnoreply@github.com",
+      "reason": "A git identity fixture writes its tab as a backslash and a t, so the plain text glues that t onto the no-reply address it belongs to. The address itself is noreply@github.com, which needs no excuse."
+    },
+    {
       "path": "packages/database/demo/seed.sql",
       "value": "12000000",
       "reason": "A holding quantity in the seeded demo database. It is a round made-up number, not an account number, and the sort-code-shaped field beside it is a cost basis in minor units."
