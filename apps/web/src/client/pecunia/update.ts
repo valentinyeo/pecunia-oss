@@ -4,6 +4,9 @@ import { UrlRequest } from "foldkit/navigation";
 import { toString as urlToString } from "foldkit/url";
 import type { Url } from "foldkit/url";
 
+import type { CategorizeGateway } from "./categorize/gateway.js";
+import type { CategorizeMessageValue } from "./categorize/message.js";
+import { update as updateCategorize } from "./categorize/update.js";
 import { LoadExternal, Navigate, ReadLocation } from "./command.js";
 import { Message } from "./message.js";
 import type { PecuniaMessage } from "./message.js";
@@ -25,7 +28,7 @@ import {
 export type PecuniaReturn = Update.Return<
   PecuniaModel,
   PecuniaMessage,
-  SettingsGateway
+  CategorizeGateway | SettingsGateway
 >;
 
 const gotSettingsMessage = (message: SettingsMessageValue): PecuniaMessage =>
@@ -36,6 +39,18 @@ const openSettingsScreen = Update.foldChildStep({
   toParentMessage: gotSettingsMessage,
   update: openSettings,
   write: (model, settings) => ({ ...model, settings }),
+});
+
+const gotCategorizeMessage = (
+  message: CategorizeMessageValue
+): PecuniaMessage => Message.GotCategorizeMessage({ message });
+
+const foldCategorize = Update.foldChild({
+  read: (model: PecuniaModel) => Option.some(model.categorize),
+  toParentMessage: gotCategorizeMessage,
+  update: (categorize, message: CategorizeMessageValue) =>
+    updateCategorize(categorize, message),
+  write: (model, categorize) => ({ ...model, categorize }),
 });
 
 const foldSettings = Update.foldChild({
@@ -58,10 +73,15 @@ const enterRoute = (
   const next = { ...model, route };
 
   return AppRoute.match<PecuniaReturn>(route, {
+    Aliases: () => ({ model: next }),
     Budgets: () => ({ model: next }),
+    Categories: () => ({ model: next }),
     Dashboard: () => ({ model: next }),
     Investments: () => ({ model: next }),
+    MerchantDetail: () => ({ model: next }),
+    Merchants: () => ({ model: next }),
     NotFound: () => ({ model: next }),
+    Rules: () => ({ model: next }),
     Settings: () => openSettingsScreen(next),
     Subscriptions: () => ({ model: next }),
     Transactions: () => ({ model: next }),
@@ -93,6 +113,8 @@ export const update = (
     ClickedTheme: ({ theme }) => ({ model: { ...model, theme } }),
     CompletedLoadExternal: () => ({ model }),
     CompletedNavigate: () => ({ model }),
+    GotCategorizeMessage: ({ message: categorizeMessage }) =>
+      foldCategorize(model, categorizeMessage),
     GotSettingsMessage: ({ message: settingsMessage }) =>
       foldSettings(model, { access: model.access, message: settingsMessage }),
   });

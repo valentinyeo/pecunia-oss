@@ -518,6 +518,9 @@ importers:
       '@pecunia/capability':
         specifier: workspace:*
         version: link:../../packages/capability
+      '@pecunia/categorize':
+        specifier: workspace:*
+        version: link:../../packages/categorize
       '@pecunia/core':
         specifier: workspace:*
         version: link:../../packages/core

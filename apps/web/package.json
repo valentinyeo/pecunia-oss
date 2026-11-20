@@ -29,6 +29,7 @@
     "@foldkit/ui": "0.170.0",
     "@pecunia/auth": "workspace:*",
     "@pecunia/capability": "workspace:*",
+    "@pecunia/categorize": "workspace:*",
     "@pecunia/core": "workspace:*",
     "@pecunia/devtools": "workspace:*",
     "@pecunia/motion": "workspace:*",

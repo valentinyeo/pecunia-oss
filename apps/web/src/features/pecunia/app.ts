@@ -5,10 +5,15 @@ import { Message } from "../../client/pecunia/message.js";
 import type { PecuniaMessage } from "../../client/pecunia/message.js";
 import type { PecuniaModel } from "../../client/pecunia/model.js";
 import { AppRoute, dashboardRouter } from "../../client/pecunia/route.js";
+import { view as aliasesView } from "./aliases.js";
+import { view as categoriesView } from "./categories.js";
 import { dashboardScreen } from "./dashboard.js";
 import { frame } from "./frame.js";
+import { view as merchantView } from "./merchant.js";
+import { view as merchantsView } from "./merchants.js";
 import { routeTitle } from "./navigation.js";
 import { styles } from "./pecunia.stylex.js";
+import { view as rulesView } from "./rules.js";
 import { view as settingsView } from "./settings.js";
 
 export { boot, init, update } from "../../client/pecunia/update.js";
@@ -46,12 +51,30 @@ const notFound = (h: HtmlBuilder<PecuniaMessage>): Html =>
     ]
   );
 
+const categorizeScreen = (
+  model: PecuniaModel,
+  key: string,
+  view: typeof categoriesView,
+  h: HtmlBuilder<PecuniaMessage>
+): Html =>
+  h.submodel({
+    model: { key, screen: model.categorize },
+    slotId: "categorize",
+    toParentMessage: (message) => Message.GotCategorizeMessage({ message }),
+    view,
+  });
+
 const screen = (model: PecuniaModel, h: HtmlBuilder<PecuniaMessage>): Html =>
   AppRoute.match<Html>(model.route, {
+    Aliases: () => categorizeScreen(model, "", aliasesView, h),
     Budgets: () => laterScreen(model, h),
+    Categories: () => categorizeScreen(model, "", categoriesView, h),
     Dashboard: () => dashboardScreen(model.dashboard, h),
     Investments: () => laterScreen(model, h),
+    MerchantDetail: ({ key }) => categorizeScreen(model, key, merchantView, h),
+    Merchants: () => categorizeScreen(model, "", merchantsView, h),
     NotFound: () => notFound(h),
+    Rules: () => categorizeScreen(model, "", rulesView, h),
     Settings: () =>
       h.submodel({
         model: model.settings,

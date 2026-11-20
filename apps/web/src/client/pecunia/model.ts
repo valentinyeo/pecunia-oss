@@ -1,5 +1,6 @@
 import { Schema } from "effect";
 
+import { CategorizeScreen, initialCategorize } from "./categorize/model.js";
 import { Dashboard } from "./dashboard.js";
 import { demoDashboard } from "./demo-data.js";
 import { AppRoute } from "./route.js";
@@ -15,6 +16,7 @@ export type ThemeValue = typeof Theme.Type;
 
 export const Model = Schema.Struct({
   access: SettingsRole,
+  categorize: CategorizeScreen,
   dashboard: Dashboard,
   route: AppRoute,
   settings: SettingsScreen,
@@ -25,6 +27,7 @@ export type PecuniaModel = typeof Model.Type;
 
 export const initialModel: PecuniaModel = {
   access: "owner",
+  categorize: initialCategorize,
   dashboard: demoDashboard,
   route: AppRoute.Dashboard(),
   settings: initialSettings,
