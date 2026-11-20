@@ -10,7 +10,7 @@ The map is the maintained verification source. A proof that drives one convenien
 | --- | --- | --- | --- |
 | [Accounts and bank lines](accounts-and-bank-lines.md) | partly built | import capabilities, no transport | `--feature accounts-and-bank-lines` |
 | [Categories and rules](categories-and-rules.md) | planned | none | `--feature categories-and-rules` |
-| [Dashboard sums](dashboard-sums.md) | planned | none | `--feature dashboard-sums` |
+| [Dashboard sums](dashboard-sums.md) | partly built | seven read capabilities and three tools, no transport | `--feature dashboard-sums` |
 | [Subscriptions](subscriptions.md) | partly built | capabilities, no screen or transport | `--feature subscriptions` |
 | [Investments](investments.md) | partly built | capabilities, demo screen, no transport | `--feature investments` |
 | [FX conversion](fx-conversion.md) | planned | none | `--feature fx-conversion` |
