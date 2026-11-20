@@ -3,6 +3,7 @@ import type { Category, CategoryId } from "@pecunia/categorize";
 import { Option, Result, Schema } from "effect";
 import type { Update } from "foldkit";
 
+import type { SettingsRoleValue } from "../settings/model.js";
 import { WriteCatalog } from "./command.js";
 import type { CategorizeGateway } from "./gateway.js";
 import { Message } from "./message.js";
@@ -14,6 +15,7 @@ import {
   RuleForm,
   Notice,
   UNSET_SELECT,
+  aliasChoiceRefusal,
   categoryChoiceRefusal,
   emptyAliasDraft,
   emptyCategoryDraft,
@@ -23,6 +25,7 @@ import {
   parseCategoryDraft,
   parseMergeDraft,
   parseRuleDraft,
+  readOnlyRefusal,
   renameRefusal,
 } from "./model.js";
 import type {
@@ -39,6 +42,7 @@ import type {
   RuleFormValue,
 } from "./model.js";
 import { MonthSchema } from "./period.js";
+import { unknownAlias, unknownCategory } from "./refusal.js";
 import type { CatalogWrite } from "./write.js";
 import { CatalogWriteSchema } from "./write.js";
 
@@ -59,12 +63,21 @@ const refused = (
 
 const send = (
   screen: CategorizeScreenValue,
+  access: SettingsRoleValue,
   form: FormSlot,
   write: CatalogWrite
-): CategorizeUpdate => ({
-  commands: [WriteCatalog({ form, write })],
-  model: { ...screen, notice: Notice.None() },
-});
+): CategorizeUpdate =>
+  access === "viewer"
+    ? {
+        model: {
+          ...screen,
+          notice: Notice.Refused({ message: readOnlyRefusal }),
+        },
+      }
+    : {
+        commands: [WriteCatalog({ form, write })],
+        model: { ...screen, notice: Notice.None() },
+      };
 
 const untouched = (screen: CategorizeScreenValue): CategorizeUpdate => ({
   model: screen,
@@ -116,6 +129,7 @@ const editAliasForm = (
 
 const submitCategory = (
   screen: CategorizeScreenValue,
+  access: SettingsRoleValue,
   draft: CategoryDraft,
   id: Option.Option<CategoryId>
 ): CategorizeUpdate => {
@@ -129,12 +143,14 @@ const submitCategory = (
     onNone: () =>
       send(
         screen,
+        access,
         "category",
         cases.CreateCategory.make({ ...parsed.success })
       ),
     onSome: (categoryId) =>
       send(
         screen,
+        access,
         "category",
         cases.UpdateCategory.make({ ...parsed.success, id: categoryId })
       ),
@@ -143,6 +159,7 @@ const submitCategory = (
 
 const submitRule = (
   screen: CategorizeScreenValue,
+  access: SettingsRoleValue,
   draft: RuleDraft
 ): CategorizeUpdate => {
   const parsed = parseRuleDraft(screen.catalog, draft);
@@ -151,6 +168,7 @@ const submitRule = (
     ? refused(screen, parsed.failure)
     : send(
         screen,
+        access,
         "rule",
         cases.CreateRule.make({ draft: parsed.success.draft })
       );
@@ -158,6 +176,7 @@ const submitRule = (
 
 const submitAlias = (
   screen: CategorizeScreenValue,
+  access: SettingsRoleValue,
   form: AliasFormValue
 ): CategorizeUpdate =>
   AliasForm.match(form, {
@@ -169,6 +188,7 @@ const submitAlias = (
         ? refused(screen, parsed.failure)
         : send(
             screen,
+            access,
             "alias",
             cases.SaveAlias.make({
               id: Option.none(),
@@ -188,9 +208,10 @@ const submitAlias = (
       const aliasId = Schema.decodeResult(AliasIdSchema)(id);
 
       return Result.isFailure(aliasId)
-        ? refused(screen, "Alias: pick an alias from the list.")
+        ? refused(screen, aliasChoiceRefusal)
         : send(
             screen,
+            access,
             "alias",
             cases.SaveAlias.make({
               id: Option.some(aliasId.success),
@@ -202,13 +223,17 @@ const submitAlias = (
     },
   });
 
-const submitMerge = (screen: CategorizeScreenValue): CategorizeUpdate => {
+const submitMerge = (
+  screen: CategorizeScreenValue,
+  access: SettingsRoleValue
+): CategorizeUpdate => {
   const parsed = parseMergeDraft(screen.mergeDraft);
 
   return Result.isFailure(parsed)
     ? refused(screen, parsed.failure)
     : send(
         screen,
+        access,
         "merge",
         cases.MergePayees.make({
           from: parsed.success.from,
@@ -219,6 +244,7 @@ const submitMerge = (screen: CategorizeScreenValue): CategorizeUpdate => {
 
 const submitRename = (
   screen: CategorizeScreenValue,
+  access: SettingsRoleValue,
   key: string
 ): CategorizeUpdate => {
   const name = Schema.decodeResult(Schema.NonEmptyString)(
@@ -229,6 +255,7 @@ const submitRename = (
     ? refused(screen, renameRefusal)
     : send(
         screen,
+        access,
         "none",
         cases.RenameMerchant.make({ key, name: name.success })
       );
@@ -236,12 +263,14 @@ const submitRename = (
 
 const assignCategory = (
   screen: CategorizeScreenValue,
+  access: SettingsRoleValue,
   key: string,
   value: string
 ): CategorizeUpdate => {
   if (value === UNSET_SELECT) {
     return send(
       screen,
+      access,
       "none",
       cases.AssignMerchantCategory.make({ categoryId: Option.none(), key })
     );
@@ -255,6 +284,7 @@ const assignCategory = (
     ? refused(screen, categoryChoiceRefusal)
     : send(
         screen,
+        access,
         "none",
         cases.AssignMerchantCategory.make({
           categoryId: Option.some(category.id),
@@ -303,10 +333,7 @@ const openEditCategory = (
   );
 
   return found === undefined
-    ? refused(
-        screen,
-        "No category with that id is in this book. Fix: reload `/app/categories`."
-      )
+    ? refused(screen, unknownCategory().message)
     : {
         model: {
           ...screen,
@@ -326,10 +353,7 @@ const openEditAlias = (
   const found = screen.catalog.aliases.find((alias) => alias.id === id);
 
   if (found === undefined) {
-    return refused(
-      screen,
-      "No alias with that id is in this book. Fix: reload `/app/aliases`."
-    );
+    return refused(screen, unknownAlias().message);
   }
 
   const payee = screen.catalog.payees.find(
@@ -389,12 +413,13 @@ const chosePayee = (
 
 export const update = (
   screen: CategorizeScreenValue,
+  access: SettingsRoleValue,
   message: CategorizeMessageValue
 ): CategorizeUpdate =>
   Message.match<CategorizeUpdate>(message, {
-    AppliedRules: () => send(screen, "rule", cases.ApplyRules.make({})),
+    AppliedRules: () => send(screen, access, "rule", cases.ApplyRules.make({})),
     AssignedMerchantCategory: ({ categoryId, key }) =>
-      assignCategory(screen, key, categoryId),
+      assignCategory(screen, access, key, categoryId),
     CancelledAlias: () => ({
       model: { ...screen, aliasForm: AliasForm.Closed() },
     }),
@@ -425,13 +450,13 @@ export const update = (
       },
     }),
     ConfirmedMerchant: ({ key }) =>
-      send(screen, "none", cases.ConfirmMerchant.make({ key })),
+      send(screen, access, "none", cases.ConfirmMerchant.make({ key })),
     DeletedAlias: ({ id }) =>
-      send(screen, "alias", cases.DeleteAlias.make({ id })),
+      send(screen, access, "alias", cases.DeleteAlias.make({ id })),
     DeletedCategory: ({ id }) =>
-      send(screen, "category", cases.DeleteCategory.make({ id })),
+      send(screen, access, "category", cases.DeleteCategory.make({ id })),
     DeletedRule: ({ id }) =>
-      send(screen, "rule", cases.DeleteRule.make({ id })),
+      send(screen, access, "rule", cases.DeleteRule.make({ id })),
     FailedWrite: ({ reason }) => refused(screen, reason),
     FilteredMerchants: ({ filter }) => ({
       model: { ...screen, merchantFilter: filter, page: 1 },
@@ -445,6 +470,7 @@ export const update = (
         ? refused(screen, categoryChoiceRefusal)
         : send(
             screen,
+            access,
             "rule",
             cases.MoveRule.make({ categoryId: category.id, id })
           );
@@ -482,23 +508,24 @@ export const update = (
     }),
     StartedEditAlias: ({ id }) => openEditAlias(screen, id),
     StartedEditCategory: ({ id }) => openEditCategory(screen, id),
-    SubmittedAlias: () => submitAlias(screen, screen.aliasForm),
+    SubmittedAlias: () => submitAlias(screen, access, screen.aliasForm),
     SubmittedCategory: () =>
       CategoryForm.match<CategorizeUpdate>(screen.categoryForm, {
         Closed: () => untouched(screen),
-        Creating: ({ draft }) => submitCategory(screen, draft, Option.none()),
+        Creating: ({ draft }) =>
+          submitCategory(screen, access, draft, Option.none()),
         Editing: ({ draft, id }) =>
-          submitCategory(screen, draft, Option.some(id)),
+          submitCategory(screen, access, draft, Option.some(id)),
       }),
-    SubmittedMerge: () => submitMerge(screen),
-    SubmittedRename: ({ key }) => submitRename(screen, key),
+    SubmittedMerge: () => submitMerge(screen, access),
+    SubmittedRename: ({ key }) => submitRename(screen, access, key),
     SubmittedRule: () =>
       RuleForm.match<CategorizeUpdate>(screen.ruleForm, {
         Closed: () => untouched(screen),
-        Creating: ({ draft }) => submitRule(screen, draft),
+        Creating: ({ draft }) => submitRule(screen, access, draft),
       }),
     ToggledRule: ({ enabled, id }) =>
-      send(screen, "rule", cases.SetRuleEnabled.make({ enabled, id })),
+      send(screen, access, "rule", cases.SetRuleEnabled.make({ enabled, id })),
     TypedAlias: ({ field, value }) => ({
       model: {
         ...screen,

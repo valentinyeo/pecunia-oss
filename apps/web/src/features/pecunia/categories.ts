@@ -263,7 +263,7 @@ export const view = Submodel.defineView<
     [
       h.h1([h.Class(className(pageStyles.pageTitle))], ["Categories"]),
       pageNote(
-        "Demo book. Every payment and category here is made up for the preview.",
+        "Demo book. Every payment and category here is made up for the preview. Deleting a category keeps its rules: a rule whose category is gone stays listed and stops matching until you point it at another category.",
         h
       ),
       noticeView(screen.notice, h),

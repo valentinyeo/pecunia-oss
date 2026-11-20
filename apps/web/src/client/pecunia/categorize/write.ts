@@ -317,7 +317,9 @@ const deleteCategory = (
   }
 
   const cleared = withPayments(snapshot, (payment) =>
-    payment.categoryId === write.id ? { ...payment, categoryId: null } : payment
+    payment.categoryId === write.id
+      ? { ...payment, categoryId: null, source: "rule" }
+      : payment
   );
 
   return done(
@@ -409,25 +411,32 @@ const deleteRule = (
       );
 
 const applyRules = (snapshot: CatalogSnapshot): WriteResult => {
+  const rules = snapshot.rules.filter((rule) =>
+    Option.isSome(findCategory(snapshot, rule.categoryId))
+  );
+
   let changed = 0;
 
-  const payments = snapshot.payments.map((payment) => {
+  const payments: readonly Payment[] = snapshot.payments.map((payment) => {
+    if (payment.source === "manual") {
+      return payment;
+    }
+
     const filed = sortLine(lineOf(payment), {
       aliases: snapshot.aliases,
-      rules: snapshot.rules,
+      rules,
     }).categorization;
 
-    const categoryId = Predicate.isTagged(filed, "Applied")
-      ? filed.categoryId
-      : null;
-
-    if (categoryId === payment.categoryId) {
+    if (
+      !Predicate.isTagged(filed, "Applied") ||
+      filed.categoryId === payment.categoryId
+    ) {
       return payment;
     }
 
     changed += 1;
 
-    return { ...payment, categoryId };
+    return { ...payment, categoryId: filed.categoryId, source: "rule" };
   });
 
   return done(
@@ -635,7 +644,7 @@ const assignMerchantCategory = (
   );
 
   const catalog = withPayments(snapshot, (payment) =>
-    ids.has(payment.id) ? { ...payment, categoryId } : payment
+    ids.has(payment.id) ? { ...payment, categoryId, source: "manual" } : payment
   );
 
   return done(

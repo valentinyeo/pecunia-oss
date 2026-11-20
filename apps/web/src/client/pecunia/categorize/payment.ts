@@ -10,6 +10,10 @@ export type PaymentDirection = typeof PaymentDirectionSchema.Type;
 
 export const TextFieldSchema = Schema.String.check(Schema.isMaxLength(500));
 
+export const PaymentSourceSchema = Schema.Literals(["manual", "rule"]);
+
+export type PaymentSource = typeof PaymentSourceSchema.Type;
+
 export const PaymentSchema = Schema.Struct({
   amountMinor: MinorUnits,
   categoryId: Schema.NullOr(CategoryIdSchema),
@@ -21,6 +25,7 @@ export const PaymentSchema = Schema.Struct({
   occurredAt: TimestampMillisSchema,
   reference: TextFieldSchema,
   reviewed: Schema.Boolean,
+  source: PaymentSourceSchema,
 });
 
 export type Payment = typeof PaymentSchema.Type;

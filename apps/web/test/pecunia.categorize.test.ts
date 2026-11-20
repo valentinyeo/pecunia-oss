@@ -1,6 +1,7 @@
 import { describe, expect, it } from "@effect/vitest";
 import { Effect, Option, Result, Schema } from "effect";
 
+import { amountRefusal } from "../src/client/pecunia/categorize/amount.js";
 import {
   MerchantFilterSchema,
   aliasCandidates,
@@ -26,14 +27,18 @@ import {
   uuidV7At,
 } from "../src/client/pecunia/categorize/ids.js";
 import { Message } from "../src/client/pecunia/categorize/message.js";
+import type { CategorizeMessageValue } from "../src/client/pecunia/categorize/message.js";
 import {
   AliasForm,
   CategoryForm,
   Notice,
+  categoryChoiceRefusal,
+  formRefusals,
   initialCategorize,
   parseAliasDraft,
   parseCategoryDraft,
   parseRuleDraft,
+  readOnlyRefusal,
 } from "../src/client/pecunia/categorize/model.js";
 import type {
   AliasDraft,
@@ -41,20 +46,23 @@ import type {
   CategoryDraft,
   RuleDraft,
 } from "../src/client/pecunia/categorize/model.js";
+import { BookCurrency } from "../src/client/pecunia/categorize/payment.js";
 import {
   monthOfMillis,
   startOfMonth,
 } from "../src/client/pecunia/categorize/period.js";
+import { catalogRefusalSamples } from "../src/client/pecunia/categorize/refusal.js";
 import { CatalogSnapshotSchema } from "../src/client/pecunia/categorize/snapshot.js";
 import type { CatalogSnapshot } from "../src/client/pecunia/categorize/snapshot.js";
 import { descendantIds } from "../src/client/pecunia/categorize/tree.js";
-import { update } from "../src/client/pecunia/categorize/update.js";
+import { update as updateCategorize } from "../src/client/pecunia/categorize/update.js";
 import {
   AliasPayeeSchema,
   CatalogWriteSchema,
   applyWrite,
 } from "../src/client/pecunia/categorize/write.js";
 import type { CatalogWrite } from "../src/client/pecunia/categorize/write.js";
+import type { SettingsRoleValue } from "../src/client/pecunia/settings/model.js";
 
 const { cases } = CatalogWriteSchema;
 
@@ -368,7 +376,9 @@ describe("rules on screen", () => {
     expect(grocer.length).toBeGreaterThan(0);
     expect(
       grocer.every(
-        (payment) => payment.categoryId === demoCategoryIds.groceries
+        (payment) =>
+          payment.categoryId === demoCategoryIds.groceries &&
+          payment.source === "rule"
       )
     ).toBe(true);
     expect(smallCoffee.every((payment) => payment.categoryId === null)).toBe(
@@ -381,9 +391,119 @@ describe("rules on screen", () => {
     ).toBe(true);
     expect(
       filed("Demo Cinema").every(
-        (payment) => payment.categoryId === demoCategoryIds.personal
+        (payment) =>
+          payment.categoryId === demoCategoryIds.personal &&
+          payment.source === "manual"
+      )
+    ).toBe(true);
+  });
+
+  it("leaves a payment a person filed by hand alone", () => {
+    const rows = merchantRows(demoCatalog);
+    const grocer = rows.find((row) => row.label === "Demo Grocer");
+    const cinema = rows.find((row) => row.label === "Demo Cinema");
+
+    if (grocer === undefined || cinema === undefined) {
+      throw new Error("the demo book holds Demo Grocer and Demo Cinema");
+    }
+
+    const byHand = applied(
+      applied(
+        demoCatalog,
+        cases.AssignMerchantCategory.make({
+          categoryId: Option.some(demoCategoryIds.travel),
+          key: grocer.key,
+        })
+      ).catalog,
+      cases.AssignMerchantCategory.make({
+        categoryId: Option.some(demoCategoryIds.personal),
+        key: cinema.key,
+      })
+    );
+
+    const sorted = applied(byHand.catalog, cases.ApplyRules.make({}));
+
+    expect(
+      paymentsForMerchant(sorted.catalog, grocer.key).every(
+        (payment) =>
+          payment.categoryId === demoCategoryIds.travel &&
+          payment.source === "manual"
+      )
+    ).toBe(true);
+    expect(
+      paymentsForMerchant(sorted.catalog, cinema.key).every(
+        (payment) =>
+          payment.categoryId === demoCategoryIds.personal &&
+          payment.source === "manual"
+      )
+    ).toBe(true);
+  });
+
+  it("keeps the category of a payment no rule matches", () => {
+    const railRule = demoCatalog.rules.find(
+      (rule) => rule.pattern === "Demo Rail"
+    );
+
+    if (railRule === undefined) {
+      throw new Error("the demo book holds a rule for Demo Rail");
+    }
+
+    const off = applied(
+      demoCatalog,
+      cases.SetRuleEnabled.make({ enabled: false, id: railRule.id })
+    );
+
+    const sorted = applied(off.catalog, cases.ApplyRules.make({}));
+
+    expect(
+      sorted.catalog.payments
+        .filter((payment) => payment.merchant === "Demo Rail")
+        .every((payment) => payment.categoryId === demoCategoryIds.travel)
+    ).toBe(true);
+  });
+
+  it("changes nothing when every rule is off", () => {
+    let catalog = demoCatalog;
+
+    for (const rule of demoCatalog.rules) {
+      const { catalog: next } = applied(
+        catalog,
+        cases.SetRuleEnabled.make({ enabled: false, id: rule.id })
+      );
+
+      catalog = next;
+    }
+
+    const sorted = applied(catalog, cases.ApplyRules.make({}));
+
+    expect(sorted.catalog.payments).toStrictEqual(catalog.payments);
+    expect(sorted.notice).toBe("0 payments sorted.");
+  });
+
+  it("skips a rule whose category was deleted", () => {
+    const deleted = applied(
+      demoCatalog,
+      cases.DeleteCategory.make({ id: demoCategoryIds.travel })
+    );
+
+    expect(
+      deleted.catalog.rules.some(
+        (rule) => rule.categoryId === demoCategoryIds.travel
+      )
+    ).toBe(true);
+
+    const sorted = applied(deleted.catalog, cases.ApplyRules.make({}));
+
+    expect(
+      sorted.catalog.payments.some(
+        (payment) => payment.categoryId === demoCategoryIds.travel
       )
     ).toBe(false);
+    expect(
+      sorted.catalog.payments
+        .filter((payment) => payment.merchant === "Demo Rail")
+        .every((payment) => payment.categoryId === null)
+    ).toBe(true);
   });
 
   it("refuses a rule that names a category the book does not hold", () => {
@@ -392,7 +512,7 @@ describe("rules on screen", () => {
         demoCatalog,
         ruleDraft({ categoryId: "0197a000-00ff-7aff-8aff-0000000000ff" })
       )
-    ).toStrictEqual(Result.fail("Category: pick a category from the list."));
+    ).toStrictEqual(Result.fail(categoryChoiceRefusal));
   });
 
   it("refuses amounts whose least is larger than their most", () => {
@@ -691,6 +811,12 @@ describe("merchants on screen", () => {
 
 const screenFor = (): CategorizeScreenValue => initialCategorize;
 
+const update = (
+  screen: CategorizeScreenValue,
+  message: CategorizeMessageValue,
+  access: SettingsRoleValue = "owner"
+) => updateCategorize(screen, access, message);
+
 const typedCategory = (
   screen: CategorizeScreenValue,
   draft: Partial<CategoryDraft>
@@ -964,5 +1090,214 @@ describe("merchant keys", () => {
 
     expect(coffeeRows).toHaveLength(1);
     expect(Option.isSome(coffeeRows[0]?.payeeId ?? Option.none())).toBe(true);
+  });
+});
+
+const payeeNamed = (name: string): string => {
+  const payee = demoCatalog.payees.find((candidate) => candidate.name === name);
+
+  if (payee === undefined) {
+    throw new Error(`the demo book holds ${name}`);
+  }
+
+  return payee.id;
+};
+
+const typedRule = (screen: CategorizeScreenValue): CategorizeScreenValue =>
+  update(
+    update(
+      update(
+        update(screen, Message.StartedCreateRule()).model,
+        Message.TypedRule({ field: "pattern", value: "Demo Bakery" })
+      ).model,
+      Message.TypedRule({ field: "categoryId", value: demoCategoryIds.coffee })
+    ).model,
+    Message.TypedRule({ field: "minAmount", value: "25" })
+  ).model;
+
+const editingCategory = (): CategorizeScreenValue =>
+  update(
+    screenFor(),
+    Message.StartedEditCategory({ id: demoCategoryIds.living })
+  ).model;
+
+const editingAlias = (): CategorizeScreenValue => {
+  const [alias] = demoCatalog.aliases;
+
+  if (alias === undefined) {
+    throw new Error("the demo book holds aliases");
+  }
+
+  return update(screenFor(), Message.StartedEditAlias({ id: alias.id })).model;
+};
+
+const [firstRule] = demoCatalog.rules;
+
+const [firstAlias] = demoCatalog.aliases;
+
+if (firstRule === undefined || firstAlias === undefined) {
+  throw new Error("the demo book holds rules and aliases");
+}
+
+const groceryKey = (): string => {
+  const row = merchantRows(demoCatalog).find(
+    (candidate) => candidate.label === "Demo Grocer"
+  );
+
+  if (row === undefined) {
+    throw new Error("the demo book holds Demo Grocer");
+  }
+
+  return row.key;
+};
+
+const viewerWrites: readonly Readonly<{
+  message: CategorizeMessageValue;
+  name: string;
+  screen: CategorizeScreenValue;
+}>[] = [
+  {
+    message: Message.AppliedRules(),
+    name: "re-apply",
+    screen: screenFor(),
+  },
+  {
+    message: Message.AssignedMerchantCategory({
+      categoryId: demoCategoryIds.travel,
+      key: groceryKey(),
+    }),
+    name: "file a merchant",
+    screen: screenFor(),
+  },
+  {
+    message: Message.ConfirmedMerchant({ key: groceryKey() }),
+    name: "confirm a merchant",
+    screen: screenFor(),
+  },
+  {
+    message: Message.DeletedAlias({ id: firstAlias.id }),
+    name: "delete an alias",
+    screen: screenFor(),
+  },
+  {
+    message: Message.DeletedCategory({ id: demoCategoryIds.travel }),
+    name: "delete a category",
+    screen: screenFor(),
+  },
+  {
+    message: Message.DeletedRule({ id: firstRule.id }),
+    name: "delete a rule",
+    screen: screenFor(),
+  },
+  {
+    message: Message.MovedRule({
+      categoryId: demoCategoryIds.personal,
+      id: firstRule.id,
+    }),
+    name: "move a rule",
+    screen: screenFor(),
+  },
+  {
+    message: Message.SubmittedAlias(),
+    name: "save an alias",
+    screen: editingAlias(),
+  },
+  {
+    message: Message.SubmittedCategory(),
+    name: "create a category",
+    screen: typedCategory(screenFor(), {
+      name: "Eating out",
+      parentId: demoCategoryIds.living,
+    }),
+  },
+  {
+    message: Message.SubmittedCategory(),
+    name: "edit a category",
+    screen: editingCategory(),
+  },
+  {
+    message: Message.SubmittedMerge(),
+    name: "combine two merchants",
+    screen: {
+      ...screenFor(),
+      mergeDraft: {
+        from: payeeNamed("Demo Grocer"),
+        into: payeeNamed("Demo Cinema"),
+      },
+    },
+  },
+  {
+    message: Message.SubmittedRename({ key: groceryKey() }),
+    name: "rename a merchant",
+    screen: { ...screenFor(), renameDraft: "Demo Market" },
+  },
+  {
+    message: Message.SubmittedRule(),
+    name: "create a rule",
+    screen: typedRule(screenFor()),
+  },
+  {
+    message: Message.ToggledRule({ enabled: false, id: firstRule.id }),
+    name: "turn a rule off",
+    screen: screenFor(),
+  },
+];
+
+describe("a viewer on the categorize screens", () => {
+  it("refuses every write and changes nothing", () => {
+    for (const { message, name, screen } of viewerWrites) {
+      const outcome = update(screen, message, "viewer");
+
+      expect(outcome.commands, name).toBeUndefined();
+      expect({ ...outcome.model, notice: screen.notice }, name).toStrictEqual(
+        screen
+      );
+      expect(Notice.guards.Refused(outcome.model.notice), name).toBe(true);
+      expect(
+        Notice.guards.Refused(outcome.model.notice)
+          ? outcome.model.notice.message
+          : "",
+        name
+      ).toBe(readOnlyRefusal);
+    }
+  });
+
+  it("lets an owner send the same write", () => {
+    for (const { message, name, screen } of viewerWrites) {
+      expect(update(screen, message).commands, name).toHaveLength(1);
+    }
+  });
+});
+
+const fixAt = (text: string): number => text.indexOf(" Fix: ");
+
+const headOf = (text: string): string =>
+  fixAt(text) === -1 ? text : text.slice(0, fixAt(text));
+
+const fixOf = (text: string): string =>
+  fixAt(text) === -1 ? "" : text.slice(fixAt(text) + " Fix: ".length);
+
+describe("refusal texts", () => {
+  const texts: readonly string[] = [
+    ...formRefusals,
+    ...catalogRefusalSamples.map((refusal) => refusal.message),
+  ];
+
+  it("says what failed, why, and where to go next", () => {
+    for (const text of texts) {
+      expect(fixAt(text), text).toBeGreaterThan(0);
+      expect(headOf(text).split(". ").length, text).toBeGreaterThanOrEqual(2);
+      expect(headOf(text).endsWith("."), text).toBe(true);
+      expect(fixOf(text).endsWith("."), text).toBe(true);
+      expect(fixOf(text), text).toContain("`");
+    }
+  });
+
+  it("names the money in pounds, the currency of the demo book", () => {
+    expect(amountRefusal).toContain("pounds (£)");
+    expect(formRefusals).toContain(
+      "That amount is not a number. Amounts are in pounds (£) with up to two decimals. Fix: type a number such as `25` or `25.50` in the amount field."
+    );
+    expect(BookCurrency).toBe("GBP");
   });
 });

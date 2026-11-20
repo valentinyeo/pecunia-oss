@@ -239,6 +239,7 @@ interface Template {
   readonly minor: number;
   readonly reference: string;
   readonly reviewed: boolean;
+  readonly source: Payment["source"];
 }
 
 const templates: readonly Template[] = [
@@ -251,6 +252,7 @@ const templates: readonly Template[] = [
     minor: 8640,
     reference: "",
     reviewed: true,
+    source: "rule",
   },
   {
     categoryId: null,
@@ -261,6 +263,7 @@ const templates: readonly Template[] = [
     minor: 540,
     reference: "",
     reviewed: false,
+    source: "rule",
   },
   {
     categoryId: null,
@@ -271,6 +274,7 @@ const templates: readonly Template[] = [
     minor: 1890,
     reference: "",
     reviewed: false,
+    source: "rule",
   },
   {
     categoryId: demoCategoryIds.utilities,
@@ -281,6 +285,7 @@ const templates: readonly Template[] = [
     minor: 9200,
     reference: "",
     reviewed: true,
+    source: "rule",
   },
   {
     categoryId: demoCategoryIds.utilities,
@@ -291,6 +296,7 @@ const templates: readonly Template[] = [
     minor: 1150,
     reference: "",
     reviewed: true,
+    source: "rule",
   },
   {
     categoryId: demoCategoryIds.software,
@@ -301,6 +307,7 @@ const templates: readonly Template[] = [
     minor: 2490,
     reference: "",
     reviewed: true,
+    source: "rule",
   },
   {
     categoryId: demoCategoryIds.travel,
@@ -311,6 +318,7 @@ const templates: readonly Template[] = [
     minor: 4250,
     reference: "",
     reviewed: true,
+    source: "rule",
   },
   {
     categoryId: demoCategoryIds.everythingElse,
@@ -321,6 +329,7 @@ const templates: readonly Template[] = [
     minor: 250_000,
     reference: "TAX-VAT-2026",
     reviewed: true,
+    source: "manual",
   },
   {
     categoryId: demoCategoryIds.personal,
@@ -331,6 +340,7 @@ const templates: readonly Template[] = [
     minor: 1650,
     reference: "",
     reviewed: false,
+    source: "manual",
   },
   {
     categoryId: null,
@@ -341,6 +351,7 @@ const templates: readonly Template[] = [
     minor: 480_000,
     reference: "INV-2026-014",
     reviewed: true,
+    source: "rule",
   },
   {
     categoryId: null,
@@ -351,6 +362,7 @@ const templates: readonly Template[] = [
     minor: 100_000,
     reference: "",
     reviewed: true,
+    source: "rule",
   },
 ];
 
@@ -370,6 +382,7 @@ const paymentsFor = (month: Month): readonly Payment[] =>
         occurredAt,
         reference: template.reference,
         reviewed: template.reviewed,
+        source: template.source,
       };
     })
   );

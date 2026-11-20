@@ -6,6 +6,7 @@ import type { Url } from "foldkit/url";
 
 import type { CategorizeGateway } from "./categorize/gateway.js";
 import type { CategorizeMessageValue } from "./categorize/message.js";
+import type { CategorizeScreenValue } from "./categorize/model.js";
 import { update as updateCategorize } from "./categorize/update.js";
 import { LoadExternal, Navigate, ReadLocation } from "./command.js";
 import { Message } from "./message.js";
@@ -48,8 +49,13 @@ const gotCategorizeMessage = (
 const foldCategorize = Update.foldChild({
   read: (model: PecuniaModel) => Option.some(model.categorize),
   toParentMessage: gotCategorizeMessage,
-  update: (categorize, message: CategorizeMessageValue) =>
-    updateCategorize(categorize, message),
+  update: (
+    categorize: CategorizeScreenValue,
+    input: Readonly<{
+      access: SettingsRoleValue;
+      message: CategorizeMessageValue;
+    }>
+  ) => updateCategorize(categorize, input.access, input.message),
   write: (model, categorize) => ({ ...model, categorize }),
 });
 
@@ -114,7 +120,10 @@ export const update = (
     CompletedLoadExternal: () => ({ model }),
     CompletedNavigate: () => ({ model }),
     GotCategorizeMessage: ({ message: categorizeMessage }) =>
-      foldCategorize(model, categorizeMessage),
+      foldCategorize(model, {
+        access: model.access,
+        message: categorizeMessage,
+      }),
     GotSettingsMessage: ({ message: settingsMessage }) =>
       foldSettings(model, { access: model.access, message: settingsMessage }),
   });

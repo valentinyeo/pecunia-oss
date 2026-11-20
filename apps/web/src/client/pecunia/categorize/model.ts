@@ -11,7 +11,7 @@ import { Option, Result, Schema } from "effect";
 import { defineTaggedUnion } from "foldkit/schema";
 
 import type { Minor } from "../money.js";
-import { parseMajorText } from "./amount.js";
+import { amountRefusal, parseMajorText } from "./amount.js";
 import { MerchantFilterSchema } from "./catalog.js";
 import type { MerchantFilter } from "./catalog.js";
 import { demoCatalog, demoLatestMonth } from "./demo.js";
@@ -205,36 +205,65 @@ const decodeSpendingType = Schema.decodeUnknownResult(SpendingTypeSchema);
 
 const decodeDirection = Schema.decodeUnknownResult(RuleDirectionSchema);
 
-export const categoryRefusal = "Name: enter a category name such as Groceries.";
+export const categoryRefusal =
+  "The name is empty. A category needs a name before it can be saved. Fix: type a name such as `Groceries` in the Name field.";
 
 export const parentRefusal =
-  "Parent: pick a category from the list, or leave it empty for a top-level category.";
+  "That parent is not in this book. The category list changed since this page loaded. Fix: choose a parent again from the Parent list, or `No parent` for a top-level category.";
 
 export const patternRefusal =
-  "Pattern: enter text a payment shows, such as Demo Grocer.";
+  "The pattern is empty. A rule needs text a payment shows before it can be saved. Fix: type text such as `Demo Grocer` in the Pattern field.";
 
-export const colourRefusal = "Colour: pick one of the colours in the palette.";
+export const colourRefusal =
+  "That colour is not in the palette. A category colour is one of the eight palette colours. Fix: choose one of them, such as `#0f766e`, from the Colour list.";
 
-export const spendingRefusal = "Spending: pick business, personal or mixed.";
+export const spendingRefusal =
+  "That spending type is unknown. A category is business, personal or mixed. Fix: pick `business`, `personal` or `mixed` from the Spending list.";
 
-export const directionRefusal = "Direction: pick in, out or any.";
+export const directionRefusal =
+  "That direction is unknown. A rule looks at money out, money in, or both. Fix: pick `out`, `in` or `any` from the Direction list.";
 
 export const amountsRefusal =
-  "Amounts: enter the least and the most amount as numbers such as 25 or 25.50.";
+  "That amount is not a number. Amounts are in pounds (£) with up to two decimals. Fix: type a number such as `25` or `25.50` in the amount field.";
 
 export const sameAmountsRefusal =
-  "Amounts: the least amount is larger than the most amount. Fix: swap the two amounts.";
+  "The least amount is larger than the most amount. No payment can sit above the most and below the least. Fix: swap the two numbers in the `Least amount` and `Most amount` fields.";
 
 export const mergeRefusal =
-  "Merge: pick two different merchants to combine in `/app/aliases`.";
+  "The merge needs two different merchants. A merge keeps one row, so the two sides must differ. Fix: pick a second merchant from the list in `/app/aliases`.";
 
-export const categoryChoiceRefusal = "Category: pick a category from the list.";
+export const categoryChoiceRefusal =
+  "That category is not in this book. The category list changed since this page loaded. Fix: pick a category again from the list in `/app/categories`.";
+
+export const aliasChoiceRefusal =
+  "That alias is not in this book. The alias list changed since this page loaded. Fix: pick an alias again from the list in `/app/aliases`.";
 
 export const merchantRefusal =
-  "Merchant: search a merchant name in `/app/aliases` and pick a match.";
+  "No merchant matches that name. An alias needs a merchant the book holds. Fix: search a merchant in `/app/aliases` and pick a match.";
 
 export const renameRefusal =
-  "Name: enter the merchant name to show on every payment.";
+  "The name is empty. Every payment needs a merchant name to show. Fix: type the new name in the `Merchant name` field, then press Rename.";
+
+export const readOnlyRefusal =
+  "Nothing was saved. Your access to this book is read-only, so it refuses changes. Fix: ask an owner to give you write access in `/app/settings`.";
+
+export const formRefusals: readonly string[] = [
+  aliasChoiceRefusal,
+  amountsRefusal,
+  amountRefusal,
+  categoryChoiceRefusal,
+  categoryRefusal,
+  colourRefusal,
+  directionRefusal,
+  merchantRefusal,
+  mergeRefusal,
+  parentRefusal,
+  patternRefusal,
+  readOnlyRefusal,
+  renameRefusal,
+  sameAmountsRefusal,
+  spendingRefusal,
+];
 
 export interface ParsedCategoryDraft {
   readonly color: CategoryColor;

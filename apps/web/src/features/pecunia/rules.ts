@@ -219,7 +219,7 @@ const ruleForm = (
           ),
           textField(
             {
-              hint: "Optional, in euros: 25 or 25.50.",
+              hint: "Optional, in pounds (£): 25 or 25.50.",
               id: "rule-least",
               label: "Least amount",
               onInput: (value) =>
@@ -230,7 +230,7 @@ const ruleForm = (
           ),
           textField(
             {
-              hint: "Optional, in euros: 25 or 25.50.",
+              hint: "Optional, in pounds (£): 25 or 25.50.",
               id: "rule-most",
               label: "Most amount",
               onInput: (value) =>

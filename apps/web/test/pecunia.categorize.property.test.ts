@@ -329,6 +329,7 @@ const paymentsFor = (seed: number): readonly Payment[] => {
     ),
     reference: "",
     reviewed: draw(2) === 1,
+    source: "rule" as const,
   }));
 };
 

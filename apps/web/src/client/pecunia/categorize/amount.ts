@@ -13,7 +13,7 @@ const AMOUNT_PATTERN = new RegExp(
 );
 
 export const amountRefusal =
-  "Amount: enter a whole number of euros with up to two decimals, such as 50 or 50.00.";
+  "That amount is not a number. An amount is pounds (£) with up to two decimals. Fix: type a whole number of pounds such as `50` or `50.00`.";
 
 const pad = (value: string): string => value.padEnd(MINOR_DIGITS, "0");
 
