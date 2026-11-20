@@ -6,13 +6,20 @@ export class InvoiceStoreError extends Schema.TaggedError<
 >()("InvoiceStoreError", {
   message: Schema.String,
   operation: Schema.Literals([
+    "createDocument",
+    "deleteDocument",
+    "deleteSource",
     "document",
     "documents",
+    "exceptions",
     "payment",
     "payments",
     "places",
     "saveDocument",
+    "saveException",
     "savePlace",
+    "saveSource",
+    "sources",
   ]),
   repair: Schema.String,
 }) {}

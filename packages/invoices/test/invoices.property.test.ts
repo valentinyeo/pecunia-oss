@@ -198,13 +198,17 @@ const documentOf = (options: {
 
 const paymentOf = (options: {
   readonly amount: Amount;
+  readonly direction?: Payment["direction"];
   readonly id: TransactionId;
+  readonly merchant?: string;
   readonly paidOn: DateOnly;
   readonly payeeId: PayeeId;
   readonly profileId: ProfileId;
 }): Payment => ({
   amount: options.amount,
+  direction: options.direction ?? "out",
   id: options.id,
+  merchant: options.merchant ?? "Demo Vendor",
   paidOn: options.paidOn,
   payeeId: Option.some(options.payeeId),
   profileId: options.profileId,
@@ -846,7 +850,9 @@ it("parses a generated archive place and payment at the boundary", () => {
 
     const payment = Schema.decodeResult(PaymentSchema)({
       amount: { currency: random.pick(CURRENCIES), minor: random.int(0, 500) },
+      direction: random.pick(["in", "neutral", "out"] as const),
       id: `payment-${index}`,
+      merchant: random.chance(0.2) ? "  " : ` Demo Vendor ${index} `,
       paidOn: "2025-03-11",
       payeeId: null,
       profileId: demoProfileId,

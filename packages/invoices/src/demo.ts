@@ -8,11 +8,18 @@ import {
   ArchiveStateSchema,
   DateOnlySchema,
   DocumentIdSchema,
+  InvoiceSourceIdSchema,
   PayeeIdSchema,
   TimestampMillisSchema,
   TransactionIdSchema,
 } from "./model.js";
-import type { ArchivePlace, InvoiceDocument, Payment } from "./model.js";
+import type {
+  ArchivePlace,
+  InvoiceDocument,
+  InvoiceException,
+  InvoiceSource,
+  Payment,
+} from "./model.js";
 
 const decode = Schema.decodeSync;
 
@@ -37,6 +44,8 @@ const transactionIdOf = (value: string) => decode(TransactionIdSchema)(value);
 
 const payeeIdOf = (value: string) => decode(PayeeIdSchema)(value);
 
+const sourceIdOf = (value: string) => decode(InvoiceSourceIdSchema)(value);
+
 const dateOf = (value: string) => decode(DateOnlySchema)(value);
 
 const instantOf = (value: number) => decode(TimestampMillisSchema)(value);
@@ -52,21 +61,36 @@ const demoClientPayeeId = payeeIdOf("0192f0c1-0008-7e52-8fb0-fb052d752a6a");
 export const demoPayments: readonly Payment[] = [
   {
     amount: amountOf("EUR", 480_000),
+    direction: "in",
     id: transactionIdOf("0192f0c1-0027-7c11-8261-2619d29e6868"),
+    merchant: "Example Client Ltd",
     paidOn: dateOf("2025-01-06"),
     payeeId: Option.some(demoClientPayeeId),
     profileId: demoProfileId,
   },
   {
+    amount: amountOf("EUR", 4250),
+    direction: "out",
+    id: transactionIdOf("0192f0c1-002a-7549-8811-8111b948c159"),
+    merchant: "Demo Coffee",
+    paidOn: dateOf("2025-04-02"),
+    payeeId: Option.some(payeeIdOf("0192f0c1-000a-743c-890f-90fb094546ce")),
+    profileId: demoProfileId,
+  },
+  {
     amount: amountOf("EUR", 299_000),
+    direction: "out",
     id: transactionIdOf("0192f0c1-0028-7018-8357-3578945c907b"),
+    merchant: "Demo Cloud Hosting",
     paidOn: dateOf("2025-02-03"),
     payeeId: Option.some(demoCloudPayeeId),
     profileId: demoProfileId,
   },
   {
     amount: amountOf("USD", 2999),
+    direction: "out",
     id: transactionIdOf("0192f0c1-0029-768c-8adb-adbefc188d19"),
+    merchant: "Demo Design Tool",
     paidOn: dateOf("2025-03-11"),
     payeeId: Option.some(demoDesignPayeeId),
     profileId: demoProfileId,
@@ -126,8 +150,37 @@ export const demoDocuments: readonly InvoiceDocument[] = [
   },
 ];
 
+export const demoInvoiceExceptions: readonly InvoiceException[] = [
+  {
+    profileId: demoProfileId,
+    reason: "Waiting for the demo vendor receipt.",
+    recordedAt: instantOf(1_744_189_200_000),
+    transactionId: transactionIdOf("0192f0c1-002a-7549-8811-8111b948c159"),
+  },
+];
+
+export const demoInvoiceSources: readonly InvoiceSource[] = [
+  {
+    id: sourceIdOf("0192f0c1-0035-7dd0-8aba-aba363f96bd0"),
+    loginHint: Option.some("demo@example.com"),
+    notes: Option.some("Demo vendor portal."),
+    pattern: "Demo Design Tool",
+    portalUrl: Option.some("https://portal.example.com"),
+    profileId: demoProfileId,
+    retrieval: {
+      bookkeeper: false,
+      email: true,
+      portal: true,
+      twoFactor: true,
+    },
+    vendorPayeeId: Option.some(demoDesignPayeeId),
+  },
+];
+
 export const demoInvoiceSeed: InvoiceSeed = {
   documents: demoDocuments,
+  exceptions: demoInvoiceExceptions,
   payments: demoPayments,
   places: demoArchivePlaces,
+  sources: demoInvoiceSources,
 };
