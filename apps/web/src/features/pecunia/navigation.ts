@@ -1,8 +1,12 @@
+import { Option, Predicate } from "effect";
+
 import {
   AppRoute,
   budgetsRouter,
   dashboardRouter,
   investmentsRouter,
+  reviewRouter,
+  searchRouter,
   settingsRouter,
   subscriptionsRouter,
   transactionsRouter,
@@ -33,6 +37,12 @@ const moneySection: MenuSection = {
       path: transactionsRouter(),
       screen: AppRoute.Transactions(),
     },
+    { label: "Review", path: reviewRouter(), screen: AppRoute.Review() },
+    {
+      label: "Search",
+      path: searchRouter({ q: Option.none() }),
+      screen: AppRoute.Search({ q: Option.none() }),
+    },
     { label: "Budgets", path: budgetsRouter(), screen: AppRoute.Budgets() },
     {
       label: "Subscriptions",
@@ -60,14 +70,19 @@ export const menuSections: readonly MenuSection[] = [
 ];
 
 export const isCurrent = (route: AppRouteValue, item: MenuItem): boolean =>
-  route._tag === item.screen._tag;
+  Predicate.isTagged(route, item.screen._tag) ||
+  (Predicate.isTagged(item.screen, "Transactions") &&
+    Predicate.isTagged(route, "Spending"));
 
 export const routeTitle = AppRoute.match({
   Budgets: () => "Budgets",
   Dashboard: () => "Dashboard",
   Investments: () => "Investments",
   NotFound: () => "Not found",
+  Review: () => "Review",
+  Search: () => "Search",
   Settings: () => "Settings",
+  Spending: () => "Spending",
   Subscriptions: () => "Subscriptions",
   Transactions: () => "Transactions",
 });

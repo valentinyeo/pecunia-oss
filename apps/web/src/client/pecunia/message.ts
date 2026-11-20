@@ -2,7 +2,9 @@ import { defineMessageUnion } from "foldkit/message";
 import { UrlRequest } from "foldkit/navigation";
 import { Url } from "foldkit/url";
 
+import { Message as BankLinesMessage } from "./bank-lines/message.js";
 import { Theme } from "./model.js";
+import { Message as SearchMessage } from "./search/message.js";
 import { Message as SettingsMessage } from "./settings/message.js";
 
 export const Message = defineMessageUnion({
@@ -11,6 +13,8 @@ export const Message = defineMessageUnion({
   ClickedTheme: { theme: Theme },
   CompletedLoadExternal: {},
   CompletedNavigate: {},
+  GotBankLinesMessage: { message: BankLinesMessage },
+  GotSearchMessage: { message: SearchMessage },
   GotSettingsMessage: { message: SettingsMessage },
 });
 

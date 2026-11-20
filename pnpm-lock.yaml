@@ -515,9 +515,18 @@ importers:
       '@foldkit/ui':
         specifier: 0.170.0
         version: 0.170.0(effect@4.1.4)(foldkit@0.170.0(@effect/platform-browser@4.1.4(effect@4.1.4))(effect@4.1.4))
+      '@pecunia/access':
+        specifier: workspace:*
+        version: link:../../packages/access
+      '@pecunia/ai-sorting':
+        specifier: workspace:*
+        version: link:../../packages/ai-sorting
       '@pecunia/auth':
         specifier: workspace:*
         version: link:../../packages/auth
+      '@pecunia/bank-lines':
+        specifier: workspace:*
+        version: link:../../packages/bank-lines
       '@pecunia/capability':
         specifier: workspace:*
         version: link:../../packages/capability

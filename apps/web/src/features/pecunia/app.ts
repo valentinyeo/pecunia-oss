@@ -5,11 +5,13 @@ import { Message } from "../../client/pecunia/message.js";
 import type { PecuniaMessage } from "../../client/pecunia/message.js";
 import type { PecuniaModel } from "../../client/pecunia/model.js";
 import { AppRoute, dashboardRouter } from "../../client/pecunia/route.js";
+import { view as bankLinesView } from "./bank-lines.js";
 import { dashboardScreen } from "./dashboard.js";
 import { frame } from "./frame.js";
 import { investmentsScreen } from "./investments.js";
 import { routeTitle } from "./navigation.js";
 import { styles } from "./pecunia.stylex.js";
+import { view as searchView } from "./search.js";
 import { view as settingsView } from "./settings.js";
 
 export { boot, init, update } from "../../client/pecunia/update.js";
@@ -27,7 +29,9 @@ const laterScreen = (
       h.h1([h.Class(className(styles.pageTitle))], [routeTitle(model.route)]),
       h.p(
         [h.Class(className(styles.placeholder)), h.Role("note")],
-        ["This screen lands in a later slice. The dashboard is the first."]
+        [
+          "This screen lands in a later slice. The demo book has no data for it yet.",
+        ]
       ),
     ]
   );
@@ -47,12 +51,31 @@ const notFound = (h: HtmlBuilder<PecuniaMessage>): Html =>
     ]
   );
 
+const bankLines = (model: PecuniaModel, h: HtmlBuilder<PecuniaMessage>): Html =>
+  h.submodel({
+    model: model.bankLines,
+    slotId: "bank-lines",
+    toParentMessage: (message) => Message.GotBankLinesMessage({ message }),
+    view: bankLinesView,
+    viewInputs: { canWrite: model.access === "owner" },
+  });
+
+const search = (model: PecuniaModel, h: HtmlBuilder<PecuniaMessage>): Html =>
+  h.submodel({
+    model: model.search,
+    slotId: "search",
+    toParentMessage: (message) => Message.GotSearchMessage({ message }),
+    view: searchView,
+  });
+
 const screen = (model: PecuniaModel, h: HtmlBuilder<PecuniaMessage>): Html =>
   AppRoute.match<Html>(model.route, {
     Budgets: () => laterScreen(model, h),
     Dashboard: () => dashboardScreen(model.dashboard, h),
     Investments: () => investmentsScreen(model.investments, h),
     NotFound: () => notFound(h),
+    Review: () => bankLines(model, h),
+    Search: () => search(model, h),
     Settings: () =>
       h.submodel({
         model: model.settings,
@@ -60,8 +83,9 @@ const screen = (model: PecuniaModel, h: HtmlBuilder<PecuniaMessage>): Html =>
         toParentMessage: (message) => Message.GotSettingsMessage({ message }),
         view: settingsView,
       }),
+    Spending: () => bankLines(model, h),
     Subscriptions: () => laterScreen(model, h),
-    Transactions: () => laterScreen(model, h),
+    Transactions: () => bankLines(model, h),
   });
 
 export const view = (

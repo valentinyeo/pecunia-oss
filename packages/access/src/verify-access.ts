@@ -1,6 +1,3 @@
-// @effect-diagnostics-next-line nodeBuiltinImport:off -- The runtime uses the global Web Crypto API; this import only names its key type.
-import type { webcrypto } from "node:crypto";
-
 import { Clock, DateTime, Effect, Predicate, Schema } from "effect";
 
 import { accessUrls } from "./access-config.js";
@@ -53,7 +50,7 @@ const decodeClaim = <
     )
   );
 
-const base64UrlBytes = (value: string): Uint8Array => {
+const base64UrlBytes = (value: string): SignatureBytes => {
   const base64 = value.replaceAll("-", "+").replaceAll("_", "/");
   const padding = (4 - (base64.length % 4)) % 4;
 
@@ -90,10 +87,16 @@ const importSigningKey = (key: JsonWebKey) =>
       ),
   });
 
+type VerifyArguments = Parameters<typeof crypto.subtle.verify>;
+
+type SigningKey = VerifyArguments[1];
+
+type SignatureBytes = VerifyArguments[2];
+
 const signatureMatches = (
-  key: webcrypto.CryptoKey,
+  key: SigningKey,
   signingInput: string,
-  signature: Uint8Array
+  signature: SignatureBytes
 ) =>
   Effect.tryPromise({
     catch: () =>
@@ -145,7 +148,7 @@ const signatureIsValid = (
   certsUrl: string,
   key: JsonWebKey,
   signingInput: string,
-  signature: Uint8Array
+  signature: SignatureBytes
 ) =>
   Effect.gen(function* checkSignature() {
     const importedKey = yield* importSigningKey(key);
