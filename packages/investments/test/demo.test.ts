@@ -1,8 +1,14 @@
-import { Match, Option } from "effect";
+import { Match, Option, Schema } from "effect";
 import { expect, it } from "vitest";
 
 import { demoPortfolio, demoProfileId } from "../src/demo.js";
-import type { HoldingValue, HoldingView, PlatformGroup } from "../src/model.js";
+import { HoldingSchema } from "../src/model.js";
+import type {
+  HoldingValue,
+  HoldingView,
+  PlatformGroup,
+  Total,
+} from "../src/model.js";
 
 const defined = <A>(value: A | undefined, name: string): A => {
   if (value === undefined) {
@@ -51,8 +57,15 @@ const reasonOf = (value: HoldingValue): string =>
     Match.exhaustive
   );
 
+const totalMinor = (total: Total): number | null =>
+  Match.value(total).pipe(
+    Match.tag("Known", ({ amount }) => amount.minor),
+    Match.tag("Unknown", () => null),
+    Match.exhaustive
+  );
+
 const totalOf = (value: PlatformGroup): number | null =>
-  Option.getOrNull(value.total)?.minor ?? null;
+  totalMinor(value.total);
 
 it("values the demo book in the profile currency", () => {
   expect(demoPortfolio.profileId).toBe(demoProfileId);
@@ -63,7 +76,7 @@ it("values the demo book in the profile currency", () => {
 
   expect(demoPortfolio.unknownCount).toBe(1);
 
-  expect(Option.getOrNull(demoPortfolio.total)?.minor).toBe(788_640_000);
+  expect(totalMinor(demoPortfolio.total)).toBe(788_640_000);
 });
 
 it("shows each demo holding with its price, value and gain", () => {
@@ -91,9 +104,9 @@ it("keeps a holding with no price unknown rather than zero", () => {
 
   expect(pending.state).toBe("pending");
 
-  expect(Option.isNone(pending.price)).toBe(true);
+  expect(pending.price._tag).toBe("None");
 
-  expect(Option.isNone(pending.pricedAt)).toBe(true);
+  expect(pending.pricedAt._tag).toBe("None");
 
   expect(reasonOf(pending.value)).toBe("no-price");
 
@@ -102,6 +115,34 @@ it("keeps a holding with no price unknown rather than zero", () => {
   expect(broker.unknownCount).toBe(1);
 
   expect(totalOf(broker)).toBe(780_000_000);
+});
+
+it("refuses a pending holding that carries a price", () => {
+  const wire = {
+    assetType: "stock",
+    costBasis: null,
+    currency: "EUR",
+    id: "0192f0c1-0040-7000-8000-000000000009",
+    lastPrice: { currency: "EUR", minor: 100 },
+    name: "Pending With Price",
+    openedOn: "2025-01-01",
+    platformId: "manual",
+    pricedAt: "2026-01-05T09:00:00.000Z",
+    profileId: demoProfileId,
+    quantity: 0,
+    state: "pending",
+    symbol: "PEND",
+  };
+
+  expect(Schema.decodeUnknownResult(HoldingSchema)(wire)._tag).toBe("Failure");
+
+  expect(
+    Schema.decodeUnknownResult(HoldingSchema)({
+      ...wire,
+      lastPrice: null,
+      pricedAt: null,
+    })._tag
+  ).toBe("Success");
 });
 
 it("groups holdings under the platform that holds them", () => {

@@ -5,6 +5,7 @@ import type {
   Money,
   PlatformGroup,
   Portfolio,
+  TotalReason,
   UnknownGainReason,
   UnknownValueReason,
 } from "@pecunia/investments/model";
@@ -56,6 +57,13 @@ const gainReason = (reason: UnknownGainReason): string =>
     Match.when("no-rate", () => "No exchange rate"),
     Match.when("out-of-range", () => "Outside exact range"),
     Match.orElse(() => "Unknown")
+  );
+
+const totalReason = (reason: TotalReason): string =>
+  Match.value(reason).pipe(
+    Match.when("no-value", () => "Total unknown"),
+    Match.when("out-of-range", () => "Total outside exact range"),
+    Match.orElse(() => "Total unknown")
   );
 
 const gainLine = (gain: Gain, h: HtmlBuilder<PecuniaMessage>): Html =>
@@ -133,6 +141,10 @@ const holdingRow = (
         [h.Class(className([styles.holdingCell, styles.holdingNumber]))],
         [moneyText(Option.getOrNull(holding.price))]
       ),
+      h.td(
+        [h.Class(className([styles.holdingCell, styles.holdingNumber]))],
+        [moneyText(Option.getOrNull(holding.costBasis))]
+      ),
       valueCell(holding.value, h),
     ]
   );
@@ -166,6 +178,10 @@ const groupTable = (
                     [h.Scope("col"), h.Class(className(styles.holdingNumber))],
                     ["Price"]
                   ),
+                  h.th(
+                    [h.Scope("col"), h.Class(className(styles.holdingNumber))],
+                    ["Cost basis"]
+                  ),
                   h.th([h.Scope("col")], ["Value and gain"]),
                 ]
               ),
@@ -183,10 +199,8 @@ const groupTable = (
 const totalLine = (
   portfolio: Portfolio,
   h: HtmlBuilder<PecuniaMessage>
-): Html => {
-  const total = Option.getOrNull(portfolio.total);
-
-  return h.p(
+): Html =>
+  h.p(
     [h.Class(className(styles.totalRow))],
     [
       h.span(
@@ -198,14 +212,19 @@ const totalLine = (
       h.span(
         [h.Class(className(styles.accountValue))],
         [
-          total === null
-            ? "Total unknown"
-            : `Total ${formatMinor(total.minor, total.currency)}`,
+          Match.value(portfolio.total).pipe(
+            Match.tag(
+              "Known",
+              ({ amount }) =>
+                `Total ${formatMinor(amount.minor, amount.currency)}`
+            ),
+            Match.tag("Unknown", ({ reason }) => totalReason(reason)),
+            Match.exhaustive
+          ),
         ]
       ),
     ]
   );
-};
 
 export const investmentsScreen = (
   portfolio: Portfolio,

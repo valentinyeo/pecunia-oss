@@ -106,6 +106,8 @@ export {
   SyncHoldingsRequestSchema,
   SyncSummarySchema,
   TimestampSchema,
+  TotalReasonSchema,
+  TotalSchema,
   UnknownGainReasonSchema,
   UnknownValueReasonSchema,
 } from "./model.js";
@@ -154,6 +156,8 @@ export type {
   SyncHoldingsRequest,
   SyncSummary,
   Timestamp,
+  Total,
+  TotalReason,
   UnknownGainReason,
   UnknownValueReason,
 } from "./model.js";

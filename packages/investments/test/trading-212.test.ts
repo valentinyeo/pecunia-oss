@@ -99,6 +99,71 @@ it.effect("refuses a price with more decimals than the currency holds", () =>
   })
 );
 
+it.effect(
+  "refuses an average price with more decimals than the currency holds",
+  () =>
+    Effect.gen(function* refuseFractionalAveragePrice() {
+      const failure = yield* Effect.flip(
+        trading212Holdings(
+          demoBrokerAccountId,
+          withInstrument(0, { averagePrice: "3.001" })
+        )
+      );
+
+      expect(failure._tag).toBe("BrokerPayloadRejected");
+
+      expect(failure.field).toBe("instruments[0].averagePrice");
+    })
+);
+
+it.effect("refuses an average price that is not a decimal at all", () =>
+  Effect.gen(function* refuseUnreadableAveragePrice() {
+    const failure = yield* Effect.flip(
+      trading212Holdings(
+        demoBrokerAccountId,
+        withInstrument(0, { averagePrice: "nope" })
+      )
+    );
+
+    expect(failure._tag).toBe("BrokerPayloadRejected");
+
+    expect(failure.field).toBe("instruments[0].averagePrice");
+  })
+);
+
+it.effect("keeps a holding without an average price and no cost basis", () =>
+  Effect.gen(function* keepMissingAveragePrice() {
+    const withoutAveragePrice = {
+      ...demoTrading212Payload,
+      instruments: demoTrading212Payload.instruments.map(
+        (instrument, position) => {
+          if (position !== 0) {
+            return instrument;
+          }
+
+          const { averagePrice: _price, ...rest } = instrument;
+
+          return rest;
+        }
+      ),
+    };
+
+    const missing = yield* trading212Holdings(
+      demoBrokerAccountId,
+      withoutAveragePrice
+    );
+
+    expect(find(missing, "DEMO-WORLD").costBasis._tag).toBe("None");
+
+    const nulled = yield* trading212Holdings(
+      demoBrokerAccountId,
+      withInstrument(0, { averagePrice: null })
+    );
+
+    expect(find(nulled, "DEMO-WORLD").costBasis._tag).toBe("None");
+  })
+);
+
 it.effect("refuses a currency code Trading 212 did not send", () =>
   Effect.gen(function* refuseUnknownCurrency() {
     const failure = yield* Effect.flip(

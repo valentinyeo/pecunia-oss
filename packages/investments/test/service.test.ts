@@ -4,7 +4,11 @@ import type { Person } from "@pecunia/access";
 import { Effect, Layer, Match, Option, Schema } from "effect";
 
 import type { BrokerHoldings } from "../src/broker.js";
-import { addHolding, readInvestmentPortfolio } from "../src/capabilities.js";
+import {
+  addHolding,
+  deleteHolding,
+  readInvestmentPortfolio,
+} from "../src/capabilities.js";
 import {
   demoBaseCurrency,
   demoBrokerAccountId,
@@ -17,26 +21,32 @@ import {
   demoTrading212PlatformId,
 } from "../src/demo.js";
 import { memoryInvestmentStoreLayer } from "../src/memory.js";
+import type { InvestmentMemorySeed } from "../src/memory.js";
 import {
   CostBasisChangeSchema,
   CurrencyCodeSchema,
   DateOnlySchema,
   HoldingIdSchema,
+  HoldingSchema,
   MoneySchema,
   NameChangeSchema,
   PlatformIdSchema,
   PriceChangeSchema,
+  ProfileIdSchema,
   QuantityChangeSchema,
   QuantitySchema,
   TimestampSchema,
 } from "../src/model.js";
 import type {
+  Holding,
   HoldingPatch,
   HoldingValue,
   NewHolding,
   Portfolio,
+  Total,
 } from "../src/model.js";
 import { memoryProfileCurrenciesLayer } from "../src/profile-currencies.js";
+import type { ProfileCurrencyEntry } from "../src/profile-currencies.js";
 import { memoryExchangeRatesLayer } from "../src/rates.js";
 import {
   priceBookLayer,
@@ -45,6 +55,7 @@ import {
 } from "../src/recorded-quotes.js";
 import { readScopeOf, writeScopeOf } from "../src/scope.js";
 import { InvestmentService } from "../src/service.js";
+import { InvestmentStore } from "../src/store.js";
 import { trading212BrokerLayer } from "../src/trading-212.js";
 
 const personOf = (role: "owner" | "viewer"): Person =>
@@ -84,21 +95,55 @@ const missingHoldingId = Schema.decodeSync(HoldingIdSchema)(
   "0192f0c1-0040-7000-8000-00000000dead"
 );
 
-const serviceLayer = (
+const otherProfileId = Schema.decodeSync(ProfileIdSchema)(
+  "0192f0c1-0002-7000-8000-000000000002"
+);
+
+const otherHoldingId = Schema.decodeSync(HoldingIdSchema)(
+  "0192f0c1-0030-7000-8000-000000000001"
+);
+
+const otherOwner = Schema.decodeSync(PersonSchema)({
+  email: "other-owner@example.com",
+  memberships: [{ profileId: otherProfileId, role: "owner" }],
+  personId: "person-other-owner",
+});
+
+const otherHolding: Holding = Schema.decodeSync(HoldingSchema)({
+  assetType: "etf",
+  costBasis: null,
+  currency: "EUR",
+  id: otherHoldingId,
+  lastPrice: { currency: "EUR", minor: 780_000_000 },
+  name: "Other Profile Fund",
+  openedOn: "2025-06-01",
+  platformId: platformId("generic-broker"),
+  pricedAt,
+  profileId: otherProfileId,
+  quantity: 1_000_000,
+  state: "active",
+  symbol: "OTHER-ETF",
+});
+
+const serviceLayerOf = (
+  seed: InvestmentMemorySeed,
+  currencies: readonly ProfileCurrencyEntry[],
   broker: Layer.Layer<BrokerHoldings> = trading212BrokerLayer(
     demoBrokerAccountId,
     demoTrading212Payload
   ),
   market: readonly unknown[] = demoMarketQuotes,
   crypto: readonly unknown[] = demoCryptoQuotes
-) =>
-  InvestmentService.layer.pipe(
+) => {
+  const store = memoryInvestmentStoreLayer(seed);
+
+  return Layer.merge(
+    InvestmentService.layer.pipe(Layer.provide(store)),
+    store
+  ).pipe(
     Layer.provide(
       Layer.mergeAll(
-        memoryInvestmentStoreLayer(demoSeed),
-        memoryProfileCurrenciesLayer([
-          { baseCurrency: demoBaseCurrency, profileId: demoProfileId },
-        ]),
+        memoryProfileCurrenciesLayer(currencies),
         memoryExchangeRatesLayer(demoRates),
         priceBookLayer.pipe(
           Layer.provide(
@@ -112,6 +157,27 @@ const serviceLayer = (
       )
     )
   );
+};
+
+const demoCurrencies: readonly ProfileCurrencyEntry[] = [
+  { baseCurrency: demoBaseCurrency, profileId: demoProfileId },
+];
+
+const serviceLayer = (
+  broker?: Layer.Layer<BrokerHoldings>,
+  market?: readonly unknown[],
+  crypto?: readonly unknown[]
+) => serviceLayerOf(demoSeed, demoCurrencies, broker, market, crypto);
+
+const twoProfileSeed: InvestmentMemorySeed = {
+  holdings: [...demoSeed.holdings, otherHolding],
+  platforms: demoSeed.platforms,
+};
+
+const twoProfileCurrencies: readonly ProfileCurrencyEntry[] = [
+  ...demoCurrencies,
+  { baseCurrency: demoBaseCurrency, profileId: otherProfileId },
+];
 
 const withService = <A, E>(
   effect: Effect.Effect<A, E, InvestmentService>,
@@ -171,6 +237,13 @@ const reasonOf = (value: HoldingValue): string =>
     Match.exhaustive
   );
 
+const totalMinor = (total: Total): number | null =>
+  Match.value(total).pipe(
+    Match.tag("Known", ({ amount }) => amount.minor),
+    Match.tag("Unknown", () => null),
+    Match.exhaustive
+  );
+
 const viewOf = (portfolio: Portfolio, symbol: string) => {
   const found = portfolio.groups
     .flatMap((group) => group.holdings)
@@ -196,7 +269,7 @@ it.effect("groups the demo book by platform with totals", () =>
 
       expect(portfolio.unknownCount).toBe(1);
 
-      expect(Option.getOrNull(portfolio.total)?.minor).toBe(788_640_000);
+      expect(totalMinor(portfolio.total)).toBe(788_640_000);
 
       const bitcoin = viewOf(portfolio, "DEMO-BTC");
 
@@ -322,7 +395,7 @@ it.effect("prices a pending holding into an active one", () =>
 
 it.effect("deletes a holding and stops listing it", () =>
   withService(
-    Effect.gen(function* deleteHolding() {
+    Effect.gen(function* deleteAHolding() {
       const scope = yield* writeScopeOf(owner, demoProfileId);
 
       const service = yield* InvestmentService;
@@ -418,9 +491,7 @@ it.effect("syncs holdings from the broker and keeps them on a second run", () =>
       expect(trading?.holdings).toHaveLength(3);
 
       expect(
-        trading === undefined
-          ? undefined
-          : Option.getOrNull(trading.total)?.minor
+        trading === undefined ? undefined : totalMinor(trading.total)
       ).toBe(788_640_000);
 
       expect(viewOf(portfolio, "DEMO-WORLD").quantity).toBe(1_500_000_000);
@@ -519,6 +590,103 @@ it.effect("refuses a stranger's read", () =>
   }).pipe(
     Effect.provide(
       Layer.merge(serviceLayer(), Layer.succeed(CurrentPerson, stranger))
+    )
+  )
+);
+
+it.effect("keeps each profile's holdings apart", () =>
+  Effect.gen(function* profileIsolation() {
+    const mine = yield* readInvestmentPortfolio.handler({
+      profileId: otherProfileId,
+    });
+
+    expect(mine.profileId).toBe(otherProfileId);
+
+    expect(
+      mine.groups.flatMap((group) =>
+        group.holdings.map((holding) => holding.symbol)
+      )
+    ).toStrictEqual(["OTHER-ETF"]);
+
+    expect(totalMinor(mine.total)).toBe(780_000_000);
+
+    const store = yield* InvestmentStore;
+
+    expect(
+      (yield* store.holdings(otherProfileId)).map((holding) => holding.symbol)
+    ).toStrictEqual(["OTHER-ETF"]);
+
+    expect(
+      (yield* store.holdings(demoProfileId)).map((holding) => holding.symbol)
+    ).toStrictEqual(["DEMO-WORLD", "DEMO-BTC", "DEMO-TECH"]);
+
+    expect(
+      Option.isNone(yield* store.remove(otherProfileId, demoPendingHoldingId))
+    ).toBe(true);
+
+    expect(
+      Option.isNone(
+        yield* store.update(
+          otherProfileId,
+          demoPendingHoldingId,
+          patchOf(demoPendingHoldingId, {})
+        )
+      )
+    ).toBe(true);
+
+    expect(
+      Option.isSome(
+        yield* store.update(
+          otherProfileId,
+          otherHoldingId,
+          patchOf(otherHoldingId, {})
+        )
+      )
+    ).toBe(true);
+
+    const foreignRead = yield* Effect.flip(
+      readInvestmentPortfolio.handler({ profileId: demoProfileId })
+    );
+
+    expect(foreignRead._tag).toBe("Forbidden");
+
+    const foreignDelete = yield* Effect.flip(
+      deleteHolding.handler({
+        holdingId: demoPendingHoldingId,
+        profileId: demoProfileId,
+      })
+    );
+
+    expect(foreignDelete._tag).toBe("Forbidden");
+
+    const otherProfilesHolding = yield* Effect.flip(
+      deleteHolding.handler({
+        holdingId: demoPendingHoldingId,
+        profileId: otherProfileId,
+      })
+    );
+
+    expect(otherProfilesHolding._tag).toBe("UnknownHolding");
+
+    const demoBook = yield* readInvestmentPortfolio
+      .handler({
+        profileId: demoProfileId,
+      })
+      .pipe(Effect.provideService(CurrentPerson, owner));
+
+    expect(
+      demoBook.groups.flatMap((group) =>
+        group.holdings.map((holding) => holding.symbol)
+      )
+    ).toStrictEqual(["DEMO-TECH", "DEMO-WORLD", "DEMO-BTC"]);
+
+    expect(totalMinor(demoBook.total)).toBe(788_640_000);
+  }).pipe(
+    Effect.provide(
+      Layer.merge(
+        serviceLayerOf(twoProfileSeed, twoProfileCurrencies),
+        Layer.succeed(CurrentPerson, otherOwner)
+      )
     )
   )
 );

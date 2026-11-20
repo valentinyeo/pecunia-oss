@@ -34,6 +34,8 @@ describe("investments screen", () => {
       Scene.expect(Scene.text("Demo Bitcoin")).toExist(),
       Scene.expect(Scene.text("1,500")).toExist(),
       Scene.expect(Scene.text("€5,200.00")).toExist(),
+      Scene.expect(Scene.text("€4,500.00")).toExist(),
+      Scene.expect(Scene.text("€6,000.00")).toExist(),
       Scene.expect(Scene.text("Gain €7,795,500.00")).toExist(),
       Scene.expect(Scene.text("Gain €80,400.00")).toExist(),
       Scene.expect(Scene.text("2 valued, 1 unknown, in EUR")).toExist(),

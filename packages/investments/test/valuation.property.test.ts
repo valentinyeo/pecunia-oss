@@ -4,17 +4,27 @@ import { expect, it } from "vitest";
 import { demoProfileId, demoRates } from "../src/demo.js";
 import {
   CurrencyCodeSchema,
+  ExchangeRateSchema,
   HoldingSchema,
+  MoneySchema,
   PlatformIdSchema,
+  QuantitySchema,
   TimestampSchema,
 } from "../src/model.js";
 import type {
   CurrencyCode,
+  ExchangeRate,
   Gain,
   Holding,
   HoldingValue,
+  Money,
 } from "../src/model.js";
-import { holdingValue, portfolioOf, rateLookupOf } from "../src/valuation.js";
+import {
+  holdingValue,
+  portfolioOf,
+  positionValue,
+  rateLookupOf,
+} from "../src/valuation.js";
 
 const SEED = 20_260_105;
 
@@ -58,9 +68,17 @@ const QUANTITY_SCALE = 1_000_000n;
 const roundHalfAwayFromZero = (numerator: bigint): bigint => {
   const quotient = numerator / QUANTITY_SCALE;
   const remainder = numerator % QUANTITY_SCALE;
+  const doubled = (remainder < 0n ? -remainder : remainder) * 2n;
 
-  return remainder * 2n >= QUANTITY_SCALE ? quotient + 1n : quotient;
+  return doubled >= QUANTITY_SCALE
+    ? quotient + (numerator < 0n ? -1n : 1n)
+    : quotient;
 };
+
+const moneyOf = (minor: number): Money =>
+  Schema.decodeSync(MoneySchema)({ currency: "EUR", minor });
+
+const quantityOf = (value: number) => Schema.decodeSync(QuantitySchema)(value);
 
 const eur = Schema.decodeSync(CurrencyCodeSchema)("EUR");
 
@@ -258,10 +276,10 @@ it("adds only known values into the total over 400 seeded portfolios", () => {
 
     expect(portfolio.unknownCount).toBe(values.length - known.length);
 
-    expect(portfolio.total._tag).toBe(known.length === 0 ? "None" : "Some");
+    expect(portfolio.total._tag).toBe(known.length === 0 ? "Unknown" : "Known");
 
-    if (Option.isSome(portfolio.total)) {
-      expect(portfolio.total.value.minor).toBe(
+    if (Predicate.isTagged(portfolio.total, "Known")) {
+      expect(portfolio.total.amount.minor).toBe(
         known.reduce((sum, amount) => sum + amount, 0)
       );
     }
@@ -342,7 +360,132 @@ it("refuses a rate that cannot be found and never invents one", () => {
 
   expect(portfolio.valuedCount).toBe(0);
 
-  expect(portfolio.total._tag).toBe("None");
+  expect(portfolio.total._tag).toBe("Unknown");
 
   expect(usd satisfies string).toBe("USD");
+});
+
+const manualPlatform = {
+  connector: "manual" as const,
+  enabled: true,
+  id: manual,
+  label: "Manual",
+};
+
+const usd = Schema.decodeSync(CurrencyCodeSchema)("USD");
+
+const rateOf = (rate: string): ExchangeRate =>
+  Schema.decodeSync(ExchangeRateSchema)({
+    asOf: "2026-01-05",
+    base: "EUR",
+    fetchedAt: "2026-01-05T09:05:00.000Z",
+    quote: "USD",
+    rate,
+  });
+
+it("rounds a literal exact half away from zero", () => {
+  const cases: readonly (readonly [number, number, number])[] = [
+    [500_000, 1, 1],
+    [500_000, -1, -1],
+    [1_500_000, 1, 2],
+    [1_500_000, -1, -2],
+  ];
+
+  for (const [quantity, priceMinor, expected] of cases) {
+    const value = Option.getOrThrow(
+      positionValue(quantityOf(quantity), moneyOf(priceMinor))
+    );
+
+    expect(value.minor).toBe(expected);
+  }
+});
+
+it("rounds generated exact halves away from zero in both directions", () => {
+  for (let index = 0; index < 200; index += 1) {
+    const quantity = (2 * intBetween(0, 500_000) + 1) * 500_000;
+
+    const priceMinor = pick([1, 3, 5, -1, -3, -5] as const);
+
+    const product = BigInt(quantity) * BigInt(priceMinor);
+
+    expect(product % QUANTITY_SCALE).toBe(
+      priceMinor > 0 ? 500_000n : -500_000n
+    );
+
+    const value = Option.getOrThrow(
+      positionValue(quantityOf(quantity), moneyOf(priceMinor))
+    );
+
+    expect(value.minor).toBe(Number(roundHalfAwayFromZero(product)));
+  }
+});
+
+it("reports a conversion that overflows as out of range, not a missing rate", () => {
+  const lookup = rateLookupOf([rateOf("1.5")]);
+
+  const overflow = holdingOf({
+    costBasisMinor: null,
+    priceMinor: Number.MAX_SAFE_INTEGER,
+    quantity: 1_000_000,
+    state: "active",
+  });
+
+  expect(reasonOf(holdingValue(overflow, usd, lookup))).toBe("out-of-range");
+
+  const convertible = holdingOf({
+    costBasisMinor: null,
+    priceMinor: 1,
+    quantity: 1_000_000,
+    state: "active",
+  });
+
+  const value = holdingValue(convertible, usd, lookup);
+
+  expect(amountOf(value)).toBe(2);
+
+  expect(
+    Predicate.isTagged(value, "Known") ? value.amount.currency : undefined
+  ).toBe("USD");
+});
+
+it("reports a total past the exact integer range as out of range", () => {
+  const priceMinor = 4_503_599_627_370_496;
+
+  const holdings: readonly Holding[] = ["HALF-A", "HALF-B"].map((symbol) => ({
+    ...holdingOf({
+      costBasisMinor: null,
+      priceMinor,
+      quantity: 1_000_000,
+      state: "active",
+    }),
+    symbol,
+  }));
+
+  const portfolio = portfolioOf({
+    baseCurrency: eur,
+    holdings,
+    platforms: [manualPlatform],
+    profileId: demoProfileId,
+    rates: [],
+  });
+
+  expect(portfolio.valuedCount).toBe(2);
+
+  expect(portfolio.unknownCount).toBe(0);
+
+  expect(portfolio.total._tag).toBe("Unknown");
+
+  expect(
+    Predicate.isTagged(portfolio.total, "Unknown")
+      ? portfolio.total.reason
+      : undefined
+  ).toBe("out-of-range");
+
+  expect(
+    portfolio.groups.flatMap((group) =>
+      Predicate.isTagged(group.total, "Unknown")
+        ? [group.total.reason]
+        : ["known"]
+    )
+  ).toEqual(["out-of-range"]);
 });

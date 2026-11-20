@@ -115,30 +115,6 @@ export type {
   Transaction,
 } from "./types.js";
 
-export {
-  CurrencyCodeSchema,
-  DateOnlySchema,
-  HoldingIdSchema,
-  MinorUnitsSchema,
-  MoneySchema,
-  PlatformIdSchema,
-  ProfileIdSchema,
-  QuantitySchema,
-  TimestampSchema,
-} from "./primitives.js";
-
-export {
-  AssetTypeSchema,
-  HoldingSchema,
-  InvestmentPlatformSchema,
-  PendingHoldingSchema,
-  PricedHoldingSchema,
-} from "./investment.js";
-
-export { ExchangeRateSchema } from "./market.js";
-
-export { RateSchema } from "./rate.js";
-
 export { timestampOf, timestampParts } from "./timestamp.js";
 
 export type { TimestampParts } from "./primitives.js";

@@ -1,7 +1,12 @@
-import { convertMinor, MoneySchema } from "@pecunia/core/model";
+import { convertMinor } from "@pecunia/core/model";
 import { Option, Predicate, Result, Schema } from "effect";
 
-import { GainSchema, HoldingValueSchema } from "./model.js";
+import {
+  GainSchema,
+  HoldingValueSchema,
+  MoneySchema,
+  TotalSchema,
+} from "./model.js";
 import type {
   CurrencyCode,
   ExchangeRate,
@@ -15,6 +20,7 @@ import type {
   ProfileId,
   Quantity,
   RateLookup,
+  Total,
   UnknownValueReason,
 } from "./model.js";
 
@@ -83,18 +89,21 @@ export const convertMoney = (
   money: Money,
   to: CurrencyCode,
   lookup: RateLookup
-): Option.Option<Money> => {
+): Result.Result<Money, "no-rate" | "out-of-range"> => {
   if (money.currency === to) {
-    return Option.some(money);
+    return Result.succeed(money);
   }
 
   return Option.match(lookup(money.currency, to), {
-    onNone: () => Option.none(),
+    onNone: () => Result.fail("no-rate"),
     onSome: (rate) =>
       Result.match(convertMinor(money.minor, money.currency, to, rate), {
-        onFailure: () => Option.none(),
+        onFailure: () => Result.fail("out-of-range"),
         onSuccess: (minor) =>
-          Schema.decodeOption(MoneySchema)({ currency: to, minor }),
+          Option.match(safeMoney(to, BigInt(minor)), {
+            onNone: () => Result.fail("out-of-range"),
+            onSome: (amount) => Result.succeed(amount),
+          }),
       }),
   });
 };
@@ -108,22 +117,21 @@ const gainOf = (
     return GainSchema.cases.Unknown.make({ reason: "no-cost-basis" });
   }
 
-  const converted = convertMoney(costBasis.value, value.currency, lookup);
-
-  if (Option.isNone(converted)) {
-    return GainSchema.cases.Unknown.make({ reason: "no-rate" });
-  }
-
-  return Option.match(
-    safeMoney(
-      value.currency,
-      BigInt(value.minor) - BigInt(converted.value.minor)
-    ),
-    {
-      onNone: () => GainSchema.cases.Unknown.make({ reason: "out-of-range" }),
-      onSome: (amount) => GainSchema.cases.Known.make({ amount }),
-    }
-  );
+  return Result.match(convertMoney(costBasis.value, value.currency, lookup), {
+    onFailure: (reason) => GainSchema.cases.Unknown.make({ reason }),
+    onSuccess: (converted) =>
+      Option.match(
+        safeMoney(
+          value.currency,
+          BigInt(value.minor) - BigInt(converted.minor)
+        ),
+        {
+          onNone: () =>
+            GainSchema.cases.Unknown.make({ reason: "out-of-range" }),
+          onSome: (amount) => GainSchema.cases.Known.make({ amount }),
+        }
+      ),
+  });
 };
 
 export const unknownValue = (reason: UnknownValueReason): HoldingValue =>
@@ -144,17 +152,13 @@ export const holdingValue = (
     return unknownValue("out-of-range");
   }
 
-  const converted = convertMoney(value.value, baseCurrency, lookup);
-
-  if (Option.isNone(converted)) {
-    return unknownValue(
-      value.value.currency === baseCurrency ? "out-of-range" : "no-rate"
-    );
-  }
-
-  return HoldingValueSchema.cases.Known.make({
-    amount: converted.value,
-    gain: gainOf(converted.value, holding.costBasis, lookup),
+  return Result.match(convertMoney(value.value, baseCurrency, lookup), {
+    onFailure: (reason) => unknownValue(reason),
+    onSuccess: (amount) =>
+      HoldingValueSchema.cases.Known.make({
+        amount,
+        gain: gainOf(amount, holding.costBasis, lookup),
+      }),
   });
 };
 
@@ -182,12 +186,9 @@ const knownValues = (views: readonly HoldingView[]): readonly Money[] =>
     Predicate.isTagged(view.value, "Known") ? [view.value.amount] : []
   );
 
-const totalOf = (
-  values: readonly Money[],
-  currency: CurrencyCode
-): Option.Option<Money> => {
+const totalOf = (values: readonly Money[], currency: CurrencyCode): Total => {
   if (values.length === 0) {
-    return Option.none();
+    return TotalSchema.cases.Unknown.make({ reason: "no-value" });
   }
 
   let total = 0n;
@@ -196,7 +197,10 @@ const totalOf = (
     total += BigInt(value.minor);
   }
 
-  return safeMoney(currency, total);
+  return Option.match(safeMoney(currency, total), {
+    onNone: () => TotalSchema.cases.Unknown.make({ reason: "out-of-range" }),
+    onSome: (amount) => TotalSchema.cases.Known.make({ amount }),
+  });
 };
 
 const groupOf = (

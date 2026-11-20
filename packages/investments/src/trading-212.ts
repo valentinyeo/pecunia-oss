@@ -47,7 +47,7 @@ export const assetTypeOfTrading212 = (
 };
 
 export const Trading212InstrumentSchema = Schema.Struct({
-  averagePrice: Schema.String,
+  averagePrice: Schema.optional(Schema.NullOr(Schema.String)),
   currentPrice: Schema.NullOr(Schema.String),
   currency: Schema.String,
   name: Schema.String,
@@ -77,13 +77,13 @@ const rejection = (
     repair: `Fix the recorded Trading 212 payload field ${field} so it holds an exact decimal string and an ISO currency code.`,
   });
 
-const priceOf = (
+const amountIn = (
   accountId: BrokerAccountId,
   currency: CurrencyCode,
-  index: number,
-  text: string | null
+  field: string,
+  text: string | null | undefined
 ): Effect.Effect<Option.Option<Money>, BrokerPayloadRejected> => {
-  if (text === null) {
+  if (text === null || text === undefined) {
     return Effect.succeedNone;
   }
 
@@ -94,8 +94,8 @@ const priceOf = (
     : Effect.fail(
         rejection(
           accountId,
-          `instruments[${index}].currentPrice`,
-          `Trading 212 returned ${text} as a current price, which is not exact in ${currency}.`
+          field,
+          `Trading 212 returned ${text} as ${field}, which is not exact in ${currency}.`
         )
       );
 };
@@ -129,10 +129,10 @@ const instrumentHolding = (
         )
     );
 
-    const price = yield* priceOf(
+    const price = yield* amountIn(
       accountId,
       currency,
-      index,
+      `instruments[${index}].currentPrice`,
       instrument.currentPrice
     );
 
@@ -172,7 +172,12 @@ const instrumentHolding = (
       )
     );
 
-    const averagePrice = moneyOfText(instrument.averagePrice, currency);
+    const averagePrice = yield* amountIn(
+      accountId,
+      currency,
+      `instruments[${index}].averagePrice`,
+      instrument.averagePrice
+    );
 
     const costBasis = Option.isSome(averagePrice)
       ? positionValue(quantity, averagePrice.value)

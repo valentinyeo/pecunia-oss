@@ -12,7 +12,7 @@ The map is the maintained verification source. A proof that drives one convenien
 | [Categories and rules](categories-and-rules.md) | planned | none | `--feature categories-and-rules` |
 | [Dashboard sums](dashboard-sums.md) | planned | none | `--feature dashboard-sums` |
 | [Subscriptions](subscriptions.md) | planned | none | `--feature subscriptions` |
-| [Investments](investments.md) | planned | none | `--feature investments` |
+| [Investments](investments.md) | partly built | capabilities, demo screen, no transport | `--feature investments` |
 | [FX conversion](fx-conversion.md) | planned | none | `--feature fx-conversion` |
 | [Tax](tax.md) | planned | none | `--feature tax` |
 | [Invoices](invoices.md) | planned | none | `--feature invoices` |

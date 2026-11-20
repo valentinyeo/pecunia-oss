@@ -171,12 +171,12 @@ Every place the old app put a behaviour. A place with no row is a behaviour nobo
 | Turn tracking of a repeat payment on and off | route: subscriptions | planned | ticket:SOFT-2395 |
 | Find repeat payments from the payment history | route: subscriptions | planned | ticket:SOFT-2395 |
 | A six month spend projection from the repeat payments | route: forecast | dropped | the app never served this page, because the router never mounted it, so no user could open it and there is no user behaviour to carry over |
-| Holdings grouped by platform with price, value and gain | route: investments | planned | ticket:SOFT-2396 |
-| Add a holding by hand | route: investments | planned | ticket:SOFT-2396 |
-| Edit a holding | route: investments | planned | ticket:SOFT-2396 |
-| Delete a holding | route: investments | planned | ticket:SOFT-2396 |
-| Value a holding in the profile's currency | route: investments | planned | ticket:SOFT-2396 |
-| A holding with no price yet shows as unknown rather than zero | route: investments | planned | ticket:SOFT-2396 |
+| Holdings grouped by platform with price, value and gain | route: investments | built | capability:readInvestmentPortfolio |
+| Add a holding by hand | route: investments | built | capability:addHolding |
+| Edit a holding | route: investments | built | capability:editHolding |
+| Delete a holding | route: investments | built | capability:deleteHolding |
+| Value a holding in the profile's currency | route: investments | built | file:packages/investments/src/valuation.ts |
+| A holding with no price yet shows as unknown rather than zero | route: investments | built | capability:readInvestmentPortfolio |
 | The investments page is open to one hard-coded profile | route: investments | dropped | the old page refused everyone but one profile identifier, and the new app scopes every profile the same way, so there is nothing to carry over |
 | Payments that need an invoice, with a status on each one | route: invoices | planned | ticket:SOFT-2493 |
 | Payments with no invoice counted for a month | route: invoices | planned | ticket:SOFT-2493 |
@@ -211,8 +211,8 @@ Every place the old app put a behaviour. A place with no row is a behaviour nobo
 | A statement that returns nothing falls back to the activities feed | sync: bank statements | planned | no ticket yet |
 | Personal accounts: the activities feed is read without a signed request | sync: bank activities | planned | no ticket yet |
 | Daily exchange rates from a public rates service, cached for the day | sync: exchange rates | planned | no ticket yet |
-| Share prices from one market source, with a second source for crypto | sync: market prices | planned | ticket:SOFT-2396 |
-| Holdings and their quantities come from the broker's own API | sync: broker holdings | planned | ticket:SOFT-2396 |
+| Share prices from one market source, with a second source for crypto | sync: market prices | built | capability:refreshInvestmentPrices |
+| Holdings and their quantities come from the broker's own API | sync: broker holdings | built | capability:syncInvestmentHoldings |
 | Self Assessment payments due come from the accounting provider, and a payment that disappears upstream is removed | sync: tax dues | planned | no ticket yet |
 | A statement export file is imported into one account | import: bank csv | built | capability:importBankFile |
 | Importing the same file again adds no second copy of a line | import: bank csv | built | capability:importBankFile |
