@@ -1,10 +1,11 @@
 import { expect, it } from "@effect/vitest";
 import type { BankLine } from "@pecunia/bank-lines/model";
 import { SEARCH_MAX_LENGTH } from "@pecunia/bank-lines/model";
-import { Effect, Option, Predicate, Schema } from "effect";
+import { demoPortfolio } from "@pecunia/investments/demo";
+import { Effect, Option, Predicate } from "effect";
 
 import { BankLinesGateway } from "../src/client/pecunia/bank-lines/gateway.js";
-import { HoldingIdSchema } from "../src/client/pecunia/search/demo.js";
+import { demoHoldings } from "../src/client/pecunia/search/demo.js";
 import { Message } from "../src/client/pecunia/search/message.js";
 import {
   Findings,
@@ -50,7 +51,7 @@ it("suggestions appear while typing in the one box", () => {
 
 it("suggestions cover categories, holdings and merchants", () => {
   expect(suggestionLabels("software")).toStrictEqual(["Software"]);
-  expect(suggestionLabels("isa")).toStrictEqual(["Demo Shares ISA"]);
+  expect(suggestionLabels("bitcoin")).toStrictEqual(["Demo Bitcoin"]);
   expect(suggestionLabels("demo tax")).toStrictEqual(["Demo Tax Office"]);
 });
 
@@ -100,14 +101,14 @@ it("the results cover payments, categories and holdings", () => {
     "Office",
   ]);
 
-  const isaResults = findingsOf("isa", page([]), demoWorld);
+  const worldResults = findingsOf("world", page([]), demoWorld);
 
-  if (!Findings.guards.Ready(isaResults)) {
-    throw new Error("The demo ISA holding must be found");
+  if (!Findings.guards.Ready(worldResults)) {
+    throw new Error("The demo world holding must be found");
   }
 
-  expect(isaResults.holdings.map((holding) => holding.name)).toStrictEqual([
-    "Demo Shares ISA",
+  expect(worldResults.holdings.map((holding) => holding.name)).toStrictEqual([
+    "Demo World ETF",
   ]);
 });
 
@@ -150,21 +151,27 @@ it("an empty box searches nothing", () => {
 });
 
 it("picking a suggestion searches for what it names", () => {
+  const [firstHolding] = demoHoldings;
+
+  if (firstHolding === undefined) {
+    throw new Error("The demo world must offer a holding");
+  }
+
   const typed = update(initialSearch, Message.TypedQuery({ value: "demo" }));
 
   const picked = update(
     typed.model,
     Message.PickedSuggestion({
       suggestion: Suggestion.Holding({
-        holdingId: Schema.decodeSync(HoldingIdSchema)("demo-holding-isa"),
-        label: "Demo Shares ISA",
+        holdingId: firstHolding.holdingId,
+        label: firstHolding.name,
       }),
     })
   );
 
-  expect(picked.model.query).toBe("Demo Shares ISA");
+  expect(picked.model.query).toBe(firstHolding.name);
   expect(picked.commands?.[0]).toMatchObject({
-    args: { query: "Demo Shares ISA" },
+    args: { query: firstHolding.name },
     name: "SearchEverything",
   });
 });
@@ -272,4 +279,12 @@ it("the demo world offers every surface the one box searches", () => {
   expect(demoWorld.holdings.length).toBeGreaterThan(0);
   expect(demoWorld.catalogue.length).toBeGreaterThan(0);
   expect(demoLines.length).toBeGreaterThan(demoWorld.merchants.length);
+});
+
+it("the one box searches the holdings the investments screen shows", () => {
+  const shown = demoPortfolio.groups.flatMap((group) => group.holdings);
+
+  expect(demoWorld.holdings.map((holding) => holding.holdingId)).toStrictEqual(
+    shown.map((holding) => holding.holdingId)
+  );
 });

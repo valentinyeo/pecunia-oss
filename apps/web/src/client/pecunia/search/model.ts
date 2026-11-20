@@ -1,15 +1,26 @@
 import { BankLineSchema, CategoryIdSchema } from "@pecunia/bank-lines/model";
 import type { BankLinePage } from "@pecunia/bank-lines/model";
+import {
+  HoldingIdSchema,
+  HoldingNameSchema,
+  HoldingValueSchema,
+} from "@pecunia/investments/model";
 import { Schema } from "effect";
 import { defineTaggedUnion } from "foldkit/schema";
 
 import { Query } from "../bank-lines/model.js";
 import { CategoryChoice } from "../catalogue.js";
 import type { CategoryChoiceValue } from "../catalogue.js";
-import { Holding, HoldingIdSchema } from "./demo.js";
-import type { HoldingValue } from "./demo.js";
 
 export const SUGGESTION_LIMIT = 5;
+
+export const SearchHolding = Schema.Struct({
+  holdingId: HoldingIdSchema,
+  name: HoldingNameSchema,
+  value: HoldingValueSchema,
+});
+
+export type SearchHoldingValue = typeof SearchHolding.Type;
 
 export const Suggestion = defineTaggedUnion({
   Category: { categoryId: CategoryIdSchema, label: Schema.NonEmptyString },
@@ -25,7 +36,7 @@ export const Findings = defineTaggedUnion({
   Idle: {},
   Ready: {
     categories: Schema.Array(CategoryChoice),
-    holdings: Schema.Array(Holding),
+    holdings: Schema.Array(SearchHolding),
     payments: Schema.Array(BankLineSchema),
     query: Query,
   },
@@ -50,7 +61,7 @@ export const initialSearch: SearchModelValue = {
 
 export interface SearchWorld {
   readonly catalogue: readonly CategoryChoiceValue[];
-  readonly holdings: readonly HoldingValue[];
+  readonly holdings: readonly SearchHoldingValue[];
   readonly merchants: readonly string[];
 }
 
@@ -86,7 +97,12 @@ export const suggestionsFor = (
     ),
     ...world.holdings.flatMap((holding) =>
       contains(holding.name, needle)
-        ? [Suggestion.Holding({ holdingId: holding.id, label: holding.name })]
+        ? [
+            Suggestion.Holding({
+              holdingId: holding.holdingId,
+              label: holding.name,
+            }),
+          ]
         : []
     ),
     ...merchantSuggestions(needle, world.merchants),
