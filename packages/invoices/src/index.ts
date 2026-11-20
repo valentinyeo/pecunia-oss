@@ -64,6 +64,8 @@ export { InvoiceAlreadyInvoiced } from "./invoice-already-invoiced.js";
 
 export { InvoiceExceptionRefused } from "./invoice-exception-refused.js";
 
+export { InvalidInvoiceRequest } from "./invalid-invoice-request.js";
+
 export { InvoiceNotPayable } from "./invoice-not-payable.js";
 
 export { InvoiceStoreError } from "./invoice-store-error.js";

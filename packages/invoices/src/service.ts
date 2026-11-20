@@ -16,25 +16,10 @@ import type { ArchiveStateRefused } from "./archive-state-refused.js";
 import { recordArchive, reserveArchive } from "./archive.js";
 import { InvoiceAlreadyAttached } from "./invoice-already-attached.js";
 import { InvoiceAlreadyInvoiced } from "./invoice-already-invoiced.js";
-import { InvoiceExceptionRefused } from "./invoice-exception-refused.js";
 import { InvoiceNotPayable } from "./invoice-not-payable.js";
 import type { InvoiceStoreError } from "./invoice-store-error.js";
-import { LegacyFilesRefused } from "./legacy-files-refused.js";
 import { proposeMatches } from "./matching.js";
-import {
-  ArchivePlaceDraftSchema,
-  EXCEPTION_REASON_MAX,
-  InvoiceSourceDraftSchema,
-  LEGACY_FILES_MAX,
-  LegacyOutcomeSchema,
-  MonthSchema,
-  RecordInvoiceArchiveSchema,
-  RecordInvoiceExceptionSchema,
-  RegisterLegacyInvoicesSchema,
-  ReserveInvoiceArchiveSchema,
-  SaveInvoiceFileSchema,
-  TimestampMillisSchema,
-} from "./model.js";
+import { LegacyOutcomeSchema, TimestampMillisSchema } from "./model.js";
 import type {
   ArchivePlace,
   ArchivePlaceDraft,
@@ -121,78 +106,6 @@ const unknownSource = (scope: WriteScope, sourceId: InvoiceSourceId) =>
     sourceId,
   });
 
-const exceptionRefusalOf = (
-  scope: WriteScope,
-  request: RecordInvoiceException
-): InvoiceExceptionRefused => {
-  const reasonLength = request.reason.trim().length;
-
-  if (reasonLength === 0) {
-    return new InvoiceExceptionRefused({
-      message:
-        "The invoice reason is empty, so the payment still looks missing an invoice.",
-      profileId: scope.profileId,
-      reasonLength,
-      repair:
-        "Write why the payment has no invoice, up to 500 characters, then record the reason again.",
-      transactionId: request.transactionId,
-    });
-  }
-
-  if (reasonLength > EXCEPTION_REASON_MAX) {
-    return new InvoiceExceptionRefused({
-      message: `The invoice reason is ${reasonLength} characters long and the limit is ${EXCEPTION_REASON_MAX}.`,
-      profileId: scope.profileId,
-      reasonLength,
-      repair: `Shorten the reason to ${EXCEPTION_REASON_MAX} characters or fewer, then record the reason again.`,
-      transactionId: request.transactionId,
-    });
-  }
-
-  return new InvoiceExceptionRefused({
-    message:
-      "The exception request names a payment id the invoice book cannot store.",
-    profileId: scope.profileId,
-    reasonLength,
-    repair:
-      "Use a payment id from a `listInvoiceStatus` row, then record the reason again.",
-    transactionId: request.transactionId,
-  });
-};
-
-const legacyRefusalOf = (
-  scope: WriteScope,
-  count: number
-): LegacyFilesRefused => {
-  if (count > LEGACY_FILES_MAX) {
-    return new LegacyFilesRefused({
-      count,
-      message: `The legacy batch carries ${count} files and the limit is ${LEGACY_FILES_MAX}.`,
-      profileId: scope.profileId,
-      repair: `Send them in batches of ${LEGACY_FILES_MAX} or fewer files.`,
-    });
-  }
-
-  if (count === 0) {
-    return new LegacyFilesRefused({
-      count,
-      message:
-        "The legacy batch carries no files, so there is nothing to register.",
-      profileId: scope.profileId,
-      repair: `Send at least one file, up to ${LEGACY_FILES_MAX} in a batch.`,
-    });
-  }
-
-  return new LegacyFilesRefused({
-    count,
-    message:
-      "A file in the legacy batch is missing a field the invoice book stores.",
-    profileId: scope.profileId,
-    repair:
-      "Send every file with the fields `registerLegacyInvoices` asks for, then try again.",
-  });
-};
-
 const payeeIdsOf = (
   payments: readonly { readonly payeeId: Option.Option<PayeeId> }[]
 ): ReadonlySet<string> =>
@@ -268,7 +181,6 @@ export class InvoiceService extends Context.Service<
     ) => Effect.Effect<
       InvoiceException,
       | InvoiceAlreadyInvoiced
-      | InvoiceExceptionRefused
       | InvoiceNotPayable
       | InvoiceStoreError
       | UnknownPayment
@@ -276,7 +188,7 @@ export class InvoiceService extends Context.Service<
     readonly registerLegacy: (
       scope: WriteScope,
       files: readonly InvoiceFile[]
-    ) => Effect.Effect<LegacyFiles, InvoiceStoreError | LegacyFilesRefused>;
+    ) => Effect.Effect<LegacyFiles, InvoiceStoreError>;
     readonly removeDocument: (
       scope: WriteScope,
       documentId: DocumentId
@@ -408,40 +320,32 @@ export class InvoiceService extends Context.Service<
       scope: WriteScope,
       draft: ArchivePlaceDraft
     ) {
-      const parsed = yield* Schema.decodeEffect(ArchivePlaceDraftSchema)(
-        draft
-      ).pipe(Effect.orDie);
-
-      return yield* store.savePlace(scope.profileId, parsed);
+      return yield* store.savePlace(scope.profileId, draft);
     });
 
     const reserve = Effect.fn("InvoiceService.reserve")(function* reserve(
       scope: WriteScope,
       request: ReserveInvoiceArchive
     ) {
-      const parsedRequest = yield* Schema.decodeEffect(
-        ReserveInvoiceArchiveSchema
-      )(request).pipe(Effect.orDie);
-
-      const invoice = yield* documentIn(scope, parsedRequest.documentId);
+      const invoice = yield* documentIn(scope, request.documentId);
 
       const placesOfProfile = yield* store.places(scope.profileId);
 
       const place = placesOfProfile.find(
-        (candidate) => candidate.id === parsedRequest.placeId
+        (candidate) => candidate.id === request.placeId
       );
 
       if (place === undefined) {
         return yield* new UnknownArchivePlace({
-          message: `Archive place ${parsedRequest.placeId} is not in profile ${scope.profileId}.`,
-          placeId: parsedRequest.placeId,
+          message: `Archive place ${request.placeId} is not in profile ${scope.profileId}.`,
+          placeId: request.placeId,
           profileId: scope.profileId,
           repair:
             "Save the archive place first with `saveArchivePlace`, then reserve the file again.",
         });
       }
 
-      const reserved = reserveArchive(invoice, place, parsedRequest.fileId);
+      const reserved = reserveArchive(invoice, place, request.fileId);
 
       if (Result.isFailure(reserved)) {
         return yield* reserved.failure;
@@ -454,19 +358,11 @@ export class InvoiceService extends Context.Service<
       scope: WriteScope,
       request: RecordInvoiceArchive
     ) {
-      const parsedRequest = yield* Schema.decodeEffect(
-        RecordInvoiceArchiveSchema
-      )(request).pipe(Effect.orDie);
-
-      const invoice = yield* documentIn(scope, parsedRequest.documentId);
+      const invoice = yield* documentIn(scope, request.documentId);
 
       const archivedAt = yield* currentInstant;
 
-      const recorded = recordArchive(
-        invoice,
-        parsedRequest.outcome,
-        archivedAt
-      );
+      const recorded = recordArchive(invoice, request.outcome, archivedAt);
 
       if (Result.isFailure(recorded)) {
         return yield* recorded.failure;
@@ -479,13 +375,7 @@ export class InvoiceService extends Context.Service<
       scope: ReadScope,
       month: Option.Option<Month>
     ) {
-      const parsedMonth = Option.isNone(month)
-        ? Option.none<Month>()
-        : Option.some(
-            yield* Schema.decodeEffect(MonthSchema)(month.value).pipe(
-              Effect.orDie
-            )
-          );
+      const parsedMonth = month;
 
       const book = yield* bookOf(scope.profileId);
 
@@ -516,29 +406,23 @@ export class InvoiceService extends Context.Service<
         scope: WriteScope,
         request: RecordInvoiceException
       ) {
-        const parsedRequest = yield* Schema.decodeEffect(
-          RecordInvoiceExceptionSchema
-        )(request).pipe(
-          Effect.mapError(() => exceptionRefusalOf(scope, request))
-        );
-
         const payment = yield* store.payment(
           scope.profileId,
-          parsedRequest.transactionId
+          request.transactionId
         );
 
         if (Option.isNone(payment)) {
-          return yield* unknownPayment(scope, parsedRequest.transactionId);
+          return yield* unknownPayment(scope, request.transactionId);
         }
 
         if (payment.value.direction !== "out") {
           return yield* new InvoiceNotPayable({
             direction: payment.value.direction,
-            message: `Payment ${parsedRequest.transactionId} is ${payment.value.direction}, so it needs no invoice.`,
+            message: `Payment ${request.transactionId} is ${payment.value.direction}, so it needs no invoice.`,
             profileId: scope.profileId,
             repair:
               "Record a reason only for an outgoing payment, such as one `listInvoiceStatus` returns.",
-            transactionId: parsedRequest.transactionId,
+            transactionId: request.transactionId,
           });
         }
 
@@ -547,17 +431,17 @@ export class InvoiceService extends Context.Service<
         const invoiced = documents.find(
           (document) =>
             Option.getOrUndefined(document.transactionId) ===
-            parsedRequest.transactionId
+            request.transactionId
         );
 
         if (invoiced !== undefined) {
           return yield* new InvoiceAlreadyInvoiced({
             documentId: invoiced.id,
-            message: `Payment ${parsedRequest.transactionId} already holds invoice ${invoiced.id}, so it needs no written reason.`,
+            message: `Payment ${request.transactionId} already holds invoice ${invoiced.id}, so it needs no written reason.`,
             profileId: scope.profileId,
             repair:
               "Remove the invoice with `removeInvoiceDocument` if it is wrong, then record the reason.",
-            transactionId: parsedRequest.transactionId,
+            transactionId: request.transactionId,
           });
         }
 
@@ -565,9 +449,9 @@ export class InvoiceService extends Context.Service<
 
         return yield* store.saveException(scope.profileId, {
           profileId: scope.profileId,
-          reason: parsedRequest.reason,
+          reason: request.reason,
           recordedAt,
-          transactionId: parsedRequest.transactionId,
+          transactionId: request.transactionId,
         });
       }
     );
@@ -580,20 +464,13 @@ export class InvoiceService extends Context.Service<
 
     const saveSource = Effect.fn("InvoiceService.saveSource")(
       function* saveSource(scope: WriteScope, draft: InvoiceSourceDraft) {
-        const parsed = yield* Schema.encodeEffect(InvoiceSourceDraftSchema)(
-          draft
-        ).pipe(
-          Effect.flatMap(Schema.decodeEffect(InvoiceSourceDraftSchema)),
-          Effect.orDie
-        );
-
-        if (Option.isSome(parsed.vendorPayeeId)) {
+        if (Option.isSome(draft.vendorPayeeId)) {
           const payments = yield* store.payments(scope.profileId);
 
-          if (!payeeIdsOf(payments).has(parsed.vendorPayeeId.value)) {
+          if (!payeeIdsOf(payments).has(draft.vendorPayeeId.value)) {
             return yield* new UnknownVendorPayee({
-              message: `Vendor payee ${parsed.vendorPayeeId.value} has no payment in profile ${scope.profileId}.`,
-              payeeId: parsed.vendorPayeeId.value,
+              message: `Vendor payee ${draft.vendorPayeeId.value} has no payment in profile ${scope.profileId}.`,
+              payeeId: draft.vendorPayeeId.value,
               profileId: scope.profileId,
               repair:
                 "Use a payee the profile's bank lines carry, then save the invoice source again.",
@@ -601,7 +478,7 @@ export class InvoiceService extends Context.Service<
           }
         }
 
-        return yield* store.saveSource(scope.profileId, parsed);
+        return yield* store.saveSource(scope.profileId, draft);
       }
     );
 
@@ -662,18 +539,11 @@ export class InvoiceService extends Context.Service<
         scope: WriteScope,
         files: readonly InvoiceFile[]
       ) {
-        const parsed = yield* Schema.encodeEffect(RegisterLegacyInvoicesSchema)(
-          { files }
-        ).pipe(
-          Effect.flatMap(Schema.decodeEffect(RegisterLegacyInvoicesSchema)),
-          Effect.mapError(() => legacyRefusalOf(scope, files.length))
-        );
-
         const known = [...(yield* store.documents(scope.profileId))];
 
         const registered: LegacyFile[] = [];
 
-        for (const file of parsed.files) {
+        for (const file of files) {
           const existing = known.find(
             (candidate) => candidate.sha256 === file.sha256
           );
@@ -705,45 +575,38 @@ export class InvoiceService extends Context.Service<
       scope: WriteScope,
       request: SaveInvoiceFile
     ) {
-      const parsed = yield* Schema.encodeEffect(SaveInvoiceFileSchema)(
-        request
-      ).pipe(
-        Effect.flatMap(Schema.decodeEffect(SaveInvoiceFileSchema)),
-        Effect.orDie
-      );
-
       const payment = yield* store.payment(
         scope.profileId,
-        parsed.transactionId
+        request.transactionId
       );
 
       if (Option.isNone(payment)) {
-        return yield* unknownPayment(scope, parsed.transactionId);
+        return yield* unknownPayment(scope, request.transactionId);
       }
 
       const known = yield* store.documents(scope.profileId);
 
       const existing = known.find(
-        (candidate) => candidate.sha256 === parsed.sha256
+        (candidate) => candidate.sha256 === request.sha256
       );
 
       const invoice =
         existing ??
         (yield* store.createDocument(scope.profileId, {
-          amount: parsed.amount,
-          contentType: parsed.contentType,
-          documentDate: parsed.documentDate,
-          documentType: parsed.documentType,
-          originalFilename: parsed.originalFilename,
-          r2Key: parsed.r2Key,
-          sha256: parsed.sha256,
-          sizeBytes: parsed.sizeBytes,
-          source: parsed.source,
-          sourceRef: parsed.sourceRef,
-          vendorPayeeId: parsed.vendorPayeeId,
+          amount: request.amount,
+          contentType: request.contentType,
+          documentDate: request.documentDate,
+          documentType: request.documentType,
+          originalFilename: request.originalFilename,
+          r2Key: request.r2Key,
+          sha256: request.sha256,
+          sizeBytes: request.sizeBytes,
+          source: request.source,
+          sourceRef: request.sourceRef,
+          vendorPayeeId: request.vendorPayeeId,
         }));
 
-      return yield* attachTo(scope, invoice, parsed.transactionId);
+      return yield* attachTo(scope, invoice, request.transactionId);
     });
 
     return {
