@@ -225,12 +225,6 @@ const PAIR_DIGITS = SORT_CODE_DIGITS + ACCOUNT_DIGITS;
 const BANK_PHRASE =
   /sort[ _-]?code|sortcode|account|acct|accno|a\/c|bank|iban|bic|routing/iu;
 
-const BANK_LABEL =
-  /(?:sort[ _-]?code|sortcode|account|acct|accno|a\/c|bank|iban|bic|routing)(?:[ _-]*(?:number|no|nr|num|code|id|details|reference|ref))?$/iu;
-
-const BANK_LAST_TOKEN =
-  /^(?:sort[ _-]?code|sortcode|account|acct|accno|bank|iban|bic|routing)(?:[ _-]?(?:number|num|no|nr|id|code|details|reference|ref))?$/iu;
-
 const LABEL_FILLERS = new Set([
   "a",
   "an",
@@ -257,9 +251,39 @@ const LABEL_FILLERS = new Set([
   "your",
 ]);
 
-const LABEL_TOKENS = 3;
+const LABEL_WORD_LIMIT = 10;
 
 const LABEL_WINDOW = 48;
+
+const LABEL_CHAR_WINDOW = 240;
+
+const ACCOUNT_LABEL_DISQUALIFIERS = new Set([
+  "age",
+  "amount",
+  "balance",
+  "date",
+  "description",
+  "holder",
+  "invoice",
+  "module",
+  "name",
+  "reference",
+  "status",
+  "to",
+  "total",
+  "type",
+]);
+
+const ACCOUNT_BARE_FOLLOW = /^\s*(?:number|num|no|nr|is)\b/iu;
+
+const SORT_CODE_LABEL =
+  /\b(?:the\s+)?(?:sort[ _-]?code|sortcode)(?:\s+is)?\b/giu;
+
+const ACCOUNT_NUMBER_LABEL = /\baccount[ _-]?(?:number|num|no|nr)\b/giu;
+
+const ACCOUNT_AC_LABEL = /\ba\/c\b/giu;
+
+const ACCOUNT_WORD_LABEL = /\baccount\b/giu;
 
 const WORD_TOKEN = /[A-Za-z][A-Za-z0-9_]*/gu;
 
@@ -975,7 +999,7 @@ const BANK_GAP = /^[\s.+\-\u2010-\u2015*_~`\u200B-\u200D\u2060\uFEFF]*$/u;
 
 const SORT_BOUNDARIES: readonly number[] = [2, 4];
 
-const ACCOUNT_BOUNDARIES: readonly number[] = [4];
+const ACCOUNT_BOUNDARIES: readonly number[] = [2, 4, 6];
 
 const LINE_BREAK = /[\n\r]/u;
 
@@ -1316,6 +1340,8 @@ const readsAsAccountToken = (view: GuardView, run: DigitRun) => {
 
 const FORMATTING_NOISE = /[\u200B-\u200D\u2060\uFEFF]/gu;
 
+const HTML_TAG = /<[^>\n\r]*>/gu;
+
 const RECORD_LIMIT = 2000;
 
 const RECORD_BREAK = /\r\n|\r|\n/u;
@@ -1399,7 +1425,10 @@ const followingLine = (raw: string, span: LineSpan): LineSpan | undefined => {
 };
 
 const visibleLine = (raw: string, span: LineSpan) =>
-  raw.slice(span.start, span.end).replaceAll(FORMATTING_NOISE, "");
+  raw
+    .slice(span.start, span.end)
+    .replaceAll(FORMATTING_NOISE, "")
+    .replaceAll(HTML_TAG, "");
 
 const blankLine = (raw: string, span: LineSpan) => {
   const line = visibleLine(raw, span);
@@ -1477,10 +1506,39 @@ const quoteParity = (raw: string, from: number, to: number) => {
   return quotes % 2 === 1;
 };
 
+const SELF_CONTAINED_QUOTE_LINE =
+  /^[ \t]*(?:\|)?[^"\n\r]*"[^"\n\r]*(?:\|[^"\n\r]*")?[^"\n\r]*$/u;
+
+const QUOTE_PIPE_LINE = /^[ \t]*"\|/u;
+
+const quotesCarryIntoLine = (raw: string, lineStart: number) => {
+  const line = lineBoundsAt(raw, lineStart);
+
+  const text = raw.slice(line.start, line.end);
+
+  if (QUOTE_PIPE_LINE.test(text)) {
+    return false;
+  }
+
+  if (SELF_CONTAINED_QUOTE_LINE.test(text)) {
+    return false;
+  }
+
+  if (line.start === 0) {
+    return false;
+  }
+
+  return quoteParity(raw, 0, line.start);
+};
+
 const csvRecordEnd = (raw: string, position: number): number => {
   const line = lineBoundsAt(raw, position);
 
-  let quoted = quoteParity(raw, line.start, position);
+  let quoted = quotesCarryIntoLine(raw, line.start);
+
+  if (!quoted) {
+    quoted = quoteParity(raw, line.start, position);
+  }
 
   for (let index = position; index < raw.length; index += 1) {
     const character = raw[index];
@@ -1504,7 +1562,7 @@ const insideQuotedCell = (raw: string, position: number) => {
 
   let opening = -1;
 
-  let quotes = 0;
+  let quotes = quotesCarryIntoLine(raw, line.start) ? 1 : 0;
 
   for (let index = line.start; index < position; index += 1) {
     if (raw[index] === '"') {
@@ -1516,8 +1574,8 @@ const insideQuotedCell = (raw: string, position: number) => {
 
   return (
     quotes % 2 === 1 &&
-    opening >= 0 &&
-    FIELD_HEAD.test(raw.slice(line.start, opening))
+    (opening >= 0 || quotesCarryIntoLine(raw, line.start)) &&
+    (opening < 0 || FIELD_HEAD.test(raw.slice(line.start, opening)))
   );
 };
 
@@ -1549,41 +1607,221 @@ const crossesRawLine = (
   return RECORD_BREAK.test(source.raw.slice(from, to));
 };
 
-const wordsBefore = (text: string, position: number): readonly string[] => {
-  const from = Math.max(0, position - LABEL_WINDOW);
+const numberBetween = (text: string, from: number, to: number) => {
+  const gap = text
+    .slice(from, to)
+    .replaceAll(FORMATTING_NOISE, "")
+    .replaceAll(HTML_TAG, "");
 
-  const window = text.slice(from, position).replaceAll(FORMATTING_NOISE, "");
+  for (const match of gap.matchAll(DIGITS_WITH_GAPS)) {
+    if (digitsOf(match[0]).length >= SORT_CODE_DIGITS) {
+      return true;
+    }
+  }
 
-  return [...window.matchAll(WORD_TOKEN)]
-    .map((match) => match[0])
-    .slice(-LABEL_TOKENS);
+  return false;
 };
 
-const labelledAt = (text: string, position: number) => {
-  const tokens = wordsBefore(text, position)
-    .filter((token) => !LABEL_FILLERS.has(token.toLowerCase()))
-    .slice(-2);
+const clauseStartBefore = (text: string, position: number) => {
+  const breaks = [
+    text.lastIndexOf(",", position - 1),
+    text.lastIndexOf(".", position - 1),
+  ];
 
-  const last = tokens.at(-1) ?? "";
+  const start = Math.max(...breaks);
 
-  return BANK_LABEL.test(tokens.join(" ")) || BANK_LAST_TOKEN.test(last);
+  return start < 0 ? 0 : start + 1;
 };
 
-const labelledBefore = (view: GuardView, run: DigitRun) => {
+const wordsAfter = (text: string, from: number) => {
+  const trimmed = text.slice(from).replace(/^[ \t:=-]+/u, "");
+
+  const match = WORD_TOKEN.exec(trimmed);
+
+  return match?.[0].toLowerCase() ?? "";
+};
+
+const labelFits = (text: string, position: number, labelEnd: number) => {
+  if (numberBetween(text, labelEnd, position)) {
+    return false;
+  }
+
+  const gap = text
+    .slice(labelEnd, position)
+    .replaceAll(FORMATTING_NOISE, "")
+    .replaceAll(HTML_TAG, "");
+
+  if (SENTENCE_BREAK.test(gap)) {
+    return false;
+  }
+
+  const words = [...gap.matchAll(WORD_TOKEN)].filter(
+    (match) => !LABEL_FILLERS.has((match[0] ?? "").toLowerCase())
+  );
+
+  return words.length <= LABEL_WORD_LIMIT;
+};
+
+const lastMatchEnd = (window: string, pattern: RegExp, offset: number) => {
+  let end = -1;
+
+  const scan = new RegExp(pattern.source, pattern.flags);
+
+  for (const match of window.matchAll(scan)) {
+    if (match.index === undefined) {
+      continue;
+    }
+
+    end = offset + match.index + match[0].length;
+  }
+
+  return end;
+};
+
+const labelWindowStart = (text: string, position: number) =>
+  Math.max(clauseStartBefore(text, position), position - LABEL_CHAR_WINDOW);
+
+const FIELD_SORT_LINE = /^[ \t]*sort[ _-]code[ \t]*:/iu;
+
+const FIELD_SORT_YAML_LINE = /^[ \t]*sort_code[ \t]*:/iu;
+
+const FIELD_ACCOUNT_LINE =
+  /^[ \t]*account(?:_(?:number|num|no|nr)|[ _-](?:number|num|no|nr))[ \t]*:/iu;
+
+const FIELD_ACCOUNT_YAML_LINE = /^[ \t]*account_(?:number|num|no|nr)[ \t]*:/iu;
+
+const fieldKeyLabelled = (text: string, position: number, pattern: RegExp) => {
+  const line = lineBoundsAt(text, position);
+
+  const lineText = visibleLine(text, line);
+
+  if (!pattern.test(lineText)) {
+    return false;
+  }
+
+  const colon = lineText.indexOf(":");
+
+  if (colon === -1) {
+    return false;
+  }
+
+  const valueStart = line.start + colon + 1;
+
+  return position <= valueStart;
+};
+
+const sortCodeLabelledAt = (text: string, position: number) => {
+  if (fieldKeyLabelled(text, position, FIELD_SORT_LINE)) {
+    return false;
+  }
+
+  const line = visibleLine(text, lineBoundsAt(text, position));
+
+  if (FIELD_SORT_YAML_LINE.test(line)) {
+    return false;
+  }
+
+  const from = labelWindowStart(text, position);
+
+  const window = text
+    .slice(from, position)
+    .replaceAll(FORMATTING_NOISE, "")
+    .replaceAll(HTML_TAG, "");
+
+  const labelEnd = lastMatchEnd(window, SORT_CODE_LABEL, from);
+
+  return labelEnd >= 0 && labelFits(text, position, labelEnd);
+};
+
+const accountLabelledAt = (text: string, position: number) => {
+  if (fieldKeyLabelled(text, position, FIELD_ACCOUNT_LINE)) {
+    return false;
+  }
+
+  const line = visibleLine(text, lineBoundsAt(text, position));
+
+  if (FIELD_ACCOUNT_YAML_LINE.test(line)) {
+    return false;
+  }
+
+  const from = labelWindowStart(text, position);
+
+  const window = text
+    .slice(from, position)
+    .replaceAll(FORMATTING_NOISE, "")
+    .replaceAll(HTML_TAG, "");
+
+  const numberEnd = lastMatchEnd(window, ACCOUNT_NUMBER_LABEL, from);
+
+  if (numberEnd >= 0 && labelFits(text, position, numberEnd)) {
+    return true;
+  }
+
+  const acEnd = lastMatchEnd(window, ACCOUNT_AC_LABEL, from);
+
+  if (acEnd >= 0 && labelFits(text, position, acEnd)) {
+    return true;
+  }
+
+  let accountEnd = -1;
+
+  const accountScan = new RegExp(
+    ACCOUNT_WORD_LABEL.source,
+    ACCOUNT_WORD_LABEL.flags
+  );
+
+  for (const match of window.matchAll(accountScan)) {
+    if (match.index === undefined) {
+      continue;
+    }
+
+    const end = from + match.index + match[0].length;
+
+    const follower = wordsAfter(text, end);
+
+    if (
+      !ACCOUNT_LABEL_DISQUALIFIERS.has(follower) &&
+      (ACCOUNT_BARE_FOLLOW.test(text.slice(end)) ||
+        /^\s*[0-9]/u.test(text.slice(end))) &&
+      labelFits(text, position, end)
+    ) {
+      accountEnd = end;
+    }
+  }
+
+  return accountEnd >= 0;
+};
+
+const labelReadsOn = (
+  view: GuardView,
+  run: DigitRun,
+  reader: (text: string, position: number) => boolean
+) => {
   const { source } = view;
 
+  if (reader(source.text, run.start)) {
+    return true;
+  }
+
   return (
-    labelledAt(source.text, run.start) ||
-    (SQUEEZED_VIEWS.has(view.id) &&
-      labelledAt(source.raw, source.rawStartOf(run.start)))
+    SQUEEZED_VIEWS.has(view.id) &&
+    reader(source.raw, source.rawStartOf(run.start))
   );
 };
+
+const sortCodeLabelled = (view: GuardView, run: DigitRun) =>
+  labelReadsOn(view, run, sortCodeLabelledAt);
+
+const accountLabelled = (view: GuardView, run: DigitRun) =>
+  labelReadsOn(view, run, accountLabelledAt);
 
 const FIELD_VALUE_TAIL = /[:=][ \t]*["'`[]?[ \t]*$/u;
 
 const fieldValueAt = (text: string, position: number) =>
   FIELD_VALUE_TAIL.test(
-    text.slice(Math.max(0, position - LABEL_WINDOW), position)
+    text
+      .slice(Math.max(0, position - LABEL_WINDOW), position)
+      .replaceAll(HTML_TAG, "")
   );
 
 const fieldValueBefore = (view: GuardView, run: DigitRun) => {
@@ -1622,7 +1860,7 @@ const tightGap = (gap: string) => {
 
 const CELL_DELIMITER = /[,\t|]/u;
 
-const cellsIn = (line: string) => line.split(CELL_DELIMITER).length >= 3;
+const cellsIn = (line: string) => line.split(CELL_DELIMITER).length >= 2;
 
 const recordStartAbove = (raw: string, row: LineSpan): LineSpan => {
   let reached = row;
@@ -1668,37 +1906,129 @@ const tableWitness = (view: GuardView, left: DigitRun, right: DigitRun) => {
 
   const row = raw.slice(first.start, last.end);
 
+  const bankHeader =
+    /sort[ _-]?code|sortcode|account[ _-]?(?:number|num|no|nr)|a\/c|acct/iu;
+
   return (
     headerLine.start < first.start &&
     cellsIn(header) &&
     cellsIn(row) &&
-    (BANK_PHRASE.test(header) || BANK_PHRASE.test(row))
+    (bankHeader.test(header) || bankHeader.test(row))
   );
+};
+
+const structuralKeyLine = (raw: string, span: LineSpan) => {
+  if (!readsAsKeyLine(raw, span)) {
+    return false;
+  }
+
+  const line = visibleLine(raw, span);
+
+  const key = (BLOCK_KEY_LINE.exec(line)?.groups?.key ?? "")
+    .replaceAll(/^["'`]+|["'`]+$/gu, "")
+    .trim();
+
+  return key.length > 0 && !BANK_PHRASE.test(key);
+};
+
+const keyLineBetween = (
+  record: RecordText,
+  left: DigitRun,
+  right: DigitRun
+) => {
+  const raw = record.text;
+
+  const start = Math.min(record.at(left.start), record.at(right.start));
+
+  const end = Math.max(record.at(left.end), record.at(right.end));
+
+  let cursor = start;
+
+  while (cursor < end) {
+    const span = lineBoundsAt(raw, cursor);
+
+    if (span.start > start && structuralKeyLine(raw, span)) {
+      return true;
+    }
+
+    cursor = span.end + 1;
+  }
+
+  return false;
+};
+
+const blankBetween = (record: RecordText, left: DigitRun, right: DigitRun) => {
+  const raw = record.text;
+
+  const from = record.at(left.start);
+
+  const to = record.at(right.start);
+
+  const slice = raw.slice(Math.min(from, to), Math.max(from, to));
+
+  return /\n[ \t]*\n|\r\n[ \t]*\r\n|\r[ \t]*\r/u.test(slice);
+};
+
+const labelledParagraphPair = (
+  record: RecordText,
+  view: GuardView,
+  sortCode: SortRun,
+  account: DigitRun
+) => {
+  const labelledSort = sortCodeLabelled(view, sortCode);
+
+  const labelledAccount = accountLabelled(view, account);
+
+  if (!labelledSort || !labelledAccount) {
+    return false;
+  }
+
+  if (
+    blankBetween(record, sortCode, account) ||
+    keyLineBetween(record, sortCode, account)
+  ) {
+    return false;
+  }
+
+  const sortField = fieldValueBefore(view, sortCode);
+
+  const accountField = fieldValueBefore(view, account);
+
+  if (sortField && accountField) {
+    return sameRecord(record, sortCode, account);
+  }
+
+  const from = record.at(sortCode.start);
+
+  const to = record.at(account.start);
+
+  return Math.abs(to - from) <= RECORD_LIMIT;
 };
 
 const carriesPair = (
   source: TextSource,
   view: GuardView,
   sortCode: SortRun,
-  account: DigitRun
+  account: DigitRun,
+  record: RecordText
 ) => {
-  const labelledSort = labelledBefore(view, sortCode);
+  const labelledSort = sortCodeLabelled(view, sortCode);
 
-  const labelledAccount = labelledBefore(view, account);
+  const labelledAccount = accountLabelled(view, account);
+
+  if (labelledParagraphPair(record, view, sortCode, account)) {
+    return true;
+  }
 
   if (!sortCode.carries && !labelledSort && !labelledAccount) {
     return tableWitness(view, sortCode, account);
   }
 
-  if (labelledSort && labelledAccount) {
-    return true;
-  }
-
-  if (
-    (labelledSort && fieldValueBefore(view, account)) ||
-    (labelledAccount && fieldValueBefore(view, sortCode))
-  ) {
-    return true;
+  if (fieldValueBefore(view, sortCode) && fieldValueBefore(view, account)) {
+    return (
+      !blankBetween(record, sortCode, account) &&
+      sameRecord(record, sortCode, account)
+    );
   }
 
   if (tableWitness(view, sortCode, account)) {
@@ -1707,7 +2037,8 @@ const carriesPair = (
 
   if (
     SQUEEZED_VIEWS.has(view.id) &&
-    crossesRawLine(source, sortCode, account)
+    crossesRawLine(source, sortCode, account) &&
+    !(labelledSort || labelledAccount)
   ) {
     return false;
   }
@@ -1904,6 +2235,10 @@ const ibanRule = ({ allow, filePath, view }: RuleContext) =>
   );
 
 const partOfDateOrClock = (source: TextSource, run: DigitRun) => {
+  if (sortCodeLabelledAt(source.text, run.start)) {
+    return false;
+  }
+
   const from = run.start;
 
   const to = run.end;
@@ -1919,7 +2254,13 @@ const partOfDateOrClock = (source: TextSource, run: DigitRun) => {
     [...window.matchAll(pattern)].some((match) => {
       const start = windowStart + (match.index ?? 0);
 
-      return start < to && from < start + match[0].length;
+      const end = start + match[0].length;
+
+      if (start <= from && end >= to && sortCodeLabelledAt(source.text, from)) {
+        return false;
+      }
+
+      return start < to && from < end;
     })
   );
 };
@@ -1961,11 +2302,15 @@ const bankRule = ({ allow, filePath, view }: RuleContext) => {
         return false;
       }
 
-      if (!sameRecord(record, sortCode, account)) {
+      const spansRecord =
+        sameRecord(record, sortCode, account) ||
+        labelledParagraphPair(record, view, sortCode, account);
+
+      if (!spansRecord) {
         return false;
       }
 
-      if (!carriesPair(source, view, sortCode, account)) {
+      if (!carriesPair(source, view, sortCode, account, record)) {
         return false;
       }
 

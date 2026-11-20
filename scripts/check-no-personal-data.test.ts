@@ -1150,3 +1150,66 @@ describe("the seventh verdict's reproductions", () => {
     }
   );
 });
+
+const transferSort = grouped(["23", "45", "67"], "-");
+
+const transferAccount = grouped(["40", "12", "34", "56"], "");
+
+describe("the v81 verdict's labelled bank pairs fail", () => {
+  it("fails when filler words sit between the sort label and its digits", () => {
+    expect(
+      ruleOf(
+        "docs/payments.md",
+        [
+          `The sort code to quote on the transfer is ${transferSort}`,
+          `Account number: ${transferAccount}`,
+        ].join("\n")
+      )
+    ).toEqual(["bank-account"]);
+  });
+
+  it("fails on one line with comma-separated labels and filler words", () => {
+    expect(
+      ruleOf(
+        "docs/payments.md",
+        `The sort code for the rent is ${transferSort}, account number ${transferAccount}`
+      )
+    ).toEqual(["bank-account"]);
+  });
+
+  it("fails across sentences in one paragraph when both numbers are labelled", () => {
+    expect(
+      ruleOf(
+        "docs/payments.md",
+        `Paying the rent. Sort code for the transfer is ${transferSort}. Account number is ${transferAccount}.`
+      )
+    ).toEqual(["bank-account"]);
+  });
+
+  it("fails on an account number grouped every two digits", () => {
+    expect(
+      ruleOf(
+        "docs/payments.md",
+        `Sort code ${transferSort}, account number 40 12 34 56`
+      )
+    ).toEqual(["bank-account"]);
+  });
+
+  it("fails on a space-aligned row with a payee between the numbers", () => {
+    expect(
+      ruleOf(
+        "docs/payments.md",
+        `Sort code    ${transferSort}    Demo Payee Ltd    Account number    40 12 34 56`
+      )
+    ).toEqual(["bank-account"]);
+  });
+
+  it("fails with a long reference between labelled values", () => {
+    expect(
+      ruleOf(
+        "docs/payments.md",
+        `Sort code: ${transferSort}; ${longReference}; Account number: ${transferAccount}`
+      )
+    ).toEqual(["bank-account"]);
+  });
+});

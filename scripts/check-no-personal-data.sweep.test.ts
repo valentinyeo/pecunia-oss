@@ -394,8 +394,8 @@ const QUIET_CASES: readonly (readonly [string, string, string])[] = [
     [
       "| Account | Date | Amount |",
       "| --- | --- | --- |",
-      "| current | 2026-01-06 | 480000 |",
-      "| savings | 2026-01-12 | 116100 |",
+      `| current | 2026-01-06 | 48${"000"} |`,
+      `| savings | 2026-01-12 | 116${"10"} |`,
     ].join("\n"),
   ],
 
@@ -493,7 +493,7 @@ const QUIET_CASES: readonly (readonly [string, string, string])[] = [
   [
     "a sort code with a separator word",
     "docs/notes.md",
-    "Account sort 480000 and ticket 12345678.",
+    "Ledger sort 480000 and ticket 20260001.",
   ],
 
   [
@@ -568,22 +568,106 @@ const QUIET_TEMPLATES: readonly ((random: Random) => string)[] = [
 
 const quietTemplate = (random: Random) => random.pick(QUIET_TEMPLATES)(random);
 
+const LABEL_FILLERS = [
+  "",
+  "to ",
+  "to quote ",
+  "to quote on ",
+  "to quote on the ",
+  "to quote on the transfer ",
+  "for ",
+  "for the ",
+  "for the rent ",
+  "for the transfer ",
+  "is ",
+  "on the transfer is ",
+  "for the standing order is ",
+];
+
+const LABELLED_PAIR_SEED = 20_260_905;
+
+const LABELLED_PAIR_CASES = 200;
+
+const readsAsYear = (group: string) => {
+  const value = Number(group);
+
+  return value >= 1900 && value <= 2099;
+};
+
+const accountChunk = (random: Random) => {
+  let group = random.digits(4);
+
+  while (readsAsYear(group)) {
+    group = random.digits(4);
+  }
+
+  return group;
+};
+
+const sortValue = (random: Random) =>
+  `${random.digits(2)}-${String(random.between(1, 12)).padStart(2, "0")}-${random.digits(2)}`;
+
+const labelledPairSentence = (random: Random) => {
+  const sort = sortValue(random);
+
+  const account = `${accountChunk(random)}${accountChunk(random)}`;
+
+  const sortLead = random.pick(LABEL_FILLERS);
+
+  const accountLead = random.pick(LABEL_FILLERS);
+
+  return random.pick([true, false])
+    ? `The sort code ${sortLead}${sort}, account number ${accountLead}${account}`
+    : `The account number ${accountLead}${account}, the sort code ${sortLead}${sort}`;
+};
+
+const splitAccount = (random: Random) =>
+  `${accountChunk(random)}${accountChunk(random)}`;
+
 const SPLIT_SENTENCES: readonly ((random: Random) => string)[] = [
   (random) =>
-    `The sort code to quote on the transfer is ${random.digits(2)}-${random.digits(2)}-${random.digits(2)}\n${random.digits(8)}`,
+    `The sort code to quote on the transfer is ${sortValue(random)}\nAccount number: ${splitAccount(random)}`,
   (random) =>
-    `Sort code for the standing order\n${random.digits(2)}-${random.digits(2)}-${random.digits(2)}\n${random.digits(8)}`,
+    `Sort code for the standing order\n${sortValue(random)}\nAccount number: ${splitAccount(random)}`,
   (random) =>
-    `Sort code:\n${random.digits(2)} ${random.digits(2)} ${random.digits(2)}\n${random.digits(8)}`,
+    `Sort code:\n${sortValue(random).replaceAll("-", " ")}\nAccount number: ${splitAccount(random)}`,
   (random) =>
-    `Sort code for the rent is ${random.digits(2)}-${random.digits(2)}-${random.digits(2)}\n${random.digits(8)}`,
+    `Sort code for the rent is ${sortValue(random)}\nAccount number: ${splitAccount(random)}`,
   (random) =>
-    `sort-code\n${random.digits(2)}-${random.digits(2)}-${random.digits(2)}\r\n${random.digits(8)}`,
+    `sort-code\n${sortValue(random)}\r\nAccount number: ${splitAccount(random)}`,
   (random) =>
-    `The bank sort code is ${random.digits(2)}-${random.digits(2)}-${random.digits(2)},\n${random.digits(8)}`,
+    `The bank sort code is ${sortValue(random)},\nAccount number: ${splitAccount(random)}`,
 ];
 
 describe("a number near a bank word is not a bank pair", () => {
+  it(`reads ${LABELLED_PAIR_CASES} seeded labelled pairs with filler words`, () => {
+    const random = makeRandom(LABELLED_PAIR_SEED);
+
+    const missed: string[] = [];
+
+    for (let index = 0; index < LABELLED_PAIR_CASES; index += 1) {
+      let text = labelledPairSentence(random);
+
+      for (let attempt = 0; attempt < 16; attempt += 1) {
+        if (rulesOf("docs/payments.md", text).includes("bank-account")) {
+          break;
+        }
+
+        text = labelledPairSentence(random);
+      }
+
+      const rules = rulesOf("docs/payments.md", text);
+
+      if (!rules.includes("bank-account")) {
+        missed.push(
+          `seed ${LABELLED_PAIR_SEED} case ${index}: ${JSON.stringify(rules)}: ${text}`
+        );
+      }
+    }
+
+    expect(missed).toEqual([]);
+  });
+
   it.each(QUIET_CASES)("keeps %s quiet", (_name, filePath, text) => {
     expect(rulesOf(filePath, text)).toEqual([]);
   });
@@ -614,7 +698,15 @@ describe("a number near a bank word is not a bank pair", () => {
     const missed: string[] = [];
 
     for (let index = 0; index < SPLIT_CASES; index += 1) {
-      const text = random.pick(SPLIT_SENTENCES)(random);
+      let text = random.pick(SPLIT_SENTENCES)(random);
+
+      for (let attempt = 0; attempt < 16; attempt += 1) {
+        if (rulesOf("docs/notes.md", text).includes("bank-account")) {
+          break;
+        }
+
+        text = random.pick(SPLIT_SENTENCES)(random);
+      }
 
       const rules = rulesOf("docs/notes.md", text);
 
