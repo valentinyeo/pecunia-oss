@@ -261,14 +261,20 @@ const ACCOUNT_LABEL_DISQUALIFIERS = new Set([
   "date",
   "description",
   "holder",
+  "id",
   "invoice",
   "module",
   "name",
+  "order",
+  "phone",
   "reference",
   "status",
+  "ticket",
   "to",
   "total",
   "type",
+  "uuid",
+  "version",
 ]);
 
 const ACCOUNT_BARE_FOLLOW = /^\s*(?:number|num|no|nr|is)\b/iu;
@@ -1821,18 +1827,110 @@ const accountLabelled = (view: GuardView, run: DigitRun, partner?: DigitRun) =>
 
 const FIELD_VALUE_TAIL = /[:=][ \t]*["'`[]?[ \t]*$/u;
 
-const fieldValueAt = (text: string, position: number) =>
-  FIELD_VALUE_TAIL.test(
-    withoutTags(text.slice(Math.max(0, position - LABEL_WINDOW), position))
+const FIELD_KEY_NOISE = /[^\p{L}\p{N}/]/gu;
+
+const SORT_CODE_FIELD_KEYS = [
+  "banksort",
+  "banksortcode",
+  "s/c",
+  "sort",
+  "sortcode",
+] as const;
+
+const ACCOUNT_FIELD_KEYS = [
+  "a/c",
+  "account",
+  "accountno",
+  "accountnum",
+  "accountnumber",
+  "accountnr",
+  "acct",
+  "acctno",
+  "acctnum",
+  "acctnumber",
+  "acctnr",
+  "bankaccount",
+  "bankaccountno",
+  "bankaccountnumber",
+] as const;
+
+const NUMBER_FIELD_WORD = /^(?:number|num|nr|no)$/u;
+
+const fieldKeyRegionAt = (text: string, position: number) => {
+  const window = withoutTags(
+    text.slice(Math.max(0, position - LABEL_WINDOW), position)
   );
 
-const fieldValueBefore = (view: GuardView, run: DigitRun) => {
+  const tail = FIELD_VALUE_TAIL.exec(window);
+
+  return tail === null ? undefined : window.slice(0, tail.index);
+};
+
+const normalisedFieldKey = (region: string) =>
+  region.toLowerCase().replaceAll(FIELD_KEY_NOISE, "");
+
+const keyNamesField = (region: string | undefined, keys: readonly string[]) =>
+  region !== undefined &&
+  keys.some((key) => normalisedFieldKey(region).endsWith(key));
+
+const fieldValueBefore = (
+  view: GuardView,
+  run: DigitRun,
+  keys: readonly string[]
+) =>
+  labelReadsOn(view, run, (text, position) =>
+    keyNamesField(fieldKeyRegionAt(text, position), keys)
+  );
+
+const fieldNamesSortCode = (view: GuardView, run: DigitRun) =>
+  fieldValueBefore(view, run, SORT_CODE_FIELD_KEYS);
+
+const fieldNamesAccountNumber = (view: GuardView, run: DigitRun) =>
+  fieldValueBefore(view, run, ACCOUNT_FIELD_KEYS);
+
+const FIELD_KEY_SEPARATOR = /[^A-Za-z0-9_]+/u;
+
+const FIELD_WORD_START = /^[A-Za-z]/u;
+
+const fieldKeyWords = (region: string) =>
+  region
+    .split(FIELD_KEY_SEPARATOR)
+    .filter((word) => FIELD_WORD_START.test(word))
+    .map((word) => word.toLowerCase());
+
+const bareNumberKey = (region: string) => {
+  const words = fieldKeyWords(region);
+
+  const last = words.at(-1);
+
+  if (last === undefined || !NUMBER_FIELD_WORD.test(last)) {
+    return false;
+  }
+
+  const qualifier = words.at(-2);
+
+  return qualifier === undefined || !ACCOUNT_LABEL_DISQUALIFIERS.has(qualifier);
+};
+
+const bareNumberFieldAt = (text: string, position: number) => {
+  const region = fieldKeyRegionAt(text, position);
+
+  return region !== undefined && bareNumberKey(region);
+};
+
+const bareNumberKeyBefore = (view: GuardView, run: DigitRun) => {
   const { source } = view;
 
+  if (
+    !SQUEEZED_VIEWS.has(view.id) &&
+    bareNumberFieldAt(source.text, run.start)
+  ) {
+    return true;
+  }
+
   return (
-    fieldValueAt(source.text, run.start) ||
-    (SQUEEZED_VIEWS.has(view.id) &&
-      fieldValueAt(source.raw, source.rawStartOf(run.start)))
+    SQUEEZED_VIEWS.has(view.id) &&
+    bareNumberFieldAt(source.raw, source.rawStartOf(run.start))
   );
 };
 
@@ -1912,14 +2010,18 @@ const namesSortCode = (
   sortCode: DigitRun,
   account: DigitRun
 ) =>
-  sortCodeLabelled(view, sortCode, account) || fieldValueBefore(view, sortCode);
+  sortCodeLabelled(view, sortCode, account) ||
+  fieldNamesSortCode(view, sortCode);
 
 const namesAccountNumber = (
   view: GuardView,
   account: DigitRun,
   sortCode: DigitRun
 ) =>
-  accountLabelled(view, account, sortCode) || fieldValueBefore(view, account);
+  accountLabelled(view, account, sortCode) ||
+  fieldNamesAccountNumber(view, account) ||
+  (bareNumberKeyBefore(view, account) &&
+    namesSortCode(view, sortCode, account));
 
 const namedAsBankData = (
   view: GuardView,
@@ -2181,7 +2283,7 @@ const bankRule = ({ allow, filePath, view }: RuleContext) => {
     if (
       overlaps(rawRun(source, sortCode), ibans) &&
       !sortCodeLabelled(view, sortCode) &&
-      !fieldValueBefore(view, sortCode)
+      !fieldNamesSortCode(view, sortCode)
     ) {
       return [];
     }

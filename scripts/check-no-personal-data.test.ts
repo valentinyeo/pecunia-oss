@@ -1197,6 +1197,8 @@ describe("the seventh verdict's reproductions", () => {
 
 const transferSort = grouped(["23", "45", "67"], "-");
 
+const plainSortDigits = grouped(["23", "45", "67"], "");
+
 const transferAccount = grouped(["40", "12", "34", "56"], "");
 
 describe("the v81 verdict's labelled bank pairs fail", () => {
@@ -1362,6 +1364,175 @@ describe("the v98 verdict's labelled bank pairs fail", () => {
       ruleOf(
         "docs/notes.md",
         `Released ${dotted("12", "34", "56")} ${transferAccount} today.`
+      )
+    ).toEqual([]);
+  });
+});
+
+const ORDINARY_ACCOUNT_KEYS = [
+  "invoice",
+  "order",
+  "reference",
+  "ticket",
+  "phone",
+  "UUID",
+  "version",
+  "date",
+  "ID",
+];
+
+const BANK_FIELD_SORT_KEYS = [
+  "sort code",
+  "sortcode",
+  "sort_code",
+  "sort-code",
+  "bank sort",
+  "s/c",
+];
+
+const BANK_FIELD_ACCOUNT_KEYS = [
+  "account number",
+  "account no",
+  "acct no",
+  "a/c",
+  "account_number",
+  "accountnumber",
+  "acct_no",
+  "bank account",
+];
+
+const ordinaryKeySentence = (key: string, sortFirst: boolean) => {
+  const six = `${key}: ${transferSort}`;
+
+  const eight = `${key}: ${transferAccount}`;
+
+  return `Sort the account records by code. ${sortFirst ? six : eight}. ${sortFirst ? eight : six}.`;
+};
+
+const ordinaryKeyCases = ORDINARY_ACCOUNT_KEYS.flatMap((key) => [
+  { key, order: "six digits then eight" as const, sortFirst: true },
+  { key, order: "eight digits then six" as const, sortFirst: false },
+]);
+
+describe("the sixteenth verdict's ordinary keys name no bank value", () => {
+  it("keeps an invoice number and an order id quiet", () => {
+    expect(
+      ruleOf(
+        "docs/notes.md",
+        `Please sort the account records. Invoice: ${transferAccount}. Order: ${transferSort}.`
+      )
+    ).toEqual([]);
+  });
+
+  it("keeps a plain invoice number and a plain order id quiet", () => {
+    expect(
+      ruleOf(
+        "docs/notes.md",
+        `Please sort the account records. Invoice: ${transferAccount}. Order: ${plainSortDigits}.`
+      )
+    ).toEqual([]);
+  });
+
+  it("keeps an account invoice and a sort order quiet", () => {
+    expect(
+      ruleOf(
+        "docs/notes.md",
+        `Account invoice: ${transferAccount}. Sort order: ${transferSort}.`
+      )
+    ).toEqual([]);
+  });
+
+  it.each(ordinaryKeyCases)(
+    "keeps $key keys quiet with $order digits",
+    ({ key, sortFirst }) => {
+      expect(
+        ruleOf("docs/notes.md", ordinaryKeySentence(key, sortFirst))
+      ).toEqual([]);
+    }
+  );
+
+  it("keeps a bare number quiet when another noun qualifies it", () => {
+    expect(
+      ruleOf(
+        "docs/notes.md",
+        [
+          `sort code: ${transferSort}`,
+          `ticket number: ${transferAccount}`,
+        ].join("\n")
+      )
+    ).toEqual([]);
+  });
+});
+
+describe("a bank field key names the value that follows it", () => {
+  it.each(BANK_FIELD_SORT_KEYS)("reads a %s key with a colon", (key) => {
+    expect(
+      ruleOf(
+        "docs/payments.md",
+        [`${key}: ${transferSort}`, `account number: ${transferAccount}`].join(
+          "\n"
+        )
+      )
+    ).toEqual(["bank-account"]);
+  });
+
+  it.each(BANK_FIELD_SORT_KEYS)("reads a %s key with an equals sign", (key) => {
+    expect(
+      ruleOf(
+        "docs/payments.md",
+        [
+          `${key} = ${transferSort}`,
+          `account number = ${transferAccount}`,
+        ].join("\n")
+      )
+    ).toEqual(["bank-account"]);
+  });
+
+  it.each(BANK_FIELD_ACCOUNT_KEYS)("reads a %s key with a colon", (key) => {
+    expect(
+      ruleOf(
+        "docs/payments.md",
+        [`sort code: ${transferSort}`, `${key}: ${transferAccount}`].join("\n")
+      )
+    ).toEqual(["bank-account"]);
+  });
+
+  it.each(BANK_FIELD_ACCOUNT_KEYS)(
+    "reads a %s key with an equals sign",
+    (key) => {
+      expect(
+        ruleOf(
+          "docs/payments.md",
+          [`sort code = ${transferSort}`, `${key} = ${transferAccount}`].join(
+            "\n"
+          )
+        )
+      ).toEqual(["bank-account"]);
+    }
+  );
+
+  it("reads a label glued across a line break by the key that follows it", () => {
+    expect(
+      ruleOf(
+        "apps/cli/demo.yaml",
+        [
+          "sort",
+          `code: ${transferSort}`,
+          `account number: ${transferAccount}`,
+        ].join("\n")
+      )
+    ).toEqual(["bank-account"]);
+  });
+
+  it("keeps a label whose second word opens a key line quiet", () => {
+    expect(
+      ruleOf(
+        "apps/cli/demo.yaml",
+        [
+          "sort",
+          ` code: ${transferSort}`,
+          `account number: ${transferAccount}`,
+        ].join("\n")
       )
     ).toEqual([]);
   });
