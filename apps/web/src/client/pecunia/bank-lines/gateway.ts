@@ -21,6 +21,7 @@ import { memoryBankLineStoreLayer } from "@pecunia/bank-lines/memory";
 import {
   EditBankLineRequestSchema,
   ReviewBankLineRequestSchema,
+  SEARCH_MAX_LENGTH,
   SearchTextSchema,
 } from "@pecunia/bank-lines/model";
 import type {
@@ -71,6 +72,15 @@ const refusedBeforeStore = (failure: Schema.SchemaError) =>
     message: `The bank lines request was refused before it reached the store. Fix: ${storedLines}.`,
   });
 
+const refusedSearch = (failure: Schema.SchemaError, search: string) =>
+  new BankLinesGatewayFailure({
+    cause: failure,
+    message:
+      search.length > SEARCH_MAX_LENGTH
+        ? `The search text is ${search.length} characters long and the limit is ${SEARCH_MAX_LENGTH}. Fix: shorten the search text and try again.`
+        : `The bank lines request was refused before it reached the store. Fix: ${storedLines}.`,
+  });
+
 const decodeInput =
   <Output, Input>(schema: Schema.Codec<Output, Input>) =>
   (input: Input) =>
@@ -119,7 +129,8 @@ export class BankLinesGateway extends Context.Service<
     );
 
     const list = (request: ListRequest) =>
-      decodeInput(SearchTextSchema)(request.search).pipe(
+      Schema.decodeEffect(SearchTextSchema)(request.search).pipe(
+        Effect.mapError((failure) => refusedSearch(failure, request.search)),
         Effect.flatMap((search) =>
           listBankLines.handler({
             cursor: Option.none(),

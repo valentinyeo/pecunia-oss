@@ -1,7 +1,9 @@
 import { expect, it } from "@effect/vitest";
 import type { BankLine } from "@pecunia/bank-lines/model";
-import { Option, Schema } from "effect";
+import { SEARCH_MAX_LENGTH } from "@pecunia/bank-lines/model";
+import { Effect, Option, Predicate, Schema } from "effect";
 
+import { BankLinesGateway } from "../src/client/pecunia/bank-lines/gateway.js";
 import { HoldingIdSchema } from "../src/client/pecunia/search/demo.js";
 import { Message } from "../src/client/pecunia/search/message.js";
 import {
@@ -27,6 +29,18 @@ const page = (lines: readonly BankLine[]) => ({
 
 const suggestionLabels = (query: string, world: SearchWorld = demoWorld) =>
   suggestionsFor(query, world).map((suggestion) => suggestion.label);
+
+const searchedThroughTheGateway = (query: string) => {
+  const typed = update(initialSearch, Message.TypedQuery({ value: query }));
+  const submitted = update(typed.model, Message.SubmittedSearch());
+  const command = submitted.commands?.[0];
+
+  if (command === undefined) {
+    throw new Error("A query that is not empty must send a search");
+  }
+
+  return command.effect.pipe(Effect.map((message) => ({ message, submitted })));
+};
 
 it("suggestions appear while typing in the one box", () => {
   expect(suggestionLabels("")).toStrictEqual([]);
@@ -198,6 +212,43 @@ it("a failed search says what to fix and can be retried", () => {
     name: "SearchEverything",
   });
 });
+
+it.effect("a query longer than the limit is refused with a reason", () =>
+  Effect.gen(function* refuseTheOverLongQuery() {
+    const tooLong = "a".repeat(SEARCH_MAX_LENGTH + 1);
+
+    const { message, submitted } = yield* searchedThroughTheGateway(tooLong);
+
+    if (!Predicate.isTagged(message, "FailedSearch")) {
+      throw new Error("A query longer than the limit must be refused");
+    }
+
+    expect(message.reason).toContain(`${SEARCH_MAX_LENGTH}`);
+    expect(message.reason).toContain("Fix:");
+
+    const refused = update(submitted.model, message);
+
+    expect(Findings.guards.Failed(refused.model.findings)).toBe(true);
+
+    if (Findings.guards.Failed(refused.model.findings)) {
+      expect(refused.model.findings.reason).toBe(message.reason);
+    }
+  }).pipe(Effect.provide(BankLinesGateway.layer))
+);
+
+it.effect("a query at the limit and a query of symbols still search", () =>
+  Effect.gen(function* searchTheAllowedQueries() {
+    for (const query of ["a".repeat(SEARCH_MAX_LENGTH), ".*+?[]()|<script>"]) {
+      const { message } = yield* searchedThroughTheGateway(query);
+
+      if (!Predicate.isTagged(message, "CompletedSearch")) {
+        throw new Error(`The query ${query} must search, not be refused`);
+      }
+
+      expect(message.query).toBe(query);
+    }
+  }).pipe(Effect.provide(BankLinesGateway.layer))
+);
 
 it("opening the search address with a query searches it at once", () => {
   const opened = openSearch("coffee", initialSearch);

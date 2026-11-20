@@ -1,15 +1,23 @@
-import { BankLineSchema, CategoryIdSchema } from "@pecunia/bank-lines/model";
+import {
+  BankLineSchema,
+  CategoryIdSchema,
+  SEARCH_MAX_LENGTH,
+} from "@pecunia/bank-lines/model";
 import type { BankLinePage } from "@pecunia/bank-lines/model";
 import { Schema } from "effect";
 import { defineTaggedUnion } from "foldkit/schema";
 
 import { Query } from "../bank-lines/model.js";
+import type { QueryValue } from "../bank-lines/model.js";
 import { CategoryChoice } from "../catalogue.js";
 import type { CategoryChoiceValue } from "../catalogue.js";
 import { Holding, HoldingIdSchema } from "./demo.js";
 import type { HoldingValue } from "./demo.js";
 
 export const SUGGESTION_LIMIT = 5;
+
+export const withinSearchLimit = (query: string): QueryValue =>
+  query.slice(0, SEARCH_MAX_LENGTH);
 
 export const Suggestion = defineTaggedUnion({
   Category: { categoryId: CategoryIdSchema, label: Schema.NonEmptyString },
@@ -29,14 +37,14 @@ export const Findings = defineTaggedUnion({
     payments: Schema.Array(BankLineSchema),
     query: Query,
   },
-  Searching: { query: Query },
+  Searching: { query: Schema.String },
 });
 
 export type FindingsValue = typeof Findings.Type;
 
 export const SearchModel = Schema.Struct({
   findings: Findings,
-  query: Query,
+  query: Schema.String,
   suggestions: Schema.Array(Suggestion),
 });
 
