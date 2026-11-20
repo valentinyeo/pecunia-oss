@@ -2,9 +2,13 @@ import { Effect } from "effect";
 import { Command } from "foldkit";
 
 import { BankLinesGateway } from "../bank-lines/gateway.js";
-import { filterFor, LineScope, Query } from "../bank-lines/model.js";
+import {
+  filterFor,
+  LineScope,
+  Query,
+  withinSearchLimit,
+} from "../bank-lines/model.js";
 import { Message } from "./message.js";
-import { withinSearchLimit } from "./model.js";
 
 export const SearchEverything = Command.define("SearchEverything", {
   args: { query: Query },

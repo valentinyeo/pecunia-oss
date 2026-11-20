@@ -7,6 +7,7 @@ import {
   NoteChangeSchema,
   ReviewFilterSchema,
   ReviewSchema,
+  SEARCH_MAX_LENGTH,
   TimestampMillisSchema,
 } from "@pecunia/bank-lines/model";
 import type { BankLine } from "@pecunia/bank-lines/model";
@@ -32,6 +33,7 @@ import {
 import type {
   BankLinesScreenValue,
   LineEditStateValue,
+  LineScopeValue,
   SuggestionsValue,
 } from "../src/client/pecunia/bank-lines/model.js";
 import {
@@ -93,6 +95,21 @@ const browseOf = (
     list: LineList.Ready({ lines: [...lines], total: lines.length }),
     scope: LineScope.All(),
     search,
+  });
+
+const boxOf = (scope: LineScopeValue): BankLinesScreenValue =>
+  BankLinesScreen.Browse({
+    edit: LineEditState.Idle(),
+    generation: 1,
+    list: LineList.Ready({ lines: [...demoLines], total: demoLines.length }),
+    scope,
+    search: "",
+  });
+
+const searchOf = (screen: BankLinesScreenValue): string =>
+  BankLinesScreen.match<string>(screen, {
+    Browse: ({ search }) => search,
+    Review: () => "",
   });
 
 const loadingBrowse = (): BankLinesScreenValue =>
@@ -252,6 +269,54 @@ it("typing in the search box reloads with that term", () => {
       Review: () => "",
     })
   ).toBe("coffee");
+});
+
+const everyBoxScope = () => [
+  LineScope.All(),
+  LineScope.Category({ categoryId: software }),
+];
+
+const symbols = ".*+?[]()|<script>";
+
+it("a typed search text over the limit is cut to the limit on every box", () => {
+  for (const scope of everyBoxScope()) {
+    for (const length of [SEARCH_MAX_LENGTH + 1, 5000]) {
+      const value = "a".repeat(length);
+
+      const typed = send(boxOf(scope), Message.TypedSearch({ value }));
+
+      expect(searchOf(typed.model)).toBe("a".repeat(SEARCH_MAX_LENGTH));
+      expect(typed.commands?.[0]).toMatchObject({
+        args: {
+          generation: 2,
+          search: "a".repeat(SEARCH_MAX_LENGTH),
+        },
+        name: "LoadLines",
+      });
+    }
+  }
+});
+
+it("a search text over the limit on opening a box is cut to the limit", () => {
+  for (const scope of everyBoxScope()) {
+    const opened = openBrowse(scope, "b".repeat(5000), loadingBrowse());
+
+    expect(searchOf(opened.model)).toBe("b".repeat(SEARCH_MAX_LENGTH));
+    expect(opened.commands?.[0]).toMatchObject({
+      args: { search: "b".repeat(SEARCH_MAX_LENGTH) },
+      name: "LoadLines",
+    });
+  }
+});
+
+it("a search at the limit and a search of symbols are stored whole", () => {
+  for (const scope of everyBoxScope()) {
+    for (const value of ["a".repeat(SEARCH_MAX_LENGTH), symbols]) {
+      const typed = send(boxOf(scope), Message.TypedSearch({ value }));
+
+      expect(searchOf(typed.model)).toBe(value);
+    }
+  }
 });
 
 it("a failed load says what to fix and can be retried", () => {

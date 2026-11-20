@@ -88,6 +88,9 @@ it("a person finds a line, edits its category and sees it saved", () => {
         "Every line the demo sync wrote, newest first. Mark one reviewed when it is counted."
       )
     ).toExist(),
+    Scene.expect(
+      Scene.role("searchbox", { name: "Search bank lines" })
+    ).toHaveAttr("maxLength", "200"),
     Scene.type(
       Scene.role("searchbox", { name: "Search bank lines" }),
       "coffee"

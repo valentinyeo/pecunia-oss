@@ -1,15 +1,11 @@
 import type { Update } from "foldkit";
 
 import type { BankLinesGateway } from "../bank-lines/gateway.js";
+import { withinSearchLimit } from "../bank-lines/model.js";
 import { SearchEverything } from "./command.js";
 import { Message } from "./message.js";
 import type { SearchMessageValue } from "./message.js";
-import {
-  Findings,
-  findingsOf,
-  suggestionsFor,
-  withinSearchLimit,
-} from "./model.js";
+import { Findings, findingsOf, suggestionsFor } from "./model.js";
 import type { SearchModelValue } from "./model.js";
 import { demoWorld } from "./world.js";
 

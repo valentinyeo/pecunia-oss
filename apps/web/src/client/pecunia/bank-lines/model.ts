@@ -32,6 +32,9 @@ export const Query = Schema.String.check(Schema.isMaxLength(SEARCH_MAX_LENGTH));
 
 export type QueryValue = typeof Query.Type;
 
+export const withinSearchLimit = (search: string): QueryValue =>
+  search.slice(0, SEARCH_MAX_LENGTH);
+
 export const LineScope = defineTaggedUnion({
   All: {},
   Category: { categoryId: CategoryIdSchema },

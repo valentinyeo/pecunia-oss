@@ -31,6 +31,7 @@ import {
   reviewFilter,
   sameScope,
   Suggestions,
+  withinSearchLimit,
 } from "./model.js";
 import type {
   BankLinesScreenValue,
@@ -186,10 +187,12 @@ const load = (filter: BankLineFilter, generation: number, search: string) =>
 
 export const openBrowse = (
   scope: LineScopeValue,
-  search: string,
+  rawSearch: string,
   screen: BankLinesScreenValue
-): BankLinesUpdate =>
-  BankLinesScreen.match<BankLinesUpdate>(screen, {
+): BankLinesUpdate => {
+  const search = withinSearchLimit(rawSearch);
+
+  return BankLinesScreen.match<BankLinesUpdate>(screen, {
     Browse: (current) =>
       sameScope(current.scope, scope) &&
       !Predicate.isTagged(current.list, "Loading")
@@ -214,6 +217,7 @@ export const openBrowse = (
       }),
     }),
   });
+};
 
 export const openReview = (screen: BankLinesScreenValue): BankLinesUpdate =>
   BankLinesScreen.match<BankLinesUpdate>(screen, {
@@ -261,18 +265,23 @@ const retried = (screen: BankLinesScreenValue): BankLinesUpdate =>
 const searched = (
   value: string,
   screen: BankLinesScreenValue
-): BankLinesUpdate =>
-  BankLinesScreen.match<BankLinesUpdate>(screen, {
+): BankLinesUpdate => {
+  const search = withinSearchLimit(value);
+
+  return BankLinesScreen.match<BankLinesUpdate>(screen, {
     Browse: (current) => ({
-      commands: [load(filterFor(current.scope), current.generation + 1, value)],
+      commands: [
+        load(filterFor(current.scope), current.generation + 1, search),
+      ],
       model: browseOf(current, {
         generation: current.generation + 1,
         list: LineList.Loading(),
-        search: value,
+        search,
       }),
     }),
     Review: () => ({ model: screen }),
   });
+};
 
 const completedLoad = (
   generation: number,

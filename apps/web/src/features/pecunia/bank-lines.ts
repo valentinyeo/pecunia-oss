@@ -1,4 +1,5 @@
 import { Button, Select, Textarea } from "@foldkit/ui";
+import { SEARCH_MAX_LENGTH } from "@pecunia/bank-lines/model";
 import type { BankLine } from "@pecunia/bank-lines/model";
 import * as stylex from "@stylexjs/stylex";
 import { Option } from "effect";
@@ -463,6 +464,7 @@ const searchBox = (
     ),
     h.OnInput((value: string) => Message.TypedSearch({ value })),
     h.Placeholder("Merchant, description, reference or note"),
+    h.Maxlength(SEARCH_MAX_LENGTH),
     h.Type("search"),
     h.Value(search),
   ]);
