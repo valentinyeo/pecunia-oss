@@ -54,19 +54,22 @@ it("a submitted query finds a category and a holding", () => {
     { update, view },
     Scene.given(initialModel),
     Scene.Subscription.emit(
-      Message.ChangedUrl({ url: url("/app/search?q=isa") })
+      Message.ChangedUrl({ url: url("/app/search?q=world") })
     ),
-    Scene.Command.expectExact(SearchEverything({ query: "isa" })),
+    Scene.Command.expectExact(SearchEverything({ query: "world" })),
     Scene.Command.resolve(
       SearchEverything,
       SearchMessage.CompletedSearch({
         page: { lines: [], next: Option.none(), total: 0 },
-        query: "isa",
+        query: "world",
       })
     ),
     Scene.expect(Scene.role("heading", { name: "Holdings" })).toExist(),
-    Scene.expect(Scene.text("Demo Shares ISA")).toHaveText("Demo Shares ISA"),
-    Scene.expect(Scene.text("£9,600.00")).toExist()
+    Scene.expect(Scene.role("link", { name: "Demo World ETF" })).toHaveAttr(
+      "href",
+      "/app/investments"
+    ),
+    Scene.expect(Scene.text("€7,800,000.00")).toExist()
   );
 });
 

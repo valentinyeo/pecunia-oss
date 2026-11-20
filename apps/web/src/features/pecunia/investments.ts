@@ -59,6 +59,15 @@ const gainReason = (reason: UnknownGainReason): string =>
     Match.orElse(() => "Unknown")
   );
 
+export const holdingValueText = (value: HoldingValue): string =>
+  Match.value(value).pipe(
+    Match.tag("Known", ({ amount }) =>
+      formatMinor(amount.minor, amount.currency)
+    ),
+    Match.tag("Unknown", ({ reason }) => valueReason(reason)),
+    Match.exhaustive
+  );
+
 const totalReason = (reason: TotalReason): string =>
   Match.value(reason).pipe(
     Match.when("no-value", () => "Total unknown"),

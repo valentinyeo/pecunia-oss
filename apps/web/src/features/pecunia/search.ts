@@ -10,7 +10,10 @@ import {
   categoryNameOf,
   demoCatalogue,
 } from "../../client/pecunia/catalogue.js";
-import { spendingRouter } from "../../client/pecunia/route.js";
+import {
+  investmentsRouter,
+  spendingRouter,
+} from "../../client/pecunia/route.js";
 import { Message } from "../../client/pecunia/search/message.js";
 import type { SearchMessageValue } from "../../client/pecunia/search/message.js";
 import {
@@ -22,8 +25,8 @@ import type {
   SearchModelValue,
   SuggestionValue,
 } from "../../client/pecunia/search/model.js";
+import { holdingValueText } from "./investments.js";
 import { signedAmount } from "./line-amount.js";
-import { formatMoney } from "./money-format.js";
 import { styles } from "./pecunia.stylex.js";
 import { searchStyles } from "./search.stylex.js";
 
@@ -139,20 +142,27 @@ const holdingSection = (
           resultList(
             findings.holdings.map((holding) =>
               h.li(
-                [h.Key(holding.id), h.Class(className(searchStyles.result))],
                 [
-                  h.span(
-                    [h.Class(className(searchStyles.resultLabel))],
+                  h.Key(holding.holdingId),
+                  h.DataAttribute("holding", holding.holdingId),
+                  h.Class(className(searchStyles.result)),
+                ],
+                [
+                  h.a(
+                    [
+                      h.Class(
+                        stylex.props(
+                          searchStyles.resultLabel,
+                          searchStyles.focus
+                        ).className ?? ""
+                      ),
+                      h.Href(investmentsRouter()),
+                    ],
                     [holding.name]
                   ),
                   h.span(
                     [h.Class(className(searchStyles.resultValue))],
-                    [
-                      formatMoney({
-                        currency: holding.value.currency,
-                        minor: holding.value.minor,
-                      }),
-                    ]
+                    [holdingValueText(holding.value)]
                   ),
                 ]
               )
