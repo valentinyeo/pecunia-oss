@@ -1,30 +1,41 @@
 # Subscriptions
 
-Status: planned. The schema and two demo subscriptions exist on `main`. No capability, screen, CLI command, or MCP tool yet.
+Status: partly built. The five repeat-payment capabilities exist on `main` with their package tests. No screen, no database store, no past-payments port, and no assistant tool mount yet.
 
 ## What it promises
 
-- One subscription per payee per profile. The database enforces the uniqueness.
-- A subscription keeps its typical charge in the source currency and in the profile's base currency, both integer minor units.
-- The annual cost comes from the frequency: weekly x 52, monthly x 12, quarterly x 4, annual x 1.
-- Only `confirmed` and `detected` subscriptions count as active cost. `dismissed`, `not_recurring`, and `cancelled` stay out.
+- One repeat payment per payee per profile. Marking a payee twice confirms its row instead of adding a second one.
+- A repeat payment keeps its typical charge in the source currency and in the profile's base currency, both integer minor units. The base amount is measured only in the currency it is reported in.
+- The annual cost comes from the frequency: weekly x 52, monthly x 12, quarterly x 4, annual x 1. The monthly cost is the annual cost divided by twelve and rounded down.
+- Only confirmed and detected repeat payments count as active cost. Dismissed, not-recurring and cancelled stay out.
 - The next expected charge and the last charge are dates, so the screen can say what is due next without guessing.
-- Pecunia observes subscriptions. It never cancels one or moves money.
+- A payee is claimed from its own outgoing payment history: at least three payments, a known payee row, and a median gap inside one band. The typical charge is the median payment, never a sum.
+- Pecunia observes repeat payments. It never cancels one at the merchant or moves money.
+
+## Capabilities
+
+- `listSubscriptions` (`packages/subscriptions/src/capabilities.ts`) lists one profile's repeat payments with each one's monthly and annual cost and, for a live notice, the next charge.
+- `findRepeatPayments` (`packages/subscriptions/src/capabilities.ts`) finds repeat payments in one profile's outgoing payment history and writes nothing.
+- `markRepeatPayment` (`packages/subscriptions/src/capabilities.ts`) marks one payee as a repeat payment of one profile, and confirms the existing row with the caller's frequency when the payee already has one.
+- `changeSubscriptionStatus` (`packages/subscriptions/src/capabilities.ts`) confirms, dismisses, marks recurring or not recurring, cancels, or restores one repeat payment inside the profile that holds it.
+- `setSubscriptionCategory` (`packages/subscriptions/src/capabilities.ts`) sets or clears one repeat payment's category and pushes it onto the same payee's past payments.
+
+All five are implemented and tested at the package level. Reads need profile membership and writes need ownership. The RPC, MCP, and CLI projections do not carry them yet; the slice that adds a projection updates this page with the exact route, tool, and command.
 
 ## Sub-features
 
-- Subscription list with payee, frequency, typical charge, base charge, status, and confidence.
-- Status changes with a timestamp: `detected`, `confirmed`, `dismissed`, `not_recurring`, `cancelled`.
-- Next expected charge date and occurrence count.
-- Annual cost per subscription and in total, in base currency minor units.
-- Category and notes on a subscription.
-- Detection is planned as part of the sync work. This page covers the promise and the verification once detection lands.
+- Repeat payment list with payee, frequency, typical charge, base charge, status, confidence, occurrence count, and next charge date.
+- Status changes with a timestamp: `detected`, `confirmed`, `dismissed`, `not_recurring`, `cancelled`, and a restore back to the notice a cancelled row held.
+- Detection from the payment history, with the band, the median gap, and the confidence behind each claim.
+- Annual cost per repeat payment and in total, in base currency minor units, and the monthly figure that adds up to it.
+- Category on a repeat payment, pushed onto its past payments.
+- Not built: the subscriptions screen, the D1 store over the `subscriptions` table, the port that reads past payments from the bank lines, and the assistant tool mount in `apps/cli`.
 
 ## How to get to it (user POV)
 
-Today: nowhere. The demo book carries the two subscriptions.
+Today: the five capabilities through their package handlers, and the demo book through the package memory store. No screen or transport.
 
-Planned: the subscriptions section of the app. The slice that adds it names the route, and the same capability reaches MCP and the CLI.
+Planned: the subscriptions section of the app. The slice that adds it names the route, and the same capabilities reach MCP and the CLI. This page gets the exact route and tool name from that slice, not before.
 
 ## Driving it with the demo book
 
@@ -32,27 +43,32 @@ Planned: the subscriptions section of the app. The slice that adds it names the 
 bash skills/verify-pecunia/scripts/prove-demo-book.sh --feature subscriptions
 ```
 
-The demo book has a confirmed monthly `Demo Cloud Hosting` subscription at 29900 EUR minor units and a cancelled weekly `Demo Coffee` subscription at 4250.
+The demo book has a confirmed monthly `Demo Cloud Hosting` repeat payment at 29900 EUR minor units and a cancelled weekly `Demo Coffee` repeat payment at 4250.
 
 Checks this drive runs, on top of the four cross-cutting money checks:
 
-- `subscriptions-have-a-frequency-rule`: every counted subscription uses one of the four frequencies.
-- `subscriptions-active`: one demo subscription is active.
-- `subscriptions-annual-cost`: the active subscription annualizes to 358800 EUR minor units.
-- `subscriptions-cancelled`: the cancelled subscription is present and outside active cost.
+- `subscriptions-have-a-frequency-rule`: every counted repeat payment uses one of the four frequencies.
+- `subscriptions-active`: one demo repeat payment is active.
+- `subscriptions-annual-cost`: the active repeat payment annualizes to 358800 EUR minor units.
+- `subscriptions-cancelled`: the cancelled repeat payment is present and outside active cost.
+
+Read a failure with `jq '.checks[] | select(.passed | not)' skills/verify-pecunia/evidence/<date>-<label>/proof.json`.
 
 ## Proof a pull request must attach
 
 1. The demo-book run for this feature with a fresh label, and its evidence committed.
-2. The active subscriptions on screen with their typical charge, frequency, and annual cost, plus the total.
-3. A focused test for the frequency table. A property test over generated frequencies and amounts: the annual cost is always an integer, uses the base amount, and scales by the frequency multiplier.
-4. A test that a cancelled, dismissed, or not-recurring subscription never enters active cost.
-5. If the change adds detection, the history that proves it: the lines, the payee, the detected frequency, and the confidence. A half-detected subscription is a named state.
+2. The active repeat payments on screen with their typical charge, frequency, and annual cost, plus the total, once the screen exists.
+3. A focused test for the frequency table. A property test over generated frequencies and amounts: the annual cost is always an integer, uses the base amount, and matches the literal 52, 12, 4 or 1 charges a year.
+4. A test that a cancelled, dismissed, or not-recurring repeat payment never enters active cost.
+5. For detection: the literal gaps that are and are not claimed, and a property that the typical charge stays between the smallest and largest charge and equals a middle charge for an odd count.
+6. For a mark on an existing repeat payment: the row takes the caller's frequency, its costs come out of that frequency, and a second mark with the same frequency keeps the first time.
 
 ## Gotchas
 
 - Weekly x 52 is a year of weekly charges. Do not use 4 x 12.
-- A subscription's `typical_minor` is in `typical_currency`; `typical_base_minor` is in the profile base currency. Annualize the base amount, never the source amount.
-- The cancelled demo subscription still has a next expected date. Do not read that date as an active renewal.
-- Confidence and `amount_cv` are evidence for the detection model. They are not a price and must never be summed.
-- The unique key is `(profile_id, payee_id)`. Two providers charging the same payee are one subscription, not two.
+- The typical charge is in the charged currency; the typical base charge is in the profile's base currency. Annualize the base amount, never the charged amount.
+- With an even count the median is the mean of the two middle values, rounded down. Taking the lower middle value turns gaps of 9 and 25 days into a weekly claim.
+- A base amount is only reported in a currency the charges were measured in. A mix of base currencies picks the most used one, breaking a tie by the currency seen first.
+- The cancelled demo repeat payment still has a next expected date. Do not read that date as an active renewal.
+- Confidence is evidence for the detection model. It is not a price and must never be summed.
+- Marking is one repeat payment per payee per profile. Two providers charging the same payee are one repeat payment, not two.
