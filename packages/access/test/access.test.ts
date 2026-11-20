@@ -362,7 +362,7 @@ describe("verifyAccess", () => {
           context.signer,
           headerFor(KID),
           personClaims(now, {
-            issuer: "https://other-team.cloudflareaccess.com",
+            issuer: `https://${OTHER_TEAM_DOMAIN}`,
           })
         );
 

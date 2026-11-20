@@ -1,6 +1,82 @@
 [extend]
 useDefault = true
 
+# A git commit SHA is not a key, but the default sourcegraph rule reads any bare 40-character hex
+# run as one. The peer study notes and the peer refresh data quote upstream commit SHAs constantly,
+# so that one rule is restated here with the same regex, entropy and keywords, plus an allowlist that
+# allows a whole line only when every run of 40 or more token characters on it is a documented commit
+# citation: a JSON commit field, a GitHub tree/blob/commit URL path, a backticked `commit <sha>` or
+# `at <sha>`, or a repo pin `owner/repo#<sha>`. Nothing else on the line is excused, so a second
+# secret beside a citation still fails. Every prefixed Sourcegraph token is caught by the rule below,
+# which carries no allowlist.
+[[rules]]
+id = "sourcegraph-access-token"
+description = "A bare 40 character hex value outside a documented commit place."
+regex = '''(?i)\b([a-fA-F0-9]{40})\b(?:[\x60'"\s;]|\\[nr]|$)'''
+entropy = 3
+keywords = ["sgp_", "sourcegraph"]
+[[rules.allowlists]]
+description = "A line whose every long token run is a documented commit citation"
+condition = "AND"
+regexTarget = "line"
+regexes = [
+  '''^(?:(?:"(?:sha|commit|commits|previousCommit|previousSha|sourceCommit|provenanceCommit|pinnedCommit|mergeCommit|headCommit)"\s*:\s*"[0-9a-f]{40}"|[A-Za-z0-9_.-]*/(?:tree|commits?|blob)/[0-9a-f]{40}|(?:commit|sha)(?:\s+sha)?:? \x60[0-9a-f]{40}\x60|at \x60[0-9a-f]{40}\x60|[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+#[0-9a-f]{40})|[A-Za-z0-9_-]{0,39}[^A-Za-z0-9_-])*[A-Za-z0-9_-]{0,39}$''',
+]
+
+# A Sourcegraph access token always starts with sgp_, so it is caught wherever it sits. The rule
+# carries no allowlist: a token pinned next to owner/repo#<sha> is still a token.
+[[rules]]
+id = "sourcegraph-access-token-prefixed"
+description = "Sourcegraph access token with the sgp_ prefix"
+regex = '''\b(sgp_(?:[a-fA-F0-9]{16}|local)_[a-fA-F0-9]{40}|sgp_[a-fA-F0-9]{40})\b'''
+entropy = 3
+keywords = ["sgp_", "sourcegraph"]
+
+# The default rules missed a Cloudflare token written as `value <token>` in a markdown table, so a
+# 40-character token near a Cloudflare word counts as a key.
+[[rules]]
+id = "cloudflare-token-named-nearby"
+description = "Cloudflare API token with Cloudflare named on the same line"
+regex = '''(?i)(?:cloudflare|\bcf\b|\bcf_|wrangler)[^\n]{0,120}?[\x60'"= ]([A-Za-z0-9_-]{40})(?:[\x60'"\s]|$)'''
+secretGroup = 1
+entropy = 3.5
+keywords = ["cloudflare", "cf", "wrangler"]
+[[rules.allowlists]]
+description = "A line whose every long token run is a documented commit citation"
+condition = "AND"
+regexTarget = "line"
+regexes = [
+  '''^(?:(?:"(?:sha|commit|commits|previousCommit|previousSha|sourceCommit|provenanceCommit|pinnedCommit|mergeCommit|headCommit)"\s*:\s*"[0-9a-f]{40}"|[A-Za-z0-9_.-]*/(?:tree|commits?|blob)/[0-9a-f]{40}|(?:commit|sha)(?:\s+sha)?:? \x60[0-9a-f]{40}\x60|at \x60[0-9a-f]{40}\x60|[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+#[0-9a-f]{40})|[A-Za-z0-9_-]{0,39}[^A-Za-z0-9_-])*[A-Za-z0-9_-]{0,39}$''',
+]
+
+# A long random value in quotes or backticks next to token, secret, key or password.
+[[rules]]
+id = "quoted-token-named-nearby"
+description = "Quoted long random value next to the word token, secret, key or password"
+regex = '''(?i)(?:token|secret|api[ _-]?key|password)[^\n]{0,60}?[\x60'"]([A-Za-z0-9_-]{32,})[\x60'"]'''
+secretGroup = 1
+entropy = 4.0
+keywords = ["token", "secret", "key", "password"]
+
+# The crash tests plant a made-up JWT to prove that crash traces redact credentials. It is a
+# fixture, not a token: the header decodes to {"alg":"HS256"} and the signature is a placeholder.
+# The rule ends the token at any character a JWT can contain, so punctuation after it still reports,
+# and the allowlist compares that exact secret, so no second token and no longer token is excused.
+[[rules]]
+id = "jwt"
+description = "Uncovered a JSON Web Token, which may lead to unauthorized access to web applications and sensitive user data."
+regex = '''\b(ey[a-zA-Z0-9]{17,}\.ey[a-zA-Z0-9\/\\_-]{17,}\.(?:[a-zA-Z0-9\/\\_-]{10,}={0,2})?)(?:[^a-zA-Z0-9\/\\_]|$)'''
+secretGroup = 1
+entropy = 3
+keywords = ["ey"]
+[[rules.allowlists]]
+description = "The planted fixture JWT in the crash redaction tests"
+condition = "AND"
+regexTarget = "secret"
+regexes = [
+  '''^eyJhbGciOiJIUzI1NiJ9\.eyJzdWIiOiIxMjM0NTY3ODkwIn0\.signatureValue$''',
+]
+
 [allowlist]
-description = "Generated map of file paths to content hashes"
+description = "Generated files whose contents the guard already reads at the source"
 paths = ['''^\.brain/data/git-snapshot\.json$''']

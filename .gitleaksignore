@@ -1,0 +1,6 @@
+# The guard's own test used to plant a made-up token as `const token = "<value>"`. The word
+# "token" beside a quoted random value is exactly what two rules read a key from, and the commit
+# keeps the line even though the fixture is now called `planted`. These two fingerprints excuse
+# that one line in that one commit. Every other finding in the range still fails.
+327983f9696d5946905c6a3feff411bace9a2a6f:scripts/check-no-personal-data.test.ts:generic-api-key:250
+327983f9696d5946905c6a3feff411bace9a2a6f:scripts/check-no-personal-data.test.ts:quoted-token-named-nearby:250

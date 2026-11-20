@@ -1,0 +1,130 @@
+{
+  "skipped": [
+    {
+      "path": "pnpm-lock.yaml",
+      "reason": "pnpm writes this lockfile; its integrity hashes and tarball URLs describe packages, not people."
+    },
+    {
+      "path": ".brain/data/git-snapshot.json",
+      "reason": "The content build regenerates this map of file contents, and every string in it comes from a file the guard already reads."
+    },
+    {
+      "path": "packages/intake-live/test/contact-shapes.ts",
+      "reason": "A table of contact shapes the intake parser must accept or reject. Every mailbox in it is a made-up shape on a real-looking domain, and the test reads the table as input."
+    },
+    {
+      "path": "scripts/no-personal-data-allow.json",
+      "reason": "The guard's own declaration file. It holds every excused value so the reason can be read beside it, and each value is excused only in the path its entry names."
+    }
+  ],
+  "values": [
+    {
+      "path": ".brain/data/cafe/projects.json",
+      "value": "beautiful-mermaid-viewer.sunwrobert.workers.dev",
+      "reason": "A third-party project hostname in the imported public cafe dataset, not the owner's deployment."
+    },
+    {
+      "path": ".brain/resources/lore/code-snippets.svx",
+      "value": "rehype-pretty.pages.dev",
+      "reason": "The public docs hostname of the rehype-pretty project, quoted in a resource note."
+    },
+    {
+      "path": "apps/infra/alchemy.run.ts",
+      "value": "workshop@ratstack.sh",
+      "reason": "The project's own role inbox on the project domain; a mailbox, not a person."
+    },
+    {
+      "path": "apps/site/test/negotiation.test.ts",
+      "value": "claudebot@anthropic.com",
+      "reason": "The public ClaudeBot user agent, copied into a negotiation test."
+    },
+    {
+      "path": "scripts/check-no-personal-data.test.ts",
+      "value": "jane.doe@acme.co.uk",
+      "reason": "The planted email address in the guard's own test; it must fail there and nowhere else."
+    },
+    {
+      "path": "scripts/check-no-personal-data.test.ts",
+      "value": "\"demo owner\"@mail.co.uk",
+      "reason": "The planted quoted mailbox in the guard's own test; it must fail there and nowhere else."
+    },
+    {
+      "path": "scripts/check-no-personal-data.test.ts",
+      "value": "demo.person@mailhost.co.uk",
+      "reason": "The planted mailbox inside the percent-encoded contact link in the guard's own test; it must fail there and nowhere else."
+    },
+    {
+      "path": "scripts/check-no-personal-data.test.ts",
+      "value": "0123456789abcdef0123456789abcdef",
+      "reason": "The planted Cloudflare account id in the guard's own test; it must fail there and nowhere else."
+    },
+    {
+      "path": "scripts/check-no-personal-data.test.ts",
+      "value": "DE89370400440532013000",
+      "reason": "A second made-up IBAN in the guard's own test, used to prove an allow entry excuses only the value it names."
+    },
+    {
+      "path": "scripts/check-no-personal-data.test.ts",
+      "value": "23 45 67",
+      "reason": "The planted form-encoded sort code in the guard's own test; it must fail there and nowhere else."
+    },
+    {
+      "path": "scripts/check-no-personal-data.test.ts",
+      "value": "98765432",
+      "reason": "The planted form-encoded account number in the guard's own test; it must fail there and nowhere else."
+    },
+    {
+      "path": "scripts/check-no-personal-data.test.ts",
+      "value": "planted-sample.workers.dev",
+      "reason": "The planted deployment hostname in the guard's own test; it must fail there and nowhere else."
+    },
+    {
+      "path": "scripts/check-no-personal-data.test.ts",
+      "value": "example.private-tenant.workers.dev",
+      "reason": "The planted real-shaped hostname in the guard's own test; it must fail there and nowhere else."
+    },
+    {
+      "path": "scripts/check-no-personal-data.test.ts",
+      "value": "example.private-tenant.pages.dev",
+      "reason": "The planted real-shaped hostname in the guard's own test; it must fail there and nowhere else."
+    },
+    {
+      "path": "scripts/check-no-personal-data.test.ts",
+      "value": "example.example.workers.dev",
+      "reason": "The planted real-shaped hostname in the guard's own test; it must fail there and nowhere else."
+    },
+    {
+      "path": "scripts/check-no-personal-data.test.ts",
+      "value": "12345678",
+      "reason": "The planted account number in the guard's own test; it must fail there and nowhere else."
+    },
+    {
+      "path": "scripts/check-commit-identity.test.ts",
+      "value": "tnoreply@github.com",
+      "reason": "A git identity fixture writes its tab as a backslash and a t, so the plain text glues that t onto the no-reply address it belongs to. The address itself is noreply@github.com, which needs no excuse."
+    },
+    {
+      "path": "packages/database/demo/seed.sql",
+      "value": "12000000",
+      "reason": "A holding quantity in the seeded demo database. It is a round made-up number, not an account number, and the sort-code-shaped field beside it is a cost basis in minor units."
+    },
+    {
+      "path": "packages/bank-import/README.md",
+      "value": "480000",
+      "reason": "A made-up amount in cents in the bank-import demo, and the copy of its demo row in the docs. Six digits make it sort-code shaped, and the made-up date-shaped references beside it are account-number shaped.",
+      "column": "amount_minor"
+    },
+    {
+      "path": "packages/bank-import/fixtures/demo-bank.csv",
+      "value": "480000",
+      "reason": "A made-up amount in cents in the bank-import demo, and the copy of its demo row in the docs. Six digits make it sort-code shaped, and the made-up date-shaped references beside it are account-number shaped.",
+      "column": "amount_minor"
+    },
+    {
+      "path": "packages/bank-import/test/bank-import.test.ts",
+      "value": "480000",
+      "reason": "A made-up amount in cents in the bank-import demo, and the copy of its demo row in the docs. Six digits make it sort-code shaped, and the made-up date-shaped references beside it are account-number shaped.",
+      "column": "amount_minor"
+    }
+  ]
+}

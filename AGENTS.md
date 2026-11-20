@@ -171,6 +171,8 @@ Why lives in `AGENTS.md` / `VISION.md`. The stack and hooks are the enforceable 
 - Agents must not use `git … --no-verify` (or equivalent hook bypass)
 - Blocked by: Pi `.pi/extensions/git-interceptor`, Cursor `.cursor/hooks.json`, Claude Code `.claude/settings.json`
 - Policy source: `scripts/vcs-command-policy.js`
+- Commits carry no real email address: `scripts/check-commit-identity.ts` in CI fails on an author, committer, or `Co-authored-by:` trailer outside the no-reply addresses
+- Personal data never enters the tree: `scripts/check-no-personal-data.ts` in `pnpm check` and CI, and `.github/workflows/gitleaks.yml` over every pushed range
 
 If a hook fails, fix the failure. Do not disable the fence.
 
