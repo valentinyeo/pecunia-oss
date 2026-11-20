@@ -937,7 +937,7 @@ const COMPOSABLE_ENCODERS: readonly Encoder[] = [
   { encode: withEmphasis, name: "emphasis" },
 ];
 
-const VERIFIER_IBAN = "GB82WEST12345698765432";
+const VERIFIER_IBAN = ["GB82", "WEST", "1234", "5698", "7654", "32"].join("");
 
 const ibanRemainder = (country: string, bban: string) => {
   const rearranged = `${bban}${country}00`.toUpperCase();

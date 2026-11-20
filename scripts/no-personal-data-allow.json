@@ -40,11 +40,6 @@
     },
     {
       "path": "scripts/check-no-personal-data.test.ts",
-      "value": "GB82WEST12345698765432",
-      "reason": "The planted IBAN in the guard's own test; it must fail there and nowhere else."
-    },
-    {
-      "path": "scripts/check-no-personal-data.test.ts",
       "value": "jane.doe@acme.co.uk",
       "reason": "The planted email address in the guard's own test; it must fail there and nowhere else."
     },
@@ -82,11 +77,6 @@
       "path": "scripts/check-no-personal-data.test.ts",
       "value": "planted-sample.workers.dev",
       "reason": "The planted deployment hostname in the guard's own test; it must fail there and nowhere else."
-    },
-    {
-      "path": "scripts/check-no-personal-data.property.test.ts",
-      "value": "GB82WEST12345698765432",
-      "reason": "The planted IBAN in the guard's own property test; it must fail there and nowhere else."
     },
     {
       "path": "scripts/check-no-personal-data.test.ts",

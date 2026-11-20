@@ -23,7 +23,7 @@ const commit = (
 });
 
 const allowed = [
-  "3296316+valentinyeo@users.noreply.github.com",
+  "4821+maintainer-one@users.noreply.github.com",
   "1234+someone-else@users.noreply.github.com",
   "noreply@github.com",
   "noreply@anthropic.com",
@@ -36,14 +36,14 @@ const realLocalParts = [
   "jane+finance",
   "j.doe",
   "info",
-  "valentin",
+  "personal.owner",
   "owner",
   "accounts",
 ];
 
 const realDomains = [
   "acme.test",
-  "gmail.invalid",
+  "freemail.invalid",
   "acme.invalid",
   "bank.example",
   "users.noreply.github.com.acme.test",
@@ -79,8 +79,8 @@ describe("real addresses are rejected", () => {
   });
 
   it("rejects an address with no domain", () => {
-    expect(isAllowedIdentityEmail("valentin")).toBe(false);
-    expect(domainOf("valentin")).toBe("unknown");
+    expect(isAllowedIdentityEmail("personal.owner")).toBe(false);
+    expect(domainOf("personal.owner")).toBe("unknown");
   });
 
   it("names the author, the committer, or a co-author", () => {

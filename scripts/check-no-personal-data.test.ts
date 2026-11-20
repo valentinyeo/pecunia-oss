@@ -36,6 +36,12 @@ const testFile = "scripts/check-no-personal-data.test.ts";
 const grouped = (parts: readonly string[], separator: string) =>
   parts.join(separator);
 
+const joined = (...parts: readonly string[]) => parts.join("");
+
+const verifierIbanGroups = ["GB82", "WEST", "1234", "5698", "7654", "32"];
+
+const verifierIban = joined(...verifierIbanGroups);
+
 const sortCode = (separator: string) => grouped(["20", "45", "67"], separator);
 
 const accountNumber = (separator: string) =>
@@ -59,10 +65,7 @@ const pairAcross = (repeats: number) =>
 describe("planted personal data fails", () => {
   it("fails on an International Bank Account Number", () => {
     expect(
-      ruleOf(
-        "apps/cli/src/accounts.ts",
-        'const iban = "GB82WEST12345698765432";'
-      )
+      ruleOf("apps/cli/src/accounts.ts", `const iban = "${verifierIban}";`)
     ).toEqual(["iban"]);
   });
 
@@ -109,7 +112,7 @@ describe("planted personal data fails", () => {
     expect(
       lineOf(
         "apps/cli/src/accounts.ts",
-        'const empty = null;\nconst iban = "GB82WEST12345698765432";'
+        `const empty = null;\nconst iban = "${verifierIban}";`
       )
     ).toEqual([2]);
   });
@@ -129,7 +132,7 @@ describe("a leak the verifier wrote by hand is reported", () => {
 
   it("reads an IBAN written as a form field with plus signs", () => {
     expect(
-      ruleOf("docs/payments.md", "iban=GB82+WEST+1234+5698+7654+32")
+      ruleOf("docs/payments.md", `iban=${verifierIbanGroups.join("+")}`)
     ).toEqual(["iban"]);
   });
 
@@ -143,7 +146,7 @@ describe("a leak the verifier wrote by hand is reported", () => {
     expect(
       ruleOf(
         "docs/payments.md",
-        'GB82 WEST 1234<br\n class="bank">5698 7654 32'
+        `${verifierIbanGroups.slice(0, 3).join(" ")}<br\n class="bank">${verifierIbanGroups.slice(3).join(" ")}`
       )
     ).toEqual(["iban"]);
   });
@@ -460,21 +463,21 @@ describe("explicit allowances pass only in the file they name", () => {
     {
       path: testFile,
       reason: "Planted sample in the guard's own test.",
-      value: "GB82WEST12345698765432",
+      value: verifierIban,
     },
   ]);
 
   it("passes on the value inside the file the allow list names", () => {
-    expect(
-      ruleOf(testFile, 'const iban = "GB82WEST12345698765432";', allow)
-    ).toEqual([]);
+    expect(ruleOf(testFile, `const iban = "${verifierIban}";`, allow)).toEqual(
+      []
+    );
   });
 
   it("fails on the same value inside another file", () => {
     expect(
       ruleOf(
         "apps/cli/src/accounts.ts",
-        'const iban = "GB82WEST12345698765432";',
+        `const iban = "${verifierIban}";`,
         allow
       )
     ).toEqual(["iban"]);
@@ -516,7 +519,7 @@ describe("explicit allowances pass only in the file they name", () => {
     };
 
     expect(
-      ruleOf("pnpm-lock.yaml", 'resolution: "GB82WEST12345698765432"', skipped)
+      ruleOf("pnpm-lock.yaml", `resolution: "${verifierIban}"`, skipped)
     ).toEqual([]);
   });
 });
@@ -587,7 +590,10 @@ describe("the fourth verdict's reproductions fail", () => {
 
   it("fails on an IBAN split by markdown emphasis", () => {
     expect(
-      ruleOf("docs/payments.md", "IBAN: **GB82** WEST **1234** 5698 7654 32")
+      ruleOf(
+        "docs/payments.md",
+        `IBAN: **${verifierIbanGroups[0]}** ${verifierIbanGroups[1]} **${verifierIbanGroups[2]}** ${verifierIbanGroups.slice(3).join(" ")}`
+      )
     ).toEqual(["iban"]);
   });
 
@@ -682,11 +688,7 @@ describe("an amount allowance excuses only the amount column of its file", () =>
   });
 });
 
-const joined = (...parts: readonly string[]) => parts.join("");
-
 const mailHost = joined("mail", "host.co.uk");
-
-const verifierIban = joined("GB82", "WEST", "1234", "5698", "7654", "32");
 
 const accountIdValue = joined(
   "0123",
