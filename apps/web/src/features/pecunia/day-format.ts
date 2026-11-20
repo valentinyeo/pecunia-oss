@@ -1,5 +1,3 @@
-import type { DateOnly } from "@pecunia/bank-lines/model";
-
 const monthNames: readonly string[] = [
   "Jan",
   "Feb",
@@ -17,7 +15,7 @@ const monthNames: readonly string[] = [
 
 const dateOnlyPattern = /^(?<year>\d{4})-(?<month>\d{2})-(?<day>\d{2})$/u;
 
-export const formatDay = (valueDate: DateOnly): string => {
+export const formatDay = (valueDate: string): string => {
   const parsed = dateOnlyPattern.exec(valueDate);
 
   if (parsed?.groups === undefined) {

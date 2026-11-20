@@ -36,11 +36,17 @@ import {
   open as openSettings,
   update as updateSettings,
 } from "./settings/update.js";
+import type { SubscriptionsGateway } from "./subscriptions/gateway.js";
+import type { SubscriptionsMessageValue } from "./subscriptions/message.js";
+import {
+  open as openSubscriptions,
+  update as updateSubscriptions,
+} from "./subscriptions/update.js";
 
 export type PecuniaReturn = Update.Return<
   PecuniaModel,
   PecuniaMessage,
-  BankLinesGateway | CategorizeGateway | SettingsGateway
+  BankLinesGateway | CategorizeGateway | SettingsGateway | SubscriptionsGateway
 >;
 
 const gotSettingsMessage = (message: SettingsMessageValue): PecuniaMessage =>
@@ -51,6 +57,10 @@ const gotBankLinesMessage = (message: BankLinesMessageValue): PecuniaMessage =>
 
 const gotSearchMessage = (message: SearchMessageValue): PecuniaMessage =>
   Message.GotSearchMessage({ message });
+
+const gotSubscriptionsMessage = (
+  message: SubscriptionsMessageValue
+): PecuniaMessage => Message.GotSubscriptionsMessage({ message });
 
 const openSettingsScreen = Update.foldChildStep({
   read: (model: PecuniaModel) => Option.some(model.settings),
@@ -102,6 +112,19 @@ const foldBankLines = Update.foldChild({
   write: (model, bankLines) => ({ ...model, bankLines }),
 });
 
+const foldSubscriptions = Update.foldChild({
+  read: (model: PecuniaModel) => Option.some(model.subscriptions),
+  toParentMessage: gotSubscriptionsMessage,
+  update: (
+    screen: PecuniaModel["subscriptions"],
+    input: Readonly<{
+      access: AccessRoleValue;
+      message: SubscriptionsMessageValue;
+    }>
+  ) => updateSubscriptions(screen, input.access, input.message),
+  write: (model, subscriptions) => ({ ...model, subscriptions }),
+});
+
 const foldSearch = Update.foldChild({
   read: (model: PecuniaModel) => Option.some(model.search),
   toParentMessage: gotSearchMessage,
@@ -124,6 +147,13 @@ const openReviewScreen = Update.foldChildStep({
   toParentMessage: gotBankLinesMessage,
   update: openReview,
   write: (model, bankLines) => ({ ...model, bankLines }),
+});
+
+const openSubscriptionsScreen = Update.foldChildStep({
+  read: (model: PecuniaModel) => Option.some(model.subscriptions),
+  toParentMessage: gotSubscriptionsMessage,
+  update: openSubscriptions,
+  write: (model, subscriptions) => ({ ...model, subscriptions }),
 });
 
 const openSearchScreen = (query: string) =>
@@ -155,7 +185,7 @@ const enterRoute = (
     Settings: () => openSettingsScreen(next),
     Spending: ({ categoryId }) =>
       openBankLines(LineScope.Category({ categoryId }))(next),
-    Subscriptions: () => ({ model: next }),
+    Subscriptions: () => openSubscriptionsScreen(next),
     Transactions: () => openBankLines(LineScope.All())(next),
   });
 };
@@ -196,4 +226,9 @@ export const update = (
       foldSearch(model, searchMessage),
     GotSettingsMessage: ({ message: settingsMessage }) =>
       foldSettings(model, { access: model.access, message: settingsMessage }),
+    GotSubscriptionsMessage: ({ message: subscriptionsMessage }) =>
+      foldSubscriptions(model, {
+        access: model.access,
+        message: subscriptionsMessage,
+      }),
   });

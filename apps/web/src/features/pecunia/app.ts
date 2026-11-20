@@ -18,6 +18,7 @@ import { styles } from "./pecunia.stylex.js";
 import { view as rulesView } from "./rules.js";
 import { view as searchView } from "./search.js";
 import { view as settingsView } from "./settings.js";
+import { view as subscriptionsView } from "./subscriptions.js";
 
 export { boot, init, update } from "../../client/pecunia/update.js";
 
@@ -107,7 +108,15 @@ const screen = (model: PecuniaModel, h: HtmlBuilder<PecuniaMessage>): Html =>
         view: settingsView,
       }),
     Spending: () => bankLines(model, h),
-    Subscriptions: () => laterScreen(model, h),
+    Subscriptions: () =>
+      h.submodel({
+        model: model.subscriptions,
+        slotId: "subscriptions",
+        toParentMessage: (message) =>
+          Message.GotSubscriptionsMessage({ message }),
+        view: subscriptionsView,
+        viewInputs: { role: model.access },
+      }),
     Transactions: () => bankLines(model, h),
   });
 

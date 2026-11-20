@@ -7,6 +7,7 @@ import { Message as CategorizeMessage } from "./categorize/message.js";
 import { Theme } from "./model.js";
 import { Message as SearchMessage } from "./search/message.js";
 import { Message as SettingsMessage } from "./settings/message.js";
+import { Message as SubscriptionsMessage } from "./subscriptions/message.js";
 
 export const Message = defineMessageUnion({
   ChangedUrl: { url: Url },
@@ -18,6 +19,7 @@ export const Message = defineMessageUnion({
   GotCategorizeMessage: { message: CategorizeMessage },
   GotSearchMessage: { message: SearchMessage },
   GotSettingsMessage: { message: SettingsMessage },
+  GotSubscriptionsMessage: { message: SubscriptionsMessage },
 });
 
 export type PecuniaMessage = typeof Message.Type;
