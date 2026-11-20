@@ -81,6 +81,29 @@ export const DateOnlySchema = Schema.String.check(
 
 export type DateOnly = typeof DateOnlySchema.Type;
 
+export const MonthSchema = Schema.String.check(
+  Schema.isPattern(/^\d{4}-(?<month>0[1-9]|1[0-2])$/u)
+).pipe(Schema.brand("InvoiceMonth"));
+
+export type Month = typeof MonthSchema.Type;
+
+export const DirectionSchema = Schema.Literals(["in", "neutral", "out"]);
+
+export type Direction = typeof DirectionSchema.Type;
+
+export const MerchantSchema = Schema.Trim.check(Schema.isMaxLength(200));
+
+export type Merchant = typeof MerchantSchema.Type;
+
+export const EXCEPTION_REASON_MAX = 500;
+
+export const ExceptionReasonSchema = Schema.Trim.check(
+  Schema.isMinLength(1),
+  Schema.isMaxLength(EXCEPTION_REASON_MAX)
+);
+
+export type ExceptionReason = typeof ExceptionReasonSchema.Type;
+
 export const DocumentTypeSchema = Schema.Literals([
   "credit_note",
   "invoice",
@@ -144,18 +167,55 @@ export const ArchiveStateSchema = Schema.TaggedUnion({
 
 export type ArchiveState = typeof ArchiveStateSchema.Type;
 
+export const ContentTypeSchema = Schema.Trim.check(
+  Schema.isMinLength(1),
+  Schema.isMaxLength(200)
+);
+
+export type ContentType = typeof ContentTypeSchema.Type;
+
+export const FilenameSchema = Schema.Trim.check(
+  Schema.isMinLength(1),
+  Schema.isMaxLength(512)
+);
+
+export type Filename = typeof FilenameSchema.Type;
+
+export const StorageKeySchema = Schema.Trim.check(
+  Schema.isMinLength(1),
+  Schema.isMaxLength(1024)
+);
+
+export type StorageKey = typeof StorageKeySchema.Type;
+
+export const Sha256Schema = Schema.String.check(
+  Schema.isPattern(/^[0-9a-f]{64}$/u)
+);
+
+export type Sha256 = typeof Sha256Schema.Type;
+
+export const SizeBytesSchema = Schema.Int.check(
+  Schema.isGreaterThanOrEqualTo(0)
+);
+
+export type SizeBytes = typeof SizeBytesSchema.Type;
+
+export const CountSchema = Schema.Int.check(Schema.isGreaterThanOrEqualTo(0));
+
+export type Count = typeof CountSchema.Type;
+
 export const InvoiceDocumentSchema = Schema.Struct({
   amount: Schema.OptionFromNullishOr(AmountSchema),
   archive: ArchiveStateSchema,
-  contentType: Schema.NonEmptyString,
+  contentType: ContentTypeSchema,
   documentDate: DateOnlySchema,
   documentType: DocumentTypeSchema,
   id: DocumentIdSchema,
-  originalFilename: Schema.NonEmptyString,
+  originalFilename: FilenameSchema,
   profileId: ProfileIdSchema,
-  r2Key: Schema.NonEmptyString,
-  sha256: Schema.String.check(Schema.isPattern(/^[0-9a-f]{64}$/u)),
-  sizeBytes: Schema.Int.check(Schema.isGreaterThanOrEqualTo(0)),
+  r2Key: StorageKeySchema,
+  sha256: Sha256Schema,
+  sizeBytes: SizeBytesSchema,
   source: DocumentSourceSchema,
   sourceRef: Schema.OptionFromNullishOr(Schema.String),
   transactionId: Schema.OptionFromNullishOr(TransactionIdSchema),
@@ -166,7 +226,9 @@ export type InvoiceDocument = typeof InvoiceDocumentSchema.Type;
 
 export const PaymentSchema = Schema.Struct({
   amount: AmountSchema,
+  direction: DirectionSchema,
   id: TransactionIdSchema,
+  merchant: MerchantSchema,
   paidOn: DateOnlySchema,
   payeeId: Schema.OptionFromNullishOr(PayeeIdSchema),
   profileId: ProfileIdSchema,
@@ -297,3 +359,353 @@ export const RecordInvoiceArchiveRequestSchema = Schema.Struct({
 
 export type RecordInvoiceArchiveRequest =
   typeof RecordInvoiceArchiveRequestSchema.Type;
+
+export const InvoiceExceptionSchema = Schema.Struct({
+  profileId: ProfileIdSchema,
+  reason: ExceptionReasonSchema,
+  recordedAt: TimestampMillisSchema,
+  transactionId: TransactionIdSchema,
+});
+
+export type InvoiceException = typeof InvoiceExceptionSchema.Type;
+
+export const RecordInvoiceExceptionSchema = Schema.Struct({
+  reason: ExceptionReasonSchema,
+  transactionId: TransactionIdSchema,
+});
+
+export type RecordInvoiceException = typeof RecordInvoiceExceptionSchema.Type;
+
+export const RecordInvoiceExceptionRequestSchema = Schema.Struct({
+  ...RecordInvoiceExceptionSchema.fields,
+  profileId: ProfileIdSchema,
+});
+
+export type RecordInvoiceExceptionRequest =
+  typeof RecordInvoiceExceptionRequestSchema.Type;
+
+export const InvoiceSourceIdSchema = Schema.NonEmptyString.check(
+  Schema.isMaxLength(64)
+).pipe(Schema.brand("InvoiceSourceId"));
+
+export type InvoiceSourceId = typeof InvoiceSourceIdSchema.Type;
+
+export const SourcePatternSchema = Schema.Trim.check(
+  Schema.isMinLength(1),
+  Schema.isMaxLength(200)
+);
+
+export type SourcePattern = typeof SourcePatternSchema.Type;
+
+export const PortalUrlSchema = Schema.Trim.check(
+  Schema.isMinLength(1),
+  Schema.isMaxLength(1024)
+);
+
+export type PortalUrl = typeof PortalUrlSchema.Type;
+
+export const LoginHintSchema = Schema.Trim.check(
+  Schema.isMinLength(1),
+  Schema.isMaxLength(200)
+);
+
+export type LoginHint = typeof LoginHintSchema.Type;
+
+export const SourceNotesSchema = Schema.Trim.check(
+  Schema.isMinLength(1),
+  Schema.isMaxLength(500)
+);
+
+export type SourceNotes = typeof SourceNotesSchema.Type;
+
+export const RetrievalSchema = Schema.Struct({
+  bookkeeper: Schema.Boolean,
+  email: Schema.Boolean,
+  portal: Schema.Boolean,
+  twoFactor: Schema.Boolean,
+});
+
+export type Retrieval = typeof RetrievalSchema.Type;
+
+export const InvoiceSourceSchema = Schema.Struct({
+  id: InvoiceSourceIdSchema,
+  loginHint: Schema.OptionFromNullishOr(LoginHintSchema),
+  notes: Schema.OptionFromNullishOr(SourceNotesSchema),
+  pattern: SourcePatternSchema,
+  portalUrl: Schema.OptionFromNullishOr(PortalUrlSchema),
+  profileId: ProfileIdSchema,
+  retrieval: RetrievalSchema,
+  vendorPayeeId: Schema.OptionFromNullishOr(PayeeIdSchema),
+});
+
+export type InvoiceSource = typeof InvoiceSourceSchema.Type;
+
+export const InvoiceSourceDraftSchema = Schema.Struct({
+  loginHint: Schema.OptionFromNullishOr(LoginHintSchema),
+  notes: Schema.OptionFromNullishOr(SourceNotesSchema),
+  pattern: SourcePatternSchema,
+  portalUrl: Schema.OptionFromNullishOr(PortalUrlSchema),
+  retrieval: RetrievalSchema,
+  vendorPayeeId: Schema.OptionFromNullishOr(PayeeIdSchema),
+});
+
+export type InvoiceSourceDraft = typeof InvoiceSourceDraftSchema.Type;
+
+export const ReadInvoiceSourcesRequestSchema = Schema.Struct({
+  profileId: ProfileIdSchema,
+});
+
+export type ReadInvoiceSourcesRequest =
+  typeof ReadInvoiceSourcesRequestSchema.Type;
+
+export const InvoiceSourcesSchema = Schema.Struct({
+  sources: Schema.Array(InvoiceSourceSchema),
+});
+
+export type InvoiceSources = typeof InvoiceSourcesSchema.Type;
+
+export const SaveInvoiceSourceRequestSchema = Schema.Struct({
+  ...InvoiceSourceDraftSchema.fields,
+  profileId: ProfileIdSchema,
+});
+
+export type SaveInvoiceSourceRequest =
+  typeof SaveInvoiceSourceRequestSchema.Type;
+
+export const DeleteInvoiceSourceRequestSchema = Schema.Struct({
+  profileId: ProfileIdSchema,
+  sourceId: InvoiceSourceIdSchema,
+});
+
+export type DeleteInvoiceSourceRequest =
+  typeof DeleteInvoiceSourceRequestSchema.Type;
+
+export const DeleteInvoiceSourceSchema = Schema.Struct({
+  sourceId: InvoiceSourceIdSchema,
+});
+
+export type DeleteInvoiceSource = typeof DeleteInvoiceSourceSchema.Type;
+
+export const PaymentInvoiceStatusSchema = Schema.TaggedUnion({
+  Archived: { documents: Schema.NonEmptyArray(DocumentIdSchema) },
+  Excepted: { reason: ExceptionReasonSchema },
+  Invoiced: { documents: Schema.NonEmptyArray(DocumentIdSchema) },
+  Missing: {},
+});
+
+export type PaymentInvoiceStatus = typeof PaymentInvoiceStatusSchema.Type;
+
+export const InvoiceStatusRowSchema = Schema.Struct({
+  amount: AmountSchema,
+  merchant: MerchantSchema,
+  paidOn: DateOnlySchema,
+  payeeId: Schema.OptionFromNullishOr(PayeeIdSchema),
+  sourceId: Schema.OptionFromNullishOr(InvoiceSourceIdSchema),
+  status: PaymentInvoiceStatusSchema,
+  transactionId: TransactionIdSchema,
+});
+
+export type InvoiceStatusRow = typeof InvoiceStatusRowSchema.Type;
+
+export const ReadInvoiceStatusSchema = Schema.Struct({
+  month: Schema.OptionFromNullishOr(MonthSchema),
+});
+
+export type ReadInvoiceStatus = typeof ReadInvoiceStatusSchema.Type;
+
+export const ReadInvoiceStatusRequestSchema = Schema.Struct({
+  ...ReadInvoiceStatusSchema.fields,
+  profileId: ProfileIdSchema,
+});
+
+export type ReadInvoiceStatusRequest =
+  typeof ReadInvoiceStatusRequestSchema.Type;
+
+export const InvoiceStatusSchema = Schema.Struct({
+  missingCount: CountSchema,
+  month: Schema.OptionFromNullishOr(MonthSchema),
+  rows: Schema.Array(InvoiceStatusRowSchema),
+});
+
+export type InvoiceStatus = typeof InvoiceStatusSchema.Type;
+
+export const InvoiceCoverageMonthSchema = Schema.Struct({
+  excepted: CountSchema,
+  invoiced: CountSchema,
+  missing: CountSchema,
+  month: MonthSchema,
+  payments: CountSchema,
+});
+
+export type InvoiceCoverageMonth = typeof InvoiceCoverageMonthSchema.Type;
+
+export const InvoiceCoverageSchema = Schema.Struct({
+  months: Schema.Array(InvoiceCoverageMonthSchema),
+});
+
+export type InvoiceCoverage = typeof InvoiceCoverageSchema.Type;
+
+export const ReadInvoiceCoverageRequestSchema = Schema.Struct({
+  profileId: ProfileIdSchema,
+});
+
+export type ReadInvoiceCoverageRequest =
+  typeof ReadInvoiceCoverageRequestSchema.Type;
+
+export const InvoiceFileSchema = Schema.Struct({
+  amount: Schema.OptionFromNullishOr(AmountSchema),
+  contentType: ContentTypeSchema,
+  documentDate: DateOnlySchema,
+  documentType: DocumentTypeSchema,
+  originalFilename: FilenameSchema,
+  r2Key: StorageKeySchema,
+  sha256: Sha256Schema,
+  sizeBytes: SizeBytesSchema,
+  source: DocumentSourceSchema,
+  sourceRef: Schema.OptionFromNullishOr(
+    Schema.String.check(Schema.isMaxLength(1024))
+  ),
+  vendorPayeeId: Schema.OptionFromNullishOr(PayeeIdSchema),
+});
+
+export type InvoiceFile = typeof InvoiceFileSchema.Type;
+
+export const SaveInvoiceFileSchema = Schema.Struct({
+  ...InvoiceFileSchema.fields,
+  transactionId: TransactionIdSchema,
+});
+
+export type SaveInvoiceFile = typeof SaveInvoiceFileSchema.Type;
+
+export const SaveInvoiceFileRequestSchema = Schema.Struct({
+  ...SaveInvoiceFileSchema.fields,
+  profileId: ProfileIdSchema,
+});
+
+export type SaveInvoiceFileRequest = typeof SaveInvoiceFileRequestSchema.Type;
+
+export const LEGACY_FILES_MAX = 200;
+
+export const RegisterLegacyInvoicesSchema = Schema.Struct({
+  files: Schema.Array(InvoiceFileSchema).check(
+    Schema.isMinLength(1),
+    Schema.isMaxLength(LEGACY_FILES_MAX)
+  ),
+});
+
+export type RegisterLegacyInvoices = typeof RegisterLegacyInvoicesSchema.Type;
+
+export const RegisterLegacyInvoicesRequestSchema = Schema.Struct({
+  ...RegisterLegacyInvoicesSchema.fields,
+  profileId: ProfileIdSchema,
+});
+
+export type RegisterLegacyInvoicesRequest =
+  typeof RegisterLegacyInvoicesRequestSchema.Type;
+
+export const LegacyOutcomeSchema = Schema.TaggedUnion({
+  Existing: {},
+  Stored: {},
+});
+
+export type LegacyOutcome = typeof LegacyOutcomeSchema.Type;
+
+export const LegacyFileSchema = Schema.Struct({
+  document: InvoiceDocumentSchema,
+  outcome: LegacyOutcomeSchema,
+});
+
+export type LegacyFile = typeof LegacyFileSchema.Type;
+
+export const LegacyFilesSchema = Schema.Struct({
+  files: Schema.Array(LegacyFileSchema),
+});
+
+export type LegacyFiles = typeof LegacyFilesSchema.Type;
+
+export const ReadInvoiceDocumentSchema = Schema.Struct({
+  documentId: DocumentIdSchema,
+});
+
+export type ReadInvoiceDocument = typeof ReadInvoiceDocumentSchema.Type;
+
+export const ReadInvoiceDocumentRequestSchema = Schema.Struct({
+  ...ReadInvoiceDocumentSchema.fields,
+  profileId: ProfileIdSchema,
+});
+
+export type ReadInvoiceDocumentRequest =
+  typeof ReadInvoiceDocumentRequestSchema.Type;
+
+export const StoredDocumentSchema = Schema.Struct({
+  document: InvoiceDocumentSchema,
+  path: Schema.OptionFromNullishOr(Schema.String),
+});
+
+export type StoredDocument = typeof StoredDocumentSchema.Type;
+
+export const RemoveInvoiceDocumentSchema = Schema.Struct({
+  documentId: DocumentIdSchema,
+});
+
+export type RemoveInvoiceDocument = typeof RemoveInvoiceDocumentSchema.Type;
+
+export const RemoveInvoiceDocumentRequestSchema = Schema.Struct({
+  ...RemoveInvoiceDocumentSchema.fields,
+  profileId: ProfileIdSchema,
+});
+
+export type RemoveInvoiceDocumentRequest =
+  typeof RemoveInvoiceDocumentRequestSchema.Type;
+
+export const RemovedInvoiceDocumentSchema = Schema.Struct({
+  documentId: DocumentIdSchema,
+});
+
+export type RemovedInvoiceDocument = typeof RemovedInvoiceDocumentSchema.Type;
+
+export const ArchiveDocumentCursorSchema = Schema.Struct({
+  archivedAt: TimestampMillisSchema,
+  documentId: DocumentIdSchema,
+});
+
+export type ArchiveDocumentCursor = typeof ArchiveDocumentCursorSchema.Type;
+
+export const ARCHIVE_PAGE_LIMIT_MAX = 200;
+
+export const ArchivePageLimitSchema = Schema.Int.check(
+  Schema.isBetween({ maximum: ARCHIVE_PAGE_LIMIT_MAX, minimum: 1 })
+);
+
+export type ArchivePageLimit = typeof ArchivePageLimitSchema.Type;
+
+export const ListArchivedDocumentsSchema = Schema.Struct({
+  cursor: Schema.OptionFromNullishOr(ArchiveDocumentCursorSchema),
+  limit: ArchivePageLimitSchema,
+});
+
+export type ListArchivedDocuments = typeof ListArchivedDocumentsSchema.Type;
+
+export const ListArchivedDocumentsRequestSchema = Schema.Struct({
+  ...ListArchivedDocumentsSchema.fields,
+  profileId: ProfileIdSchema,
+});
+
+export type ListArchivedDocumentsRequest =
+  typeof ListArchivedDocumentsRequestSchema.Type;
+
+export const ArchivedDocumentSchema = Schema.Struct({
+  archivedAt: TimestampMillisSchema,
+  document: InvoiceDocumentSchema,
+  path: Schema.OptionFromNullishOr(Schema.String),
+});
+
+export type ArchivedDocument = typeof ArchivedDocumentSchema.Type;
+
+export const ArchivedDocumentsSchema = Schema.Struct({
+  documents: Schema.Array(ArchivedDocumentSchema),
+  next: Schema.OptionFromNullishOr(ArchiveDocumentCursorSchema),
+  total: CountSchema,
+});
+
+export type ArchivedDocuments = typeof ArchivedDocumentsSchema.Type;

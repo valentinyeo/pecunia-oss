@@ -7,6 +7,11 @@ import type {
   ArchivePlaceDraft,
   DocumentId,
   InvoiceDocument,
+  InvoiceException,
+  InvoiceFile,
+  InvoiceSource,
+  InvoiceSourceDraft,
+  InvoiceSourceId,
   Payment,
   ProfileId,
   TransactionId,
@@ -15,6 +20,18 @@ import type {
 export class InvoiceStore extends Context.Service<
   InvoiceStore,
   {
+    readonly createDocument: (
+      profileId: ProfileId,
+      file: InvoiceFile
+    ) => Effect.Effect<InvoiceDocument, InvoiceStoreError>;
+    readonly deleteDocument: (
+      profileId: ProfileId,
+      documentId: DocumentId
+    ) => Effect.Effect<void, InvoiceStoreError>;
+    readonly deleteSource: (
+      profileId: ProfileId,
+      sourceId: InvoiceSourceId
+    ) => Effect.Effect<boolean, InvoiceStoreError>;
     readonly document: (
       profileId: ProfileId,
       documentId: DocumentId
@@ -22,6 +39,9 @@ export class InvoiceStore extends Context.Service<
     readonly documents: (
       profileId: ProfileId
     ) => Effect.Effect<readonly InvoiceDocument[], InvoiceStoreError>;
+    readonly exceptions: (
+      profileId: ProfileId
+    ) => Effect.Effect<readonly InvoiceException[], InvoiceStoreError>;
     readonly payment: (
       profileId: ProfileId,
       transactionId: TransactionId
@@ -36,9 +56,20 @@ export class InvoiceStore extends Context.Service<
       profileId: ProfileId,
       document: InvoiceDocument
     ) => Effect.Effect<InvoiceDocument, InvoiceStoreError>;
+    readonly saveException: (
+      profileId: ProfileId,
+      exception: InvoiceException
+    ) => Effect.Effect<InvoiceException, InvoiceStoreError>;
     readonly savePlace: (
       profileId: ProfileId,
       draft: ArchivePlaceDraft
     ) => Effect.Effect<ArchivePlace, InvoiceStoreError>;
+    readonly saveSource: (
+      profileId: ProfileId,
+      draft: InvoiceSourceDraft
+    ) => Effect.Effect<InvoiceSource, InvoiceStoreError>;
+    readonly sources: (
+      profileId: ProfileId
+    ) => Effect.Effect<readonly InvoiceSource[], InvoiceStoreError>;
   }
 >()("@pecunia/invoices/InvoiceStore") {}

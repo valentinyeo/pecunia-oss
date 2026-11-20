@@ -1,5 +1,5 @@
 import { toRpcGroup } from "@pecunia/capability/rpc-group";
-import { Result, Schema } from "effect";
+import { Option, Result, Schema } from "effect";
 import { expect, it } from "vitest";
 
 import { invoiceCapabilities } from "../src/capabilities.js";
@@ -9,12 +9,18 @@ import {
   ArchivePlaceIdSchema,
   ArchiveStateSchema,
   AttachInvoiceRequestSchema,
+  DeleteInvoiceSourceRequestSchema,
   InvoiceDocumentSchema,
+  ListArchivedDocumentsRequestSchema,
   MatchInvoicesRequestSchema,
   ReadArchivePlacesRequestSchema,
+  ReadInvoiceStatusRequestSchema,
   RecordInvoiceArchiveRequestSchema,
+  RecordInvoiceExceptionRequestSchema,
+  RegisterLegacyInvoicesRequestSchema,
   ReserveInvoiceArchiveRequestSchema,
   SaveArchivePlaceRequestSchema,
+  SaveInvoiceSourceRequestSchema,
   TimestampMillisSchema,
 } from "../src/model.js";
 import type { ArchiveState } from "../src/model.js";
@@ -272,6 +278,17 @@ it("projects every invoice contract onto one rpc group", () => {
     "saveArchivePlace",
     "reserveInvoiceArchive",
     "recordInvoiceArchive",
+    "listInvoiceStatus",
+    "countInvoiceCoverage",
+    "recordInvoiceException",
+    "readInvoiceSources",
+    "saveInvoiceSource",
+    "deleteInvoiceSource",
+    "saveInvoiceFile",
+    "registerLegacyInvoices",
+    "readInvoiceDocument",
+    "removeInvoiceDocument",
+    "listArchivedDocuments",
   ]);
 
   expect(
@@ -279,21 +296,192 @@ it("projects every invoice contract onto one rpc group", () => {
   ).toEqual([...group.requests.keys()]);
 });
 
-it("marks the invoice reads read-only and names the idempotent writes", () => {
-  const annotations = Object.fromEntries(
-    invoiceContracts.map((contract) => [contract.name, contract.annotations])
+const contractsNamed = (property: "destructive" | "idempotent" | "readOnly") =>
+  invoiceContracts
+    .filter((contract) => contract.annotations[property])
+    .map((contract) => contract.name);
+
+it("marks every read read-only and names the destructive writes", () => {
+  expect(contractsNamed("readOnly")).toEqual([
+    "matchInvoices",
+    "readArchivePlaces",
+    "listInvoiceStatus",
+    "countInvoiceCoverage",
+    "readInvoiceSources",
+    "readInvoiceDocument",
+    "listArchivedDocuments",
+  ]);
+
+  expect(contractsNamed("destructive")).toEqual([
+    "deleteInvoiceSource",
+    "removeInvoiceDocument",
+  ]);
+
+  expect(contractsNamed("idempotent")).toEqual(
+    expect.arrayContaining([
+      "attachInvoice",
+      "matchInvoices",
+      "readArchivePlaces",
+      "saveArchivePlace",
+      "reserveInvoiceArchive",
+      "recordInvoiceArchive",
+      "listInvoiceStatus",
+      "countInvoiceCoverage",
+      "recordInvoiceException",
+      "readInvoiceSources",
+      "saveInvoiceSource",
+      "saveInvoiceFile",
+      "registerLegacyInvoices",
+      "readInvoiceDocument",
+      "listArchivedDocuments",
+    ])
+  );
+});
+
+const legacyFile = {
+  amount: { currency: "EUR", minor: 1200 },
+  contentType: "application/pdf",
+  documentDate: "2024-11-04",
+  documentType: "invoice",
+  originalFilename: "  demo-legacy-2024.pdf ",
+  r2Key: "documents/demo-legacy-2024.pdf",
+  sha256: "8".repeat(64),
+  sizeBytes: 2048,
+  source: "legacy_upload",
+  sourceRef: null,
+  vendorPayeeId: null,
+} as const;
+
+const retrieval = {
+  bookkeeper: false,
+  email: false,
+  portal: true,
+  twoFactor: false,
+} as const;
+
+const decodeSource = (value: typeof SaveInvoiceSourceRequestSchema.Encoded) =>
+  Schema.decodeResult(SaveInvoiceSourceRequestSchema)(value);
+
+const decodeArchivePage = (
+  value: typeof ListArchivedDocumentsRequestSchema.Encoded
+) => Schema.decodeResult(ListArchivedDocumentsRequestSchema)(value);
+
+const decodeDeleteSource = (
+  value: typeof DeleteInvoiceSourceRequestSchema.Encoded
+) => Schema.decodeResult(DeleteInvoiceSourceRequestSchema)(value);
+
+const decodeLegacy = (
+  value: typeof RegisterLegacyInvoicesRequestSchema.Encoded
+) => Schema.decodeResult(RegisterLegacyInvoicesRequestSchema)(value);
+
+const decodeStatus = (value: typeof ReadInvoiceStatusRequestSchema.Encoded) =>
+  Schema.decodeResult(ReadInvoiceStatusRequestSchema)(value);
+
+const decodeException = (
+  value: typeof RecordInvoiceExceptionRequestSchema.Encoded
+) => Schema.decodeResult(RecordInvoiceExceptionRequestSchema)(value);
+
+const sourceRequest = {
+  loginHint: "  demo@example.com ",
+  notes: null,
+  pattern: "  Demo Cloud Hosting  ",
+  portalUrl: null,
+  profileId: demoProfile,
+  retrieval,
+  vendorPayeeId: null,
+};
+
+it("trims and parses an invoice source request at the boundary", () => {
+  const parsed = decodeSource(sourceRequest);
+
+  expect(Result.isSuccess(parsed)).toBe(true);
+
+  if (Result.isSuccess(parsed)) {
+    expect(parsed.success.pattern).toBe("Demo Cloud Hosting");
+    expect(parsed.success.loginHint).toEqual(Option.some("demo@example.com"));
+    expect(Option.isNone(parsed.success.vendorPayeeId)).toBe(true);
+  }
+
+  const exception = decodeException({
+    profileId: demoProfile,
+    reason: "  No invoice was issued. ",
+    transactionId: demoPayment,
+  });
+
+  expect(Result.isSuccess(exception)).toBe(true);
+
+  if (Result.isSuccess(exception)) {
+    expect(exception.success.reason).toBe("No invoice was issued.");
+  }
+
+  const month = decodeStatus({ month: "2025-03", profileId: demoProfile });
+
+  expect(Result.isSuccess(month)).toBe(true);
+
+  if (Result.isSuccess(month)) {
+    expect(month.success.month).toEqual(Option.some("2025-03"));
+  }
+
+  const page = decodeArchivePage({
+    cursor: { archivedAt: 1_738_659_600_000, documentId: demoReceipt },
+    limit: 200,
+    profileId: demoProfile,
+  });
+
+  expect(Result.isSuccess(page)).toBe(true);
+
+  if (Result.isSuccess(page)) {
+    expect(page.success.limit).toBe(200);
+  }
+
+  const legacy = decodeLegacy({ files: [legacyFile], profileId: demoProfile });
+
+  expect(Result.isSuccess(legacy)).toBe(true);
+
+  if (Result.isSuccess(legacy)) {
+    expect(legacy.success.files[0]?.originalFilename).toBe(
+      "demo-legacy-2024.pdf"
+    );
+  }
+});
+
+it("refuses every illegal invoice request at the boundary", () => {
+  expect(decodeSource({ ...sourceRequest, pattern: "   " })._tag).toBe(
+    "Failure"
   );
 
-  expect(annotations.matchInvoices?.readOnly).toBe(true);
-  expect(annotations.readArchivePlaces?.readOnly).toBe(true);
+  expect(
+    decodeException({
+      profileId: demoProfile,
+      reason: "   ",
+      transactionId: demoPayment,
+    })._tag
+  ).toBe("Failure");
 
-  expect(annotations.attachInvoice?.idempotent).toBe(true);
-  expect(annotations.saveArchivePlace?.idempotent).toBe(true);
-  expect(annotations.reserveInvoiceArchive?.idempotent).toBe(true);
-  expect(annotations.recordInvoiceArchive?.idempotent).toBe(true);
+  expect(decodeStatus({ month: "2025-13", profileId: demoProfile })._tag).toBe(
+    "Failure"
+  );
 
-  expect(annotations.attachInvoice?.readOnly).toBe(false);
-  expect(annotations.saveArchivePlace?.readOnly).toBe(false);
-  expect(annotations.reserveInvoiceArchive?.readOnly).toBe(false);
-  expect(annotations.recordInvoiceArchive?.readOnly).toBe(false);
+  expect(
+    decodeArchivePage({ cursor: null, limit: 0, profileId: demoProfile })._tag
+  ).toBe("Failure");
+
+  expect(
+    decodeArchivePage({ cursor: null, limit: 201, profileId: demoProfile })._tag
+  ).toBe("Failure");
+
+  expect(
+    decodeDeleteSource({ profileId: demoProfile, sourceId: "" })._tag
+  ).toBe("Failure");
+
+  expect(decodeLegacy({ files: [], profileId: demoProfile })._tag).toBe(
+    "Failure"
+  );
+
+  expect(
+    decodeLegacy({
+      files: [{ ...legacyFile, sha256: "not-a-fingerprint" }],
+      profileId: demoProfile,
+    })._tag
+  ).toBe("Failure");
 });

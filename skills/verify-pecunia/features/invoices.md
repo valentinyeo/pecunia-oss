@@ -1,6 +1,6 @@
 # Invoices
 
-Status: partly built. Six capabilities exist in `packages/invoices` with their checks, against the memory store. No D1 adapter, screen, MCP tool, or CLI command reaches them yet.
+Status: partly built. Seventeen capabilities exist in `packages/invoices` with their checks, against the memory store. No D1 adapter, screen, MCP tool, or CLI command reaches them yet.
 
 ## What it promises
 
@@ -20,21 +20,32 @@ Status: partly built. Six capabilities exist in `packages/invoices` with their c
 - `saveArchivePlace` (`packages/invoices/src/capabilities.ts`) saves the profile's place for one provider. Saving again keeps the place id and replaces its root and blocklist. The root and every entry are trimmed, a blank entry fails, and a repeated entry fails.
 - `reserveInvoiceArchive` (`packages/invoices/src/capabilities.ts`) moves an unarchived or failed document to `Reserved` with the file id and place it was written to. The same file in the same place twice returns it unchanged, a different file or place fails with `ArchiveStateRefused`, a place whose provider is `none` fails with `ArchivePlaceUnavailable`, and an unknown place fails with `UnknownArchivePlace`.
 - `recordInvoiceArchive` (`packages/invoices/src/capabilities.ts`) records the outcome of a reserved file. `Archived` stamps the instant the file landed and keeps the place and file id, and recording it again keeps the first instant. `Failed` keeps the written reason and clears the place and file id, and the same reason recorded twice returns the document unchanged. Every other move is refused with `ArchiveStateRefused`, which names the state the document is in (`from`) and the state it was asked to reach (`to`).
+- `listInvoiceStatus` (`packages/invoices/src/capabilities.ts`) lists the profile's outgoing payments newest first, each with a tagged status: `Archived` when an attached document is archived, `Invoiced` when it holds a document that is not archived yet, `Excepted` when a written reason stands in for the document, and `Missing` otherwise. A month narrows the list, `missingCount` counts the missing rows, and incoming and neutral payments never appear.
+- `countInvoiceCoverage` (`packages/invoices/src/capabilities.ts`) returns one row per month, newest first, with the payment count and how many of those are invoiced, excepted or missing. The three counts add up to the month's total because all four come from the same rows.
+- `recordInvoiceException` (`packages/invoices/src/capabilities.ts`) stores one trimmed written reason, at most 500 characters, for one outgoing payment with no invoice, and replaces an earlier reason. A blank or overlong reason fails with `InvoiceExceptionRefused` and names the length and the limit, a payment that already holds an invoice fails with `InvoiceAlreadyInvoiced`, and an incoming or neutral payment fails with `InvoiceNotPayable`.
+- `readInvoiceSources` (`packages/invoices/src/capabilities.ts`) lists where each vendor's invoices come from: the merchant pattern, the vendor payee, the retrieval route (portal, email, bookkeeper, two factor), and the optional portal URL, login hint and note.
+- `saveInvoiceSource` (`packages/invoices/src/capabilities.ts`) saves one source per profile and pattern, matched ignoring case, so saving the same pattern again keeps its id and replaces the vendor, route and links. A pattern is trimmed and must be non-blank, and a vendor payee the profile's payments do not carry fails with `UnknownVendorPayee`.
+- `deleteInvoiceSource` (`packages/invoices/src/capabilities.ts`) deletes one source by its id. The payments and documents already stored are untouched, and an unknown id fails with `UnknownInvoiceSource`.
+- `saveInvoiceFile` (`packages/invoices/src/capabilities.ts`) stores one file once per profile under its SHA-256 fingerprint and attaches it to one payment, returning the stored document instead of a second copy, and refusing to move a document already attached to another payment.
+- `registerLegacyInvoices` (`packages/invoices/src/capabilities.ts`) registers up to 200 files that predate the archive in one call and answers each with `Stored` or `Existing`, so a repeated fingerprint never stores a second copy. A batch of 201 files, or a file missing a field the book stores, fails with `LegacyFilesRefused` and names the count and the limit.
+- `readInvoiceDocument` (`packages/invoices/src/capabilities.ts`) returns one stored document with its storage key, content type, size, fingerprint, payment, and its path in the place's folder tree once archived. The bytes stay in the object store at the storage key.
+- `removeInvoiceDocument` (`packages/invoices/src/capabilities.ts`) deletes one stored document so its payment needs an invoice again. A copy already written into an archive place is left where it is, and an unknown document fails with `UnknownInvoice`.
+- `listArchivedDocuments` (`packages/invoices/src/capabilities.ts`) pages through archived documents newest archive instant first, then document id ascending, with a cursor carrying the instant and id of the last row, so a walk repeats nothing and drops nothing. A page holds between 1 and 200 documents.
 
-All six are implemented and tested at the package level in `packages/invoices/test/`: the demo book through the handlers, every boundary schema, and 600-case runs over dates, amounts, matching, archive transitions, and blocklists. Every read needs the `read` scope and every write the `write` scope, so a viewer gets `Forbidden` from a write and a person with no membership gets `Forbidden` from a read.
+All seventeen are implemented and tested at the package level in `packages/invoices/test/`: the demo book through the handlers, every boundary schema, and 600-case runs over dates, amounts, matching, archive transitions, and blocklists. Every read needs the `read` scope and every write the `write` scope, so a viewer gets `Forbidden` from a write and a person with no membership gets `Forbidden` from a read. A request field the contract cannot decode fails with `InvalidInvoiceRequest`, which names the capability, the field path, the schema's own problem sentence in `problem`, and a generic `fix` that starts with `Fix:`, all in plain strings only, never a branded id built from the bad input. `InvoiceExceptionRefused` and `LegacyFilesRefused` still answer when they name the rule better.
 
 ## Not built
 
 - A D1 adapter. `InvoiceStore` has one adapter, the memory store in `packages/invoices/src/memory.ts`, so nothing survives a restart. The tables exist in `packages/database` and no code maps them yet.
 - A screen. No route shows a payment's documents, the proposals, or an archive state.
-- An MCP, CLI, or RPC mount. No app lists these six capabilities, so no client reaches one.
+- An MCP, CLI, or RPC mount. No app lists these seventeen capabilities, so no client reaches one.
 - A real Google Drive call. The package records the file id and the state a file reached. It never uploads bytes and holds no Drive client, token, or folder lookup.
-- Upload, download, and past-payment ports. `InvoiceStore` reads payments for matching and nothing else: no port stores a file, reads one back, or lists the payments that still need a document. The invoice exception is still a database row with no capability.
+- Upload, download, and past-payment ports. `InvoiceStore` reads payments for matching and nothing else: no port stores a file or reads one back.
 - A second writer per profile. `attachInvoice`, `reserveInvoiceArchive`, and `recordInvoiceArchive` read the document, check the rule, then save. The memory adapter serializes writes but not the read before them, so it assumes one writer per profile. The D1 adapter has to close that gap with conditional writes: attach as `UPDATE invoice_documents SET transaction_id = ? WHERE profile_id = ? AND id = ? AND transaction_id IS NULL`, and each archive step as a `WHERE archive_state = <expected tag>` update. Until then, do not run two writers against one profile.
 
 ## How to get to it (user POV)
 
-Today: nowhere in the app. The six capabilities answer through the package handlers against the demo fixtures, and nothing mounts them.
+Today: nowhere in the app. The seventeen capabilities answer through the package handlers against the demo fixtures, and nothing mounts them.
 
 Planned: the invoices section of the app, with a payment's documents, the proposals waiting for a decision, and the archive state of each document. The slice that adds it names the route, and the same capabilities reach MCP and the CLI.
 
@@ -58,7 +69,7 @@ Checks this drive runs, on top of the four cross-cutting money checks:
 ## Proof a pull request must attach
 
 1. The demo-book run for this feature with a fresh label, and its evidence committed.
-2. For a change to any of the six capabilities: the package test that covers it (`pnpm exec vitest run --root packages/invoices`), plus the property case when the change touches dates, amounts, matching, or an archive transition.
+2. For a change to any of the seventeen capabilities: the package test that covers it (`pnpm exec vitest run --root packages/invoices`), plus the property case when the change touches dates, amounts, matching, or an archive transition.
 3. For the screen slice: the payment on screen with its documents, their amounts and hashes, next to the stored rows.
 4. For the archive slice: the file id, the place, and the state after each step, read back through the store. A hash in the row is not proof that the file exists.
 5. For the D1 adapter: the numbered migration, the conditional write behind attach and each archive step, and the same checks run against D1. A memory adapter proves a rule, not a schema constraint.

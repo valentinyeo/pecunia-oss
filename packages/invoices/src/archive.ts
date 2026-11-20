@@ -1,5 +1,7 @@
-import { Match, Predicate, Result } from "effect";
+import { Match, Option, Predicate, Result } from "effect";
 
+import { ArchivePathBlocked } from "./archive-path-blocked.js";
+import { archivePathOf, pathBlockedBy } from "./archive-path.js";
 import { ArchivePlaceUnavailable } from "./archive-place-unavailable.js";
 import { ArchiveStateRefused } from "./archive-state-refused.js";
 import { ArchiveStateSchema } from "./model.js";
@@ -46,7 +48,7 @@ export const reserveArchive = (
   fileId: string
 ): Result.Result<
   InvoiceDocument,
-  ArchivePlaceUnavailable | ArchiveStateRefused
+  ArchivePathBlocked | ArchivePlaceUnavailable | ArchiveStateRefused
 > => {
   if (place.provider === "none") {
     return Result.fail(
@@ -57,6 +59,23 @@ export const reserveArchive = (
         provider: place.provider,
         repair:
           "Save an archive place with provider `drive` or `local` with `saveArchivePlace` before archiving.",
+      })
+    );
+  }
+
+  const path = archivePathOf(place, document);
+  const blocked = pathBlockedBy(path, place.blocklist);
+
+  if (Option.isSome(blocked)) {
+    return Result.fail(
+      new ArchivePathBlocked({
+        documentId: document.id,
+        entry: blocked.value,
+        message: `Archive path ${path} is blocked by ${blocked.value} in place ${place.id}.`,
+        path,
+        profileId: document.profileId,
+        repair:
+          "Remove the entry from the place blocklist with `saveArchivePlace`, or archive this document in another place.",
       })
     );
   }
