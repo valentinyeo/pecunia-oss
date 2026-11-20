@@ -279,7 +279,8 @@ const ACCOUNT_BARE_FOLLOW = /^\s*(?:number|num|no|nr|is)\b/iu;
 const SORT_CODE_LABEL =
   /\b(?:the\s+)?(?:sort[ _-]?code|sortcode)(?:\s+is)?\b/giu;
 
-const ACCOUNT_NUMBER_LABEL = /\baccount[ _-]?(?:number|num|no|nr)\b/giu;
+const ACCOUNT_NUMBER_LABEL =
+  /\baccount[ _-]?[:=]?[ _-]?(?:number|num|no|nr)\b/giu;
 
 const ACCOUNT_AC_LABEL = /\ba\/c\b/giu;
 
@@ -566,9 +567,7 @@ const viewSource = (
 
   const gapAt = (position: number) => {
     if (offsets === undefined) {
-      return parent === undefined
-        ? text.slice(at(position) + 1, at(position + 1))
-        : "";
+      return "";
     }
 
     return (parent ?? "").slice(

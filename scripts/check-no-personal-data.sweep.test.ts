@@ -196,6 +196,10 @@ const spacerSortCode = ["20", "45", "67"].join("-");
 
 const spacerAccount = ["1029", "3847"].join("");
 
+const FIRST_AMOUNT_PARTS = ["48", "000"];
+
+const SECOND_AMOUNT_PARTS = ["116", "10"];
+
 const QUIET_CASES: readonly (readonly [string, string, string])[] = [
   [
     "a balance beside a ticket number",
@@ -394,8 +398,8 @@ const QUIET_CASES: readonly (readonly [string, string, string])[] = [
     [
       "| Account | Date | Amount |",
       "| --- | --- | --- |",
-      `| current | 2026-01-06 | 48${"000"} |`,
-      `| savings | 2026-01-12 | 116${"10"} |`,
+      `| current | 2026-01-06 | ${FIRST_AMOUNT_PARTS.join("")} |`,
+      `| savings | 2026-01-12 | ${SECOND_AMOUNT_PARTS.join("")} |`,
     ].join("\n"),
   ],
 

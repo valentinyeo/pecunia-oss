@@ -51,6 +51,11 @@ const bankSample = (sortCodeValue: string, accountValue: string) =>
     "};",
   ].join("\n");
 
+const pairProse = (repeats: number) => "demo reference note ".repeat(repeats);
+
+const pairAcross = (repeats: number) =>
+  `sort code ${sortCode("-")} ${pairProse(repeats)} account number ${accountNumber("")}`;
+
 describe("planted personal data fails", () => {
   it("fails on an International Bank Account Number", () => {
     expect(
@@ -410,6 +415,43 @@ describe("a sort code and an account number in any written form fail", () => {
     ];
 
     expect(lineOf("apps/site/src/profile.ts", sample.join("\n"))).toEqual([1]);
+  });
+
+  it("reads a label whose noun and word are separated by a colon", () => {
+    const sample = [
+      `Account: sort code ${sortCode("-")}`,
+      `Account: number ${accountNumber("")}`,
+    ];
+
+    expect(ruleOf("docs/payments.md", sample.join("\n"))).toEqual([
+      "bank-account",
+    ]);
+  });
+});
+
+describe("a labelled pair spans only the documented gap", () => {
+  it("fails on a labelled pair 1400 characters apart", () => {
+    expect(ruleOf("docs/payments.md", pairAcross(70))).toEqual([
+      "bank-account",
+    ]);
+  });
+
+  it("passes on a labelled pair 3200 characters apart", () => {
+    expect(ruleOf("docs/payments.md", pairAcross(160))).toEqual([]);
+  });
+});
+
+describe("a wrapper the guard does not read", () => {
+  it("passes when a markup fragment with no closing bracket cuts the account number", () => {
+    const sample = `sort code ${sortCode("-")} account number 102<93847`;
+
+    expect(ruleOf("docs/payments.md", sample)).toEqual([]);
+  });
+
+  it("passes when a markup fragment with no closing bracket cuts a label", () => {
+    const sample = `sort co<span de ${sortCode("-")} account number ${accountNumber("")}`;
+
+    expect(ruleOf("docs/payments.md", sample)).toEqual([]);
   });
 });
 
