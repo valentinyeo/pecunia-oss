@@ -1,8 +1,9 @@
 import { authorize } from "@pecunia/access";
 import type { Person } from "@pecunia/access";
-import { ProfileIdSchema } from "@pecunia/core/model";
 import type { ProfileId } from "@pecunia/core/model";
 import { Effect, Schema } from "effect";
+
+import { ProfileIdSchema } from "./model.js";
 
 export const ReadScopeSchema = Schema.Struct({
   access: Schema.Literals(["read"]),

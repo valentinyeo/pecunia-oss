@@ -1,6 +1,7 @@
 import type { ProfileId, TaxProfileId } from "@pecunia/core/model";
-import { ProfileIdSchema, TaxProfileIdSchema } from "@pecunia/core/model";
 import { Schema } from "effect";
+
+import { ProfileIdSchema, TaxProfileIdSchema } from "./model.js";
 
 export class UnknownTaxProfile extends Schema.TaggedError<
   UnknownTaxProfile,

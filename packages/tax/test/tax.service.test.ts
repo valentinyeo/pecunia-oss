@@ -1,4 +1,5 @@
 import { expect, it } from "@effect/vitest";
+import type { TaxObligation } from "@pecunia/core/model";
 import { Effect, Predicate, Ref } from "effect";
 
 import { listTaxDues, syncTaxDues } from "../src/capabilities.js";
@@ -16,6 +17,7 @@ import {
   owner,
   scriptedBooks,
   stranger,
+  vatDue,
   viewer,
 } from "./support.js";
 
@@ -46,15 +48,24 @@ const demoPayments = demoFreeAgentDues.self_assessment_payments;
 const withPayload = <A, E, R>(
   body: (payload: Ref.Ref<unknown>) => Effect.Effect<A, E, R>,
   // oxlint-disable-next-line anti-slop/no-unknown-parameters -- a recorded books-tool answer is untrusted; the scripted adapter parses it at the boundary.
-  start: unknown
+  start: unknown,
+  seeded: readonly TaxObligation[] = []
 ) =>
   Effect.gen(function* runWithPayload() {
     const payload = yield* Ref.make<unknown>(start);
 
     return yield* body(payload).pipe(
-      Effect.provide(layerFor(owner, scriptedBooks(Ref.get(payload))))
+      Effect.provide(layerFor(owner, scriptedBooks(Ref.get(payload)), seeded))
     );
   });
+
+const selfAssessmentPayment = {
+  amount_due: "10.00",
+  currency: "GBP",
+  due_on: "2026-01-31",
+  period_ends_on: "2025-04-05",
+  status: "unpaid",
+};
 
 it.effect("removes a Self Assessment payment that disappeared upstream", () =>
   withPayload(
@@ -85,6 +96,66 @@ it.effect("removes a Self Assessment payment that disappeared upstream", () =>
         expect(stored.dues.map((due) => due.dueOn)).toEqual(["2026-01-31"]);
       }),
     demoFreeAgentDues
+  )
+);
+
+it.effect("replaces only the kinds the books tool reports", () =>
+  withPayload(
+    (payload) =>
+      Effect.gen(function* keepVatAlongsideSelfAssessment() {
+        const before = yield* list(demoProfileId);
+
+        expect(before.dues.map((due) => due.kind)).toEqual(["vat"]);
+
+        const first = yield* sync(demoTaxProfile.id);
+
+        expect(first).toEqual({
+          inserted: 1,
+          removed: 0,
+          unchanged: 0,
+          updated: 0,
+        });
+
+        const synced = yield* list(demoProfileId);
+
+        expect(synced.dues.map((due) => due.kind)).toEqual([
+          "vat",
+          "SelfAssessment",
+        ]);
+
+        expect(synced.dues[0]).toEqual(vatDue);
+
+        expect(synced.dues[1]?.amount).toEqual({
+          currency: "GBP",
+          minor: 1000,
+        });
+
+        const again = yield* sync(demoTaxProfile.id);
+
+        expect(again).toEqual({
+          inserted: 0,
+          removed: 0,
+          unchanged: 1,
+          updated: 0,
+        });
+
+        expect((yield* list(demoProfileId)).dues).toEqual(synced.dues);
+
+        yield* Ref.set(payload, payloadOf());
+
+        const gone = yield* sync(demoTaxProfile.id);
+
+        expect(gone).toEqual({
+          inserted: 0,
+          removed: 1,
+          unchanged: 0,
+          updated: 0,
+        });
+
+        expect((yield* list(demoProfileId)).dues).toEqual([vatDue]);
+      }),
+    payloadOf(selfAssessmentPayment),
+    [vatDue]
   )
 );
 

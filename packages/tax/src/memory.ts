@@ -10,7 +10,7 @@ import type {
 import { Clock, DateTime, Effect, Layer, SynchronizedRef } from "effect";
 import * as SecureRandom from "effect/crypto/SecureRandom";
 
-import { declarationKey, ownedBy, sameAmountAndStatus } from "./dues.js";
+import { declarationKey, replacedBy, sameAmountAndStatus } from "./dues.js";
 import type { DueOwner } from "./dues.js";
 import type { DueDeclaration, SyncReceipt } from "./model.js";
 import { TaxDueStore } from "./store.js";
@@ -61,7 +61,7 @@ const reconcile = (
   at: Timestamp
 ): readonly [SyncReceipt, TaxDueSeed] => {
   const declarations = declaredOnce(request.declarations);
-  const existing = seed.dues.filter((due) => ownedBy(due, request));
+  const existing = seed.dues.filter((due) => replacedBy(due, request));
 
   const byKey = new Map(
     existing.map((due) => [declarationKey(due), due] as const)
@@ -103,7 +103,7 @@ const reconcile = (
     (due) => !declaredKeys.has(declarationKey(due))
   ).length;
 
-  const kept = seed.dues.filter((due) => !ownedBy(due, request));
+  const kept = seed.dues.filter((due) => !replacedBy(due, request));
 
   return [
     { inserted, removed, unchanged, updated },
@@ -159,7 +159,7 @@ export const makeMemoryTaxDueStore = (
 
           const existing = new Set(
             current.dues
-              .filter((due) => ownedBy(due, request))
+              .filter((due) => replacedBy(due, request))
               .map(declarationKey)
           );
 
@@ -194,13 +194,20 @@ export const seededMemoryTaxDueStoreLayer = (input: {
     Effect.gen(function* seedDemoStore() {
       const store = yield* TaxDueStore;
 
-      yield* store
-        .replace({
-          declarations: input.declarations,
-          profileId: input.owner.profileId,
-          taxProfileId: input.owner.taxProfileId,
-        })
-        .pipe(Effect.orDie);
+      const reportedKinds = [
+        ...new Set(input.declarations.map((declaration) => declaration.kind)),
+      ];
+
+      if (reportedKinds.length > 0) {
+        yield* store
+          .replace({
+            declarations: input.declarations,
+            profileId: input.owner.profileId,
+            reportedKinds,
+            taxProfileId: input.owner.taxProfileId,
+          })
+          .pipe(Effect.orDie);
+      }
 
       return store;
     })

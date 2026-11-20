@@ -1,16 +1,25 @@
 import { CurrentPerson, PersonSchema } from "@pecunia/access";
 import type { Person } from "@pecunia/access";
-import { codecs, parse, TaxObligationStatusSchema } from "@pecunia/core/model";
-import type { ProfileId, TaxObligation, TaxProfile } from "@pecunia/core/model";
+import { codecs, parse } from "@pecunia/core/model";
+import type {
+  ProfileId,
+  TaxObligation,
+  TaxObligationStatus,
+  TaxProfile,
+} from "@pecunia/core/model";
 import { Effect, Layer, Schema } from "effect";
 import * as SecureRandom from "effect/crypto/SecureRandom";
 
 import { demoProfileId, demoTaxProfile } from "../src/demo.js";
-import { parseFreeAgentDues } from "../src/freeagent.js";
+import { parseFreeAgentAnswer } from "../src/freeagent.js";
 import { memoryTaxDueStoreLayer } from "../src/memory.js";
+import { TaxObligationStatusSchema } from "../src/model.js";
 import { TaxDueService } from "../src/service.js";
 import { TaxBooks } from "../src/tax-books.js";
 import type { TaxBooksService } from "../src/tax-books.js";
+
+export const estimatedStatus = (booksStatus: string): TaxObligationStatus =>
+  TaxObligationStatusSchema.cases.Estimated.make({ booksStatus });
 
 export const otherProfileId: ProfileId = parse(
   codecs.profileId,
@@ -33,11 +42,22 @@ export const otherDue: TaxObligation = parse(codecs.taxObligation, {
   label: "Self Assessment",
   periodEndsOn: "2025-12-31",
   profileId: otherProfileId,
-  status: TaxObligationStatusSchema.cases.Estimated.make({
-    booksStatus: "unpaid",
-  }),
+  status: estimatedStatus("unpaid"),
   syncedAt: "2026-01-01T00:00:00.000Z",
   taxProfileId: otherTaxProfile.id,
+});
+
+export const vatDue: TaxObligation = parse(codecs.taxObligation, {
+  amount: { currency: "EUR", minor: 312_500 },
+  dueOn: "2025-11-07",
+  id: "0192f0c1-0044-7a1b-9c2d-3e4f5a6b7c8d",
+  kind: "vat",
+  label: "VAT",
+  periodEndsOn: "2025-09-30",
+  profileId: demoProfileId,
+  status: estimatedStatus("unpaid"),
+  syncedAt: "2026-01-01T00:00:00.000Z",
+  taxProfileId: demoTaxProfile.id,
 });
 
 export const owner = Schema.decodeSync(PersonSchema)({
@@ -84,14 +104,15 @@ export const deterministicRandom =
 
 export const layerFor = (
   person: Person,
-  books: TaxBooksService
+  books: TaxBooksService,
+  seeded: readonly TaxObligation[] = []
 ): Layer.Layer<TaxDueService | CurrentPerson> =>
   Layer.mergeAll(
     TaxDueService.layer.pipe(
       Layer.provide(
         Layer.mergeAll(
           memoryTaxDueStoreLayer({
-            dues: [otherDue],
+            dues: [...seeded, otherDue],
             taxProfiles: [demoTaxProfile, otherTaxProfile],
           }),
           Layer.succeed(TaxBooks, books)
@@ -107,6 +128,6 @@ export const scriptedBooks = (
   booksTool: "freeagent",
   fetchDues: () =>
     payload.pipe(
-      Effect.flatMap((value) => Effect.fromResult(parseFreeAgentDues(value)))
+      Effect.flatMap((value) => Effect.fromResult(parseFreeAgentAnswer(value)))
     ),
 });

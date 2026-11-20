@@ -7,13 +7,14 @@ import type {
 import { Context } from "effect";
 import type { Effect } from "effect";
 
-import type { DueDeclaration, SyncReceipt } from "./model.js";
+import type { DueDeclaration, ReportedKinds, SyncReceipt } from "./model.js";
 import type { TaxDueStoreError } from "./tax-due-store-error.js";
 import type { UnknownTaxProfile } from "./unknown-tax-profile.js";
 
 export interface ReplaceDuesRequest {
   readonly declarations: readonly DueDeclaration[];
   readonly profileId: ProfileId;
+  readonly reportedKinds: ReportedKinds;
   readonly taxProfileId: TaxProfileId;
 }
 

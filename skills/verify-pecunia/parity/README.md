@@ -213,7 +213,7 @@ Every place the old app put a behaviour. A place with no row is a behaviour nobo
 | Daily exchange rates from a public rates service, cached for the day | sync: exchange rates | planned | no ticket yet |
 | Share prices from one market source, with a second source for crypto | sync: market prices | planned | ticket:SOFT-2396 |
 | Holdings and their quantities come from the broker's own API | sync: broker holdings | planned | ticket:SOFT-2396 |
-| Self Assessment payments due come from the accounting provider, and a payment that disappears upstream is removed | sync: tax dues | planned | no ticket yet |
+| Self Assessment payments due come from the accounting provider, and a payment that disappears upstream is removed | sync: tax dues | built | capability:syncTaxDues |
 | A statement export file is imported into one account | import: bank csv | built | capability:importBankFile |
 | Importing the same file again adds no second copy of a line | import: bank csv | built | capability:importBankFile |
 | A line the importer cannot read is named by its line number and the reason | import: bank csv | built | capability:importBankFile |
@@ -229,7 +229,7 @@ Every place the old app put a behaviour. A place with no row is a behaviour nobo
 | An assistant asks for spend by category over a date range | tool: spending summary | planned | no ticket yet |
 | An assistant asks what changed since a point in time | tool: changes list | planned | no ticket yet |
 | An assistant asks whether a sync is running | tool: sync status | planned | no ticket yet |
-| An assistant asks for the Self Assessment payments due | tool: tax due | planned | no ticket yet |
+| An assistant asks for the Self Assessment payments due | tool: tax due | planned | ticket:SOFT-2398 |
 | An assistant asks for income by client | tool: income summary | planned | no ticket yet |
 | An assistant asks for month by month money in, money out and net | tool: monthly totals | planned | no ticket yet |
 | An assistant asks for the active repeat payments | tool: subscriptions | planned | ticket:SOFT-2395 |

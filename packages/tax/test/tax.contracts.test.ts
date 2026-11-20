@@ -1,6 +1,6 @@
 import { expect, it } from "@effect/vitest";
 import { toRpcGroup, toToolkit } from "@pecunia/capability";
-import { codecs, parse, TaxObligationStatusSchema } from "@pecunia/core/model";
+import { codecs, parse } from "@pecunia/core/model";
 import type { TaxObligation } from "@pecunia/core/model";
 import { Result, Schema } from "effect";
 
@@ -13,10 +13,15 @@ import {
 import { dueKey } from "../src/dues.js";
 import { freeAgentTaxBooks, parseFreeAgentDues } from "../src/freeagent.js";
 import {
+  DateOnlySchema,
   ListTaxDuesRequestSchema,
   SyncTaxDuesRequestSchema,
+  TaxDuesSchema,
+  TimestampSchema,
 } from "../src/model.js";
 import type { DueDeclaration } from "../src/model.js";
+import type { DueRejection } from "../src/tax-due-rejected.js";
+import { estimatedStatus } from "./support.js";
 
 const profileId = parse(
   codecs.profileId,
@@ -124,6 +129,90 @@ it("names FreeAgent as the first books tool", () => {
   );
 });
 
+interface RawPayment {
+  readonly amount_due: string;
+  readonly currency: string;
+  readonly due_on: string;
+  readonly period_ends_on: string;
+  readonly status: string;
+}
+
+const payment = (overrides: Partial<RawPayment>): RawPayment => ({
+  amount_due: "10.00",
+  currency: "GBP",
+  due_on: "2026-01-31",
+  period_ends_on: "2020-01-31",
+  status: "unpaid",
+  ...overrides,
+});
+
+const rejectionsOf = (entry: RawPayment): readonly DueRejection[] => {
+  const parsed = parseFreeAgentDues({
+    self_assessment_payments: [entry],
+  });
+
+  return Result.isFailure(parsed) ? parsed.failure.rejections : [];
+};
+
+const IMPOSSIBLE_DATES = [
+  "2025-02-29",
+  "1900-02-29",
+  "2025-04-31",
+  "2025-06-31",
+  "2025-02-30",
+  "2025-11-31",
+] as const;
+
+it("names an impossible calendar date as not a date on its own field", () => {
+  for (const date of IMPOSSIBLE_DATES) {
+    expect(rejectionsOf(payment({ due_on: date })), date).toEqual([
+      { field: "due_on", index: 0, reason: "NotADate" },
+    ]);
+
+    expect(rejectionsOf(payment({ period_ends_on: date })), date).toEqual([
+      { field: "period_ends_on", index: 0, reason: "NotADate" },
+    ]);
+  }
+
+  expect(rejectionsOf(payment({ due_on: "" }))).toEqual([
+    { field: "due_on", index: 0, reason: "EmptyString" },
+  ]);
+});
+
+it("keeps the leap days that exist and refuses the ones that do not", () => {
+  for (const date of ["2024-02-29", "2000-02-29"] as const) {
+    const parsed = parseFreeAgentDues({
+      self_assessment_payments: [
+        payment({ due_on: date, period_ends_on: "2000-01-31" }),
+      ],
+    });
+
+    expect(Result.isSuccess(parsed), date).toBe(true);
+
+    if (Result.isSuccess(parsed)) {
+      expect(parsed.success[0]?.dueOn).toBe(date);
+    }
+  }
+});
+
+it("names a currency that is not three upper-case letters", () => {
+  for (const currency of ["gbp", "Gbp", "GB", "GBPX", "1BX"]) {
+    expect(rejectionsOf(payment({ currency })), currency).toEqual([
+      { field: "currency", index: 0, reason: "NotACurrencyCode" },
+    ]);
+  }
+
+  expect(rejectionsOf(payment({ currency: "" }))).toEqual([
+    { field: "currency", index: 0, reason: "EmptyString" },
+  ]);
+
+  expect(
+    Result.isSuccess(
+      parseFreeAgentDues({ self_assessment_payments: [payment({})] })
+    )
+  ).toBe(true);
+});
+
 it("keeps a books-tool declaration aligned with core's obligation fields", () => {
   const obligationFields: Omit<
     TaxObligation,
@@ -134,9 +223,7 @@ it("keeps a books-tool declaration aligned with core's obligation fields", () =>
     kind: "SelfAssessment",
     label: "Self Assessment",
     periodEndsOn: parse(codecs.dateOnly, "2025-04-05"),
-    status: TaxObligationStatusSchema.cases.Estimated.make({
-      booksStatus: "unpaid",
-    }),
+    status: estimatedStatus("unpaid"),
   };
 
   const declaration: DueDeclaration = obligationFields;
@@ -158,9 +245,7 @@ it("keys a due by the tax profile, kind, period, due date and label", () => {
     label: "Self Assessment",
     periodEndsOn: "2025-04-05",
     profileId,
-    status: TaxObligationStatusSchema.cases.Estimated.make({
-      booksStatus: "unpaid",
-    }),
+    status: estimatedStatus("unpaid"),
     syncedAt: "2026-01-01T00:00:00.000Z",
     taxProfileId,
   });
@@ -179,4 +264,77 @@ it("keys a due by the tax profile, kind, period, due date and label", () => {
   });
 
   expect(dueKey(moved)).not.toBe(dueKey(base));
+});
+
+const CALENDAR_TEXTS = [
+  "2024-02-29",
+  "2025-02-29",
+  "1900-02-29",
+  "2000-02-29",
+  "2025-04-31",
+  "2025-06-31",
+  "2025-11-31",
+  "2025-01-00",
+  "2025-13-01",
+  "",
+  "2025-1-1",
+];
+
+const TIMESTAMP_TEXTS = [
+  "2024-02-29T10:00:00.000Z",
+  "2025-02-29T10:00:00.000Z",
+  "2024-02-29T24:00:00.000Z",
+  "2024-02-29T10:60:00.000Z",
+  "2024-02-29T10:00:00.00Z",
+  "2024-02-29 10:00:00.000Z",
+];
+
+it("keeps the tax boundary dates agreeing with core's codecs", () => {
+  for (const text of CALENDAR_TEXTS) {
+    expect(
+      Result.isSuccess(Schema.decodeResult(DateOnlySchema)(text)),
+      text
+    ).toBe(Result.isSuccess(codecs.dateOnly.decode(text)));
+  }
+
+  for (const text of TIMESTAMP_TEXTS) {
+    expect(
+      Result.isSuccess(Schema.decodeResult(TimestampSchema)(text)),
+      text
+    ).toBe(Result.isSuccess(codecs.timestamp.decode(text)));
+  }
+});
+
+it("round trips a stored due through the tax boundary schema", () => {
+  const due = parse(codecs.taxObligation, {
+    amount: { currency: "GBP", minor: 124_050 },
+    dueOn: "2026-01-31",
+    id: "0192f0c1-0042-7c1d-8e2f-3a4b5c6d7e8f",
+    kind: "SelfAssessment",
+    label: "Self Assessment",
+    periodEndsOn: "2025-04-05",
+    profileId,
+    status: estimatedStatus("unpaid"),
+    syncedAt: "2026-01-01T00:00:00.000Z",
+    taxProfileId,
+  });
+
+  const taxProfile = parse(codecs.taxProfile, {
+    id: taxProfileId,
+    jurisdiction: "GB",
+    primary: true,
+    profileId,
+    yearStart: { day: 6, month: 4 },
+  });
+
+  const wire = Schema.encodeSync(TaxDuesSchema)({
+    dues: [due],
+    taxProfiles: [taxProfile],
+  });
+
+  const decoded = Result.getOrThrow(Schema.decodeResult(TaxDuesSchema)(wire));
+
+  expect(decoded.dues).toEqual([due]);
+  expect(decoded.taxProfiles).toEqual([taxProfile]);
+  expect(parse(codecs.taxObligation, decoded.dues[0])).toEqual(due);
 });

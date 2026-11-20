@@ -20,21 +20,37 @@ export {
   taxDueContracts,
 } from "./contracts.js";
 
-export { declarationKey, dueKey, orderDues, ownedBy } from "./dues.js";
+export {
+  declarationKey,
+  dueKey,
+  orderDues,
+  ownedBy,
+  replacedBy,
+} from "./dues.js";
 
-export { freeAgentTaxBooks, parseFreeAgentDues } from "./freeagent.js";
+export type { DueSource } from "./dues.js";
 
 export {
+  freeAgentTaxBooks,
+  parseFreeAgentAnswer,
+  parseFreeAgentDues,
+} from "./freeagent.js";
+
+export {
+  DuesAnswerSchema,
   DueDeclarationSchema,
   ListTaxDuesRequestSchema,
+  ReportedKindsSchema,
   SyncReceiptSchema,
   SyncTaxDuesRequestSchema,
   TaxDuesSchema,
 } from "./model.js";
 
 export type {
+  DuesAnswer,
   DueDeclaration,
   ListTaxDuesRequest,
+  ReportedKinds,
   SyncReceipt,
   SyncTaxDuesRequest,
   TaxDues,

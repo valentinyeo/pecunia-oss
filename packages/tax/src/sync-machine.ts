@@ -1,5 +1,4 @@
 import { watchActor } from "@pecunia/capability/actor-watch";
-import { ProfileIdSchema, TaxProfileIdSchema } from "@pecunia/core/model";
 import type { ProfileId, TaxProfileId } from "@pecunia/core/model";
 import {
   createEffectActor,
@@ -11,9 +10,16 @@ import { Data, Effect, Schema } from "effect";
 import type { Cause } from "effect";
 import { types } from "xstate";
 
-import { DueDeclarationSchema, SyncTaxDuesRequestSchema } from "./model.js";
+import {
+  DueDeclarationSchema,
+  ProfileIdSchema,
+  ReportedKindsSchema,
+  SyncTaxDuesRequestSchema,
+  TaxProfileIdSchema,
+} from "./model.js";
 import type {
   DueDeclaration,
+  ReportedKinds,
   SyncReceipt,
   SyncTaxDuesRequest,
 } from "./model.js";
@@ -41,6 +47,7 @@ interface SyncContext {
   readonly declarations: readonly DueDeclaration[];
   readonly outcome: SyncOutcome | undefined;
   readonly profileId: ProfileId;
+  readonly reportedKinds: ReportedKinds;
   readonly taxProfileId: TaxProfileId;
 }
 
@@ -58,6 +65,7 @@ const recordDues = createEffectLogic({
     input: Schema.Struct({
       declarations: Schema.Array(DueDeclarationSchema),
       profileId: ProfileIdSchema,
+      reportedKinds: ReportedKindsSchema,
       taxProfileId: TaxProfileIdSchema,
     }),
   },
@@ -74,6 +82,7 @@ export const syncTaxDuesMachine = setupEffect({
     ...input,
     declarations: [],
     outcome: undefined,
+    reportedKinds: [],
   }),
   initial: "fetching",
   output: ({ context }) => context.outcome,
@@ -89,7 +98,8 @@ export const syncTaxDuesMachine = setupEffect({
         onDone: {
           context: ({ context, event }) => ({
             ...context,
-            declarations: event.output,
+            declarations: event.output.declarations,
+            reportedKinds: event.output.reportedKinds,
           }),
           target: "recording",
         },
@@ -108,6 +118,7 @@ export const syncTaxDuesMachine = setupEffect({
         input: ({ context }) => ({
           declarations: context.declarations,
           profileId: context.profileId,
+          reportedKinds: context.reportedKinds,
           taxProfileId: context.taxProfileId,
         }),
         onDone: {

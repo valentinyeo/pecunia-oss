@@ -1,10 +1,4 @@
-import {
-  codecs,
-  CurrencyCodeSchema,
-  DateOnlySchema,
-  parse,
-  TaxObligationStatusSchema,
-} from "@pecunia/core/model";
+import { codecs, parse } from "@pecunia/core/model";
 import type {
   CurrencyCode,
   DateOnly,
@@ -15,7 +9,8 @@ import { Effect, Option, Result, Schema } from "effect";
 
 import { parseDecimalAmount } from "./amount.js";
 import { declarationKey } from "./dues.js";
-import type { DueDeclaration } from "./model.js";
+import { TaxObligationStatusSchema } from "./model.js";
+import type { DuesAnswer, DueDeclaration } from "./model.js";
 import type { TaxBooksService } from "./tax-books.js";
 import { TaxDuesRejected } from "./tax-due-rejected.js";
 import type { DueField, DueRejection } from "./tax-due-rejected.js";
@@ -44,65 +39,67 @@ const rejection = (
 
 type RawDue = typeof RawDueSchema.Type;
 
-const notText = (
-  decoded: Option.Option<string>,
-  field: DueField,
-  index: number
-): DueRejection =>
-  Option.isSome(decoded)
-    ? rejection(field, "EmptyString", index)
-    : rejection(field, "NotAString", index);
-
 const parseCurrency = (
   raw: RawDue,
   index: number
-): Result.Result<CurrencyCode, DueRejection> =>
-  Option.match(Schema.decodeUnknownOption(CurrencyCodeSchema)(raw.currency), {
-    onNone: () =>
-      Result.fail(
-        notText(
-          Schema.decodeUnknownOption(Schema.String)(raw.currency),
-          "currency",
-          index
-        )
-      ),
-    onSome: (currency) => Result.succeed(currency),
-  });
+): Result.Result<CurrencyCode, DueRejection> => {
+  const text = Schema.decodeUnknownOption(Schema.String)(raw.currency);
+
+  if (Option.isNone(text)) {
+    return Result.fail(rejection("currency", "NotAString", index));
+  }
+
+  if (text.value === "") {
+    return Result.fail(rejection("currency", "EmptyString", index));
+  }
+
+  return Result.mapError(codecs.currencyCode.decode(text.value), () =>
+    rejection("currency", "NotACurrencyCode", index)
+  );
+};
 
 const parseDate = (
   raw: RawDue,
   field: DueField,
   index: number
 ): Result.Result<DateOnly, DueRejection> => {
-  const value = field === "due_on" ? raw.due_on : raw.period_ends_on;
+  const text = Schema.decodeUnknownOption(Schema.String)(
+    field === "due_on" ? raw.due_on : raw.period_ends_on
+  );
 
-  return Option.match(Schema.decodeUnknownOption(DateOnlySchema)(value), {
-    onNone: () =>
-      Result.fail(
-        notText(Schema.decodeUnknownOption(Schema.String)(value), field, index)
-      ),
-    onSome: (date) => Result.succeed(date),
-  });
+  if (Option.isNone(text)) {
+    return Result.fail(rejection(field, "NotAString", index));
+  }
+
+  if (text.value === "") {
+    return Result.fail(rejection(field, "EmptyString", index));
+  }
+
+  return Result.mapError(codecs.dateOnly.decode(text.value), () =>
+    rejection(field, "NotADate", index)
+  );
 };
 
 const parseStatus = (
   raw: RawDue,
   index: number
-): Result.Result<TaxObligationStatus, DueRejection> =>
-  Option.match(Schema.decodeUnknownOption(Schema.NonEmptyString)(raw.status), {
-    onNone: () =>
-      Result.fail(
-        notText(
-          Schema.decodeUnknownOption(Schema.String)(raw.status),
-          "status",
-          index
-        )
-      ),
-    onSome: (booksStatus) =>
-      Result.succeed(
-        TaxObligationStatusSchema.cases.Estimated.make({ booksStatus })
-      ),
-  });
+): Result.Result<TaxObligationStatus, DueRejection> => {
+  const text = Schema.decodeUnknownOption(Schema.String)(raw.status);
+
+  if (Option.isNone(text)) {
+    return Result.fail(rejection("status", "NotAString", index));
+  }
+
+  if (text.value === "") {
+    return Result.fail(rejection("status", "EmptyString", index));
+  }
+
+  return Result.succeed(
+    TaxObligationStatusSchema.cases.Estimated.make({
+      booksStatus: text.value,
+    })
+  );
+};
 
 const parseMoney = (
   raw: RawDue,
@@ -110,21 +107,16 @@ const parseMoney = (
   index: number
 ): Result.Result<Money, DueRejection> =>
   Option.match(Schema.decodeUnknownOption(Schema.String)(raw.amount_due), {
-    onNone: () =>
-      Result.fail(
-        notText(
-          Schema.decodeUnknownOption(Schema.String)(raw.amount_due),
-          "amount_due",
-          index
-        )
-      ),
+    onNone: () => Result.fail(rejection("amount_due", "NotAString", index)),
     onSome: (text) =>
-      Result.match(parseDecimalAmount(text, currency), {
-        onFailure: (reason) =>
-          Result.fail(rejection("amount_due", reason, index)),
-        onSuccess: (minor) =>
-          Result.succeed(parse(codecs.money, { currency, minor })),
-      }),
+      text === ""
+        ? Result.fail(rejection("amount_due", "EmptyString", index))
+        : Result.match(parseDecimalAmount(text, currency), {
+            onFailure: (reason) =>
+              Result.fail(rejection("amount_due", reason, index)),
+            onSuccess: (minor) =>
+              Result.succeed(parse(codecs.money, { currency, minor })),
+          }),
   });
 
 interface ParsedFields {
@@ -269,10 +261,19 @@ export const parseFreeAgentDues = (
   return Result.succeed(dues);
 };
 
+export const parseFreeAgentAnswer = (
+  // oxlint-disable-next-line anti-slop/no-unknown-parameters -- the recorded books-tool answer is untrusted input, and this function is the schema boundary that parses it.
+  payload: unknown
+): Result.Result<DuesAnswer, TaxDuesRejected> =>
+  Result.map(parseFreeAgentDues(payload), (declarations) => ({
+    declarations,
+    reportedKinds: [selfAssessment],
+  }));
+
 export const freeAgentTaxBooks = (
-  // oxlint-disable-next-line anti-slop/no-unknown-parameters -- the recorded books-tool answer is untrusted input, parsed by `parseFreeAgentDues` on every fetch.
+  // oxlint-disable-next-line anti-slop/no-unknown-parameters -- the recorded books-tool answer is untrusted input, parsed by `parseFreeAgentAnswer` on every fetch.
   payload: unknown
 ): TaxBooksService => ({
   booksTool: "freeagent",
-  fetchDues: () => Effect.fromResult(parseFreeAgentDues(payload)),
+  fetchDues: () => Effect.fromResult(parseFreeAgentAnswer(payload)),
 });

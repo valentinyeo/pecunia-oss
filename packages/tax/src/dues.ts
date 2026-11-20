@@ -4,8 +4,9 @@ import type {
   TaxObligation,
   TaxProfileId,
 } from "@pecunia/core/model";
-import { MoneySchema, TaxObligationStatusSchema } from "@pecunia/core/model";
 import { Schema } from "effect";
+
+import { MoneySchema, TaxObligationStatusSchema } from "./model.js";
 
 const sameMoney = Schema.toEquivalence(MoneySchema);
 
@@ -44,3 +45,10 @@ export interface DueOwner {
 
 export const ownedBy = (due: TaxObligation, owner: DueOwner): boolean =>
   due.profileId === owner.profileId && due.taxProfileId === owner.taxProfileId;
+
+export interface DueSource extends DueOwner {
+  readonly reportedKinds: readonly string[];
+}
+
+export const replacedBy = (due: TaxObligation, source: DueSource): boolean =>
+  ownedBy(due, source) && source.reportedKinds.includes(due.kind);

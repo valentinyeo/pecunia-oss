@@ -119,23 +119,6 @@ export { timestampOf, timestampParts } from "./timestamp.js";
 
 export type { TimestampParts } from "./primitives.js";
 
-export {
-  CurrencyCodeSchema,
-  DateOnlySchema,
-  MinorUnitsSchema,
-  MoneySchema,
-  ProfileIdSchema,
-  TaxObligationIdSchema,
-  TaxProfileIdSchema,
-  TimestampSchema,
-} from "./primitives.js";
-
-export {
-  TaxObligationSchema,
-  TaxObligationStatusSchema,
-  TaxProfileSchema,
-} from "./tax.js";
-
 export { codecs } from "./codecs.js";
 
 export { parse, render, verified } from "./codec.js";

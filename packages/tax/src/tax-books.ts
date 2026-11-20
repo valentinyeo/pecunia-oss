@@ -3,7 +3,7 @@ import { Context } from "effect";
 import type { Effect } from "effect";
 
 import type { BooksTool } from "./books-tool.js";
-import type { DueDeclaration } from "./model.js";
+import type { DuesAnswer } from "./model.js";
 import type { TaxBooksUnavailable } from "./tax-books-unavailable.js";
 import type { TaxDuesRejected } from "./tax-due-rejected.js";
 
@@ -16,10 +16,7 @@ export interface TaxBooksService {
   readonly booksTool: BooksTool;
   readonly fetchDues: (
     request: DuesRequest
-  ) => Effect.Effect<
-    readonly DueDeclaration[],
-    TaxBooksUnavailable | TaxDuesRejected
-  >;
+  ) => Effect.Effect<DuesAnswer, TaxBooksUnavailable | TaxDuesRejected>;
 }
 
 export class TaxBooks extends Context.Service<TaxBooks, TaxBooksService>()(
