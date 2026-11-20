@@ -1,6 +1,6 @@
 # Dashboard sums
 
-Status: partly built. The read capabilities and their package tests exist on `main` in `packages/reporting`. No dashboard screen, web RPC wiring, D1 store, tax-owed provider adapter, CLI command, or MCP mount reaches them yet.
+Status: partly built. The read capabilities and their package tests exist on the branch of [pull request 21](https://github.com/valentinyeo/pecunia-oss/pull/21) in `packages/reporting`, not yet on `main`. No dashboard screen, web RPC wiring, D1 store, tax-owed provider adapter, CLI command, or MCP mount reaches them yet.
 
 ## What it promises
 

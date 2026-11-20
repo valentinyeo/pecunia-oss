@@ -1,6 +1,4 @@
 import { expect, it } from "@effect/vitest";
-import type { Person } from "@pecunia/access";
-import { PersonSchema } from "@pecunia/access";
 import { Effect, Option, Predicate, Schema } from "effect";
 
 import {
@@ -21,24 +19,14 @@ import {
 import type { CategorySpend, ProfileId } from "../src/model.js";
 import { PeriodChoiceSchema, ProfileIdSchema } from "../src/model.js";
 import { monthOf } from "./fixtures.js";
-import { personLayer } from "./service-layer.js";
+import {
+  memberOfSecond,
+  personLayer,
+  personOf,
+  viewerOfDemo,
+} from "./service-layer.js";
 
 const march = PeriodChoiceSchema.cases.Month.make({});
-
-const personOf = (
-  personId: string,
-  profileId: ProfileId,
-  role: "owner" | "viewer"
-): Person =>
-  Schema.decodeSync(PersonSchema)({
-    email: `${personId}@example.com`,
-    memberships: [{ profileId, role }],
-    personId,
-  });
-
-const memberOfSecond = personOf("person-second", secondProfileId, "owner");
-
-const viewerOfDemo = personOf("person-viewer", demoProfileId, "viewer");
 
 const unseededProfileId: ProfileId = Schema.decodeSync(ProfileIdSchema)(
   "0192f0c1-0009-7abc-8def-000000000009"

@@ -1,6 +1,5 @@
 import { expect, it } from "@effect/vitest";
-import { PersonSchema } from "@pecunia/access";
-import { Effect, Option, Predicate, Schema } from "effect";
+import { Effect, Option, Predicate } from "effect";
 
 import {
   incomeSummary,
@@ -22,17 +21,11 @@ import { boundOf } from "../src/date.js";
 import { demoProfileId } from "../src/demo.js";
 import { PeriodChoiceSchema } from "../src/model.js";
 import { dateOf, monthOf } from "./fixtures.js";
-import { demoCapabilityLayer, strangerLayer } from "./service-layer.js";
+import { demoCapabilityLayer, personLayer, stranger } from "./service-layer.js";
 
 const march = PeriodChoiceSchema.cases.Month.make({});
 
 const range = boundOf(dateOf("2024-03-01"), dateOf("2024-03-31"));
-
-const stranger = Schema.decodeSync(PersonSchema)({
-  email: "stranger@example.com",
-  memberships: [],
-  personId: "person-stranger",
-});
 
 it.effect("the dashboard capability answers for a member of the profile", () =>
   Effect.gen(function* dashboard() {
@@ -50,7 +43,7 @@ it.effect("a reader outside the profile is refused by name", () =>
   Effect.gen(function* forbidden() {
     const failure = yield* Effect.provide(
       readDashboard.handler({ period: march, profileId: demoProfileId }),
-      strangerLayer(stranger)
+      personLayer(stranger)
     ).pipe(Effect.flip);
 
     expect(failure._tag).toBe("Forbidden");
