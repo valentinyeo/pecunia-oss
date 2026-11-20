@@ -149,6 +149,33 @@ export { NoPath } from "./no-path.js";
 
 export { UnknownPage } from "./unknown-page.js";
 
+export { SettingsUnavailable } from "./settings-unavailable.js";
+
+export { UnknownProfile } from "./unknown-profile.js";
+
+export {
+  AppSettingSchema,
+  CurrencyCodeSchema,
+  LocaleSchema,
+  ProfileIdSchema,
+  ProfileKindSchema,
+  ProfileNameSchema,
+  ProfileSchema,
+  SettingsSaveSchema,
+  SetupSchema,
+  TimeZoneSchema,
+} from "./settings.js";
+
+export type {
+  AppSetting,
+  CurrencyCode,
+  Locale,
+  Profile,
+  SettingsSave,
+  Setup,
+  TimeZone,
+} from "./settings.js";
+
 const ContentKind = Schema.Literals(["law", "skill", "lore", "prompt"]);
 
 export const SearchMatch = Schema.Struct({
