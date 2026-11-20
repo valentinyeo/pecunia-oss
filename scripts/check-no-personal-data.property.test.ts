@@ -2449,3 +2449,199 @@ describe("a container is read every way it can be read", () => {
     expect(noisy).toEqual([]);
   }, 600_000);
 });
+
+const PAIR_SEEDS = [SEED + 98_001, SEED + 98_002, SEED + 98_003];
+
+const PAIR_CASES = 600;
+
+const PAIR_SORT_LABELS = [
+  "sort code",
+  "Sort Code",
+  "SORT CODE",
+  "sortcode",
+  "sort-code",
+  "sort_code",
+];
+
+const PAIR_ACCOUNT_LABELS = [
+  "account number",
+  "Account Number",
+  "ACCOUNT NUMBER",
+  "account no",
+  "account_number",
+  "a/c",
+];
+
+const PAIR_GAPS = [
+  " ",
+  ", ",
+  ". ",
+  ": ",
+  " = ",
+  '"',
+  "(",
+  ") ",
+  "\n",
+  "<br>",
+  "</td><td>",
+];
+
+const PAIR_WRAPPERS = ["plain", "json", "csv", "table", "sql", "html"] as const;
+
+interface PairParts {
+  readonly account: string;
+  readonly accountLabel: string;
+  readonly labelGap: string;
+  readonly middleGap: string;
+  readonly sort: string;
+  readonly sortFirst: boolean;
+  readonly sortLabel: string;
+}
+
+const PAIR_VALUE_GAPS = ["", "-", " ", ".", "/", ",", "|", "<b>"];
+
+const pairValue = (random: Random, groups: readonly string[]) =>
+  groups.join(random.pick(PAIR_VALUE_GAPS));
+
+const pairSortCode = (random: Random) =>
+  pairValue(random, [random.digits(2), random.digits(2), random.digits(2)]);
+
+const pairAccount = (random: Random) =>
+  pairValue(random, [accountGroup(random), accountGroup(random)]);
+
+const pairParts = (random: Random): PairParts => ({
+  account: pairAccount(random),
+  accountLabel: random.pick(PAIR_ACCOUNT_LABELS),
+  labelGap: random.pick(PAIR_GAPS),
+  middleGap: random.pick(PAIR_GAPS),
+  sort: pairSortCode(random),
+  sortFirst: random.between(0, 1) === 0,
+  sortLabel: random.pick(PAIR_SORT_LABELS),
+});
+
+const pairProse = (parts: PairParts) =>
+  [
+    parts.sortFirst ? parts.sortLabel : parts.accountLabel,
+    parts.labelGap,
+    parts.sortFirst ? parts.sort : parts.account,
+    parts.middleGap,
+    parts.sortFirst ? parts.accountLabel : parts.sortLabel,
+    parts.labelGap,
+    parts.sortFirst ? parts.account : parts.sort,
+  ].join("");
+
+const pairHtml = (parts: PairParts) => {
+  const head = parts.sortFirst
+    ? [parts.sortLabel, parts.accountLabel]
+    : [parts.accountLabel, parts.sortLabel];
+
+  const cells = parts.sortFirst
+    ? [parts.sort, parts.account]
+    : [parts.account, parts.sort];
+
+  return [
+    "<table>",
+    `  <tr><td>${head[0]}${parts.labelGap}</td><td>${head[1]}${parts.labelGap}</td></tr>`,
+    `  <tr><td>${cells[0]}</td><td>${cells[1]}</td></tr>`,
+    "</table>",
+  ].join("\n");
+};
+
+const pairWrapperDocument = (random: Random) => {
+  const parts = pairParts(random);
+
+  const wrapper = random.pick(PAIR_WRAPPERS);
+
+  const prose = pairProse(parts);
+
+  if (wrapper === "json") {
+    return `{"payee":${JSON.stringify(prose)},"note":"demo payee"}`;
+  }
+
+  if (wrapper === "csv") {
+    return ["note,payee", `demo,${prose}`].join("\n");
+  }
+
+  if (wrapper === "table") {
+    return ["| note | payee |", "| --- | --- |", `| demo | ${prose} |`].join(
+      "\n"
+    );
+  }
+
+  if (wrapper === "sql") {
+    return `INSERT INTO payees (note, payee) VALUES ('demo', '${prose}');`;
+  }
+
+  if (wrapper === "html") {
+    return pairHtml(parts);
+  }
+
+  return prose;
+};
+
+describe("a labelled bank pair reads through one rule and no spelling list", () => {
+  it.each(PAIR_SEEDS)(
+    "reads %i seeded labels, separators, orders and wrappers",
+    (seed) => {
+      const random = makeRandom(seed);
+
+      const missed: string[] = [];
+
+      for (let index = 0; index < PAIR_CASES; index += 1) {
+        const document = pairWrapperDocument(random);
+
+        if (!rulesOf("docs/payments.md", document).includes("bank-account")) {
+          missed.push(
+            `seed ${seed} case ${index}: ${JSON.stringify(document)}`
+          );
+        }
+      }
+
+      expect(missed).toEqual([]);
+    },
+    120_000
+  );
+
+  const QUIET_FRAMES: readonly ((random: Random) => string)[] = [
+    (random) =>
+      `The account balance is ${random.digits(6)} and the ticket is ${pairAccount(random)}.`,
+    (random) =>
+      `Order ${pairAccount(random)} shipped from the account with invoice ${random.digits(6)}.`,
+    (random) =>
+      `Account review of ${random.digits(6)} then, later in the week, of ${pairAccount(random)}.`,
+    (random) =>
+      `Account ticket ${pairAccount(random)} was raised against the ${random.digits(6)} budget.`,
+    (random) =>
+      `The account total is ${random.digits(6)} minor units and the reference is ${pairAccount(random)}.`,
+    (random) =>
+      `Account export digest ${random.digits(6)} covers ${pairAccount(random)} rows.`,
+    (random) =>
+      `The sort code field is ${random.digits(6)} and the ticket is ${pairAccount(random)}.`,
+    (random) =>
+      `Account statement ${random.digits(4)} total ${random.digits(6)} across ${pairAccount(random)} cells.`,
+  ];
+
+  it.each(PAIR_SEEDS)(
+    "keeps %i seeded ordinary numbers with no bank label quiet",
+    (seed) => {
+      const random = makeRandom(seed + 500_000);
+
+      const noisy: string[] = [];
+
+      for (let index = 0; index < PAIR_CASES; index += 1) {
+        const text = random.pick(QUIET_FRAMES)(random);
+
+        const rules = rulesOf("docs/notes.md", text);
+
+        if (rules.length > 0) {
+          noisy.push(
+            `seed ${seed} case ${index} ${JSON.stringify(rules)}: ${text}`
+          );
+        }
+      }
+
+      expect(noisy).toEqual([]);
+    },
+    120_000
+  );
+});

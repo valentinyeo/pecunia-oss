@@ -370,6 +370,13 @@ const HAS_TAG = /<[A-Za-z/!]/u;
 const undoTag = (input: DecodedText) =>
   HAS_TAG.test(input.text) ? rewritten(input, TAG_SOURCE, () => "") : input;
 
+const SEPARATED_TAG = " ";
+
+const separateTag = (input: DecodedText) =>
+  HAS_TAG.test(input.text)
+    ? rewritten(input, TAG_SOURCE, () => SEPARATED_TAG)
+    : input;
+
 const HAS_ZERO_WIDTH = /[\u200B-\u200D\u2060\uFEFF]/u;
 
 const ZERO_WIDTH_SOURCE = /[\u200B-\u200D\u2060\uFEFF]/gu;
@@ -1235,6 +1242,7 @@ export const continueDecoding = (input: DecodedText): DecodeOutcome =>
 
 export interface DecodeChain {
   readonly readable: DecodeOutcome;
+  readonly separated: DecodeOutcome;
   readonly settled: boolean;
   readonly unquoted: DecodeOutcome;
   readonly unwrapped: DecodeOutcome;
@@ -1273,9 +1281,21 @@ const chainFrom = (start: DecodedText, record?: Recorder): DecodeChain => {
 
   const unwrapped = settle(untagged, READABLE_STEPS, record);
 
+  const spaced = separateTag(readable.text);
+
+  const separated =
+    spaced.text === readable.text.text
+      ? unwrapped
+      : settle(spaced, READABLE_STEPS, record);
+
   return {
     readable,
-    settled: unquoted.settled && readable.settled && unwrapped.settled,
+    separated,
+    settled:
+      unquoted.settled &&
+      readable.settled &&
+      unwrapped.settled &&
+      separated.settled,
     unquoted,
     unwrapped,
   };

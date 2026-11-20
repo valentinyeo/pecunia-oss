@@ -1257,3 +1257,112 @@ describe("the v81 verdict's labelled bank pairs fail", () => {
     ).toEqual(["bank-account"]);
   });
 });
+
+const htmlTable = (
+  sortLabel: string,
+  accountLabel: string,
+  sortValue: string,
+  accountValue: string
+) =>
+  [
+    "<table>",
+    `  <tr><th>${sortLabel}</th><th>${accountLabel}</th></tr>`,
+    `  <tr><td>${sortValue}</td><td>${accountValue}</td></tr>`,
+    "</table>",
+  ].join("\n");
+
+describe("the v98 verdict's labelled bank pairs fail", () => {
+  it("fails when a comma sits between the label and each value", () => {
+    expect(
+      ruleOf(
+        "docs/payments.md",
+        `Sort code ${transferSort}, account number, ${transferAccount}`
+      )
+    ).toEqual(["bank-account"]);
+  });
+
+  it("fails when a comma follows each label in ordinary prose", () => {
+    expect(
+      ruleOf(
+        "docs/payments.md",
+        `Our sort code, ${transferSort}, and our account number, ${transferAccount}, are on the invoice.`
+      )
+    ).toEqual(["bank-account"]);
+  });
+
+  it("fails when a full stop sits between the two labelled values", () => {
+    expect(
+      ruleOf(
+        "docs/payments.md",
+        `Sort code, ${transferSort}. Account number, ${transferAccount}.`
+      )
+    ).toEqual(["bank-account"]);
+  });
+
+  it("fails when a full stop sits between a label and its value", () => {
+    expect(
+      ruleOf(
+        "docs/payments.md",
+        `Sort code. ${transferSort}. Account number. ${transferAccount}.`
+      )
+    ).toEqual(["bank-account"]);
+  });
+
+  it("fails inside SQL values", () => {
+    expect(
+      ruleOf(
+        "packages/database/migrations/0002_demo.sql",
+        `INSERT INTO payees (sort_code, account_number) VALUES ('${transferSort}', '${transferAccount}');`
+      )
+    ).toEqual(["bank-account"]);
+  });
+
+  it("fails inside an HTML table whose cells carry no whitespace", () => {
+    expect(
+      ruleOf(
+        "docs/payments.md",
+        htmlTable("Sort code", "Account number", transferSort, transferAccount)
+      )
+    ).toEqual(["bank-account"]);
+  });
+
+  it("fails inside an HTML table whose columns run the other way", () => {
+    expect(
+      ruleOf(
+        "docs/payments.md",
+        htmlTable("Account number", "Sort code", transferAccount, transferSort)
+      )
+    ).toEqual(["bank-account"]);
+  });
+
+  it("fails inside an HTML table whose cells carry no whitespace and a tag splits the digits", () => {
+    const tagSplitSort = [["23", "45"], ["67"]]
+      .map((parts) => parts.join("<b>"))
+      .join("<b>");
+
+    expect(
+      ruleOf(
+        "docs/payments.md",
+        htmlTable("Sort code", "Account number", tagSplitSort, transferAccount)
+      )
+    ).toEqual(["bank-account"]);
+  });
+
+  it("fails inside one HTML line with every cell closed and reopened", () => {
+    expect(
+      ruleOf(
+        "docs/payments.md",
+        `<p><b>Sort code</b>${transferSort}</p><p><b>Account number</b>${transferAccount}</p>`
+      )
+    ).toEqual(["bank-account"]);
+  });
+
+  it("keeps an ordinary pair with no bank label quiet", () => {
+    expect(
+      ruleOf(
+        "docs/notes.md",
+        `Released ${dotted("12", "34", "56")} ${transferAccount} today.`
+      )
+    ).toEqual([]);
+  });
+});

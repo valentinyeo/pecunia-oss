@@ -222,9 +222,6 @@ const ACCOUNT_DIGITS = 8;
 
 const PAIR_DIGITS = SORT_CODE_DIGITS + ACCOUNT_DIGITS;
 
-const BANK_PHRASE =
-  /sort[ _-]?code|sortcode|account|acct|accno|a\/c|bank|iban|bic|routing/iu;
-
 const LABEL_FILLERS = new Set([
   "a",
   "an",
@@ -695,6 +692,7 @@ export const VIEW_IDS = [
   "squeezed-tagged",
   "unquoted",
   "unwrapped",
+  "separated",
   "stripped",
 ] as const;
 
@@ -713,7 +711,7 @@ interface BuiltViews {
 const buildViews = (text: string): BuiltViews => {
   const chains = decodeChains(text);
 
-  const { readable, unquoted, unwrapped } = chains.asWritten;
+  const { readable, separated, unquoted, unwrapped } = chains.asWritten;
 
   const starts = lineStartsOf(linesOfText(text));
 
@@ -755,6 +753,13 @@ const buildViews = (text: string): BuiltViews => {
     readable.text.text === unwrapped.text.text
       ? viewsReadable
       : viewSource(text, unwrapped.text, undefined, starts)
+  );
+
+  sources.set(
+    "separated",
+    unwrapped.text.text === separated.text.text
+      ? (sources.get("unwrapped") ?? viewsReadable)
+      : viewSource(text, separated.text, undefined, starts)
   );
 
   const strippedSources: TextSource[] = [];
@@ -979,13 +984,9 @@ interface DigitRun {
   readonly start: number;
 }
 
-interface SortRun extends DigitRun {
-  readonly carries: boolean;
-}
-
 interface BankAtoms {
   readonly accounts: readonly DigitRun[];
-  readonly sortCodes: readonly SortRun[];
+  readonly sortCodes: readonly DigitRun[];
 }
 
 interface DigitGroup {
@@ -994,7 +995,7 @@ interface DigitGroup {
   readonly start: number;
 }
 
-const BANK_GAP = /^[\s.+\-\u2010-\u2015*_~`\u200B-\u200D\u2060\uFEFF]*$/u;
+const BANK_GAP = /^[^\p{L}\p{N}]*$/u;
 
 const SORT_BOUNDARIES: readonly number[] = [2, 4];
 
@@ -1002,8 +1003,7 @@ const ACCOUNT_BOUNDARIES: readonly number[] = [2, 4, 6];
 
 const LINE_BREAK = /[\n\r]/u;
 
-const DIGITS_WITH_GAPS =
-  /[0-9]+(?:[\s.+\-\u2010-\u2015*_~`\u200B-\u200D\u2060\uFEFF]*[0-9]+)*/gu;
+const DIGITS_WITH_GAPS = /[0-9]+(?:[^\p{L}\p{N}]*[0-9]+)*/gu;
 
 const gapBetween = (source: TextSource, left: number, right: number) =>
   right === left + 1 ? source.gapAt(left) : source.text.slice(left + 1, right);
@@ -1141,96 +1141,96 @@ const bankAtomsOf = (view: GuardView): BankAtoms => {
   return built;
 };
 
+const insideLongerNumber = (source: TextSource, run: DigitRun) =>
+  DIGIT.test(source.text[run.start - 1] ?? "") ||
+  DIGIT.test(source.text[run.end] ?? "");
+
+const readsAsExcluded = (source: TextSource, group: DigitGroup) =>
+  readsAsEscapedPayload(source, group) || readsAsBase64Token(source, group);
+
+const windowOf = (
+  digits: readonly number[],
+  start: number,
+  size: number
+): DigitGroup | undefined => {
+  const window = digits.slice(start, start + size);
+
+  return window.length === size ? groupOf(window) : undefined;
+};
+
 const bankAtomsIn = (view: GuardView): BankAtoms => {
   const { source } = view;
   const accounts: DigitRun[] = [];
 
-  const sortCodes: SortRun[] = [];
+  const sortCodes: DigitRun[] = [];
 
-  const carriesOf = (group: DigitGroup) =>
-    group.digits.some((position, index) => {
-      const previous = group.digits[index - 1];
+  const sortAt = (window: DigitGroup, split: boolean) => {
+    if (
+      readsAsExcluded(source, window) ||
+      (!split && insideLongerNumber(source, window)) ||
+      !readsAsBankNumber(source, window.digits, SORT_BOUNDARIES) ||
+      !tokenBoundary(view, window)
+    ) {
+      return;
+    }
 
-      return (
-        previous !== undefined &&
-        source.text
-          .slice(previous + 1, position)
-          .replaceAll(FORMATTING_NOISE, "").length > 0
-      );
-    });
+    sortCodes.push({ end: window.end, start: window.start });
+  };
+
+  const accountAt = (window: DigitGroup, split: boolean) => {
+    if (
+      readsAsExcluded(source, window) ||
+      (!split && insideLongerNumber(source, window)) ||
+      !readsAsBankNumber(source, window.digits, ACCOUNT_BOUNDARIES) ||
+      !readsAsAccountToken(view, window)
+    ) {
+      return;
+    }
+
+    accounts.push({ end: window.end, start: window.start });
+  };
+
+  const halves = (digits: readonly number[]) => {
+    const sortFirst = windowOf(digits, 0, SORT_CODE_DIGITS);
+
+    const accountLast = windowOf(digits, SORT_CODE_DIGITS, ACCOUNT_DIGITS);
+
+    const accountFirst = windowOf(digits, 0, ACCOUNT_DIGITS);
+
+    const sortLast = windowOf(digits, ACCOUNT_DIGITS, SORT_CODE_DIGITS);
+
+    if (sortFirst !== undefined && accountLast !== undefined) {
+      sortAt(sortFirst, true);
+
+      accountAt(accountLast, true);
+    }
+
+    if (accountFirst !== undefined && sortLast !== undefined) {
+      accountAt(accountFirst, true);
+
+      sortAt(sortLast, true);
+    }
+  };
 
   const collects = (group: DigitGroup) => {
     const { digits } = group;
 
-    const { length } = digits;
-
-    if (
-      readsAsEscapedPayload(source, group) ||
-      readsAsBase64Token(source, group)
-    ) {
-      return;
+    if (digits.length === PAIR_DIGITS) {
+      halves(digits);
     }
 
-    const run: SortRun = {
-      carries: carriesOf(group),
-      end: group.end,
-      start: group.start,
-    };
+    for (let start = 0; start < digits.length; start += 1) {
+      const sortCode = windowOf(digits, start, SORT_CODE_DIGITS);
 
-    if (
-      length === SORT_CODE_DIGITS &&
-      readsAsBankNumber(source, digits, SORT_BOUNDARIES) &&
-      tokenBoundary(view, run)
-    ) {
-      sortCodes.push(run);
-    }
+      if (sortCode !== undefined) {
+        sortAt(sortCode, false);
+      }
 
-    if (
-      length === ACCOUNT_DIGITS &&
-      readsAsBankNumber(source, digits, ACCOUNT_BOUNDARIES) &&
-      readsAsAccountToken(view, run)
-    ) {
-      accounts.push({ end: group.end, start: group.start });
-    }
+      const account = windowOf(digits, start, ACCOUNT_DIGITS);
 
-    if (length !== PAIR_DIGITS) {
-      return;
-    }
-
-    const sortFirst = digits.slice(0, SORT_CODE_DIGITS);
-
-    const accountLast = digits.slice(SORT_CODE_DIGITS);
-
-    const accountFirst = digits.slice(0, ACCOUNT_DIGITS);
-
-    const sortLast = digits.slice(ACCOUNT_DIGITS);
-
-    if (
-      readsAsBankNumber(source, sortFirst, SORT_BOUNDARIES) &&
-      tokenBoundary(view, groupOf(sortFirst))
-    ) {
-      sortCodes.push({ ...groupOf(sortFirst), carries: carriesOf(group) });
-    }
-
-    if (
-      readsAsBankNumber(source, accountLast, ACCOUNT_BOUNDARIES) &&
-      readsAsAccountToken(view, groupOf(accountLast))
-    ) {
-      accounts.push(groupOf(accountLast));
-    }
-
-    if (
-      readsAsBankNumber(source, accountFirst, ACCOUNT_BOUNDARIES) &&
-      readsAsAccountToken(view, groupOf(accountFirst))
-    ) {
-      accounts.push(groupOf(accountFirst));
-    }
-
-    if (
-      readsAsBankNumber(source, sortLast, SORT_BOUNDARIES) &&
-      tokenBoundary(view, groupOf(sortLast))
-    ) {
-      sortCodes.push({ ...groupOf(sortLast), carries: carriesOf(group) });
+      if (account !== undefined) {
+        accountAt(account, false);
+      }
     }
   };
 
@@ -1590,46 +1590,33 @@ const recordTextOf = (view: GuardView): RecordText =>
     ? { at: view.source.rawStartOf, text: view.source.raw }
     : { at: (position) => position, text: view.source.text };
 
-const crossesRawLine = (
-  source: TextSource,
-  left: DigitRun,
-  right: DigitRun
+const TAG_SEPARATOR = " ";
+
+const withoutTags = (text: string) => text.replaceAll(HTML_TAG, TAG_SEPARATOR);
+
+const numberBetween = (
+  text: string,
+  from: number,
+  to: number,
+  partner?: DigitRun
 ) => {
-  const leftEnd = source.rawEndOf(left.end);
-
-  const rightStart = source.rawStartOf(right.start);
-
-  const from = Math.min(leftEnd, rightStart);
-
-  const to = Math.max(leftEnd, rightStart);
-
-  return RECORD_BREAK.test(source.raw.slice(from, to));
-};
-
-const numberBetween = (text: string, from: number, to: number) => {
-  const gap = text
-    .slice(from, to)
-    .replaceAll(FORMATTING_NOISE, "")
-    .replaceAll(HTML_TAG, "");
-
-  for (const match of gap.matchAll(DIGITS_WITH_GAPS)) {
-    if (digitsOf(match[0]).length >= SORT_CODE_DIGITS) {
-      return true;
+  for (const match of text.slice(from, to).matchAll(DIGITS_WITH_GAPS)) {
+    if (digitsOf(match[0]).length < SORT_CODE_DIGITS) {
+      continue;
     }
+
+    const start = from + (match.index ?? 0);
+
+    const end = start + match[0].length;
+
+    if (partner !== undefined && partner.start < end && start < partner.end) {
+      continue;
+    }
+
+    return true;
   }
 
   return false;
-};
-
-const clauseStartBefore = (text: string, position: number) => {
-  const breaks = [
-    text.lastIndexOf(",", position - 1),
-    text.lastIndexOf(".", position - 1),
-  ];
-
-  const start = Math.max(...breaks);
-
-  return start < 0 ? 0 : start + 1;
 };
 
 const wordsAfter = (text: string, from: number) => {
@@ -1640,19 +1627,19 @@ const wordsAfter = (text: string, from: number) => {
   return match?.[0].toLowerCase() ?? "";
 };
 
-const labelFits = (text: string, position: number, labelEnd: number) => {
-  if (numberBetween(text, labelEnd, position)) {
+const labelFits = (
+  text: string,
+  position: number,
+  labelEnd: number,
+  partner?: DigitRun
+) => {
+  if (numberBetween(text, labelEnd, position, partner)) {
     return false;
   }
 
-  const gap = text
-    .slice(labelEnd, position)
-    .replaceAll(FORMATTING_NOISE, "")
-    .replaceAll(HTML_TAG, "");
-
-  if (SENTENCE_BREAK.test(gap)) {
-    return false;
-  }
+  const gap = withoutTags(
+    text.slice(labelEnd, position).replaceAll(FORMATTING_NOISE, "")
+  );
 
   const words = [...gap.matchAll(WORD_TOKEN)].filter(
     (match) => !LABEL_FILLERS.has((match[0] ?? "").toLowerCase())
@@ -1677,8 +1664,8 @@ const lastMatchEnd = (window: string, pattern: RegExp, offset: number) => {
   return end;
 };
 
-const labelWindowStart = (text: string, position: number) =>
-  Math.max(clauseStartBefore(text, position), position - LABEL_CHAR_WINDOW);
+const labelWindowStart = (position: number) =>
+  Math.max(0, position - LABEL_CHAR_WINDOW);
 
 const FIELD_SORT_LINE = /^[ \t]*sort[ _-]code[ \t]*:/iu;
 
@@ -1709,7 +1696,11 @@ const fieldKeyLabelled = (text: string, position: number, pattern: RegExp) => {
   return position <= valueStart;
 };
 
-const sortCodeLabelledAt = (text: string, position: number) => {
+const sortCodeLabelledAt = (
+  text: string,
+  position: number,
+  partner?: DigitRun
+) => {
   if (fieldKeyLabelled(text, position, FIELD_SORT_LINE)) {
     return false;
   }
@@ -1720,19 +1711,22 @@ const sortCodeLabelledAt = (text: string, position: number) => {
     return false;
   }
 
-  const from = labelWindowStart(text, position);
+  const from = labelWindowStart(position);
 
-  const window = text
-    .slice(from, position)
-    .replaceAll(FORMATTING_NOISE, "")
-    .replaceAll(HTML_TAG, "");
+  const window = withoutTags(
+    text.slice(from, position).replaceAll(FORMATTING_NOISE, "")
+  );
 
   const labelEnd = lastMatchEnd(window, SORT_CODE_LABEL, from);
 
-  return labelEnd >= 0 && labelFits(text, position, labelEnd);
+  return labelEnd >= 0 && labelFits(text, position, labelEnd, partner);
 };
 
-const accountLabelledAt = (text: string, position: number) => {
+const accountLabelledAt = (
+  text: string,
+  position: number,
+  partner?: DigitRun
+) => {
   if (fieldKeyLabelled(text, position, FIELD_ACCOUNT_LINE)) {
     return false;
   }
@@ -1743,22 +1737,21 @@ const accountLabelledAt = (text: string, position: number) => {
     return false;
   }
 
-  const from = labelWindowStart(text, position);
+  const from = labelWindowStart(position);
 
-  const window = text
-    .slice(from, position)
-    .replaceAll(FORMATTING_NOISE, "")
-    .replaceAll(HTML_TAG, "");
+  const window = withoutTags(
+    text.slice(from, position).replaceAll(FORMATTING_NOISE, "")
+  );
 
   const numberEnd = lastMatchEnd(window, ACCOUNT_NUMBER_LABEL, from);
 
-  if (numberEnd >= 0 && labelFits(text, position, numberEnd)) {
+  if (numberEnd >= 0 && labelFits(text, position, numberEnd, partner)) {
     return true;
   }
 
   const acEnd = lastMatchEnd(window, ACCOUNT_AC_LABEL, from);
 
-  if (acEnd >= 0 && labelFits(text, position, acEnd)) {
+  if (acEnd >= 0 && labelFits(text, position, acEnd, partner)) {
     return true;
   }
 
@@ -1782,7 +1775,7 @@ const accountLabelledAt = (text: string, position: number) => {
       !ACCOUNT_LABEL_DISQUALIFIERS.has(follower) &&
       (ACCOUNT_BARE_FOLLOW.test(text.slice(end)) ||
         /^\s*[0-9]/u.test(text.slice(end))) &&
-      labelFits(text, position, end)
+      labelFits(text, position, end, partner)
     ) {
       accountEnd = end;
     }
@@ -1808,19 +1801,29 @@ const labelReadsOn = (
   );
 };
 
-const sortCodeLabelled = (view: GuardView, run: DigitRun) =>
-  labelReadsOn(view, run, sortCodeLabelledAt);
+const sortCodeLabelled = (view: GuardView, run: DigitRun, partner?: DigitRun) =>
+  labelReadsOn(view, run, (text, position) =>
+    sortCodeLabelledAt(
+      text,
+      position,
+      SQUEEZED_VIEWS.has(view.id) ? undefined : partner
+    )
+  );
 
-const accountLabelled = (view: GuardView, run: DigitRun) =>
-  labelReadsOn(view, run, accountLabelledAt);
+const accountLabelled = (view: GuardView, run: DigitRun, partner?: DigitRun) =>
+  labelReadsOn(view, run, (text, position) =>
+    accountLabelledAt(
+      text,
+      position,
+      SQUEEZED_VIEWS.has(view.id) ? undefined : partner
+    )
+  );
 
 const FIELD_VALUE_TAIL = /[:=][ \t]*["'`[]?[ \t]*$/u;
 
 const fieldValueAt = (text: string, position: number) =>
   FIELD_VALUE_TAIL.test(
-    text
-      .slice(Math.max(0, position - LABEL_WINDOW), position)
-      .replaceAll(HTML_TAG, "")
+    withoutTags(text.slice(Math.max(0, position - LABEL_WINDOW), position))
   );
 
 const fieldValueBefore = (view: GuardView, run: DigitRun) => {
@@ -1831,30 +1834,6 @@ const fieldValueBefore = (view: GuardView, run: DigitRun) => {
     (SQUEEZED_VIEWS.has(view.id) &&
       fieldValueAt(source.raw, source.rawStartOf(run.start)))
   );
-};
-
-const pairGap = (source: TextSource, left: DigitRun, right: DigitRun) => {
-  const first = left.start < right.start ? left : right;
-
-  const second = first === left ? right : left;
-
-  return source.text.slice(first.end, second.start);
-};
-
-const LINE_BREAKS_ALL = /\r\n|\r|\n/gu;
-
-const GAP_SEPARATORS = new Set([",", "/", "|", ":", ";", "-"]);
-
-const tightGap = (gap: string) => {
-  const breaks = [...gap.matchAll(LINE_BREAKS_ALL)].length;
-
-  if (breaks > 1) {
-    return false;
-  }
-
-  const rest = gap.replaceAll(LINE_BREAKS_ALL, "").replaceAll(/\s/gu, "");
-
-  return rest.length === 0 || (rest.length === 1 && GAP_SEPARATORS.has(rest));
 };
 
 const CELL_DELIMITER = /[,\t|]/u;
@@ -1916,46 +1895,6 @@ const tableWitness = (view: GuardView, left: DigitRun, right: DigitRun) => {
   );
 };
 
-const structuralKeyLine = (raw: string, span: LineSpan) => {
-  if (!readsAsKeyLine(raw, span)) {
-    return false;
-  }
-
-  const line = visibleLine(raw, span);
-
-  const key = (BLOCK_KEY_LINE.exec(line)?.groups?.key ?? "")
-    .replaceAll(/^["'`]+|["'`]+$/gu, "")
-    .trim();
-
-  return key.length > 0 && !BANK_PHRASE.test(key);
-};
-
-const keyLineBetween = (
-  record: RecordText,
-  left: DigitRun,
-  right: DigitRun
-) => {
-  const raw = record.text;
-
-  const start = Math.min(record.at(left.start), record.at(right.start));
-
-  const end = Math.max(record.at(left.end), record.at(right.end));
-
-  let cursor = start;
-
-  while (cursor < end) {
-    const span = lineBoundsAt(raw, cursor);
-
-    if (span.start > start && structuralKeyLine(raw, span)) {
-      return true;
-    }
-
-    cursor = span.end + 1;
-  }
-
-  return false;
-};
-
 const blankBetween = (record: RecordText, left: DigitRun, right: DigitRun) => {
   const raw = record.text;
 
@@ -1968,81 +1907,46 @@ const blankBetween = (record: RecordText, left: DigitRun, right: DigitRun) => {
   return /\n[ \t]*\n|\r\n[ \t]*\r\n|\r[ \t]*\r/u.test(slice);
 };
 
-const labelledParagraphPair = (
-  record: RecordText,
+const namesSortCode = (
   view: GuardView,
-  sortCode: SortRun,
+  sortCode: DigitRun,
   account: DigitRun
-) => {
-  const labelledSort = sortCodeLabelled(view, sortCode);
+) =>
+  sortCodeLabelled(view, sortCode, account) || fieldValueBefore(view, sortCode);
 
-  const labelledAccount = accountLabelled(view, account);
+const namesAccountNumber = (
+  view: GuardView,
+  account: DigitRun,
+  sortCode: DigitRun
+) =>
+  accountLabelled(view, account, sortCode) || fieldValueBefore(view, account);
 
-  if (!labelledSort || !labelledAccount) {
-    return false;
-  }
-
-  if (
-    blankBetween(record, sortCode, account) ||
-    keyLineBetween(record, sortCode, account)
-  ) {
-    return false;
-  }
-
-  const sortField = fieldValueBefore(view, sortCode);
-
-  const accountField = fieldValueBefore(view, account);
-
-  if (sortField && accountField) {
-    return sameRecord(record, sortCode, account);
-  }
-
-  const from = record.at(sortCode.start);
-
-  const to = record.at(account.start);
-
-  return Math.abs(to - from) <= RECORD_LIMIT;
-};
+const namedAsBankData = (
+  view: GuardView,
+  sortCode: DigitRun,
+  account: DigitRun
+) =>
+  namesSortCode(view, sortCode, account) &&
+  namesAccountNumber(view, account, sortCode);
 
 const carriesPair = (
-  source: TextSource,
   view: GuardView,
-  sortCode: SortRun,
+  sortCode: DigitRun,
   account: DigitRun,
   record: RecordText
 ) => {
-  const labelledSort = sortCodeLabelled(view, sortCode);
-
-  const labelledAccount = accountLabelled(view, account);
-
-  if (labelledParagraphPair(record, view, sortCode, account)) {
-    return true;
-  }
-
-  if (!sortCode.carries && !labelledSort && !labelledAccount) {
-    return tableWitness(view, sortCode, account);
-  }
-
-  if (fieldValueBefore(view, sortCode) && fieldValueBefore(view, account)) {
-    return (
-      !blankBetween(record, sortCode, account) &&
-      sameRecord(record, sortCode, account)
-    );
-  }
-
-  if (tableWitness(view, sortCode, account)) {
-    return true;
-  }
-
-  if (
-    SQUEEZED_VIEWS.has(view.id) &&
-    crossesRawLine(source, sortCode, account) &&
-    !(labelledSort || labelledAccount)
-  ) {
+  if (blankBetween(record, sortCode, account)) {
     return false;
   }
 
-  return tightGap(pairGap(source, sortCode, account));
+  if (!sameRecord(record, sortCode, account)) {
+    return false;
+  }
+
+  return (
+    tableWitness(view, sortCode, account) ||
+    namedAsBankData(view, sortCode, account)
+  );
 };
 
 const sameRecord = (record: RecordText, left: DigitRun, right: DigitRun) => {
@@ -2274,7 +2178,11 @@ const bankRule = ({ allow, filePath, view }: RuleContext) => {
   const { accounts, sortCodes } = bankAtomsOf(view);
 
   return sortCodes.flatMap((sortCode) => {
-    if (overlaps(rawRun(source, sortCode), ibans)) {
+    if (
+      overlaps(rawRun(source, sortCode), ibans) &&
+      !sortCodeLabelled(view, sortCode) &&
+      !fieldValueBefore(view, sortCode)
+    ) {
       return [];
     }
 
@@ -2297,19 +2205,18 @@ const bankRule = ({ allow, filePath, view }: RuleContext) => {
     }
 
     const paired = accounts.some((account) => {
-      if (overlaps(rawRun(source, account), ibans)) {
+      if (sortCode.start < account.end && account.start < sortCode.end) {
         return false;
       }
 
-      const spansRecord =
-        sameRecord(record, sortCode, account) ||
-        labelledParagraphPair(record, view, sortCode, account);
-
-      if (!spansRecord) {
+      if (
+        overlaps(rawRun(source, account), ibans) &&
+        !namesAccountNumber(view, account, sortCode)
+      ) {
         return false;
       }
 
-      if (!carriesPair(source, view, sortCode, account, record)) {
+      if (!carriesPair(view, sortCode, account, record)) {
         return false;
       }
 
@@ -2520,6 +2427,9 @@ export const PERSONAL_DATA_MATRIX: Record<
     unwrapped: cell(
       "markup between a sort code and its account number is formatting, and the pair survives its removal"
     ),
+    separated: cell(
+      "a stripped tag leaves a separator, so a cell boundary cannot glue a sort code to the account number beside it, and digits a tag splits still read as one group"
+    ),
     stripped: cell(
       "a value wrapped by an indentation, a quote prefix, a comment prefix, a list dash or a heredoc is joined once that wrapper is removed, and the pair only reads as a pair then"
     ),
@@ -2539,6 +2449,9 @@ export const PERSONAL_DATA_MATRIX: Record<
     unwrapped: cell(
       "markup between a label and its id hides the pair from the readable view"
     ),
+    separated: cell(
+      "a stripped tag separates a label from the id beside it instead of gluing them into one word"
+    ),
     stripped: cell(
       "an id written through a wrapped encoding carries a container prefix or indentation that has to go before the value reads as an id"
     ),
@@ -2554,6 +2467,9 @@ export const PERSONAL_DATA_MATRIX: Record<
       "the same text read without the quoted-printable step, so a hostname in a decoded layer is still read"
     ),
     unwrapped: cell("markup inside a hostname hides it from the readable view"),
+    separated: cell(
+      "markup inside a hostname separates its parts, so this view holds what a tag would otherwise glue together"
+    ),
     stripped: cell(
       "a hostname written through a wrapped encoding reads once its container prefix or indentation is gone"
     ),
@@ -2567,6 +2483,7 @@ export const PERSONAL_DATA_MATRIX: Record<
     "squeezed-tagged": skipped(HIDDEN_ONLY),
     unquoted: skipped(HIDDEN_ONLY),
     unwrapped: skipped(HIDDEN_ONLY),
+    separated: skipped(HIDDEN_ONLY),
     stripped: skipped(HIDDEN_ONLY),
   },
   email: {
@@ -2580,6 +2497,9 @@ export const PERSONAL_DATA_MATRIX: Record<
       "the same text read without the quoted-printable step, so a decoded layer is not eaten by a wrong guess about an equals sign"
     ),
     unwrapped: cell("markup around an address hides it from the readable view"),
+    separated: cell(
+      "a stripped tag leaves a separator, so markup cannot glue an address to the word beside it"
+    ),
     stripped: cell(
       "an address joined across a soft break inside a block scalar, a quoted reply, a list item, a heredoc or a comment keeps its wrapper until that wrapper is removed"
     ),
@@ -2597,6 +2517,9 @@ export const PERSONAL_DATA_MATRIX: Record<
       "the same text read without the quoted-printable step, so a decoded layer is not eaten by a wrong guess about an equals sign"
     ),
     unwrapped: cell("markup inside an IBAN hides it from the readable view"),
+    separated: cell(
+      "a stripped tag separates the parts of an IBAN, and the groups still read as one IBAN"
+    ),
     stripped: cell(
       "an IBAN wrapped inside a block scalar or behind a quote prefix reads as an IBAN once its wrapper is removed"
     ),
@@ -2612,6 +2535,9 @@ export const PERSONAL_DATA_MATRIX: Record<
       "the same text read without the quoted-printable step, so an encoded value under a key is still read"
     ),
     unwrapped: cell("markup between a key and its value hides the pair"),
+    separated: skipped(
+      "a stripped tag holds a key and its value apart, and this rule reads a value written below its key"
+    ),
     stripped: skipped(
       "the strip removes the indentation a block scalar is made of, so this view has no block scalar left to read"
     ),
