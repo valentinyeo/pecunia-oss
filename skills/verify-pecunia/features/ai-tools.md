@@ -59,7 +59,7 @@ Planned: an assistant door in front of `dispatchTool`, with its own token check,
 bash skills/verify-pecunia/scripts/prove-demo-book.sh --feature ai-tools
 ```
 
-The drive is `skills/verify-pecunia/scripts/drive-ai-tools.mjs`. It builds a made-up in-memory world of two categories, two lines, and two reports, then calls every tool through `dispatchTool` as an owner and a viewer. It writes its named observations to `ai-tools-drive.json` next to `proof.json`. No observation compares itself with an expected value; `scripts/verdict.mjs` does that from `scripts/step-table.json`.
+The drive is `skills/verify-pecunia/scripts/drive-ai-tools.mjs`. It builds a made-up in-memory world: two categories, two lines, and two reports for the acting profile, plus a second profile with its own category, line, and report. It then calls all six tools as an owner and again as a viewer, and reads the suggestion store through `SuggestionStore` as the owner. It writes its named observations to `ai-tools-drive.json` next to `proof.json`. No observation compares itself with an expected value; `scripts/verdict.mjs` does that from `scripts/step-table.json`.
 
 Checks this drive runs, on top of the cross-cutting checks:
 
@@ -70,8 +70,15 @@ Checks this drive runs, on top of the cross-cutting checks:
 - `ai-tools-suggests-without-confirming`: `suggest_category` stores a suggestion and leaves the line's category empty.
 - `ai-tools-confirms-a-category`: `confirm_category` returns the line carrying the chosen category.
 - `ai-tools-confirmed-line-reads-back`: `list_lines`, a read path the write did not use, returns the confirmed category on that line.
-- `ai-tools-lists-reports`: `list_reports` returns both report summaries newest first, without their HTML.
-- `ai-tools-refuses-a-viewer-write`: a viewer's `suggest_category` is refused with `notPermitted` and writes nothing.
+- `ai-tools-lists-reports`: `list_reports` returns the acting profile's two report summaries newest first, without their HTML, and neither of them is the second profile's.
+- `ai-tools-viewer-lists-categories`: a viewer's `list_categories` returns the acting profile's two categories by name.
+- `ai-tools-viewer-lists-lines`: a viewer's `list_lines` returns the acting profile's two lines with a total and no next cursor.
+- `ai-tools-viewer-reads-one-line`: a viewer's `get_line` returns the confirmed line with its category and an awaiting review.
+- `ai-tools-viewer-lists-reports`: a viewer's `list_reports` returns the acting profile's two report summaries.
+- `ai-tools-refuses-a-viewer-confirm`: a viewer's `confirm_category` is refused with `notPermitted`.
+- `ai-tools-viewer-confirm-changes-nothing`: after that refusal the line still carries the owner's category, not the one the viewer asked for.
+- `ai-tools-refuses-a-viewer-write`: a viewer's `suggest_category` is refused with `notPermitted`.
+- `ai-tools-viewer-suggest-stores-nothing`: the suggestion store still holds the owner's one suggestion after that refusal, read through the package as the owner.
 - `ai-tools-refuses-an-unknown-tool`: a call to `run_sql` is refused with `unknownTool`.
 
 ## Proof a pull request must attach

@@ -8,6 +8,7 @@ import {
 import {
   dispatchTool,
   memoryToolsLayer,
+  SuggestionStore,
   ToolCaller,
   ToolCatalog,
 } from "../../../packages/ai-tools/dist/index.js";
@@ -37,6 +38,16 @@ const accountId = "0192f0c1-6006-7a2b-8c4d-5e6f70819331";
 const monthlyReportId = "0192f0c1-6007-7a2b-8c4d-5e6f70819341";
 
 const explorationReportId = "0192f0c1-6008-7a2b-8c4d-5e6f70819342";
+
+const otherProfileId = decode(ProfileIdSchema)(
+  "0192f0c1-6011-7a2b-8c4d-5e6f70819301"
+);
+
+const otherCategoryId = "0192f0c1-6012-7a2b-8c4d-5e6f70819311";
+
+const otherLineId = "0192f0c1-6013-7a2b-8c4d-5e6f70819321";
+
+const otherReportId = "0192f0c1-6014-7a2b-8c4d-5e6f70819341";
 
 const suggestedAt = 1_767_225_600_000;
 
@@ -70,6 +81,15 @@ const categories = decode(Schema.Array(CategorySchema))([
     parentId: null,
     profileId,
     spendingType: "business",
+  },
+  {
+    archived: false,
+    color: "teal",
+    id: otherCategoryId,
+    name: "Other Groceries",
+    parentId: null,
+    profileId: otherProfileId,
+    spendingType: "personal",
   },
 ]);
 
@@ -112,9 +132,36 @@ const lines = decode(Schema.Array(BankLineSchema))([
     status: "posted",
     valueDate: "2024-02-20",
   },
+  {
+    accountId,
+    amount: { currency: "EUR", minor: 9900 },
+    baseAmount: { currency: "EUR", minor: 9900 },
+    category: otherCategoryId,
+    direction: "out",
+    id: otherLineId,
+    note: "",
+    occurredAt: 1_706_000_000_000,
+    profileId: otherProfileId,
+    raw: {
+      description: "Other profile lunch",
+      merchant: "Demo Bakery",
+      reference: "DEMO-0003",
+    },
+    review: ReviewSchema.cases.Awaiting.make({}),
+    status: "posted",
+    valueDate: "2024-01-30",
+  },
 ]);
 
 const reports = [
+  {
+    id: otherReportId,
+    kind: "report",
+    profileId: otherProfileId,
+    slug: "other-profile-report",
+    title: "Other profile report",
+    updatedAt: 1_709_683_200_000,
+  },
   {
     id: explorationReportId,
     kind: "exploration",
@@ -184,6 +231,18 @@ const refusalText = (envelope) => {
     : `reason=${refusal.reason} field=${refusal.field ?? "none"}`;
 };
 
+const categoriesText = (page) =>
+  `categories=${page.categories.length} names=${page.categories.map((category) => category.name).join(",")}`;
+
+const linesText = (page) =>
+  `lines=${page.lines.length} total=${page.total} next=${page.nextCursor ?? "none"}`;
+
+const reportsText = (page) =>
+  `reports=${page.reports.length} kinds=${page.reports.map((report) => report.kind).join(",")}`;
+
+const lineText = (line) =>
+  `line=${line.id} category=${line.category ?? "none"} review=${line.review._tag}`;
+
 const observations = await Effect.runPromise(
   Effect.gen(function* driveTools() {
     const emitted = [
@@ -196,12 +255,11 @@ const observations = await Effect.runPromise(
     ];
 
     const catalog = outputOf(yield* call("list_categories", { limit: 200 }));
-    const listed = catalog.categories;
 
     emitted.push(
       observe({
         id: "ai-tools-lists-categories",
-        value: `categories=${listed.length} names=${listed.map((category) => category.name).join(",")}`,
+        value: categoriesText(catalog),
       })
     );
 
@@ -210,7 +268,7 @@ const observations = await Effect.runPromise(
     emitted.push(
       observe({
         id: "ai-tools-lists-lines",
-        value: `lines=${page.lines.length} total=${page.total} next=${page.nextCursor ?? "none"}`,
+        value: linesText(page),
       })
     );
 
@@ -219,7 +277,7 @@ const observations = await Effect.runPromise(
     emitted.push(
       observe({
         id: "ai-tools-reads-one-line",
-        value: `line=${before.line.id} category=${before.line.category ?? "none"} review=${before.line.review._tag}`,
+        value: lineText(before.line),
       })
     );
 
@@ -270,7 +328,75 @@ const observations = await Effect.runPromise(
     emitted.push(
       observe({
         id: "ai-tools-lists-reports",
-        value: `reports=${reportPage.reports.length} kinds=${reportPage.reports.map((report) => report.kind).join(",")}`,
+        value: reportsText(reportPage),
+      })
+    );
+
+    const viewerCategories = outputOf(
+      yield* call("list_categories", { limit: 200 }, viewer)
+    );
+
+    emitted.push(
+      observe({
+        id: "ai-tools-viewer-lists-categories",
+        value: categoriesText(viewerCategories),
+      })
+    );
+
+    const viewerLines = outputOf(
+      yield* call("list_lines", { limit: 200 }, viewer)
+    );
+
+    emitted.push(
+      observe({
+        id: "ai-tools-viewer-lists-lines",
+        value: linesText(viewerLines),
+      })
+    );
+
+    const viewerLine = outputOf(
+      yield* call("get_line", { lineId: targetLineId }, viewer)
+    );
+
+    emitted.push(
+      observe({
+        id: "ai-tools-viewer-reads-one-line",
+        value: lineText(viewerLine.line),
+      })
+    );
+
+    const viewerReports = outputOf(
+      yield* call("list_reports", { limit: 200 }, viewer)
+    );
+
+    emitted.push(
+      observe({
+        id: "ai-tools-viewer-lists-reports",
+        value: reportsText(viewerReports),
+      })
+    );
+
+    const viewerConfirm = yield* call(
+      "confirm_category",
+      { categoryId: travelId, lineId: targetLineId },
+      viewer
+    );
+
+    emitted.push(
+      observe({
+        id: "ai-tools-refuses-a-viewer-confirm",
+        value: refusalText(viewerConfirm),
+      })
+    );
+
+    const afterViewerConfirm = outputOf(
+      yield* call("get_line", { lineId: targetLineId })
+    );
+
+    emitted.push(
+      observe({
+        id: "ai-tools-viewer-confirm-changes-nothing",
+        value: `line=${afterViewerConfirm.line.id} category=${afterViewerConfirm.line.category ?? "none"}`,
       })
     );
 
@@ -284,6 +410,19 @@ const observations = await Effect.runPromise(
       observe({
         id: "ai-tools-refuses-a-viewer-write",
         value: refusalText(viewerWrite),
+      })
+    );
+
+    const suggestionStore = yield* SuggestionStore;
+    const stored = yield* suggestionStore.list(profileId);
+
+    emitted.push(
+      observe({
+        id: "ai-tools-viewer-suggest-stores-nothing",
+        value: `suggestions=${stored.length} lines=${stored
+          .map((entry) => entry.lineId)
+          .toSorted()
+          .join(",")}`,
       })
     );
 

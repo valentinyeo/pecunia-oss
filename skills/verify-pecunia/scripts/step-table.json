@@ -46,6 +46,13 @@
     "aiToolsSuggestion": "suggested=0192f0c1-6002-7a2b-8c4d-5e6f70819311 lineCategory=none",
     "aiToolsConfirm": "line=0192f0c1-6005-7a2b-8c4d-5e6f70819322 category=0192f0c1-6002-7a2b-8c4d-5e6f70819311",
     "aiToolsReports": "reports=2 kinds=exploration,report",
+    "aiToolsViewerCategories": "categories=2 names=Groceries,Travel",
+    "aiToolsViewerLines": "lines=2 total=2 next=none",
+    "aiToolsViewerLine": "line=0192f0c1-6005-7a2b-8c4d-5e6f70819322 category=0192f0c1-6002-7a2b-8c4d-5e6f70819311 review=Awaiting",
+    "aiToolsViewerReports": "reports=2 kinds=exploration,report",
+    "aiToolsViewerConfirm": "reason=notPermitted field=none",
+    "aiToolsViewerConfirmLeavesCategory": "line=0192f0c1-6005-7a2b-8c4d-5e6f70819322 category=0192f0c1-6002-7a2b-8c4d-5e6f70819311",
+    "aiToolsViewerSuggestStoresNothing": "suggestions=1 lines=0192f0c1-6005-7a2b-8c4d-5e6f70819322",
     "aiToolsViewerWrite": "reason=notPermitted field=none",
     "aiToolsUnknownTool": "reason=unknownTool field=none"
   },
@@ -433,8 +440,42 @@
           "capability": "list_reports"
         },
         {
+          "id": "ai-tools-viewer-lists-categories",
+          "equalsDemoNumber": "aiToolsViewerCategories",
+          "capability": "list_categories"
+        },
+        {
+          "id": "ai-tools-viewer-lists-lines",
+          "equalsDemoNumber": "aiToolsViewerLines",
+          "capability": "list_lines"
+        },
+        {
+          "id": "ai-tools-viewer-reads-one-line",
+          "equalsDemoNumber": "aiToolsViewerLine",
+          "capability": "get_line"
+        },
+        {
+          "id": "ai-tools-viewer-lists-reports",
+          "equalsDemoNumber": "aiToolsViewerReports",
+          "capability": "list_reports"
+        },
+        {
+          "id": "ai-tools-refuses-a-viewer-confirm",
+          "equalsDemoNumber": "aiToolsViewerConfirm",
+          "capability": "confirm_category"
+        },
+        {
+          "id": "ai-tools-viewer-confirm-changes-nothing",
+          "equalsDemoNumber": "aiToolsViewerConfirmLeavesCategory"
+        },
+        {
           "id": "ai-tools-refuses-a-viewer-write",
-          "equalsDemoNumber": "aiToolsViewerWrite"
+          "equalsDemoNumber": "aiToolsViewerWrite",
+          "capability": "suggest_category"
+        },
+        {
+          "id": "ai-tools-viewer-suggest-stores-nothing",
+          "equalsDemoNumber": "aiToolsViewerSuggestStoresNothing"
         },
         {
           "id": "ai-tools-refuses-an-unknown-tool",
