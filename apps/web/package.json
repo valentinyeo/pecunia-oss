@@ -39,6 +39,7 @@
     "@pecunia/motion": "workspace:*",
     "@pecunia/settings": "workspace:*",
     "@pecunia/site": "workspace:*",
+    "@pecunia/subscriptions": "workspace:*",
     "@stylexjs/stylex": "0.19.2",
     "alchemy": "2.0.0-beta.87",
     "effect": "4.1.4",

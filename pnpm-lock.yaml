@@ -551,6 +551,9 @@ importers:
       '@pecunia/site':
         specifier: workspace:*
         version: link:../site
+      '@pecunia/subscriptions':
+        specifier: workspace:*
+        version: link:../../packages/subscriptions
       '@stylexjs/stylex':
         specifier: 0.19.2
         version: 0.19.2

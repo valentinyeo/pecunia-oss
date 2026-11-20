@@ -13,6 +13,10 @@ import {
   SettingsRole,
   SettingsScreen,
 } from "./settings/model.js";
+import {
+  initialSubscriptions,
+  SubscriptionsScreen,
+} from "./subscriptions/model.js";
 
 export const Theme = Schema.Literals(["dark", "light"]);
 
@@ -31,6 +35,7 @@ export const Model = Schema.Struct({
   route: AppRoute,
   search: SearchModel,
   settings: SettingsScreen,
+  subscriptions: SubscriptionsScreen,
   theme: Theme,
 });
 
@@ -45,5 +50,6 @@ export const initialModel: PecuniaModel = {
   route: AppRoute.Dashboard(),
   search: initialSearch,
   settings: initialSettings,
+  subscriptions: initialSubscriptions,
   theme: "light",
 };
