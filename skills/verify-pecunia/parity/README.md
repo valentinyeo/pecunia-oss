@@ -233,12 +233,12 @@ Every place the old app put a behaviour. A place with no row is a behaviour nobo
 | An assistant asks for income by client | tool: income summary | built | capability:incomeSummary |
 | An assistant asks for month by month money in, money out and net | tool: monthly totals | built | capability:monthlyTotals |
 | An assistant asks for the active repeat payments | tool: subscriptions | planned | ticket:SOFT-2395 |
-| An assistant searches payments by merchant, reference or description | tool: payment search | planned | no ticket yet |
+| An assistant searches payments by merchant, reference or description | tool: payment search | built | capability:list_lines |
 | An assistant asks which payments in a month still need an invoice | tool: missing invoices | planned | ticket:SOFT-2493 |
 | An assistant saves one invoice file against a payment | tool: invoice attach | planned | ticket:SOFT-2493 |
 | An assistant links unlinked invoices to payments from the same company within five days | tool: invoice linking | planned | ticket:SOFT-2493 |
 | An assistant saves a report page | tool: report save | planned | ticket:SOFT-2399 |
-| An assistant lists the saved reports | tool: report list | planned | ticket:SOFT-2399 |
+| An assistant lists the saved reports | tool: report list | built | capability:list_reports |
 | An assistant registers invoice files that predate the archive | tool: legacy invoices | planned | ticket:SOFT-2493 |
 | An assistant counts how many outgoing payments have an invoice, month by month | tool: invoice coverage | planned | ticket:SOFT-2493 |
 | An assistant records a written reason for a payment with no invoice | tool: invoice exception | planned | ticket:SOFT-2493 |
