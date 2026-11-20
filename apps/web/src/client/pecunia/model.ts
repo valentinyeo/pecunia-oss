@@ -3,6 +3,7 @@ import { PortfolioSchema } from "@pecunia/investments/model";
 import { Schema } from "effect";
 
 import { BankLinesScreen, initialBankLines } from "./bank-lines/model.js";
+import { CategorizeScreen, initialCategorize } from "./categorize/model.js";
 import { Dashboard } from "./dashboard.js";
 import { demoDashboard } from "./demo-data.js";
 import { AppRoute } from "./route.js";
@@ -24,6 +25,7 @@ export type AccessRoleValue = typeof AccessRole.Type;
 export const Model = Schema.Struct({
   access: AccessRole,
   bankLines: BankLinesScreen,
+  categorize: CategorizeScreen,
   dashboard: Dashboard,
   investments: PortfolioSchema,
   route: AppRoute,
@@ -37,6 +39,7 @@ export type PecuniaModel = typeof Model.Type;
 export const initialModel: PecuniaModel = {
   access: "owner",
   bankLines: initialBankLines,
+  categorize: initialCategorize,
   dashboard: demoDashboard,
   investments: demoPortfolio,
   route: AppRoute.Dashboard(),

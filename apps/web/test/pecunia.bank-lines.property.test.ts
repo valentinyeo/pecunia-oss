@@ -19,6 +19,8 @@ const seeded = (salt: number) => {
 
 const currencies = ["EUR", "GBP", "USD", "CHF", "JPY", "SEK"] as const;
 
+const digitsFor = (currency: string): number => (currency === "JPY" ? 0 : 2);
+
 const symbolFor = (currency: string): string => {
   if (currency === "EUR") {
     return "€";
@@ -32,9 +34,11 @@ const symbolFor = (currency: string): string => {
 };
 
 const referenceMoney = (minor: number, currency: string): string => {
+  const digits = digitsFor(currency);
+  const scale = 10 ** digits;
   const absolute = Math.abs(minor);
-  const major = String(Math.floor(absolute / 100));
-  const cents = String(absolute % 100).padStart(2, "0");
+  const major = String(Math.floor(absolute / scale));
+  const cents = String(absolute % scale).padStart(digits, "0");
   const groups: string[] = [];
 
   let rest = major;
@@ -46,7 +50,9 @@ const referenceMoney = (minor: number, currency: string): string => {
 
   groups.unshift(rest);
 
-  return `${minor < 0 ? "-" : ""}${symbolFor(currency)}${groups.join(",")}.${cents}`;
+  const fraction = digits === 0 ? "" : `.${cents}`;
+
+  return `${minor < 0 ? "-" : ""}${symbolFor(currency)}${groups.join(",")}${fraction}`;
 };
 
 const monthNames: readonly string[] = [
@@ -115,7 +121,7 @@ it("formats every generated amount exactly as the reference does", () => {
   }
 });
 
-it("keeps one separator every three major digits and two decimal places", () => {
+it("keeps one separator every three major digits and the currency's decimals", () => {
   const random = seeded(2);
 
   for (let index = 0; index < CASES; index += 1) {
@@ -125,7 +131,7 @@ it("keeps one separator every three major digits and two decimal places", () => 
     const numeric = shown.replace(/^[-+]?(?:[A-Z]{3} |[€£$])/u, "");
     const [major = "", cents = ""] = numeric.split(".");
 
-    expect(cents).toHaveLength(2);
+    expect(cents).toHaveLength(digitsFor(currency));
     expect(major).toMatch(/^\d{1,3}(?:,\d{3})*$/u);
   }
 });

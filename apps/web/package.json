@@ -32,6 +32,7 @@
     "@pecunia/auth": "workspace:*",
     "@pecunia/bank-lines": "workspace:*",
     "@pecunia/capability": "workspace:*",
+    "@pecunia/categorize": "workspace:*",
     "@pecunia/core": "workspace:*",
     "@pecunia/devtools": "workspace:*",
     "@pecunia/investments": "workspace:*",

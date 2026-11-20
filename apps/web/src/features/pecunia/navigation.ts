@@ -2,10 +2,14 @@ import { Option, Predicate } from "effect";
 
 import {
   AppRoute,
+  aliasesRouter,
   budgetsRouter,
+  categoriesRouter,
   dashboardRouter,
   investmentsRouter,
+  merchantsRouter,
   reviewRouter,
+  rulesRouter,
   searchRouter,
   settingsRouter,
   subscriptionsRouter,
@@ -57,6 +61,24 @@ const moneySection: MenuSection = {
   ],
 };
 
+const sortingSection: MenuSection = {
+  heading: "Sorting",
+  items: [
+    {
+      label: "Categories",
+      path: categoriesRouter(),
+      screen: AppRoute.Categories(),
+    },
+    { label: "Rules", path: rulesRouter(), screen: AppRoute.Rules() },
+    { label: "Aliases", path: aliasesRouter(), screen: AppRoute.Aliases() },
+    {
+      label: "Merchants",
+      path: merchantsRouter(),
+      screen: AppRoute.Merchants(),
+    },
+  ],
+};
+
 const accountSection: MenuSection = {
   heading: "Account",
   items: [
@@ -66,6 +88,7 @@ const accountSection: MenuSection = {
 
 export const menuSections: readonly MenuSection[] = [
   moneySection,
+  sortingSection,
   accountSection,
 ];
 
@@ -75,11 +98,16 @@ export const isCurrent = (route: AppRouteValue, item: MenuItem): boolean =>
     Predicate.isTagged(route, "Spending"));
 
 export const routeTitle = AppRoute.match({
+  Aliases: () => "Aliases",
   Budgets: () => "Budgets",
+  Categories: () => "Categories",
   Dashboard: () => "Dashboard",
   Investments: () => "Investments",
+  MerchantDetail: () => "Merchant",
+  Merchants: () => "Merchants",
   NotFound: () => "Not found",
   Review: () => "Review",
+  Rules: () => "Rules",
   Search: () => "Search",
   Settings: () => "Settings",
   Spending: () => "Spending",

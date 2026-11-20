@@ -6,6 +6,11 @@ import { Match, Option, Schema } from "effect";
 
 import type { Minor } from "../../client/pecunia/money.js";
 
+export interface ShownMoney {
+  readonly currency: string;
+  readonly minor: number;
+}
+
 const DIGITS_FOR_UNLISTED_CURRENCIES = 2;
 
 const minorDigitsOf = (currency: string): number =>
@@ -43,3 +48,6 @@ export const formatMinor = (
 
   return `${sign}${symbolFor(currency)}${grouped(String(major))}${fraction}`;
 };
+
+export const formatMoney = (money: ShownMoney): string =>
+  formatMinor(money.minor, money.currency);

@@ -13,6 +13,10 @@ import {
   openReview,
   update as updateBankLines,
 } from "./bank-lines/update.js";
+import type { CategorizeGateway } from "./categorize/gateway.js";
+import type { CategorizeMessageValue } from "./categorize/message.js";
+import type { CategorizeScreenValue } from "./categorize/model.js";
+import { update as updateCategorize } from "./categorize/update.js";
 import { LoadExternal, Navigate, ReadLocation } from "./command.js";
 import { Message } from "./message.js";
 import type { PecuniaMessage } from "./message.js";
@@ -24,7 +28,10 @@ import type { SearchMessageValue } from "./search/message.js";
 import { openSearch, update as updateSearch } from "./search/update.js";
 import type { SettingsGateway } from "./settings/gateway.js";
 import type { SettingsMessageValue } from "./settings/message.js";
-import type { SettingsScreenValue } from "./settings/model.js";
+import type {
+  SettingsRoleValue,
+  SettingsScreenValue,
+} from "./settings/model.js";
 import {
   open as openSettings,
   update as updateSettings,
@@ -33,7 +40,7 @@ import {
 export type PecuniaReturn = Update.Return<
   PecuniaModel,
   PecuniaMessage,
-  BankLinesGateway | SettingsGateway
+  BankLinesGateway | CategorizeGateway | SettingsGateway
 >;
 
 const gotSettingsMessage = (message: SettingsMessageValue): PecuniaMessage =>
@@ -50,6 +57,23 @@ const openSettingsScreen = Update.foldChildStep({
   toParentMessage: gotSettingsMessage,
   update: openSettings,
   write: (model, settings) => ({ ...model, settings }),
+});
+
+const gotCategorizeMessage = (
+  message: CategorizeMessageValue
+): PecuniaMessage => Message.GotCategorizeMessage({ message });
+
+const foldCategorize = Update.foldChild({
+  read: (model: PecuniaModel) => Option.some(model.categorize),
+  toParentMessage: gotCategorizeMessage,
+  update: (
+    categorize: CategorizeScreenValue,
+    input: Readonly<{
+      access: SettingsRoleValue;
+      message: CategorizeMessageValue;
+    }>
+  ) => updateCategorize(categorize, input.access, input.message),
+  write: (model, categorize) => ({ ...model, categorize }),
 });
 
 const foldSettings = Update.foldChild({
@@ -117,11 +141,16 @@ const enterRoute = (
   const next = { ...model, route };
 
   return AppRoute.match<PecuniaReturn>(route, {
+    Aliases: () => ({ model: next }),
     Budgets: () => ({ model: next }),
+    Categories: () => ({ model: next }),
     Dashboard: () => ({ model: next }),
     Investments: () => ({ model: next }),
+    MerchantDetail: () => ({ model: next }),
+    Merchants: () => ({ model: next }),
     NotFound: () => ({ model: next }),
     Review: () => openReviewScreen(next),
+    Rules: () => ({ model: next }),
     Search: ({ q }) => openSearchScreen(Option.getOrElse(q, () => ""))(next),
     Settings: () => openSettingsScreen(next),
     Spending: ({ categoryId }) =>
@@ -158,6 +187,11 @@ export const update = (
     CompletedNavigate: () => ({ model }),
     GotBankLinesMessage: ({ message: bankLinesMessage }) =>
       foldBankLines(model, { access: model.access, message: bankLinesMessage }),
+    GotCategorizeMessage: ({ message: categorizeMessage }) =>
+      foldCategorize(model, {
+        access: model.access,
+        message: categorizeMessage,
+      }),
     GotSearchMessage: ({ message: searchMessage }) =>
       foldSearch(model, searchMessage),
     GotSettingsMessage: ({ message: settingsMessage }) =>
