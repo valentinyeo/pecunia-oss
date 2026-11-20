@@ -118,7 +118,8 @@ step_seed() {
 step_build() {
   steps_run_command build-import pnpm turbo run build --filter=@pecunia/bank-import... > "$BUILD_LOG" 2>&1
   steps_run_command build-lines pnpm turbo run build --filter=@pecunia/bank-lines... >> "$BUILD_LOG" 2>&1
-  if [ "$(steps_command_exit build-import)" != 0 ] || [ "$(steps_command_exit build-lines)" != 0 ]; then
+  steps_run_command build-ai-tools pnpm turbo run build --filter=@pecunia/ai-tools... >> "$BUILD_LOG" 2>&1
+  if [ "$(steps_command_exit build-import)" != 0 ] || [ "$(steps_command_exit build-lines)" != 0 ] || [ "$(steps_command_exit build-ai-tools)" != 0 ]; then
     cat "$BUILD_LOG" >&2
   fi
   steps_require_file build-log "$BUILD_LOG"
@@ -234,6 +235,14 @@ step_bank_line_review() {
   local drive=$SCRATCH/bank-line-review-drive.json
   steps_run_command bank-line-review node "$SCRIPT_DIR/drive-bank-lines.mjs" --capability review > "$drive"
   steps_keep_artifact bank-line-review-drive.json "$drive"
+  steps_count_mutations "$(jq -r '.mutatingCalls // 0' "$drive" 2>/dev/null || printf '0')"
+  steps_observe_json "$drive"
+}
+
+step_ai_tools() {
+  local drive=$SCRATCH/ai-tools-drive.json
+  steps_run_command ai-tools node "$SCRIPT_DIR/drive-ai-tools.mjs" > "$drive"
+  steps_keep_artifact ai-tools-drive.json "$drive"
   steps_count_mutations "$(jq -r '.mutatingCalls // 0' "$drive" 2>/dev/null || printf '0')"
   steps_observe_json "$drive"
 }
