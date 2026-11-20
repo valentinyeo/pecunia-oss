@@ -46,7 +46,10 @@ const decodedHandler =
       CurrentPerson | InvoiceService
     >
   ) =>
-  (input: unknown) =>
+  (
+    // oxlint-disable-next-line anti-slop/no-unknown-parameters -- `implement` erases each capability input; decodeInvoiceRequest parses wire JSON at the boundary.
+    input: unknown
+  ) =>
     Effect.gen(function* decodedCapability() {
       const parsed = yield* decodeInvoiceRequest(
         contract.name,
@@ -54,8 +57,7 @@ const decodedHandler =
         input
       );
 
-      // SAFETY: decodeInvoiceRequest validated input with contract.input.
-      return yield* run(parsed as InputOf<ContractType>["Type"]);
+      return yield* run(parsed);
     });
 
 export const attachInvoice = implement(

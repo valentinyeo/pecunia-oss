@@ -1,10 +1,12 @@
 import { expect, it } from "@effect/vitest";
 import { CurrentPerson } from "@pecunia/access";
-import { Effect, Layer, Option, Predicate } from "effect";
+import { Effect, Layer, Schema } from "effect";
 
 import { invoiceCapabilities } from "../src/capabilities.js";
 import { demoPerson, demoProfileId, demoInvoiceSeed } from "../src/demo.js";
 import { InvalidInvoiceRequest } from "../src/invalid-invoice-request.js";
+import { InvoiceExceptionRefused } from "../src/invoice-exception-refused.js";
+import { LegacyFilesRefused } from "../src/legacy-files-refused.js";
 import { memoryInvoiceStoreLayer } from "../src/memory.js";
 import { InvoiceService } from "../src/service.js";
 
@@ -18,13 +20,17 @@ const asOwner = Layer.mergeAll(
 const repeat = (count: number, char: string) => char.repeat(count);
 
 const goodProfile = demoProfileId;
+
 const goodPayment = "0192f0c1-0029-768c-8adb-adbefc188d19";
+
 const goodDocument = "0192f0c1-0038-7d36-85ce-5ceb83cb9775";
+
 const goodPlace = "0192f0c1-0036-72cc-8abe-abebbea44bc0";
-const goodSource = "0192f0c1-0035-7dd0-8aba-aba363f96bd0";
+
 const goodSha = repeat(64, "a");
-const goodFile = {
-  amount: Option.some({ currency: "EUR", minor: 2400 }),
+
+const wireGoodFile = {
+  amount: { currency: "EUR", minor: 2400 },
   contentType: "application/pdf",
   documentDate: "2025-01-15",
   documentType: "invoice" as const,
@@ -33,54 +39,44 @@ const goodFile = {
   sha256: goodSha,
   sizeBytes: 9001,
   source: "legacy_upload" as const,
-  sourceRef: Option.none(),
-  vendorPayeeId: Option.none(),
+  sourceRef: null,
+  vendorPayeeId: null,
 };
 
-const assertRefusal = (error: unknown, field: string) => {
-  expect(typeof error).toBe("object");
-  expect(error).not.toBeNull();
+// oxlint-disable-next-line anti-slop/no-unknown-parameters -- Schema.is narrows each tagged failure after Effect.flip.
+const assertRefusal = (error: unknown, field: string): void => {
+  if (Schema.is(InvalidInvoiceRequest)(error)) {
+    expect(error.field).toBe(field);
+    expect(error.problem.length).toBeGreaterThan(0);
+    expect(error.fix.startsWith("Fix:")).toBe(true);
+    expect(error.problem.toLowerCase()).not.toContain("blank");
 
-  if (Predicate.isTagged(error, "InvalidInvoiceRequest")) {
-    expect(error.message).toContain("Fix:");
-    expect(error.repair).toContain("Fix:");
-    expect(error.field.length).toBeGreaterThan(0);
     return;
   }
 
-  if (Predicate.isTagged(error, "InvoiceExceptionRefused")) {
+  if (Schema.is(InvoiceExceptionRefused)(error)) {
     expect(error.message.length).toBeGreaterThan(0);
     expect(error.repair).toBeDefined();
+
     return;
   }
 
-  if (Predicate.isTagged(error, "LegacyFilesRefused")) {
+  if (Schema.is(LegacyFilesRefused)(error)) {
     expect(error.message.length).toBeGreaterThan(0);
     expect(error.repair).toBeDefined();
+
     return;
   }
 
-  if (
-    !Predicate.isTagged(error, "InvoiceExceptionRefused") &&
-    !Predicate.isTagged(error, "LegacyFilesRefused")
-  ) {
-    throw new Error(`Expected a tagged refusal, got ${String(error)}`);
-  }
+  throw new Error(`Expected a tagged refusal, got ${String(error)}`);
 };
-
-const runBad = (
-  capability: (typeof invoiceCapabilities)[number],
-  input: unknown
-) =>
-  // @effect-diagnostics-next-line anyUnknownInErrorContext:off -- Effect.flip erases each capability failure union in the walk harness.
-  capability.handler(input as never).pipe(Effect.flip, Effect.provide(asOwner));
 
 interface BadCase {
   readonly field: string;
   readonly input: unknown;
 }
 
-const casesByCapability: Record<string, readonly BadCase[]> = {
+const casesByCapability = {
   attachInvoice: [
     {
       field: "profileId",
@@ -117,19 +113,27 @@ const casesByCapability: Record<string, readonly BadCase[]> = {
   listArchivedDocuments: [
     {
       field: "limit",
-      input: { cursor: Option.none(), limit: 0, profileId: goodProfile },
+      input: { cursor: null, limit: 0, profileId: goodProfile },
     },
     {
       field: "limit",
-      input: { cursor: Option.none(), limit: 201, profileId: goodProfile },
+      input: { cursor: null, limit: 201, profileId: goodProfile },
     },
     {
-      field: "cursor",
+      field: "limit",
+      input: { cursor: null, limit: 1.5, profileId: goodProfile },
+    },
+    {
+      field: "limit",
+      input: { cursor: null, limit: -1, profileId: goodProfile },
+    },
+    {
+      field: "cursor.documentId",
       input: {
-        cursor: Option.some({
+        cursor: {
           archivedAt: 1,
           documentId: repeat(65, "d"),
-        }),
+        },
         limit: 10,
         profileId: goodProfile,
       },
@@ -138,11 +142,11 @@ const casesByCapability: Record<string, readonly BadCase[]> = {
   listInvoiceStatus: [
     {
       field: "month",
-      input: { month: Option.some("2025-13"), profileId: goodProfile },
+      input: { month: "2025-13", profileId: goodProfile },
     },
     {
       field: "month",
-      input: { month: Option.some("   "), profileId: goodProfile },
+      input: { month: "   ", profileId: goodProfile },
     },
   ],
   matchInvoices: [{ field: "profileId", input: { profileId: "" } }],
@@ -156,10 +160,10 @@ const casesByCapability: Record<string, readonly BadCase[]> = {
   readInvoiceSources: [{ field: "profileId", input: { profileId: "" } }],
   recordInvoiceArchive: [
     {
-      field: "outcome",
+      field: "outcome.reason",
       input: {
         documentId: goodDocument,
-        outcome: { _tag: "Failed", reason: "" },
+        outcome: { _tag: "Failed", reason: "" }, // oxlint-disable-line anti-slop-effect/no-manual-tagged-construction -- wire JSON for ArchiveOutcomeSchema before decode.
         profileId: goodProfile,
       },
     },
@@ -170,7 +174,23 @@ const casesByCapability: Record<string, readonly BadCase[]> = {
       input: {
         profileId: goodProfile,
         reason: "Paid in cash.",
+        transactionId: "",
+      },
+    },
+    {
+      field: "transactionId",
+      input: {
+        profileId: goodProfile,
+        reason: "Paid in cash.",
         transactionId: repeat(65, "p"),
+      },
+    },
+    {
+      field: "transactionId",
+      input: {
+        profileId: goodProfile,
+        reason: "Paid in cash.",
+        transactionId: 42,
       },
     },
     {
@@ -199,16 +219,28 @@ const casesByCapability: Record<string, readonly BadCase[]> = {
       field: "files",
       input: {
         files: Array.from({ length: 201 }, (_, index) => ({
-          ...goodFile,
-          sha256: `${String(index).padStart(64, "0")}`,
+          ...wireGoodFile,
+          sha256: String(index).padStart(64, "0"),
         })),
         profileId: goodProfile,
       },
     },
     {
-      field: "files",
+      field: "files.0.originalFilename",
       input: {
-        files: [{ ...goodFile, originalFilename: repeat(513, "f") }],
+        files: [{ ...wireGoodFile, originalFilename: repeat(513, "f") }],
+        profileId: goodProfile,
+      },
+    },
+    {
+      field: "files.0.amount.minor",
+      input: {
+        files: [
+          {
+            ...wireGoodFile,
+            amount: { currency: "EUR", minor: 10.5 },
+          },
+        ],
         profileId: goodProfile,
       },
     },
@@ -244,13 +276,22 @@ const casesByCapability: Record<string, readonly BadCase[]> = {
   saveInvoiceFile: [
     {
       field: "transactionId",
-      input: { ...goodFile, profileId: goodProfile, transactionId: "" },
+      input: { ...wireGoodFile, profileId: goodProfile, transactionId: "" },
     },
     {
       field: "originalFilename",
       input: {
-        ...goodFile,
+        ...wireGoodFile,
         originalFilename: repeat(513, "n"),
+        profileId: goodProfile,
+        transactionId: goodPayment,
+      },
+    },
+    {
+      field: "amount.minor",
+      input: {
+        ...wireGoodFile,
+        amount: { currency: "EUR", minor: 1.5 },
         profileId: goodProfile,
         transactionId: goodPayment,
       },
@@ -258,7 +299,7 @@ const casesByCapability: Record<string, readonly BadCase[]> = {
     {
       field: "source",
       input: {
-        ...goodFile,
+        ...wireGoodFile,
         profileId: goodProfile,
         source: "unknown",
         transactionId: goodPayment,
@@ -269,10 +310,10 @@ const casesByCapability: Record<string, readonly BadCase[]> = {
     {
       field: "pattern",
       input: {
-        loginHint: Option.none(),
-        notes: Option.none(),
+        loginHint: null,
+        notes: null,
         pattern: "   ",
-        portalUrl: Option.none(),
+        portalUrl: null,
         profileId: goodProfile,
         retrieval: {
           bookkeeper: false,
@@ -280,16 +321,16 @@ const casesByCapability: Record<string, readonly BadCase[]> = {
           portal: true,
           twoFactor: false,
         },
-        vendorPayeeId: Option.none(),
+        vendorPayeeId: null,
       },
     },
     {
       field: "pattern",
       input: {
-        loginHint: Option.none(),
-        notes: Option.none(),
+        loginHint: null,
+        notes: null,
         pattern: repeat(201, "p"),
-        portalUrl: Option.none(),
+        portalUrl: null,
         profileId: goodProfile,
         retrieval: {
           bookkeeper: false,
@@ -297,29 +338,46 @@ const casesByCapability: Record<string, readonly BadCase[]> = {
           portal: true,
           twoFactor: false,
         },
-        vendorPayeeId: Option.none(),
+        vendorPayeeId: null,
       },
     },
   ],
-};
+} satisfies Record<string, readonly BadCase[]>;
 
-// @effect-diagnostics-next-line anyUnknownInErrorContext:off missingEffectContext:off -- the walk iterates every capability failure union through one harness.
+type WalkHandler = (
+  input: never
+) => Effect.Effect<unknown, unknown, CurrentPerson | InvoiceService>;
+
+const runBad = (
+  handler: WalkHandler,
+  // oxlint-disable-next-line anti-slop/no-unknown-parameters -- the walk drives wire JSON through each capability handler.
+  input: unknown
+) =>
+  // @effect-diagnostics-next-line anyUnknownInErrorContext:off -- heterogeneous tagged failures are inspected after flip.
+  handler(
+    // SAFETY: `implement` erases each capability's input type; the walk only sends wire JSON.
+    // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- same invariant as the SAFETY comment above.
+    input as never
+  ).pipe(Effect.flip, Effect.provide(asOwner));
+
 it.effect("refuses bad request fields for every invoice capability", () =>
   Effect.gen(function* walkInvoiceCapabilities() {
     for (const capability of invoiceCapabilities) {
-      const cases = casesByCapability[capability.contract.name] ?? [];
+      const capabilityName = capability.contract.name;
 
-      if (cases.length === 0) {
-        throw new Error(
-          `${capability.contract.name} needs at least one bad field case`
-        );
+      if (!Object.hasOwn(casesByCapability, capabilityName)) {
+        throw new Error(`${capabilityName} needs at least one bad field case`);
       }
 
-      for (const bad of cases) {
-        const refused = yield* runBad(capability, bad.input);
+      const caseList = casesByCapability[capabilityName];
+
+      for (const bad of caseList) {
+        // @effect-diagnostics-next-line anyUnknownInErrorContext:off -- `Schema.is` narrows each tagged refusal before assertions.
+        const refused: unknown = yield* runBad(capability.handler, bad.input);
 
         assertRefusal(refused, bad.field);
-        if (Predicate.isTagged(refused, "InvalidInvoiceRequest")) {
+
+        if (Schema.is(InvalidInvoiceRequest)(refused)) {
           expect(refused.capability).toBe(capability.contract.name);
         }
       }
