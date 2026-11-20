@@ -62,9 +62,13 @@ export { InvoiceAlreadyAttached } from "./invoice-already-attached.js";
 
 export { InvoiceAlreadyInvoiced } from "./invoice-already-invoiced.js";
 
+export { InvoiceExceptionRefused } from "./invoice-exception-refused.js";
+
 export { InvoiceNotPayable } from "./invoice-not-payable.js";
 
 export { InvoiceStoreError } from "./invoice-store-error.js";
+
+export { LegacyFilesRefused } from "./legacy-files-refused.js";
 
 export { MATCH_WINDOW_DAYS, proposeMatches } from "./matching.js";
 
@@ -101,6 +105,7 @@ export {
   DocumentIdSchema,
   DocumentSourceSchema,
   DocumentTypeSchema,
+  EXCEPTION_REASON_MAX,
   ExceptionReasonSchema,
   FilenameSchema,
   InvoiceCoverageMonthSchema,

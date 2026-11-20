@@ -7,8 +7,10 @@ import { ArchivePlaceUnavailable } from "./archive-place-unavailable.js";
 import { ArchiveStateRefused } from "./archive-state-refused.js";
 import { InvoiceAlreadyAttached } from "./invoice-already-attached.js";
 import { InvoiceAlreadyInvoiced } from "./invoice-already-invoiced.js";
+import { InvoiceExceptionRefused } from "./invoice-exception-refused.js";
 import { InvoiceNotPayable } from "./invoice-not-payable.js";
 import { InvoiceStoreError } from "./invoice-store-error.js";
+import { LegacyFilesRefused } from "./legacy-files-refused.js";
 import {
   ArchivePlaceSchema,
   ArchivePlacesSchema,
@@ -157,6 +159,7 @@ export const recordInvoiceExceptionContract = defineContract(
     failure: Schema.Union([
       Forbidden,
       InvoiceAlreadyInvoiced,
+      InvoiceExceptionRefused,
       InvoiceNotPayable,
       InvoiceStoreError,
       UnknownPayment,
@@ -216,7 +219,7 @@ export const registerLegacyInvoicesContract = defineContract(
     annotations: { idempotent: true },
     description:
       "Register invoice files that predate the archive, up to 200 in one call. Each file is fingerprinted by SHA-256 and stored once per profile: a file whose fingerprint is already known comes back marked Existing with the stored document, and a new file comes back marked Stored. Nothing is attached to a payment here; legacy files are linked afterwards with `matchInvoices` and `attachInvoice`.",
-    failure: Schema.Union([Forbidden, InvoiceStoreError]),
+    failure: Schema.Union([Forbidden, InvoiceStoreError, LegacyFilesRefused]),
     input: RegisterLegacyInvoicesRequestSchema,
     output: LegacyFilesSchema,
   }

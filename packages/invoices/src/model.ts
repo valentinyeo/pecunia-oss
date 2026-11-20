@@ -95,9 +95,11 @@ export const MerchantSchema = Schema.Trim.check(Schema.isMaxLength(200));
 
 export type Merchant = typeof MerchantSchema.Type;
 
+export const EXCEPTION_REASON_MAX = 500;
+
 export const ExceptionReasonSchema = Schema.Trim.check(
   Schema.isMinLength(1),
-  Schema.isMaxLength(500)
+  Schema.isMaxLength(EXCEPTION_REASON_MAX)
 );
 
 export type ExceptionReason = typeof ExceptionReasonSchema.Type;

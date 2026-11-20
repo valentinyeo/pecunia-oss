@@ -300,6 +300,122 @@ it.effect("stores a written reason for a payment with no invoice", () =>
   }).pipe(Effect.provide(asOwner), Effect.orDie)
 );
 
+const overlongReason = "x".repeat(10_000);
+
+const reasonAtLimit = "y".repeat(500);
+
+it.effect(
+  "refuses a blank or overlong reason by name and stores one at the limit",
+  () =>
+    Effect.gen(function* refuseBadReasons() {
+      yield* TestClock.setTime(instant);
+
+      const blank = yield* Effect.flip(
+        recordInvoiceException.handler({
+          profileId: demoProfileId,
+          reason: "   ",
+          transactionId: designPayment,
+        })
+      );
+
+      expect(blank._tag).toBe("InvoiceExceptionRefused");
+
+      if (Predicate.isTagged(blank, "InvoiceExceptionRefused")) {
+        expect(blank.reasonLength).toBe(0);
+        expect(blank.message).toContain("empty");
+        expect(blank.repair).toContain("no invoice");
+      }
+
+      const overlong = yield* Effect.flip(
+        recordInvoiceException.handler({
+          profileId: demoProfileId,
+          reason: overlongReason,
+          transactionId: designPayment,
+        })
+      );
+
+      expect(overlong._tag).toBe("InvoiceExceptionRefused");
+
+      if (Predicate.isTagged(overlong, "InvoiceExceptionRefused")) {
+        expect(overlong.reasonLength).toBe(10_000);
+        expect(overlong.message).toContain("10000 characters long");
+        expect(overlong.message).toContain("limit is 500");
+        expect(overlong.repair).toContain("500 characters or fewer");
+      }
+
+      const stored = yield* recordInvoiceException.handler({
+        profileId: demoProfileId,
+        reason: reasonAtLimit,
+        transactionId: designPayment,
+      });
+
+      expect(stored.reason).toBe(reasonAtLimit);
+      expect(stored.recordedAt).toBe(instant);
+
+      const march = yield* listInvoiceStatus.handler({
+        month: Option.some(month("2025-03")),
+        profileId: demoProfileId,
+      });
+
+      expect(march.missingCount).toBe(0);
+      expect(march.rows.map((row) => row.status._tag)).toEqual(["Excepted"]);
+    }).pipe(Effect.provide(asOwner), Effect.orDie)
+);
+
+const fingerprintOf = (index: number): string =>
+  `${String(index).padStart(12, "0")}${"a1b2c3d4e5f6".repeat(5).slice(0, 52)}`;
+
+const legacyBatchOf = (count: number) =>
+  Array.from({ length: count }, (_, index) => ({
+    ...ordinaryFile,
+    originalFilename: `demo-legacy-${index}.pdf`,
+    r2Key: `documents/demo-legacy-${index}.pdf`,
+    sha256: fingerprintOf(index),
+  }));
+
+it.effect("registers 200 legacy files and refuses a batch of 201 by name", () =>
+  Effect.gen(function* refuseTheOversizedBatch() {
+    const atLimit = yield* registerLegacyInvoices.handler({
+      files: legacyBatchOf(200),
+      profileId: demoProfileId,
+    });
+
+    expect(atLimit.files).toHaveLength(200);
+    expect(atLimit.files.map((file) => file.outcome._tag)).toEqual(
+      Array.from({ length: 200 }, () => "Stored")
+    );
+
+    const tooMany = legacyBatchOf(201);
+
+    const refused = yield* Effect.flip(
+      registerLegacyInvoices.handler({
+        files: tooMany,
+        profileId: demoProfileId,
+      })
+    );
+
+    expect(refused._tag).toBe("LegacyFilesRefused");
+
+    if (Predicate.isTagged(refused, "LegacyFilesRefused")) {
+      expect(refused.count).toBe(201);
+      expect(refused.message).toContain("201 files");
+      expect(refused.message).toContain("limit is 200");
+      expect(refused.repair).toContain("batches of 200");
+    }
+
+    const last = tooMany.at(-1) ?? ordinaryFile;
+
+    const untouched = yield* registerLegacyInvoices.handler({
+      files: [last],
+      profileId: demoProfileId,
+    });
+
+    expect(untouched.files.map((file) => file.outcome._tag)).toEqual([
+      "Stored",
+    ]);
+  }).pipe(Effect.provide(asOwner), Effect.orDie)
+);
+
 it.effect("stores one invoice file per fingerprint and attaches it", () =>
   Effect.gen(function* storeTheInvoiceFile() {
     const stored = yield* saveInvoiceFile.handler({

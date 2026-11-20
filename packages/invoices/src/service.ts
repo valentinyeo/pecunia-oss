@@ -16,12 +16,16 @@ import type { ArchiveStateRefused } from "./archive-state-refused.js";
 import { recordArchive, reserveArchive } from "./archive.js";
 import { InvoiceAlreadyAttached } from "./invoice-already-attached.js";
 import { InvoiceAlreadyInvoiced } from "./invoice-already-invoiced.js";
+import { InvoiceExceptionRefused } from "./invoice-exception-refused.js";
 import { InvoiceNotPayable } from "./invoice-not-payable.js";
 import type { InvoiceStoreError } from "./invoice-store-error.js";
+import { LegacyFilesRefused } from "./legacy-files-refused.js";
 import { proposeMatches } from "./matching.js";
 import {
   ArchivePlaceDraftSchema,
+  EXCEPTION_REASON_MAX,
   InvoiceSourceDraftSchema,
+  LEGACY_FILES_MAX,
   LegacyOutcomeSchema,
   MonthSchema,
   RecordInvoiceArchiveSchema,
@@ -117,6 +121,78 @@ const unknownSource = (scope: WriteScope, sourceId: InvoiceSourceId) =>
     sourceId,
   });
 
+const exceptionRefusalOf = (
+  scope: WriteScope,
+  request: RecordInvoiceException
+): InvoiceExceptionRefused => {
+  const reasonLength = request.reason.trim().length;
+
+  if (reasonLength === 0) {
+    return new InvoiceExceptionRefused({
+      message:
+        "The invoice reason is empty, so the payment still looks missing an invoice.",
+      profileId: scope.profileId,
+      reasonLength,
+      repair:
+        "Write why the payment has no invoice, up to 500 characters, then record the reason again.",
+      transactionId: request.transactionId,
+    });
+  }
+
+  if (reasonLength > EXCEPTION_REASON_MAX) {
+    return new InvoiceExceptionRefused({
+      message: `The invoice reason is ${reasonLength} characters long and the limit is ${EXCEPTION_REASON_MAX}.`,
+      profileId: scope.profileId,
+      reasonLength,
+      repair: `Shorten the reason to ${EXCEPTION_REASON_MAX} characters or fewer, then record the reason again.`,
+      transactionId: request.transactionId,
+    });
+  }
+
+  return new InvoiceExceptionRefused({
+    message:
+      "The exception request names a payment id the invoice book cannot store.",
+    profileId: scope.profileId,
+    reasonLength,
+    repair:
+      "Use a payment id from a `listInvoiceStatus` row, then record the reason again.",
+    transactionId: request.transactionId,
+  });
+};
+
+const legacyRefusalOf = (
+  scope: WriteScope,
+  count: number
+): LegacyFilesRefused => {
+  if (count > LEGACY_FILES_MAX) {
+    return new LegacyFilesRefused({
+      count,
+      message: `The legacy batch carries ${count} files and the limit is ${LEGACY_FILES_MAX}.`,
+      profileId: scope.profileId,
+      repair: `Send them in batches of ${LEGACY_FILES_MAX} or fewer files.`,
+    });
+  }
+
+  if (count === 0) {
+    return new LegacyFilesRefused({
+      count,
+      message:
+        "The legacy batch carries no files, so there is nothing to register.",
+      profileId: scope.profileId,
+      repair: `Send at least one file, up to ${LEGACY_FILES_MAX} in a batch.`,
+    });
+  }
+
+  return new LegacyFilesRefused({
+    count,
+    message:
+      "A file in the legacy batch is missing a field the invoice book stores.",
+    profileId: scope.profileId,
+    repair:
+      "Send every file with the fields `registerLegacyInvoices` asks for, then try again.",
+  });
+};
+
 const payeeIdsOf = (
   payments: readonly { readonly payeeId: Option.Option<PayeeId> }[]
 ): ReadonlySet<string> =>
@@ -192,6 +268,7 @@ export class InvoiceService extends Context.Service<
     ) => Effect.Effect<
       InvoiceException,
       | InvoiceAlreadyInvoiced
+      | InvoiceExceptionRefused
       | InvoiceNotPayable
       | InvoiceStoreError
       | UnknownPayment
@@ -199,7 +276,7 @@ export class InvoiceService extends Context.Service<
     readonly registerLegacy: (
       scope: WriteScope,
       files: readonly InvoiceFile[]
-    ) => Effect.Effect<LegacyFiles, InvoiceStoreError>;
+    ) => Effect.Effect<LegacyFiles, InvoiceStoreError | LegacyFilesRefused>;
     readonly removeDocument: (
       scope: WriteScope,
       documentId: DocumentId
@@ -441,7 +518,9 @@ export class InvoiceService extends Context.Service<
       ) {
         const parsedRequest = yield* Schema.decodeEffect(
           RecordInvoiceExceptionSchema
-        )(request).pipe(Effect.orDie);
+        )(request).pipe(
+          Effect.mapError(() => exceptionRefusalOf(scope, request))
+        );
 
         const payment = yield* store.payment(
           scope.profileId,
@@ -587,7 +666,7 @@ export class InvoiceService extends Context.Service<
           { files }
         ).pipe(
           Effect.flatMap(Schema.decodeEffect(RegisterLegacyInvoicesSchema)),
-          Effect.orDie
+          Effect.mapError(() => legacyRefusalOf(scope, files.length))
         );
 
         const known = [...(yield* store.documents(scope.profileId))];

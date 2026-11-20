@@ -250,6 +250,8 @@ const ROOT_PIECES = tuple([
   "a b",
   "folder/sub",
   "x\\y",
+  "nul\u0000root",
+  "bell\u0007root",
 ]);
 
 const FILENAME_PIECES = tuple([
@@ -356,6 +358,29 @@ it("builds one safe, stable folder path per document in 600 cases", () => {
   }
 
   expect(seen.size).toBeGreaterThan(500);
+});
+
+it("cleans a control character out of the archive root", () => {
+  const place = placeOf({
+    blocklist: [],
+    rootRef: "nul\u0000folder/../archive",
+  });
+
+  const document = documentOf({
+    filename: "demo-invoice-2025-03.pdf",
+    index: 0,
+  });
+
+  const path = archivePathOf(place, document);
+
+  expect(path).toBe(
+    `nul-folder/archive/2025/03/${archiveFilenameOf(document)}`
+  );
+  expect(path).not.toMatch(/\p{Cc}/u);
+
+  for (const segment of segmentsOf(path)) {
+    expect(isSafeSegment(segment)).toBe(true);
+  }
 });
 
 const referenceBlocked = (entry: string, path: string): boolean => {

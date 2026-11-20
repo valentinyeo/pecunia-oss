@@ -16,10 +16,13 @@ export const FILENAME_MAX_LENGTH = 120;
 
 const SHA_PREFIX_LENGTH = 12;
 
+const cleanedSegment = (segment: string): string =>
+  segment.replaceAll(CONTROL, "-").trim();
+
 export const segmentsOf = (reference: string): readonly string[] =>
   reference
     .split(/[\\/]/u)
-    .map((segment) => segment.trim())
+    .map(cleanedSegment)
     .filter(
       (segment) => segment.length > 0 && segment !== "." && segment !== ".."
     );
