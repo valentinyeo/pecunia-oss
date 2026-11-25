@@ -7,6 +7,7 @@ import { Stage } from "alchemy/Stage";
 import * as Config from "effect/Config";
 import * as Effect from "effect/Effect";
 import * as FileSystem from "effect/FileSystem";
+import * as Option from "effect/Option";
 import * as Schema from "effect/Schema";
 
 import {
@@ -48,6 +49,17 @@ export class Website extends Cloudflare.Website.Foldkit<Website>()(
     const generation = yield* contentGeneration;
     const preview = /^pr-[1-9][0-9]*$/u.test(stage);
 
+    const publicOrigin = yield* Config.option(
+      Config.String("PECUNIA_ORIGIN")
+    ).pipe(Effect.orDie);
+
+    const publicHost = publicOrigin.pipe(
+      Option.flatMap((origin) =>
+        Schema.decodeOption(Schema.URLFromString)(origin)
+      ),
+      Option.map((url) => url.hostname)
+    );
+
     const props = {
       assets: {
         htmlHandling: "drop-trailing-slash",
@@ -77,6 +89,14 @@ export class Website extends Cloudflare.Website.Foldkit<Website>()(
           env: { ...props.env, TRACES_ENABLED: "true" },
         }
       : props;
+
+    if (Option.isSome(publicHost)) {
+      return {
+        ...tracedProps,
+        domain: { name: publicHost.value },
+        workersDev: false,
+      };
+    }
 
     if (!preview) {
       return tracedProps;

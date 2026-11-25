@@ -27,7 +27,11 @@ export default Alchemy.Stack(
   Effect.gen(function* stack() {
     const dev = yield* Alchemy.ALCHEMY_DEV;
 
-    if (!dev) {
+    const demoOnly = yield* Config.Boolean("DEMO_ONLY").pipe(
+      Config.withDefault(false)
+    );
+
+    if (!(dev || demoOnly)) {
       const zone = yield* Cloudflare.Zone.Zone("RatstackZone", {
         name: "ratstack.sh",
       }).pipe(
@@ -153,6 +157,10 @@ export default Alchemy.Stack(
     }
 
     const website = yield* Website;
+
+    if (demoOnly) {
+      return { websiteUrl: website.url };
+    }
 
     const mischief = yield* Mischief;
 

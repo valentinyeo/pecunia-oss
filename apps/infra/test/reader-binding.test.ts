@@ -37,7 +37,7 @@ const services = Layer.mergeAll(
 );
 
 it.effect(
-  "binds Website delivery behind Mischief without moving the domain",
+  "binds Website delivery behind Mischief while the Website takes the public origin as its domain",
   () =>
     Effect.gen(function* checkReaderBinding() {
       const compiled = yield* stack;
@@ -71,8 +71,8 @@ it.effect(
       expect(compiled.resources.Mischief?.Props).toMatchObject({
         domain: { name: "ratstack.sh", redirects: ["www.ratstack.sh"] },
       });
-      expect(compiled.resources.Website?.Props).not.toHaveProperty("domain");
       expect(compiled.resources.Website?.Props).toMatchObject({
+        domain: { name: new URL(pecuniaStackConfig.PECUNIA_ORIGIN).hostname },
         workersDev: false,
       });
     }).pipe(Effect.provide(services))
