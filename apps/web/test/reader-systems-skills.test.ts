@@ -61,7 +61,9 @@ it.effect(
         expect(page.page.metadata.canonicalPath).toBe(page.page.path);
 
         if (page.page.path.startsWith("/skills/")) {
-          expect(page.page.sourcePath).toMatch(/^skills\/[^/]+\/SKILL\.md$/u);
+          expect(page.page.sourcePath).toMatch(
+            /^(?:\.claude\/)?skills\/[^/]+\/SKILL\.md$/u
+          );
           expect(Option.getOrUndefined(page.breadcrumb)?.href).toBe("/skills");
         }
 
