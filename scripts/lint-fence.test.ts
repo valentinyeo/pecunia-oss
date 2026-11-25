@@ -54,7 +54,6 @@ const repoIgnorePatterns = [
   "node_modules/**",
   ".pi/**",
   ".cursor/**",
-  ".claude/**",
   "scripts/hooks/**",
   "tools/oxlint/anti-slop/**",
   "skills/security-audit/**",
@@ -130,7 +129,7 @@ const testFilesScope: RuleScope = { kind: "files", files: testFileGlobs };
 
 const verifySkillScriptScope: RuleScope = {
   kind: "files",
-  files: ["skills/verify-pecunia/scripts/**/*.mjs"],
+  files: [".claude/skills/verify-pecunia/scripts/**/*.mjs"],
 };
 
 const verifySkillUntypedScope = (reason: string): AllowlistEntry => ({

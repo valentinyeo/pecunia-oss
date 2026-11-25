@@ -42,7 +42,6 @@ export default defineConfig({
     "node_modules/**",
     ".pi/**",
     ".cursor/**",
-    ".claude/**",
     "scripts/hooks/**",
     "tools/oxlint/anti-slop/**",
     "skills/security-audit/**",
@@ -74,7 +73,7 @@ export default defineConfig({
   overrides: [
     ...foldkitOverrides,
     {
-      files: ["skills/verify-pecunia/scripts/**/*.mjs"],
+      files: [".claude/skills/verify-pecunia/scripts/**/*.mjs"],
       rules: {
         "typescript/no-unsafe-argument": "off",
         "typescript/no-unsafe-assignment": "off",

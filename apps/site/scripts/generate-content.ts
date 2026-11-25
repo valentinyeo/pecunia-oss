@@ -1400,22 +1400,41 @@ const program = Effect.gen(function* generateContent() {
     ...lawTexts.slice(4),
   ];
 
-  const skillEntries = yield* fileSystem
-    .readDirectory(path.join(root, "skills"))
-    .pipe(
-      Effect.mapError((cause) => buildError("read directory", "skills", cause))
-    );
+  const skillRoots = ["skills", ".claude/skills"] as const;
 
-  const skillDirectories = yield* directoryNames("skills", skillEntries);
+  const skillDirectories = yield* Effect.forEach(
+    skillRoots,
+    (directory) =>
+      Effect.gen(function* readSkillDirectories() {
+        const entries = yield* fileSystem
+          .readDirectory(path.join(root, directory))
+          .pipe(
+            Effect.mapError((cause) =>
+              buildError("read directory", directory, cause)
+            )
+          );
+
+        const directories = yield* directoryNames(directory, entries);
+
+        return directories.map((name) => ({ directory, name }));
+      }),
+    { concurrency: "unbounded" }
+  ).pipe(
+    Effect.map((groups) =>
+      groups
+        .flat()
+        .toSorted((left, right) => left.name.localeCompare(right.name))
+    )
+  );
 
   const { assets: securityAuditAssets, published: publishedSecurityAudit } =
     yield* securityAuditContent(root);
 
   const skillTexts = yield* Effect.forEach(
-    skillDirectories.toSorted(),
-    (directoryName) =>
+    skillDirectories,
+    ({ directory, name: directoryName }) =>
       Effect.gen(function* readSkill() {
-        const sourcePath = `skills/${directoryName}/SKILL.md`;
+        const sourcePath = `${directory}/${directoryName}/SKILL.md`;
 
         const rawText =
           directoryName === "security-audit"
@@ -1459,6 +1478,26 @@ const program = Effect.gen(function* generateContent() {
         ? cause
         : buildError("skill grouping", "skills", cause),
     try: () => {
+      const seen = new Map<string, string>();
+
+      for (const skill of skillTexts) {
+        const previous = seen.get(skill.name);
+
+        if (previous !== undefined) {
+          throw buildError(
+            "skill name",
+            skill.sourcePath,
+            violation(
+              `Skill ${skill.name} is defined in both ${previous} and ${skill.sourcePath}.`,
+              "Each skill owns one /skills/<name> page, so the second copy would silently replace the first.",
+              "delete one of the two SKILL.md files, or rename its `name:` line."
+            )
+          );
+        }
+
+        seen.set(skill.name, skill.sourcePath);
+      }
+
       assertSkillGroups(
         skillTexts.map((skill) => skill.name),
         skillGroups

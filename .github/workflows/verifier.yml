@@ -1,0 +1,206 @@
+name: Verifier
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, edited, ready_for_review]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  verifier:
+    name: verifier
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - name: Check out the pull request head
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - name: Check out the base commit
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          path: base
+          persist-credentials: false
+      - name: Use Node.js 24.18.0
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24.18.0
+      - name: Require one Author model line per author
+        id: authors
+        env:
+          PR_BODY: ${{ github.event.pull_request.body }}
+          PR_AUTHOR: ${{ github.event.pull_request.user.login }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p verifier-out
+          printf '%s' "$PR_BODY" > verifier-out/body.md
+          gh api --paginate "repos/$GITHUB_REPOSITORY/pulls/$PR_NUMBER/commits" --jq '.[].commit.message' \
+            | sed -n 's/^Co-authored-by:[[:space:]]*\(.*[^[:space:]]\)[[:space:]]*<[^>]*>$/\1/p' \
+            | sort -u > verifier-out/coauthors.txt
+          node scripts/pick-verifier-model.ts pick \
+            --body-file verifier-out/body.md \
+            --author-login "$PR_AUTHOR" \
+            --coauthors-file verifier-out/coauthors.txt
+      - name: Run the verify skill at the head and the base
+        id: skill
+        env:
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          head_scripts=.claude/skills/verify-pecunia/scripts
+          base_scripts=$(find base -type d -path "*/verify-pecunia/scripts" | sort | sed -n '1p')
+          if [ -z "$base_scripts" ]; then
+            echo "::error::The base commit has no verify-pecunia scripts. Fix: point this pull request at a base that carries the verify skill." >&2
+            exit 1
+          fi
+          status=0
+          node "$head_scripts/check-feature-map.mjs" > verifier-out/head-feature-map.txt 2>&1 || status=$?
+          echo "feature-map=$status" >> verifier-out/head-exits.txt
+          status=0
+          node "$head_scripts/check-parity.mjs" > verifier-out/head-parity.txt 2>&1 || status=$?
+          echo "parity=$status" >> verifier-out/head-exits.txt
+          status=0
+          node "$base_scripts/check-feature-map.mjs" > verifier-out/base-feature-map.txt 2>&1 || status=$?
+          echo "feature-map=$status" >> verifier-out/base-exits.txt
+          status=0
+          node "$base_scripts/check-parity.mjs" > verifier-out/base-parity.txt 2>&1 || status=$?
+          echo "parity=$status" >> verifier-out/base-exits.txt
+          if grep -qv '=0$' verifier-out/head-exits.txt; then
+            echo "gate=fail" >> "$GITHUB_OUTPUT"
+            echo "gate-note=The verify skill's checks exited non-zero at head: read the head check output in the brief." >> "$GITHUB_OUTPUT"
+          else
+            echo "gate=pass" >> "$GITHUB_OUTPUT"
+          fi
+          gh pr diff "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" > verifier-out/diff.patch || true
+          gh pr diff "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --name-only > verifier-out/changed-files.txt || true
+      - name: Build the verifier brief
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          {
+            echo "# Verify a Pecunia money change"
+            echo
+            echo "The verify skill is /verify-pecunia. It promises exact integer minor units, one profile per row, one bank port, jobs as machines, and one contract on every surface."
+            echo
+            echo "## Pull request"
+            echo
+            echo "Title: ${PR_TITLE}"
+            echo
+            printf '%s\n' "$(cat verifier-out/body.md)"
+            echo
+            echo "## Changed files"
+            echo
+            cat verifier-out/changed-files.txt
+            echo
+            echo "## The verify skill's checks at head (${HEAD_SHA})"
+            echo
+            cat verifier-out/head-exits.txt
+            cat verifier-out/head-feature-map.txt
+            cat verifier-out/head-parity.txt
+            echo
+            echo "## The same checks at base (${BASE_SHA})"
+            echo
+            cat verifier-out/base-exits.txt
+            cat verifier-out/base-feature-map.txt
+            cat verifier-out/base-parity.txt
+            echo
+            echo "## Money feature map index"
+            echo
+            head -c 4000 .claude/skills/verify-pecunia/features/README.md
+            echo
+            echo "## Diff"
+            echo
+            head -c 16000 verifier-out/diff.patch
+            echo
+            echo "What the text above proves and what it leaves unproven?"
+          } > verifier-out/prompt.md
+          node scripts/pick-verifier-model.ts request \
+            --prompt-file verifier-out/prompt.md \
+            --request-file verifier-out/request.json
+      - name: Require a ladder key
+        env:
+          AI_GATEWAY_API_KEY: ${{ secrets.AI_GATEWAY_API_KEY }}
+          OPENCODE_API_KEY: ${{ secrets.OPENCODE_API_KEY }}
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: |
+          set -euo pipefail
+          if [ -z "$AI_GATEWAY_API_KEY" ] && [ -z "$OPENCODE_API_KEY" ] && [ -z "$OPENROUTER_API_KEY" ] && [ -z "$GEMINI_API_KEY" ]; then
+            echo "verifier: set AI_GATEWAY_API_KEY, OPENCODE_API_KEY, OPENROUTER_API_KEY, or GEMINI_API_KEY" >&2
+            exit 1
+          fi
+      - name: Judge through ladder-call
+        id: judge
+        continue-on-error: true
+        uses: valentinyeo/token-ladder/.github/actions/ladder-call@main
+        env:
+          AI_GATEWAY_API_KEY: ${{ secrets.AI_GATEWAY_API_KEY }}
+          OPENCODE_API_KEY: ${{ secrets.OPENCODE_API_KEY }}
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        with:
+          request-file: verifier-out/request.json
+          purpose: pr-verifier
+          caller: verifier
+          require-verdict: "true"
+          exclude-families: ${{ steps.authors.outputs.exclude-families }}
+      - name: Write the verdict comment
+        id: verdict
+        if: always() && steps.authors.outcome == 'success' && steps.skill.outcome == 'success'
+        env:
+          ANSWER_FILE: ${{ steps.judge.outputs.answer-file }}
+          LANE: ${{ steps.judge.outputs.lane }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          GATE: ${{ steps.skill.outputs.gate }}
+          GATE_NOTE: ${{ steps.skill.outputs.gate-note }}
+        run: |
+          set -euo pipefail
+          note="${GATE_NOTE:-}"
+          if [ -z "${ANSWER_FILE:-}" ] || [ ! -f "$ANSWER_FILE" ]; then
+            note="ladder-call returned no answer, so no verifier read this change. $note"
+          fi
+          node scripts/pick-verifier-model.ts verdict \
+            --comment-file verifier-out/comment.md \
+            --head-sha "$HEAD_SHA" \
+            --base-sha "$BASE_SHA" \
+            --lane "${LANE:-none}" \
+            --gate "${GATE:-pass}" \
+            --gate-note "$note" \
+            --answer-file "${ANSWER_FILE:-verifier-out/no-answer.json}"
+      - name: Post the verdict comment
+        if: always() && steps.verdict.outcome == 'success'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: gh pr comment "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --body-file verifier-out/comment.md
+      - name: Fail the job unless the verdict passed
+        if: always()
+        env:
+          VERDICT: ${{ steps.verdict.outputs.verdict }}
+        run: |
+          set -euo pipefail
+          case "$VERDICT" in
+            PASS|PASS+NOTES) exit 0 ;;
+            *)
+              echo "::error::/verify-pecunia returned ${VERDICT:-no verdict}. Fix: read the verdict comment, then push a commit that answers it."
+              exit 1
+              ;;
+          esac

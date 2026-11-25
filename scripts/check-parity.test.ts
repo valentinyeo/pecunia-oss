@@ -10,6 +10,7 @@ const repoRoot = path.resolve(import.meta.dirname, "..");
 
 const checkerPath = path.join(
   repoRoot,
+  ".claude",
   "skills",
   "verify-pecunia",
   "scripts",
@@ -18,6 +19,7 @@ const checkerPath = path.join(
 
 const pagePath = path.join(
   repoRoot,
+  ".claude",
   "skills",
   "verify-pecunia",
   "parity",
@@ -26,6 +28,7 @@ const pagePath = path.join(
 
 const fixturesRoot = path.join(
   repoRoot,
+  ".claude",
   "skills",
   "verify-pecunia",
   "scripts",
