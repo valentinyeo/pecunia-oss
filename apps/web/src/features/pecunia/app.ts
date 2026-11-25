@@ -1,5 +1,5 @@
 import * as stylex from "@stylexjs/stylex";
-import type { Html, HtmlBuilder } from "foldkit/html";
+import type { Document, Html, HtmlBuilder } from "foldkit/html";
 
 import { Message } from "../../client/pecunia/message.js";
 import type { PecuniaMessage } from "../../client/pecunia/message.js";
@@ -42,7 +42,7 @@ const laterScreen = (
     ]
   );
 
-const notFound = (h: HtmlBuilder<PecuniaMessage>): Html =>
+const notFound = (path: string, h: HtmlBuilder<PecuniaMessage>): Html =>
   h.section(
     [h.AriaLabel("Page not found"), h.Class(className(styles.section))],
     [
@@ -50,7 +50,8 @@ const notFound = (h: HtmlBuilder<PecuniaMessage>): Html =>
       h.p(
         [h.Class(className(styles.placeholder))],
         [
-          "Nothing lives at this address. ",
+          `No screen lives at ${path}. `,
+          "Fix: open the dashboard and choose a screen from the main menu. ",
           h.a([h.Href(dashboardRouter())], ["Back to the dashboard"]),
         ]
       ),
@@ -96,7 +97,7 @@ const screen = (model: PecuniaModel, h: HtmlBuilder<PecuniaMessage>): Html =>
     Investments: () => investmentsScreen(model.investments, h),
     MerchantDetail: ({ key }) => categorizeScreen(model, key, merchantView, h),
     Merchants: () => categorizeScreen(model, "", merchantsView, h),
-    NotFound: () => notFound(h),
+    NotFound: ({ path }) => notFound(path, h),
     Review: () => bankLines(model, h),
     Rules: () => categorizeScreen(model, "", rulesView, h),
     Search: () => search(model, h),
@@ -124,3 +125,11 @@ export const view = (
   model: PecuniaModel,
   h: HtmlBuilder<PecuniaMessage>
 ): Html => frame(model, screen(model, h), h);
+
+export const documentView = (
+  model: PecuniaModel,
+  h: HtmlBuilder<PecuniaMessage>
+): Document => ({
+  body: view(model, h),
+  title: `${routeTitle(model.route)} · Pecunia`,
+});

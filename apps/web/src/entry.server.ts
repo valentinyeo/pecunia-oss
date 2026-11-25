@@ -10,11 +10,13 @@ import {
   ReaderErrorPage,
   readerErrorPath,
 } from "../../site/src/reader-error-page.js";
-import { findPage } from "./client/reader-pages.js";
+import { isAppPath } from "./client/mount.js";
+import { findPage, pagePaths } from "./client/reader-pages.js";
 import { init } from "./client/reader/init.js";
 import { ReaderFlags } from "./client/reader/model.js";
 import { view } from "./features/reader.js";
 import { isWorkerFirstReaderRoute } from "./reader-routes.js";
+import { appPrerenderPaths, renderAppPage } from "./server/app-page.js";
 import { readerPrerenderOrigin } from "./server/prerender-origin.js";
 import { withReaderHead } from "./server/reader-document.js";
 import { ReaderErrorTemplate } from "./server/reader-error-template.js";
@@ -25,7 +27,7 @@ import {
   websiteTelemetry,
 } from "./server/website-bindings.js";
 
-export { pagePaths as prerenderPaths } from "./client/reader-pages.js";
+export const prerenderPaths = [...appPrerenderPaths, ...pagePaths];
 
 export { renderDocument } from "./server/reader-document.js";
 
@@ -150,6 +152,10 @@ export const renderReaderPage = Effect.fn("reader.renderPage")(
           status: 405,
         })
       );
+    }
+
+    if (isAppPath(pathname)) {
+      return yield* renderAppPage(request);
     }
 
     const route = pathname === "/" ? pathname : pathname.replace(/\/$/u, "");
