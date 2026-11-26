@@ -255,12 +255,13 @@ Every place the old app put a behaviour. A place with no row is a behaviour nobo
 
 `node .claude/skills/verify-pecunia/scripts/build-side-by-side.mjs` writes one self-contained HTML page to `/tmp/pecunia-rs/page/side-by-side.html`. The page is never committed: it holds screenshots, and a screenshot of a finance app does not belong in the repository.
 
-The page reads two things and invents neither:
+The page reads three things and invents neither:
 
 - This page's behaviour rows, so a row that is added or dropped here changes the report.
-- The newest evidence folder that holds `web-*.png` and a `proof.json`, so the new side is the browser drive of the branch that ran it.
+- The newest evidence folder per screen that holds that screen's `web-*.png` and a `proof.json`, so a screen fixed in a later run shows the later run's shot rather than an older capture of the same screen.
+- `scripts/step-table.json` for the drive step and its capability-drive record, and `features/` for the feature page that owns each capability.
 
-Each built row shows a screenshot pair when a screen in the drive shows that capability: the old app on the left, this app on the right. A built row with no screen says so instead of showing a picture of something else. A planned row names its ticket. A dropped row gives the reason from the where column.
+Each built row shows a screenshot pair when a screen in the drive shows that capability on the old page the row came from: the old app on the left, this app on the right. A built row with no screen says so instead of showing a picture of something else. The drive step column names the demo-book step and its record, and says in the row when no step covers it. A planned row names its ticket. A dropped row gives the reason from the where column.
 
 How the old side is captured, and the limits of it:
 

@@ -55,12 +55,14 @@ const OUTPUT_FILE = path.resolve(
 
 /**
  * @typedef {{ capability: string, note: string }} Shown
- * @typedef {{ gap?: string, id: string, oldGap?: string, oldRoute: string | null, route: string, shows: Shown[], step: string }} Screen
+ * @typedef {{ gap?: string, id: string, oldGap?: string, oldRoute: string | null, places: string[], route: string, shows: Shown[], step: string }} Screen
  * @typedef {{ behaviour: string, place: string, status: string, where: string }} ParityRow
  * @typedef {{ actual: string, expected: string, id: string, passed: boolean, step: string }} Check
  * @typedef {{ drives: string[], matches: { capability: string, note: string, screen: string }[], row: ParityRow }} ReportEntry
  * @typedef {{ capabilities: string[], id: string }} Step
+ * @typedef {{ artifact: string | null, id: string }} DriveStep
  * @typedef {{ branch?: string, checks: Check[], commit?: string, passed?: number, ranAt?: string, total?: number }} Proof
+ * @typedef {{ entry: string, folder: string, proof: Proof }} EvidenceRun
  * @typedef {{ steps: Step[] }} StepTable
  */
 
@@ -68,6 +70,7 @@ const OUTPUT_FILE = path.resolve(
 const screens = [
   {
     id: "dashboard",
+    places: ["route: dashboard"],
     oldRoute: "/",
     route: "/app",
     step: "web-dashboard",
@@ -80,6 +83,7 @@ const screens = [
   },
   {
     id: "transactions",
+    places: ["route: transactions", "route: transaction detail"],
     oldRoute: "/transactions",
     route: "/app/transactions",
     step: "web-transactions",
@@ -96,6 +100,7 @@ const screens = [
   },
   {
     id: "review",
+    places: ["route: review"],
     oldRoute: "/review",
     route: "/app/review",
     step: "web-review",
@@ -103,6 +108,7 @@ const screens = [
   },
   {
     id: "search",
+    places: ["route: search"],
     oldRoute: "/search",
     route: "/app/search",
     step: "web-search",
@@ -110,6 +116,7 @@ const screens = [
   },
   {
     id: "budgets",
+    places: [],
     oldRoute: null,
     route: "/app/budgets",
     step: "web-budgets",
@@ -120,14 +127,28 @@ const screens = [
   },
   {
     id: "subscriptions",
+    places: ["route: subscriptions"],
     oldRoute: "/subscriptions",
     route: "/app/subscriptions",
     step: "web-subscriptions",
-    shows: [],
-    gap: "the screen does not load: it reports Service not found: @pecunia/web/SubscriptionsGateway",
+    shows: [
+      {
+        capability: "listSubscriptions",
+        note: "the two demo repeat payments with their monthly and yearly cost, from the screen's demo gateway",
+      },
+      {
+        capability: "changeSubscriptionStatus",
+        note: "the shot follows a Cancel click, so both rows read Cancelled and the active yearly total is zero; the screen has no confirm, dismiss or tracking control",
+      },
+      {
+        capability: "findRepeatPayments",
+        note: "each row carries the confidence the detector gave it, 96 and 61 per cent",
+      },
+    ],
   },
   {
     id: "investments",
+    places: ["route: investments"],
     oldRoute: "/investments",
     route: "/app/investments",
     step: "web-investments",
@@ -140,6 +161,7 @@ const screens = [
   },
   {
     id: "categories",
+    places: ["route: categories", "route: category management"],
     oldRoute: "/categories",
     route: "/app/categories",
     step: "web-categories",
@@ -152,6 +174,7 @@ const screens = [
   },
   {
     id: "rules",
+    places: ["route: rules"],
     oldRoute: "/categories/rules",
     route: "/app/rules",
     step: "web-rules",
@@ -160,6 +183,7 @@ const screens = [
   },
   {
     id: "aliases",
+    places: ["route: aliases"],
     oldRoute: "/aliases",
     route: "/app/aliases",
     step: "web-aliases",
@@ -168,6 +192,11 @@ const screens = [
   },
   {
     id: "merchants",
+    places: [
+      "route: merchant list",
+      "route: merchant list with rules",
+      "route: merchant detail",
+    ],
     oldRoute: "/merchants",
     route: "/app/merchants",
     step: "web-merchants",
@@ -176,6 +205,7 @@ const screens = [
   },
   {
     id: "settings",
+    places: ["route: settings"],
     oldRoute: "/settings",
     route: "/app/settings",
     step: "web-settings",
@@ -255,34 +285,39 @@ const escapeHtml = (value) =>
 const imageSource = (filePath) =>
   `data:image/png;base64,${readFileSync(filePath).toString("base64")}`;
 
-/**
- * @param {string} directory
- * @returns {string | null}
- */
 /** @param {string} filePath */
 const exists = (filePath) => existsSync(filePath);
 
-const latestEvidence = (directory) => {
+/**
+ * @param {string} directory
+ * @returns {EvidenceRun[]}
+ */
+const evidenceRuns = (directory) => {
   if (!exists(directory)) {
-    return null;
+    return [];
   }
 
-  const candidates = readdirSync(directory)
+  return readdirSync(directory)
     .filter((entry) => statSync(path.join(directory, entry)).isDirectory())
-    .toSorted((left, right) => left.localeCompare(right));
+    .map((entry) => {
+      const folder = path.join(directory, entry);
+      const proofFile = path.join(folder, "proof.json");
 
-  for (const entry of candidates.toReversed()) {
-    const folder = path.join(directory, entry);
-
-    if (
-      exists(path.join(folder, "proof.json")) &&
-      readdirSync(folder).some((name) => /^web-[a-z]+\.png$/u.test(name))
-    ) {
-      return folder;
-    }
-  }
-
-  return null;
+      return {
+        entry,
+        folder,
+        proof: exists(proofFile)
+          ? JSON.parse(readFileSync(proofFile, "utf-8"))
+          : null,
+      };
+    })
+    .filter((run) => run.proof !== null)
+    .toSorted(
+      (left, right) =>
+        String(right.proof.ranAt ?? right.entry).localeCompare(
+          String(left.proof.ranAt ?? left.entry)
+        ) || right.entry.localeCompare(left.entry)
+    );
 };
 
 /**
@@ -337,25 +372,32 @@ if (behaviourRows.length === 0) {
 /** @type {StepTable} */
 const stepTable = JSON.parse(readFileSync(STEP_TABLE, "utf-8"));
 
-const evidenceFolder = latestEvidence(EVIDENCE_ROOT);
+/** @type {EvidenceRun[]} */
+const runs = evidenceRuns(EVIDENCE_ROOT);
 
-/** @type {Proof} */
-const proof =
-  evidenceFolder === null
-    ? { checks: [] }
-    : JSON.parse(
-        readFileSync(path.join(evidenceFolder, "proof.json"), "utf-8")
-      );
+/**
+ * @param {string} screenId
+ * @returns {EvidenceRun | null}
+ */
+const shotRunOf = (screenId) =>
+  runs.find((run) => exists(path.join(run.folder, `web-${screenId}.png`))) ??
+  null;
 
-/** @type {Map<string, Check[]>} */
-const checksByStep = new Map();
+/**
+ * @param {string} stepId
+ * @returns {EvidenceRun | null}
+ */
+const stepRunOf = (stepId) =>
+  runs.find((run) => run.proof.checks.some((check) => check.step === stepId)) ??
+  null;
 
-for (const check of proof.checks) {
-  const collected = checksByStep.get(check.step) ?? [];
-
-  collected.push(check);
-  checksByStep.set(check.step, collected);
-}
+/**
+ * @param {EvidenceRun | null} run
+ * @param {string} stepId
+ * @returns {Check[]}
+ */
+const checksOf = (run, stepId) =>
+  run === null ? [] : run.proof.checks.filter((check) => check.step === stepId);
 
 /** @type {Map<string, Screen>} */
 const screenById = new Map(screens.map((screen) => [screen.id, screen]));
@@ -372,6 +414,71 @@ for (const screen of screens) {
   }
 }
 
+const FEATURES_DIR = path.join(
+  REPO_ROOT,
+  ".claude",
+  "skills",
+  "verify-pecunia",
+  "features"
+);
+
+const FEATURE_STATUS = path.join(FEATURES_DIR, "README.md");
+
+/**
+ * @param {string} source
+ * @returns {[string, string][]}
+ */
+const featureTitlesOf = (source) =>
+  source
+    .split("\n")
+    .map((line) => /\| \[(?<title>[^\]]+)\]\((?<file>[^)]+)\)/u.exec(line))
+    .filter((match) => match !== null)
+    .map((match) => [match.groups.file, match.groups.title]);
+
+/**
+ * @param {string} source
+ * @returns {string[]}
+ */
+const capabilitiesOf = (source) =>
+  [
+    ...sectionOf(source, "## Capabilities").matchAll(
+      /^- `(?<capability>[A-Za-z0-9_]+)`/gmu
+    ),
+  ].map((match) => match.groups.capability);
+
+/**
+ * @returns {Map<string, string>}
+ */
+const capabilityPages = () => {
+  /** @type {Map<string, string>} */
+  const pages = new Map();
+
+  if (!exists(FEATURE_STATUS)) {
+    return pages;
+  }
+
+  for (const [file, title] of featureTitlesOf(
+    readFileSync(FEATURE_STATUS, "utf-8")
+  )) {
+    const filePath = path.join(FEATURES_DIR, file);
+
+    if (!exists(filePath)) {
+      continue;
+    }
+
+    for (const capability of capabilitiesOf(readFileSync(filePath, "utf-8"))) {
+      if (!pages.has(capability)) {
+        pages.set(capability, title);
+      }
+    }
+  }
+
+  return pages;
+};
+
+/** @type {Map<string, string>} */
+const capabilityPage = capabilityPages();
+
 /** @type {Map<string, string[]>} */
 const driveSteps = new Map();
 
@@ -383,6 +490,18 @@ for (const step of stepTable.steps) {
     driveSteps.set(capability, collected);
   }
 }
+
+/** @type {Map<string, DriveStep>} */
+const stepById = new Map(
+  stepTable.steps.map((step) => [
+    step.id,
+    {
+      artifact:
+        (step.artifacts ?? []).find((name) => name.endsWith(".json")) ?? null,
+      id: step.id,
+    },
+  ])
+);
 
 const oldReasonFile = path.join(OLD_DIRECTORY, "reason.txt");
 
@@ -405,13 +524,9 @@ const oldShotOf = (screenId) => {
  * @returns {string | null}
  */
 const newShotOf = (screenId) => {
-  if (evidenceFolder === null) {
-    return null;
-  }
+  const run = shotRunOf(screenId);
 
-  const filePath = path.join(evidenceFolder, `web-${screenId}.png`);
-
-  return exists(filePath) ? filePath : null;
+  return run === null ? null : path.join(run.folder, `web-${screenId}.png`);
 };
 
 /**
@@ -427,6 +542,12 @@ const screenMatches = (row) => {
     }
 
     for (const match of capabilityScreens.get(reference.capability) ?? []) {
+      const screen = screenById.get(match.screen);
+
+      if (!screen.places.includes(row.place)) {
+        continue;
+      }
+
       matches.push({
         capability: reference.capability,
         note: match.note,
@@ -516,10 +637,9 @@ const screenPairCount = (screenId) =>
 
 /**
  * @param {{ capability: string, note: string, screen: string }[]} matches
- * @param {string[]} drives
  * @returns {string}
  */
-const evidenceText = (row, matches, drives) => {
+const evidenceText = (row, matches) => {
   if (row.status === "planned") {
     return row.where === "no ticket yet"
       ? "planned, with no ticket yet"
@@ -530,25 +650,55 @@ const evidenceText = (row, matches, drives) => {
     return "not carried over; the where column gives the reason";
   }
 
-  const parts = [];
+  const parts = matches.map((match) => {
+    const screen = screenById.get(match.screen);
 
-  for (const match of matches) {
-    parts.push(
-      `screen ${screenById.get(match.screen).route} (${screenById.get(match.screen).step}): ${match.note}`
-    );
-  }
-
-  for (const step of drives) {
-    const checks = checksByStep.get(step) ?? [];
-
-    parts.push(
-      `demo-book drive ${step}${checks.length === 0 ? "" : ` (${checks.length} observations)`}`
-    );
-  }
+    return `screen ${screen.route} (${screen.step}): ${match.note}`;
+  });
 
   return parts.length === 0
-    ? "built in code; no drive step and no screen covers it yet"
+    ? "built in code; no screen in the browser drive shows it"
     : parts.join("; ");
+};
+
+/**
+ * @param {{ behaviour: string, place: string, status: string, where: string }} row
+ * @param {string[]} drives
+ * @returns {string}
+ */
+const driveCell = (row, drives) => {
+  if (row.status !== "built") {
+    return `<p class="none">No drive step: this row is ${escapeHtml(row.status)}.</p>`;
+  }
+
+  if (drives.length === 0) {
+    return `<p class="none">No drive step covers this row: step-table.json names no step for ${escapeHtml(row.where)}.</p>`;
+  }
+
+  const items = drives.map((id) => {
+    const step = stepById.get(id);
+    const run = stepRunOf(id);
+    const record =
+      step.artifact === null
+        ? "no record declared"
+        : exists(path.join(run?.folder ?? "", step.artifact))
+          ? `record ${step.artifact} in ${run.entry}`
+          : `record ${step.artifact} is not in any evidence folder`;
+    const pages = [
+      ...new Set(
+        refsOf(row.where)
+          .filter((reference) =>
+            (driveSteps.get(reference.capability) ?? []).includes(id)
+          )
+          .map((reference) => capabilityPage.get(reference.capability))
+          .filter((title) => title !== undefined)
+      ),
+    ];
+
+    return `<li><code>${escapeHtml(id)}</code> drive<br><span>${escapeHtml(record)}${pages.length === 0 ? "" : `, ${escapeHtml(pages.join(", "))} page`}</span></li>`;
+  });
+
+  return `<ul class="drives">${items.join("")}</ul>`;
 };
 
 /**
@@ -587,7 +737,8 @@ const rowsHtml = report
     return `<tr>
   <td><p class="behaviour">${escapeHtml(row.behaviour)}</p><p class="place">${escapeHtml(row.place)}</p></td>
   <td>${escapeHtml(row.where)}</td>
-  <td><span class="status ${escapeHtml(row.status)}">${escapeHtml(row.status)}</span><p class="evidence">${escapeHtml(evidenceText(row, entry.matches, entry.drives))}</p></td>
+  <td><span class="status ${escapeHtml(row.status)}">${escapeHtml(row.status)}</span><p class="evidence">${escapeHtml(evidenceText(row, entry.matches))}</p></td>
+  <td>${driveCell(row, entry.drives)}</td>
   <td>${pairCell}</td>
 </tr>`;
   })
@@ -595,7 +746,8 @@ const rowsHtml = report
 
 const screenSections = screens
   .map((screen) => {
-    const checks = checksByStep.get(screen.step) ?? [];
+    const run = shotRunOf(screen.id);
+    const checks = checksOf(run, screen.step);
     const shot = newShotOf(screen.id);
 
     const observed = checks
@@ -608,7 +760,7 @@ const screenSections = screens
     return `<section class="screen">
   <h3>${escapeHtml(screen.id)} at <code>${escapeHtml(screen.route)}</code></h3>
   <p>${screen.gap === undefined ? `Built parity rows this screen shows: ${screenPairCount(screen.id)}.` : escapeHtml(screen.gap)}</p>
-  ${shot === null ? "" : `<figure class="wide"><img src="${imageSource(shot)}" alt="New app, ${escapeHtml(screen.id)}"><figcaption>new app, ${escapeHtml(screen.route)}, from web-${escapeHtml(screen.id)}.png; click to enlarge</figcaption></figure>`}
+  ${shot === null ? "" : `<figure class="wide"><img src="${imageSource(shot)}" alt="New app, ${escapeHtml(screen.id)}"><figcaption>new app, ${escapeHtml(screen.route)}, from ${escapeHtml(run.entry)}/web-${escapeHtml(screen.id)}.png; click to enlarge</figcaption></figure>`}
   <table class="checks"><thead><tr><th>Observation</th><th>Expected</th><th>Observed</th><th>Passed</th></tr></thead><tbody>${observed}</tbody></table>
 </section>`;
   })
@@ -616,6 +768,9 @@ const screenSections = screens
 
 const counts = {
   built: statusCount("built"),
+  driven: report.filter(
+    (entry) => entry.row.status === "built" && entry.drives.length > 0
+  ).length,
   dropped: statusCount("dropped"),
   oldMissing: oldMissing.length,
   pair: withPair.length,
@@ -624,10 +779,28 @@ const counts = {
   screenshots: withNewShot.length,
 };
 
+counts.undriven = counts.built - counts.driven;
+
+const runLine = (run) =>
+  `${path.relative(REPO_ROOT, run.folder)} run ${run.proof.ranAt ?? "unknown"} on ${run.proof.branch ?? "unknown"} at ${(run.proof.commit ?? "unknown").slice(0, 8)}, ${run.proof.checks.filter((check) => check.passed).length} of ${run.proof.checks.length} observations passed`;
+
+const usedRuns = runs.filter(
+  (run) =>
+    screens.some((screen) => shotRunOf(screen.id)?.folder === run.folder) ||
+    stepTable.steps.some((step) => stepRunOf(step.id)?.folder === run.folder)
+);
+
 const evidenceLine =
-  evidenceFolder === null
-    ? "no evidence folder holds web screenshots yet"
-    : `${path.relative(REPO_ROOT, evidenceFolder)} run ${proof.ranAt ?? "unknown"} on ${proof.branch ?? "unknown"} at ${(proof.commit ?? "unknown").slice(0, 8)}, ${proof.passed ?? 0} of ${proof.total ?? 0} observations passed`;
+  usedRuns.length === 0
+    ? "no evidence folder holds a proof.json yet"
+    : usedRuns.map(runLine).join("; ");
+
+const observedTotal = screens.reduce(
+  (sum, screen) => sum + checksOf(shotRunOf(screen.id), screen.step).length,
+  0
+);
+
+const gapScreens = screens.filter((screen) => screen.gap !== undefined).length;
 
 const html = `<!doctype html>
 <html lang="en-GB">
@@ -654,6 +827,9 @@ th { font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.05em; colo
 .behaviour { margin: 0; font-weight: 600; }
 .place { margin: 0; color: var(--soft); font-size: 0.82rem; }
 .evidence { margin: 0.3rem 0 0; color: var(--soft); font-size: 0.82rem; max-width: 46ch; }
+.drives { margin: 0; padding: 0; list-style: none; font-size: 0.82rem; }
+.drives li { margin-bottom: 0.35rem; }
+.drives span { color: var(--soft); }
 .status { display: inline-block; border-radius: 999px; padding: 0.1rem 0.55rem; font-size: 0.78rem; font-weight: 600; }
 .status.built { background: #e6f6ec; color: #14603a; }
 .status.planned { background: #fff4dd; color: #6d4b06; }
@@ -661,7 +837,7 @@ th { font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.05em; colo
 .pair { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.5rem; margin-bottom: 0.6rem; max-width: 720px; }
 .pair figure, .pair .missing { min-width: 0; }
 figure { margin: 0; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
-figure img { display: block; width: 100%; height: 220px; object-fit: cover; object-position: top left; cursor: zoom-in; }
+figure img { display: block; width: 100%; height: 240px; object-fit: contain; object-position: top left; background: #f7f7fa; cursor: zoom-in; }
 figure.wide img { height: 620px; }
 figure.zoomed img { height: auto; max-height: none; object-fit: fill; cursor: zoom-out; }
 figure figcaption { padding: 0.3rem 0.5rem; font-size: 0.78rem; color: var(--soft); border-top: 1px solid var(--line); }
@@ -686,26 +862,29 @@ code { font: 0.85em ui-monospace, SFMono-Regular, Menlo, monospace; background: 
   <li><b>${counts.dropped}</b><span>dropped</span></li>
   <li><b>${counts.screenshots}</b><span>built rows with a new screenshot</span></li>
   <li><b>${counts.pair}</b><span>built rows with a pair</span></li>
+  <li><b>${counts.driven}</b><span>built rows with a drive step</span></li>
+  <li><b>${counts.undriven}</b><span>built rows with no drive step</span></li>
   <li><b>${counts.oldMissing}</b><span>old screenshot missing</span></li>
 </ul>
 
 <h2>Where this comes from</h2>
 <ul>
   <li>Parity rows: <code>${escapeHtml(path.relative(REPO_ROOT, PAGE_FILE))}</code>, ${counts.rows} behaviour rows.</li>
-  <li>Web evidence: ${escapeHtml(evidenceLine)}.</li>
+  <li>Web evidence, newest folder per screen: ${escapeHtml(evidenceLine)}.</li>
+  <li>Drive steps: <code>.claude/skills/verify-pecunia/scripts/step-table.json</code>, and the feature page each capability belongs to in <code>.claude/skills/verify-pecunia/features/</code>.</li>
   <li>Old side: ${escapeHtml(OLD_SIDE_NOTE)}</li>
 </ul>
 
 <h2>The rows</h2>
 <table>
-<thead><tr><th style="width:26%">Old behaviour</th><th style="width:20%">Where it was</th><th style="width:26%">Status and what backs it</th><th style="width:28%">Screenshot pair</th></tr></thead>
+<thead><tr><th style="width:22%">Old behaviour</th><th style="width:15%">Where it was</th><th style="width:22%">Status and what backs it</th><th style="width:18%">Drive step</th><th style="width:23%">Screenshot pair</th></tr></thead>
 <tbody>
 ${rowsHtml}
 </tbody>
 </table>
 
 <h2>What the browser drive observed</h2>
-<p class="lede">Every observation below was read off a page in headless Chromium after a real click, against a build of this branch. Twelve screens, thirty-one observations. The two gaps are recorded as gaps, not hidden.</p>
+<p class="lede">Every observation below was read off a page in headless Chromium after a real click, against a build of the branch that ran it. ${screens.length} screens, ${observedTotal} observations. The ${gapScreens === 1 ? "one gap is" : `${gapScreens} gaps are`} recorded as gaps, not hidden.</p>
 ${screenSections}
 
 <h2>What this report does not prove</h2>
@@ -730,5 +909,5 @@ mkdirSync(path.dirname(OUTPUT_FILE), { recursive: true });
 writeFileSync(OUTPUT_FILE, html);
 
 process.stdout.write(
-  `SUMMARY rows=${counts.rows} built=${counts.built} planned=${counts.planned} dropped=${counts.dropped} newScreenshots=${counts.screenshots} pairs=${counts.pair} oldMissing=${counts.oldMissing} evidence=${evidenceFolder === null ? "none" : path.relative(REPO_ROOT, evidenceFolder)} written=${OUTPUT_FILE}\n`
+  `SUMMARY rows=${counts.rows} built=${counts.built} driven=${counts.driven} undriven=${counts.undriven} planned=${counts.planned} dropped=${counts.dropped} newScreenshots=${counts.screenshots} pairs=${counts.pair} oldMissing=${counts.oldMissing} evidence=${usedRuns.length === 0 ? "none" : usedRuns.map((run) => run.entry).join(",")} written=${OUTPUT_FILE}\n`
 );
