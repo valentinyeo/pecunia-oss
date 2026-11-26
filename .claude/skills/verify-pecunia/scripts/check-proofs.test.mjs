@@ -1644,7 +1644,7 @@ test("a readback that differs in one field of one row fails and names the field"
           `${written.id} ${readback.id} ${field} passed: ${text}`
         );
         assert.ok(
-          line !== undefined && line.includes(field),
+          line !== undefined && line.includes(field) === true,
           `${written.id} ${readback.id} ${field} did not name the field: ${text}`
         );
       }

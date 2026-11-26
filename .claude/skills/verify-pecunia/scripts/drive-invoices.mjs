@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import { createHash } from "node:crypto";
 
-import { Effect, Layer, Option } from "effect";
+import { Effect, Layer, Option, Predicate } from "effect";
 
 import { CurrentPerson } from "../../../../packages/access/dist/index.js";
 import {
@@ -125,21 +125,17 @@ const documentRecord = (stored) => {
   const { document } = stored;
   const amount = Option.getOrNull(document.amount);
 
+  const isStoredArchive =
+    Predicate.isTagged(document.archive, "Reserved") ||
+    Predicate.isTagged(document.archive, "Archived");
+
   return {
     amountCurrency: amount?.currency ?? null,
     amountMinor: amount?.minor ?? null,
-    archiveFileId:
-      document.archive._tag === "Reserved" ||
-      document.archive._tag === "Archived"
-        ? document.archive.fileId
-        : null,
-    archivePlaceId:
-      document.archive._tag === "Reserved" ||
-      document.archive._tag === "Archived"
-        ? document.archive.placeId
-        : null,
+    archiveFileId: isStoredArchive ? document.archive.fileId : null,
+    archivePlaceId: isStoredArchive ? document.archive.placeId : null,
     archiveStamped:
-      document.archive._tag === "Archived" &&
+      Predicate.isTagged(document.archive, "Archived") &&
       Number.isSafeInteger(document.archive.archivedAt),
     archiveState: document.archive._tag,
     id: document.id,
@@ -158,7 +154,9 @@ const statusRecords = (page) =>
     merchant: row.merchant,
     missingCount: page.missingCount,
     profileId: demoProfileId,
-    reason: row.status._tag === "Excepted" ? row.status.reason : null,
+    reason: Predicate.isTagged(row.status, "Excepted")
+      ? row.status.reason
+      : null,
     status: row.status._tag,
   }));
 
