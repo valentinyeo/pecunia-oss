@@ -961,12 +961,12 @@ const proofCommands = ({ data, feature, label }) => {
   return commands;
 };
 
+const cellText = (value) => String(value ?? "").replaceAll("|", "\\|");
+
 const tableLines = ({ head, rows }) => {
   const widths = head.map((cell, index) =>
     Math.max(3, cell.length, ...rows.map((row) => (row[index] ?? "").length))
   );
-
-  const cellText = (value) => String(value ?? "").replaceAll("|", "\\|");
 
   const line = (cells) =>
     `| ${cells.map((cell, index) => cellText(cell).padEnd(widths[index])).join(" | ")} |`;

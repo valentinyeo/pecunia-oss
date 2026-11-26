@@ -12,43 +12,53 @@ const fence = (message) => {
 };
 
 const candidatePaths = () => {
-  const paths = [];
+  const readers = [
+    () => require.resolve("playwright"),
+    () =>
+      nodePath.join(
+        execFileSync("npm", ["root", "-g"], { encoding: "utf-8" }).trim(),
+        "playwright",
+        "index.mjs"
+      ),
+  ];
 
-  try {
-    paths.push(require.resolve("playwright"));
-  } catch {
-    paths.push(undefined);
+  return readers.flatMap((read) => {
+    try {
+      return [read()];
+    } catch {
+      return [];
+    }
+  });
+};
+
+const importFirstOf = async (candidates) => {
+  const [candidate, ...rest] = candidates;
+
+  if (candidate === undefined) {
+    return null;
+  }
+
+  if (!existsSync(candidate)) {
+    return await importFirstOf(rest);
   }
 
   try {
-    const globalRoot = execFileSync("npm", ["root", "-g"], {
-      encoding: "utf-8",
-    }).trim();
-
-    paths.push(nodePath.join(globalRoot, "playwright", "index.mjs"));
+    return await import(pathToFileURL(candidate).href);
   } catch {
-    paths.push(undefined);
+    return await importFirstOf(rest);
   }
-
-  return paths.filter((entry) => typeof entry === "string");
 };
 
 export const loadPlaywright = async () => {
-  for (const candidate of candidatePaths()) {
-    if (existsSync(candidate) === false) {
-      continue;
-    }
+  const playwright = await importFirstOf(candidatePaths());
 
-    try {
-      return await import(pathToFileURL(candidate).href);
-    } catch {
-      continue;
-    }
+  if (playwright === null) {
+    fence(
+      "Playwright is not installed, so no browser can drive a screen. Fix: run `npm install -g playwright` then `npx playwright install chromium`."
+    );
   }
 
-  return fence(
-    "Playwright is not installed, so no browser can drive a screen. Fix: run `npm install -g playwright` then `npx playwright install chromium`."
-  );
+  return playwright;
 };
 
 export const withPage = async ({ baseUrl, path, viewport }, body) => {

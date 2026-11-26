@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { mkdirSync, writeFileSync } from "node:fs";
+import { mkdirSync } from "node:fs";
 import nodePath from "node:path";
 
 import { withPage } from "./lib/browser.mjs";
@@ -30,6 +30,9 @@ const linesOf = (text) =>
     .map((line) => line.trim())
     .filter((line) => line.length > 0);
 
+const countOf = (lines) =>
+  lines.find((line) => /^\d+ of \d+ merchants$/u.test(line)) ?? "";
+
 const sectionOf = (lines, start, end) => {
   const from = lines.indexOf(start);
 
@@ -54,8 +57,10 @@ const penceOf = (amount) => {
   return digits === "" ? undefined : Math.round(Number(digits) * 100);
 };
 
-const mainText = async (page) =>
-  linesOf(await page.locator("main").innerText());
+// oxlint-disable-next-line unicorn/prefer-dom-node-text-content -- the drive reads the rendered line breaks of a screen; `textContent` joins block text into one line and every line-anchored observation falls apart.
+const mainInnerText = async (page) => await page.locator("main").innerText();
+
+const mainText = async (page) => linesOf(await mainInnerText(page));
 
 const rowCount = (page) => page.locator("main ul li").count();
 
@@ -76,6 +81,7 @@ const tableRows = (page) =>
     [...document.querySelectorAll("main table")].map((table) =>
       [...table.querySelectorAll("tr")].map((row) =>
         [...row.querySelectorAll("th, td")].map((cell) =>
+          // oxlint-disable-next-line unicorn/prefer-dom-node-text-content -- a cell's rendered text keeps two elements inside one cell apart; `textContent` glues them together with no space.
           (cell.innerText ?? "").replaceAll(/\s+/gu, " ").trim()
         )
       )
@@ -89,10 +95,13 @@ const screens = {
     path: "/app/aliases",
     drive: async ({ page }) => {
       const tables = await tableRows(page);
+
       const aliases = tables[0]
         .slice(1)
         .filter((cells) => cells[1] !== "No aliases yet");
-      const prefixed = aliases.some((cells) => cells[1].startsWith("prefix"));
+
+      const prefixed =
+        aliases.some((cells) => cells[1].startsWith("prefix")) === true;
 
       await buttonNamed(page, "New alias").click();
       await page
@@ -100,7 +109,8 @@ const screens = {
         .waitFor({ timeout: 20_000 });
       await settle(page);
 
-      const form = await page.locator("main").innerText();
+      const form = await mainInnerText(page);
+      const formOpen = form.includes("Text on the statement") === true;
 
       return [
         observe({
@@ -113,9 +123,7 @@ const screens = {
         }),
         observe({
           id: "web-aliases-new-alias-form-opens",
-          value: form.includes("Text on the statement")
-            ? "Text on the statement"
-            : "no form",
+          value: formOpen ? "Text on the statement" : "no form",
         }),
       ];
     },
@@ -125,7 +133,8 @@ const screens = {
     drive: async ({ page }) => {
       await settle(page);
 
-      const text = await page.locator("main").innerText();
+      const text = await mainInnerText(page);
+
       const line =
         linesOf(text).find((entry) => entry.includes("later slice")) ?? "";
 
@@ -143,16 +152,20 @@ const screens = {
       await page.selectOption("main select", "2026-01");
       await page.waitForFunction(
         () =>
-          [...document.querySelectorAll("main h2")].some((heading) =>
-            heading.innerText.includes("Jan 2026")
+          [...document.querySelectorAll("main h2")].some(
+            (node) =>
+              // oxlint-disable-next-line unicorn/prefer-dom-node-text-content -- the heading text is read inside the page, where `innerText` is the rendered text.
+              node.innerText.includes("Jan 2026") === true
           ),
         { timeout: 20_000 }
       );
       await settle(page);
 
       const after = await mainText(page);
+
       const januaryHeading =
         after.find((line) => line.startsWith("Spend in ")) ?? "";
+
       const januaryTables = await tableRows(page);
 
       return [
@@ -180,13 +193,16 @@ const screens = {
 
       const lines = await mainText(page);
       const netWorth = valueAfter(lines, "Net worth");
+
       const accountAmounts = sectionOf(lines, "Accounts").filter((line) =>
         line.startsWith("£")
       );
+
       const accountTotal = accountAmounts.reduce(
         (sum, amount) => sum + (penceOf(amount) ?? 0),
         0
       );
+
       const categories = sectionOf(
         lines,
         "Spend by category",
@@ -212,16 +228,20 @@ const screens = {
       await settle(page);
 
       const lines = await mainText(page);
+
       const platforms = lines.filter((line) =>
         ["Generic Broker", "Generic Crypto Exchange"].includes(line)
       );
+
       const tables = await tableRows(page);
+
       const priced =
         tables.flat().find((cells) => cells[0]?.startsWith("Demo Bitcoin")) ??
         [];
+
       const priceless = tables
         .flat()
-        .flatMap((cells) => cells)
+        .flat()
         .filter((cell) => cell === "No price yet").length;
 
       return [
@@ -244,9 +264,9 @@ const screens = {
     path: "/app/merchants",
     drive: async ({ page }) => {
       const before = await mainText(page);
-      const countOf = (lines) =>
-        lines.find((line) => /^\d+ of \d+ merchants$/u.test(line)) ?? "";
+
       const tables = await tableRows(page);
+
       const grocer =
         tables[0].find((cells) => cells[0] === "Demo Grocer") ?? [];
 
@@ -254,6 +274,7 @@ const screens = {
       await page.waitForFunction(
         () =>
           /^\d+ of \d+ merchants$/mu.test(
+            // oxlint-disable-next-line unicorn/prefer-dom-node-text-content -- the pattern is anchored per line, and only `innerText` keeps the rendered line breaks.
             document.querySelector("main").innerText
           ),
         { timeout: 20_000 }
@@ -288,13 +309,14 @@ const screens = {
       await page.waitForFunction(
         () =>
           /suggestions are ready/u.test(
-            document.querySelector("main").innerText
+            document.querySelector("main").textContent
           ),
         { timeout: 20_000 }
       );
       await settle(page);
 
       const lines = await mainText(page);
+
       const ready =
         lines.find((line) => line.includes("suggestions are ready")) ?? "";
 
@@ -313,6 +335,7 @@ const screens = {
       const tables = await tableRows(page);
       const rules = tables[0].slice(1);
       const first = rules[0] ?? [];
+
       const chosen = await page.evaluate(() =>
         [...document.querySelectorAll("main table select")].map(
           (select) => select.selectedOptions[0]?.text ?? ""
@@ -323,7 +346,8 @@ const screens = {
       await page.getByLabel("Least amount").waitFor({ timeout: 20_000 });
       await settle(page);
 
-      const form = await page.locator("main").innerText();
+      const form = await mainInnerText(page);
+      const formOpen = form.includes("Least amount") === true;
 
       return [
         observe({ id: "web-rules-lists-every-rule", value: `${rules.length}` }),
@@ -333,7 +357,7 @@ const screens = {
         }),
         observe({
           id: "web-rules-new-rule-form-opens",
-          value: form.includes("Least amount") ? "Least amount" : "no form",
+          value: formOpen ? "Least amount" : "no form",
         }),
       ];
     },
@@ -362,9 +386,10 @@ const screens = {
 
       const headings = await page.evaluate(() =>
         [...document.querySelectorAll("main h2")].map((heading) =>
-          heading.innerText.trim()
+          heading.textContent.trim()
         )
       );
+
       const payments = await page.locator('[aria-label="Payments"] li').count();
 
       return [
@@ -390,8 +415,10 @@ const screens = {
           (name) => document.querySelector(`[name="${name}"]`)?.value ?? ""
         )
       );
+
       const profiles = await page.evaluate(() =>
         [...document.querySelectorAll("main ul li")].map((entry) =>
+          // oxlint-disable-next-line unicorn/prefer-dom-node-text-content -- the profile name is the first rendered line of the row; `textContent` has no lines.
           entry.innerText.split("\n")[0].trim()
         )
       );
@@ -412,7 +439,7 @@ const screens = {
     path: "/app/subscriptions",
     drive: async ({ consoleErrors, page }) => {
       await page.waitForFunction(
-        () => document.body.innerText.includes("Application Crash"),
+        () => document.body.textContent.includes("Application Crash"),
         { timeout: 20_000 }
       );
       await settle(page);
@@ -420,6 +447,7 @@ const screens = {
       const failure = consoleErrors.find((entry) =>
         entry.includes("Service not found")
       );
+
       const reason = /Service not found: (?<service>[^\s]+)/u.exec(
         failure ?? ""
       );
@@ -469,8 +497,9 @@ const screens = {
           ...document
             .querySelectorAll("main ul li")[0]
             .querySelectorAll("label"),
-        ].map((label) => label.innerText.trim())
+        ].map((label) => label.textContent.trim())
       );
+
       const save = await page
         .getByRole("button", { name: "Save line" })
         .count();
@@ -503,8 +532,11 @@ const screens = {
 
 const values = argumentsOf(process.argv.slice(2));
 
-const name =
-  values.get("screen") ?? fence("drive-web-screen needs --screen <name>");
+const name = values.get("screen");
+
+if (name === undefined) {
+  fence("drive-web-screen needs --screen <name>");
+}
 
 const chosen = screens[name];
 
