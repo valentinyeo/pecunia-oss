@@ -662,6 +662,23 @@ const evidenceText = (row, matches) => {
 };
 
 /**
+ * @param {DriveStep} step
+ * @param {EvidenceRun | null} run
+ * @returns {string}
+ */
+const recordText = (step, run) => {
+  if (step.artifact === null) {
+    return "no record declared";
+  }
+
+  if (!exists(path.join(run?.folder ?? "", step.artifact))) {
+    return `record ${step.artifact} is not in any evidence folder`;
+  }
+
+  return `record ${step.artifact} in ${run.entry}`;
+};
+
+/**
  * @param {{ behaviour: string, place: string, status: string, where: string }} row
  * @param {string[]} drives
  * @returns {string}
@@ -678,12 +695,9 @@ const driveCell = (row, drives) => {
   const items = drives.map((id) => {
     const step = stepById.get(id);
     const run = stepRunOf(id);
-    const record =
-      step.artifact === null
-        ? "no record declared"
-        : exists(path.join(run?.folder ?? "", step.artifact))
-          ? `record ${step.artifact} in ${run.entry}`
-          : `record ${step.artifact} is not in any evidence folder`;
+
+    const record = recordText(step, run);
+
     const pages = [
       ...new Set(
         refsOf(row.where)
