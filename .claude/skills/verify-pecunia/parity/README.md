@@ -253,7 +253,24 @@ Every place the old app put a behaviour. A place with no row is a behaviour nobo
 
 ## Side by side on the demo book
 
-Planned, not run. The old app cannot be started, and this page does not claim a comparison it did not make. The rows below are the ones the demo book can already compare, field by field, once the old side is read by hand.
+`node .claude/skills/verify-pecunia/scripts/build-side-by-side.mjs` writes one self-contained HTML page to `/tmp/pecunia-rs/page/side-by-side.html`. The page is never committed: it holds screenshots, and a screenshot of a finance app does not belong in the repository.
+
+The page reads two things and invents neither:
+
+- This page's behaviour rows, so a row that is added or dropped here changes the report.
+- The newest evidence folder that holds `web-*.png` and a `proof.json`, so the new side is the browser drive of the branch that ran it.
+
+Each built row shows a screenshot pair when a screen in the drive shows that capability: the old app on the left, this app on the right. A built row with no screen says so instead of showing a picture of something else. A planned row names its ticket. A dropped row gives the reason from the where column.
+
+How the old side is captured, and the limits of it:
+
+- The old code runs from a throwaway worktree of its own `origin/main`, with its own local D1 migrations and a demo book of made-up merchants and amounts written for the report.
+- The old app's outside login gate needs a live Cloudflare Access token, so the local run stubs that gate to a demo person. The live old app is never opened, and no real book is copied.
+- A screen the old app never served, such as budgets, has no old screenshot, and the row says so.
+
+What the pair does not prove: a new-app screenshot is the layout and the words on the screen. The screens draw client fixtures, so a number on one is not the demo book's number.
+
+The planned rows below stay planned. The old app's side of them cannot be started here, and this page does not claim a comparison it did not make. The rows are the ones the demo book can compare, field by field, once the old side is read by hand.
 
 The new side is the demo-book proof, which seeds its own scratch book and drives the real capabilities:
 
