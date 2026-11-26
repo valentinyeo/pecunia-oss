@@ -1,0 +1,1562 @@
+{
+  "branch": "capability-drives",
+  "checks": [
+    {
+      "actual": "unnamed=0 unexported=0 planned=0 status=0 problems=0 exit=0",
+      "expected": "unnamed=0 unexported=0 planned=0 status=0 problems=0 exit=0",
+      "feature": "all",
+      "id": "feature-map-matches-capabilities",
+      "passed": true,
+      "step": "feature-map"
+    },
+    {
+      "actual": "problems=0 exit=0",
+      "expected": "problems=0 exit=0",
+      "feature": "all",
+      "id": "parity-matches-old-behaviours",
+      "passed": true,
+      "step": "parity"
+    },
+    {
+      "actual": "wrongDeclarations=0 wrongRows=0 columns=11",
+      "expected": "wrongDeclarations=0 wrongRows=0 columns=11",
+      "feature": "all",
+      "id": "money-is-integer-minor-units",
+      "passed": true,
+      "step": "generic"
+    },
+    {
+      "actual": "wrongCurrencies=0 columns=13",
+      "expected": "wrongCurrencies=0 columns=13",
+      "feature": "all",
+      "id": "currency-is-an-iso-code",
+      "passed": true,
+      "step": "generic"
+    },
+    {
+      "actual": "integrity=ok foreignKeyViolations=0 tablesWithOrphans=0 scopedTables=17",
+      "expected": "integrity=ok foreignKeyViolations=0 tablesWithOrphans=0 scopedTables=17",
+      "feature": "all",
+      "id": "every-row-belongs-to-a-profile",
+      "passed": true,
+      "step": "generic"
+    },
+    {
+      "actual": "nonPlaceholderEmails=0 profiles=Demo Person,Example Ltd",
+      "expected": "nonPlaceholderEmails=0 profiles=Demo Person,Example Ltd",
+      "feature": "all",
+      "id": "demo-book-holds-made-up-identities",
+      "passed": true,
+      "step": "generic"
+    },
+    {
+      "actual": "0",
+      "expected": "0",
+      "feature": "all",
+      "id": "bank-lines-stay-in-their-account",
+      "passed": true,
+      "step": "accounts-and-bank-lines"
+    },
+    {
+      "actual": "0",
+      "expected": "0",
+      "feature": "all",
+      "id": "bank-lines-never-repeat",
+      "passed": true,
+      "step": "accounts-and-bank-lines"
+    },
+    {
+      "actual": "Demo Bank (bank),Demo Broker (investment)",
+      "expected": "Demo Bank (bank),Demo Broker (investment)",
+      "feature": "all",
+      "id": "demo-accounts",
+      "passed": true,
+      "step": "accounts-and-bank-lines"
+    },
+    {
+      "actual": "2",
+      "expected": "2",
+      "feature": "all",
+      "id": "demo-sync-runs",
+      "passed": true,
+      "step": "accounts-and-bank-lines"
+    },
+    {
+      "actual": "true",
+      "expected": "true",
+      "feature": "all",
+      "id": "sync-import-count-matches-lines",
+      "passed": true,
+      "step": "accounts-and-bank-lines"
+    },
+    {
+      "actual": "0",
+      "expected": "0",
+      "feature": "all",
+      "id": "sync-failure-names-itself",
+      "passed": true,
+      "step": "accounts-and-bank-lines"
+    },
+    {
+      "actual": "true",
+      "expected": "true",
+      "feature": "all",
+      "id": "sync-rejections-match-count",
+      "passed": true,
+      "step": "accounts-and-bank-lines"
+    },
+    {
+      "actual": "label=Demo Bank kind=bank base=EUR provider=Wise",
+      "expected": "label=Demo Bank kind=bank base=EUR provider=Wise",
+      "feature": "all",
+      "id": "import-targets-listed",
+      "passed": true,
+      "step": "accounts-and-bank-lines"
+    },
+    {
+      "actual": "imported=5 alreadyImported=0 rejected=0",
+      "expected": "imported=5 alreadyImported=0 rejected=0",
+      "feature": "all",
+      "id": "import-writes-every-line",
+      "passed": true,
+      "step": "accounts-and-bank-lines"
+    },
+    {
+      "actual": "5 records",
+      "expected": "5 records",
+      "feature": "all",
+      "id": "import-stores-every-line",
+      "passed": true,
+      "step": "accounts-and-bank-lines"
+    },
+    {
+      "actual": "imported=0 alreadyImported=5",
+      "expected": "imported=0 alreadyImported=5",
+      "feature": "all",
+      "id": "import-replay-adds-nothing",
+      "passed": true,
+      "step": "accounts-and-bank-lines"
+    },
+    {
+      "actual": "5 records",
+      "expected": "5 records",
+      "feature": "all",
+      "id": "import-replay-stores-nothing",
+      "passed": true,
+      "step": "accounts-and-bank-lines"
+    },
+    {
+      "actual": "imported=1 rejected=1 reason=bad-date",
+      "expected": "imported=1 rejected=1 reason=bad-date",
+      "feature": "all",
+      "id": "import-names-a-rejected-line",
+      "passed": true,
+      "step": "accounts-and-bank-lines"
+    },
+    {
+      "actual": "6 records",
+      "expected": "6 records",
+      "feature": "all",
+      "id": "import-rejected-line-stores-once",
+      "passed": true,
+      "step": "accounts-and-bank-lines"
+    },
+    {
+      "actual": "ImportAccountNotFound",
+      "expected": "ImportAccountNotFound",
+      "feature": "all",
+      "id": "import-refuses-unknown-account",
+      "passed": true,
+      "step": "accounts-and-bank-lines"
+    },
+    {
+      "actual": "6 records",
+      "expected": "6 records",
+      "feature": "all",
+      "id": "import-unknown-account-stores-nothing",
+      "passed": true,
+      "step": "accounts-and-bank-lines"
+    },
+    {
+      "actual": "total=12 demoLines=12 awaiting=2",
+      "expected": "total=12 demoLines=12 awaiting=2",
+      "feature": "all",
+      "id": "bank-line-list-returns-the-demo-book",
+      "passed": true,
+      "step": "bank-line-list"
+    },
+    {
+      "actual": "true",
+      "expected": "true",
+      "feature": "all",
+      "id": "bank-line-list-orders-newest-first",
+      "passed": true,
+      "step": "bank-line-list"
+    },
+    {
+      "actual": "lines=8 allOut=true bookOut=8",
+      "expected": "lines=8 allOut=true bookOut=8",
+      "feature": "all",
+      "id": "bank-line-list-filters-by-direction",
+      "passed": true,
+      "step": "bank-line-list"
+    },
+    {
+      "actual": "first=5 second=5 overlap=0",
+      "expected": "first=5 second=5 overlap=0",
+      "feature": "all",
+      "id": "bank-line-list-pages-without-repeats",
+      "passed": true,
+      "step": "bank-line-list"
+    },
+    {
+      "actual": "category=0192f0c1-000d-75e9-8fd7-fd7e43c901ee note=Demo note written by the verify drive",
+      "expected": "category=0192f0c1-000d-75e9-8fd7-fd7e43c901ee note=Demo note written by the verify drive",
+      "feature": "all",
+      "id": "bank-line-edit-sets-category-and-note",
+      "passed": true,
+      "step": "bank-line-edit"
+    },
+    {
+      "actual": "12 records",
+      "expected": "12 records",
+      "feature": "all",
+      "id": "bank-line-edit-stores-category-and-note",
+      "passed": true,
+      "step": "bank-line-edit"
+    },
+    {
+      "actual": "12 records",
+      "expected": "12 records",
+      "feature": "all",
+      "id": "bank-line-edit-unknown-line-stores-nothing",
+      "passed": true,
+      "step": "bank-line-edit"
+    },
+    {
+      "actual": "12 records",
+      "expected": "12 records",
+      "feature": "all",
+      "id": "bank-line-edit-foreign-category-stores-nothing",
+      "passed": true,
+      "step": "bank-line-edit"
+    },
+    {
+      "actual": "lineId=0192f0c1-0027-7c11-8261-2619d29e6868 profileId=0192f0c1-0001-702d-8484-48490b729601",
+      "expected": "lineId=0192f0c1-0027-7c11-8261-2619d29e6868 profileId=0192f0c1-0001-702d-8484-48490b729601",
+      "feature": "all",
+      "id": "bank-line-edit-keeps-the-line-in-its-profile",
+      "passed": true,
+      "step": "bank-line-edit"
+    },
+    {
+      "actual": "UnknownBankLine",
+      "expected": "UnknownBankLine",
+      "feature": "all",
+      "id": "bank-line-edit-refuses-an-unknown-line",
+      "passed": true,
+      "step": "bank-line-edit"
+    },
+    {
+      "actual": "UnknownCategory",
+      "expected": "UnknownCategory",
+      "feature": "all",
+      "id": "bank-line-edit-refuses-a-foreign-category",
+      "passed": true,
+      "step": "bank-line-edit"
+    },
+    {
+      "actual": "tag=Reviewed hasTime=true",
+      "expected": "tag=Reviewed hasTime=true",
+      "feature": "all",
+      "id": "bank-line-review-marks-the-line",
+      "passed": true,
+      "step": "bank-line-review"
+    },
+    {
+      "actual": "12 records",
+      "expected": "12 records",
+      "feature": "all",
+      "id": "bank-line-review-shows-in-the-list",
+      "passed": true,
+      "step": "bank-line-review"
+    },
+    {
+      "actual": "12 records",
+      "expected": "12 records",
+      "feature": "all",
+      "id": "bank-line-review-viewer-stores-nothing",
+      "passed": true,
+      "step": "bank-line-review"
+    },
+    {
+      "actual": "Forbidden",
+      "expected": "Forbidden",
+      "feature": "all",
+      "id": "bank-line-review-refuses-a-viewer",
+      "passed": true,
+      "step": "bank-line-review"
+    },
+    {
+      "actual": "0",
+      "expected": "0",
+      "feature": "all",
+      "id": "applied-rule-sets-category",
+      "passed": true,
+      "step": "categories-and-rules"
+    },
+    {
+      "actual": "0",
+      "expected": "0",
+      "feature": "all",
+      "id": "classification-rule-sets-classification",
+      "passed": true,
+      "step": "categories-and-rules"
+    },
+    {
+      "actual": "0",
+      "expected": "0",
+      "feature": "all",
+      "id": "rule-targets-stay-in-profile",
+      "passed": true,
+      "step": "categories-and-rules"
+    },
+    {
+      "actual": "0",
+      "expected": "0",
+      "feature": "all",
+      "id": "merchant-aliases-stay-in-profile",
+      "passed": true,
+      "step": "categories-and-rules"
+    },
+    {
+      "actual": "0192f0c1-0015-727a-8b92-b929ac9448a7 category-match=1 priority=10 enabled=1",
+      "expected": "0192f0c1-0015-727a-8b92-b929ac9448a7 category-match=1 priority=10 enabled=1",
+      "feature": "all",
+      "id": "demo-rule-sweeps-its-line",
+      "passed": true,
+      "step": "categories-and-rules"
+    },
+    {
+      "actual": "328955",
+      "expected": "328955",
+      "feature": "all",
+      "id": "dashboard-spend",
+      "passed": true,
+      "step": "dashboard-sums"
+    },
+    {
+      "actual": "transaction-demo-02,transaction-demo-03,transaction-demo-04,transaction-demo-05,transaction-demo-11",
+      "expected": "transaction-demo-02,transaction-demo-03,transaction-demo-04,transaction-demo-05,transaction-demo-11",
+      "feature": "all",
+      "id": "dashboard-spend-lines",
+      "passed": true,
+      "step": "dashboard-sums"
+    },
+    {
+      "actual": "480000",
+      "expected": "480000",
+      "feature": "all",
+      "id": "dashboard-income",
+      "passed": true,
+      "step": "dashboard-sums"
+    },
+    {
+      "actual": "160000",
+      "expected": "160000",
+      "feature": "all",
+      "id": "dashboard-transfers",
+      "passed": true,
+      "step": "dashboard-sums"
+    },
+    {
+      "actual": "1500",
+      "expected": "1500",
+      "feature": "all",
+      "id": "dashboard-excluded",
+      "passed": true,
+      "step": "dashboard-sums"
+    },
+    {
+      "actual": "transaction-demo-12",
+      "expected": "transaction-demo-12",
+      "feature": "all",
+      "id": "dashboard-pending",
+      "passed": true,
+      "step": "dashboard-sums"
+    },
+    {
+      "actual": "299000",
+      "expected": "299000",
+      "feature": "all",
+      "id": "dashboard-category",
+      "passed": true,
+      "step": "dashboard-sums"
+    },
+    {
+      "actual": "299000",
+      "expected": "299000",
+      "feature": "all",
+      "id": "dashboard-parent-category",
+      "passed": true,
+      "step": "dashboard-sums"
+    },
+    {
+      "actual": "spend=90945 income=205200 refund=2500 balance=422000 tax=120000",
+      "expected": "spend=90945 income=205200 refund=2500 balance=422000 tax=120000",
+      "feature": "all",
+      "id": "reporting-dashboard-totals",
+      "passed": true,
+      "step": "dashboard-sums"
+    },
+    {
+      "actual": "spend=90945 Living:29945,Rent:45000,Software:12000,Transport:4000",
+      "expected": "spend=90945 Living:29945,Rent:45000,Software:12000,Transport:4000",
+      "feature": "all",
+      "id": "reporting-category-totals",
+      "passed": true,
+      "step": "dashboard-sums"
+    },
+    {
+      "actual": "business:12000:1319,mixed:0:0,personal:78945:8681,uncategorised:0:0",
+      "expected": "business:12000:1319,mixed:0:0,personal:78945:8681,uncategorised:0:0",
+      "feature": "all",
+      "id": "reporting-spending-split",
+      "passed": true,
+      "step": "dashboard-sums"
+    },
+    {
+      "actual": "spend=29945 lines=Demo Market,Demo Ferry,Demo Market,Demo Market sum=29945",
+      "expected": "spend=29945 lines=Demo Market,Demo Ferry,Demo Market,Demo Market sum=29945",
+      "feature": "all",
+      "id": "reporting-parent-payments",
+      "passed": true,
+      "step": "dashboard-sums"
+    },
+    {
+      "actual": "income=205200 refund=2500 Example Ltd:150000,Example Studio:55200",
+      "expected": "income=205200 refund=2500 Example Ltd:150000,Example Studio:55200",
+      "feature": "all",
+      "id": "reporting-income-clients",
+      "passed": true,
+      "step": "dashboard-sums"
+    },
+    {
+      "actual": "spend=90945 days=31 daily=90945 payments=11",
+      "expected": "spend=90945 days=31 daily=90945 payments=11",
+      "feature": "all",
+      "id": "reporting-month-statement",
+      "passed": true,
+      "step": "dashboard-sums"
+    },
+    {
+      "actual": "2024-04,2024-03,2024-02",
+      "expected": "2024-04,2024-03,2024-02",
+      "feature": "all",
+      "id": "reporting-months-held",
+      "passed": true,
+      "step": "dashboard-sums"
+    },
+    {
+      "actual": "EUR 90945 Living:29945,Rent:45000,Software:12000,Transport:4000",
+      "expected": "EUR 90945 Living:29945,Rent:45000,Software:12000,Transport:4000",
+      "feature": "all",
+      "id": "reporting-spending-summary",
+      "passed": true,
+      "step": "dashboard-sums"
+    },
+    {
+      "actual": "EUR income=205200 refund=2500 Example Ltd:150000,Example Studio:55200",
+      "expected": "EUR income=205200 refund=2500 Example Ltd:150000,Example Studio:55200",
+      "feature": "all",
+      "id": "reporting-income-summary",
+      "passed": true,
+      "step": "dashboard-sums"
+    },
+    {
+      "actual": "2024-03 in=207700 out=110945 net=96755",
+      "expected": "2024-03 in=207700 out=110945 net=96755",
+      "feature": "all",
+      "id": "reporting-monthly-totals",
+      "passed": true,
+      "step": "dashboard-sums"
+    },
+    {
+      "actual": "0",
+      "expected": "0",
+      "feature": "all",
+      "id": "subscriptions-have-a-frequency-rule",
+      "passed": true,
+      "step": "subscriptions"
+    },
+    {
+      "actual": "1",
+      "expected": "1",
+      "feature": "all",
+      "id": "subscriptions-active",
+      "passed": true,
+      "step": "subscriptions"
+    },
+    {
+      "actual": "358800",
+      "expected": "358800",
+      "feature": "all",
+      "id": "subscriptions-annual-cost",
+      "passed": true,
+      "step": "subscriptions"
+    },
+    {
+      "actual": "1",
+      "expected": "1",
+      "feature": "all",
+      "id": "subscriptions-cancelled",
+      "passed": true,
+      "step": "subscriptions"
+    },
+    {
+      "actual": "rows=2 monthly=29900 annual=358800 cancelled=1",
+      "expected": "rows=2 monthly=29900 annual=358800 cancelled=1",
+      "feature": "all",
+      "id": "subscriptions-capability-lists-costs",
+      "passed": true,
+      "step": "subscriptions"
+    },
+    {
+      "actual": "Demo Cloud Hosting:monthly:29900:11,Demo Coffee:weekly:4250:6,Demo Design Tool:monthly:2765:3",
+      "expected": "Demo Cloud Hosting:monthly:29900:11,Demo Coffee:weekly:4250:6,Demo Design Tool:monthly:2765:3",
+      "feature": "all",
+      "id": "subscriptions-capability-detects-history",
+      "passed": true,
+      "step": "subscriptions"
+    },
+    {
+      "actual": "sameId=true status=Confirmed annual=51000",
+      "expected": "sameId=true status=Confirmed annual=51000",
+      "feature": "all",
+      "id": "subscriptions-capability-marks-existing",
+      "passed": true,
+      "step": "subscriptions"
+    },
+    {
+      "actual": "2 records",
+      "expected": "2 records",
+      "feature": "all",
+      "id": "subscriptions-mark-reads-back",
+      "passed": true,
+      "step": "subscriptions"
+    },
+    {
+      "actual": "status=Cancelled next=null",
+      "expected": "status=Cancelled next=null",
+      "feature": "all",
+      "id": "subscriptions-capability-cancels",
+      "passed": true,
+      "step": "subscriptions"
+    },
+    {
+      "actual": "2 records",
+      "expected": "2 records",
+      "feature": "all",
+      "id": "subscriptions-cancel-reads-back",
+      "passed": true,
+      "step": "subscriptions"
+    },
+    {
+      "actual": "0192f0c1-000d-75e9-8fd7-fd7e43c901ee",
+      "expected": "0192f0c1-000d-75e9-8fd7-fd7e43c901ee",
+      "feature": "all",
+      "id": "subscriptions-capability-sets-category",
+      "passed": true,
+      "step": "subscriptions"
+    },
+    {
+      "actual": "2 records",
+      "expected": "2 records",
+      "feature": "all",
+      "id": "subscriptions-category-reads-back",
+      "passed": true,
+      "step": "subscriptions"
+    },
+    {
+      "actual": "Demo Bitcoin value=8640000 gain=8040000; Demo World ETF value=780000000 gain=779550000",
+      "expected": "Demo Bitcoin value=8640000 gain=8040000; Demo World ETF value=780000000 gain=779550000",
+      "feature": "all",
+      "id": "holdings-value-math",
+      "passed": true,
+      "step": "investments"
+    },
+    {
+      "actual": "0",
+      "expected": "0",
+      "feature": "all",
+      "id": "holdings-stay-whole-cents",
+      "passed": true,
+      "step": "investments"
+    },
+    {
+      "actual": "1",
+      "expected": "1",
+      "feature": "all",
+      "id": "holdings-pending-unknown",
+      "passed": true,
+      "step": "investments"
+    },
+    {
+      "actual": "788640000",
+      "expected": "788640000",
+      "feature": "all",
+      "id": "holdings-known-value",
+      "passed": true,
+      "step": "investments"
+    },
+    {
+      "actual": "0",
+      "expected": "0",
+      "feature": "all",
+      "id": "holdings-platforms",
+      "passed": true,
+      "step": "investments"
+    },
+    {
+      "actual": "total=788640000 valued=2 unknown=1 Demo Bitcoin=8640000 gain=8040000,Demo Tech Stock=no-price,Demo World ETF=780000000 gain=779550000",
+      "expected": "total=788640000 valued=2 unknown=1 Demo Bitcoin=8640000 gain=8040000,Demo Tech Stock=no-price,Demo World ETF=780000000 gain=779550000",
+      "feature": "all",
+      "id": "investments-capability-values-demo",
+      "passed": true,
+      "step": "investments"
+    },
+    {
+      "actual": "symbol=DEMO-VERIFY quantity=2000000",
+      "expected": "symbol=DEMO-VERIFY quantity=2000000",
+      "feature": "all",
+      "id": "investments-capability-adds-holding",
+      "passed": true,
+      "step": "investments"
+    },
+    {
+      "actual": "4 records",
+      "expected": "4 records",
+      "feature": "all",
+      "id": "investments-add-reads-back",
+      "passed": true,
+      "step": "investments"
+    },
+    {
+      "actual": "Demo Renamed Stock quantity=3000000 price=200",
+      "expected": "Demo Renamed Stock quantity=3000000 price=200",
+      "feature": "all",
+      "id": "investments-capability-edits-holding",
+      "passed": true,
+      "step": "investments"
+    },
+    {
+      "actual": "4 records",
+      "expected": "4 records",
+      "feature": "all",
+      "id": "investments-edit-reads-back",
+      "passed": true,
+      "step": "investments"
+    },
+    {
+      "actual": "DEMO-VERIFY",
+      "expected": "DEMO-VERIFY",
+      "feature": "all",
+      "id": "investments-capability-deletes-holding",
+      "passed": true,
+      "step": "investments"
+    },
+    {
+      "actual": "3 records",
+      "expected": "3 records",
+      "feature": "all",
+      "id": "investments-delete-reads-back",
+      "passed": true,
+      "step": "investments"
+    },
+    {
+      "actual": "created=3 updated=0 unpriced=1",
+      "expected": "created=3 updated=0 unpriced=1",
+      "feature": "all",
+      "id": "investments-capability-syncs-broker",
+      "passed": true,
+      "step": "investments"
+    },
+    {
+      "actual": "6 records",
+      "expected": "6 records",
+      "feature": "all",
+      "id": "investments-sync-reads-back",
+      "passed": true,
+      "step": "investments"
+    },
+    {
+      "actual": "priced=4 unpriced=2",
+      "expected": "priced=4 unpriced=2",
+      "feature": "all",
+      "id": "investments-capability-refreshes-prices",
+      "passed": true,
+      "step": "investments"
+    },
+    {
+      "actual": "6 records",
+      "expected": "6 records",
+      "feature": "all",
+      "id": "investments-refresh-reads-back",
+      "passed": true,
+      "step": "investments"
+    },
+    {
+      "actual": "0",
+      "expected": "0",
+      "feature": "all",
+      "id": "conversion-rounds-exactly",
+      "passed": true,
+      "step": "fx-conversion"
+    },
+    {
+      "actual": "0",
+      "expected": "0",
+      "feature": "all",
+      "id": "conversion-keeps-same-currency",
+      "passed": true,
+      "step": "fx-conversion"
+    },
+    {
+      "actual": "0",
+      "expected": "0",
+      "feature": "all",
+      "id": "conversion-has-a-monthly-rate",
+      "passed": true,
+      "step": "fx-conversion"
+    },
+    {
+      "actual": "transaction-demo-03 2999 USD -> 2765 EUR at 0.922; transaction-demo-05 12000 GBP -> 14040 EUR at 1.17",
+      "expected": "transaction-demo-03 2999 USD -> 2765 EUR at 0.922; transaction-demo-05 12000 GBP -> 14040 EUR at 1.17",
+      "feature": "all",
+      "id": "conversion-recorded-lines",
+      "passed": true,
+      "step": "fx-conversion"
+    },
+    {
+      "actual": "0",
+      "expected": "0",
+      "feature": "all",
+      "id": "tax-settles-once",
+      "passed": true,
+      "step": "tax"
+    },
+    {
+      "actual": "0",
+      "expected": "0",
+      "feature": "all",
+      "id": "tax-unpaid-has-no-settlement",
+      "passed": true,
+      "step": "tax"
+    },
+    {
+      "actual": "250000",
+      "expected": "250000",
+      "feature": "all",
+      "id": "tax-paid-total",
+      "passed": true,
+      "step": "tax"
+    },
+    {
+      "actual": "312500",
+      "expected": "312500",
+      "feature": "all",
+      "id": "tax-unpaid-total",
+      "passed": true,
+      "step": "tax"
+    },
+    {
+      "actual": "GB 4-6",
+      "expected": "GB 4-6",
+      "feature": "all",
+      "id": "tax-year",
+      "passed": true,
+      "step": "tax"
+    },
+    {
+      "actual": "year=GB 4-6 vat:2025-11-07:EUR:312500:Estimated",
+      "expected": "year=GB 4-6 vat:2025-11-07:EUR:312500:Estimated",
+      "feature": "all",
+      "id": "tax-capability-lists-dues",
+      "passed": true,
+      "step": "tax"
+    },
+    {
+      "actual": "inserted=2 removed=0 unchanged=0 updated=0",
+      "expected": "inserted=2 removed=0 unchanged=0 updated=0",
+      "feature": "all",
+      "id": "tax-capability-syncs-recorded-books",
+      "passed": true,
+      "step": "tax"
+    },
+    {
+      "actual": "3 records",
+      "expected": "3 records",
+      "feature": "all",
+      "id": "tax-sync-reads-back",
+      "passed": true,
+      "step": "tax"
+    },
+    {
+      "actual": "inserted=0 removed=1 unchanged=1 updated=0",
+      "expected": "inserted=0 removed=1 unchanged=1 updated=0",
+      "feature": "all",
+      "id": "tax-sync-removes-missing-payment",
+      "passed": true,
+      "step": "tax"
+    },
+    {
+      "actual": "2 records",
+      "expected": "2 records",
+      "feature": "all",
+      "id": "tax-removal-reads-back",
+      "passed": true,
+      "step": "tax"
+    },
+    {
+      "actual": "inserted=0 removed=0 unchanged=1 updated=0",
+      "expected": "inserted=0 removed=0 unchanged=1 updated=0",
+      "feature": "all",
+      "id": "tax-sync-replay-is-unchanged",
+      "passed": true,
+      "step": "tax"
+    },
+    {
+      "actual": "2 records",
+      "expected": "2 records",
+      "feature": "all",
+      "id": "tax-replay-reads-back",
+      "passed": true,
+      "step": "tax"
+    },
+    {
+      "actual": "0",
+      "expected": "0",
+      "feature": "all",
+      "id": "invoice-matches-its-line",
+      "passed": true,
+      "step": "invoices"
+    },
+    {
+      "actual": "4250 documents=0",
+      "expected": "4250 documents=0",
+      "feature": "all",
+      "id": "invoice-exception-has-no-document",
+      "passed": true,
+      "step": "invoices"
+    },
+    {
+      "actual": "0",
+      "expected": "0",
+      "feature": "all",
+      "id": "invoice-unarchived",
+      "passed": true,
+      "step": "invoices"
+    },
+    {
+      "actual": "0",
+      "expected": "0",
+      "feature": "all",
+      "id": "invoice-archived",
+      "passed": true,
+      "step": "invoices"
+    },
+    {
+      "actual": "0",
+      "expected": "0",
+      "feature": "all",
+      "id": "invoice-vendors",
+      "passed": true,
+      "step": "invoices"
+    },
+    {
+      "actual": "0",
+      "expected": "0",
+      "feature": "all",
+      "id": "invoice-archive-states",
+      "passed": true,
+      "step": "invoices"
+    },
+    {
+      "actual": "missing=1 Demo Coffee:Excepted,Demo Design Tool:Missing,Demo Cloud Hosting:Archived",
+      "expected": "missing=1 Demo Coffee:Excepted,Demo Design Tool:Missing,Demo Cloud Hosting:Archived",
+      "feature": "all",
+      "id": "invoices-capability-lists-status",
+      "passed": true,
+      "step": "invoices"
+    },
+    {
+      "actual": "2025-04:1:0:1:0,2025-03:1:0:0:1,2025-02:1:1:0:0",
+      "expected": "2025-04:1:0:1:0,2025-03:1:0:0:1,2025-02:1:1:0:0",
+      "feature": "all",
+      "id": "invoices-capability-counts-coverage",
+      "passed": true,
+      "step": "invoices"
+    },
+    {
+      "actual": "local:demo-archive:*.tmp",
+      "expected": "local:demo-archive:*.tmp",
+      "feature": "all",
+      "id": "invoices-capability-reads-places",
+      "passed": true,
+      "step": "invoices"
+    },
+    {
+      "actual": "Demo Design Tool:https://portal.example.com",
+      "expected": "Demo Design Tool:https://portal.example.com",
+      "feature": "all",
+      "id": "invoices-capability-reads-sources",
+      "passed": true,
+      "step": "invoices"
+    },
+    {
+      "actual": "proposals=1 document=true payment=true stillUnattached=true",
+      "expected": "proposals=1 document=true payment=true stillUnattached=true",
+      "feature": "all",
+      "id": "invoices-capability-proposes-match",
+      "passed": true,
+      "step": "invoices"
+    },
+    {
+      "actual": "sameId=true root=demo-verify-archive",
+      "expected": "sameId=true root=demo-verify-archive",
+      "feature": "all",
+      "id": "invoices-capability-saves-place",
+      "passed": true,
+      "step": "invoices"
+    },
+    {
+      "actual": "1 records",
+      "expected": "1 records",
+      "feature": "all",
+      "id": "invoices-place-reads-back",
+      "passed": true,
+      "step": "invoices"
+    },
+    {
+      "actual": "payment=true amount=EUR:2765",
+      "expected": "payment=true amount=EUR:2765",
+      "feature": "all",
+      "id": "invoices-capability-attaches-document",
+      "passed": true,
+      "step": "invoices"
+    },
+    {
+      "actual": "1 records",
+      "expected": "1 records",
+      "feature": "all",
+      "id": "invoices-attach-reads-back",
+      "passed": true,
+      "step": "invoices"
+    },
+    {
+      "actual": "Reserved",
+      "expected": "Reserved",
+      "feature": "all",
+      "id": "invoices-capability-reserves-archive",
+      "passed": true,
+      "step": "invoices"
+    },
+    {
+      "actual": "1 records",
+      "expected": "1 records",
+      "feature": "all",
+      "id": "invoices-reserve-reads-back",
+      "passed": true,
+      "step": "invoices"
+    },
+    {
+      "actual": "Archived",
+      "expected": "Archived",
+      "feature": "all",
+      "id": "invoices-capability-records-archive",
+      "passed": true,
+      "step": "invoices"
+    },
+    {
+      "actual": "1 records",
+      "expected": "1 records",
+      "feature": "all",
+      "id": "invoices-archive-reads-back",
+      "passed": true,
+      "step": "invoices"
+    },
+    {
+      "actual": "total=2 first=demo-design-tool-2025-03.pdf second=demo-cloud-hosting-2025-02.pdf end=true",
+      "expected": "total=2 first=demo-design-tool-2025-03.pdf second=demo-cloud-hosting-2025-02.pdf end=true",
+      "feature": "all",
+      "id": "invoices-capability-pages-archive",
+      "passed": true,
+      "step": "invoices"
+    },
+    {
+      "actual": "Demo receipt requested.",
+      "expected": "Demo receipt requested.",
+      "feature": "all",
+      "id": "invoices-capability-records-exception",
+      "passed": true,
+      "step": "invoices"
+    },
+    {
+      "actual": "3 records",
+      "expected": "3 records",
+      "feature": "all",
+      "id": "invoices-exception-reads-back",
+      "passed": true,
+      "step": "invoices"
+    },
+    {
+      "actual": "sameId=true pattern=demo design tool",
+      "expected": "sameId=true pattern=demo design tool",
+      "feature": "all",
+      "id": "invoices-capability-saves-source",
+      "passed": true,
+      "step": "invoices"
+    },
+    {
+      "actual": "1 records",
+      "expected": "1 records",
+      "feature": "all",
+      "id": "invoices-source-reads-back",
+      "passed": true,
+      "step": "invoices"
+    },
+    {
+      "actual": "sameId=true payment=true",
+      "expected": "sameId=true payment=true",
+      "feature": "all",
+      "id": "invoices-capability-saves-file-once",
+      "passed": true,
+      "step": "invoices"
+    },
+    {
+      "actual": "1 records",
+      "expected": "1 records",
+      "feature": "all",
+      "id": "invoices-file-reads-back",
+      "passed": true,
+      "step": "invoices"
+    },
+    {
+      "actual": "first=Existing,Stored replay=Existing,Existing",
+      "expected": "first=Existing,Stored replay=Existing,Existing",
+      "feature": "all",
+      "id": "invoices-capability-registers-legacy-once",
+      "passed": true,
+      "step": "invoices"
+    },
+    {
+      "actual": "1 records",
+      "expected": "1 records",
+      "feature": "all",
+      "id": "invoices-legacy-reads-back",
+      "passed": true,
+      "step": "invoices"
+    },
+    {
+      "actual": "sameId=true",
+      "expected": "sameId=true",
+      "feature": "all",
+      "id": "invoices-capability-deletes-source",
+      "passed": true,
+      "step": "invoices"
+    },
+    {
+      "actual": "1 records",
+      "expected": "1 records",
+      "feature": "all",
+      "id": "invoices-source-delete-reads-back",
+      "passed": true,
+      "step": "invoices"
+    },
+    {
+      "actual": "sameId=true",
+      "expected": "sameId=true",
+      "feature": "all",
+      "id": "invoices-capability-removes-document",
+      "passed": true,
+      "step": "invoices"
+    },
+    {
+      "actual": "3 records",
+      "expected": "3 records",
+      "feature": "all",
+      "id": "invoices-remove-reads-back",
+      "passed": true,
+      "step": "invoices"
+    },
+    {
+      "actual": "list_categories:read,list_lines:read,get_line:read,suggest_category:write,confirm_category:write,list_reports:read",
+      "expected": "list_categories:read,list_lines:read,get_line:read,suggest_category:write,confirm_category:write,list_reports:read",
+      "feature": "all",
+      "id": "ai-tools-catalog",
+      "passed": true,
+      "step": "ai-tools"
+    },
+    {
+      "actual": "categories=2 names=Groceries,Travel",
+      "expected": "categories=2 names=Groceries,Travel",
+      "feature": "all",
+      "id": "ai-tools-lists-categories",
+      "passed": true,
+      "step": "ai-tools"
+    },
+    {
+      "actual": "lines=2 total=2 next=none",
+      "expected": "lines=2 total=2 next=none",
+      "feature": "all",
+      "id": "ai-tools-lists-lines",
+      "passed": true,
+      "step": "ai-tools"
+    },
+    {
+      "actual": "line=0192f0c1-6005-7a2b-8c4d-5e6f70819322 category=none review=Awaiting",
+      "expected": "line=0192f0c1-6005-7a2b-8c4d-5e6f70819322 category=none review=Awaiting",
+      "feature": "all",
+      "id": "ai-tools-reads-one-line",
+      "passed": true,
+      "step": "ai-tools"
+    },
+    {
+      "actual": "suggested=0192f0c1-6002-7a2b-8c4d-5e6f70819311 lineCategory=none",
+      "expected": "suggested=0192f0c1-6002-7a2b-8c4d-5e6f70819311 lineCategory=none",
+      "feature": "all",
+      "id": "ai-tools-suggests-without-confirming",
+      "passed": true,
+      "step": "ai-tools"
+    },
+    {
+      "actual": "line=0192f0c1-6005-7a2b-8c4d-5e6f70819322 category=0192f0c1-6002-7a2b-8c4d-5e6f70819311",
+      "expected": "line=0192f0c1-6005-7a2b-8c4d-5e6f70819322 category=0192f0c1-6002-7a2b-8c4d-5e6f70819311",
+      "feature": "all",
+      "id": "ai-tools-confirms-a-category",
+      "passed": true,
+      "step": "ai-tools"
+    },
+    {
+      "actual": "2 records",
+      "expected": "2 records",
+      "feature": "all",
+      "id": "ai-tools-confirmed-line-reads-back",
+      "passed": true,
+      "step": "ai-tools"
+    },
+    {
+      "actual": "reports=2 kinds=exploration,report",
+      "expected": "reports=2 kinds=exploration,report",
+      "feature": "all",
+      "id": "ai-tools-lists-reports",
+      "passed": true,
+      "step": "ai-tools"
+    },
+    {
+      "actual": "categories=2 names=Groceries,Travel",
+      "expected": "categories=2 names=Groceries,Travel",
+      "feature": "all",
+      "id": "ai-tools-viewer-lists-categories",
+      "passed": true,
+      "step": "ai-tools"
+    },
+    {
+      "actual": "lines=2 total=2 next=none",
+      "expected": "lines=2 total=2 next=none",
+      "feature": "all",
+      "id": "ai-tools-viewer-lists-lines",
+      "passed": true,
+      "step": "ai-tools"
+    },
+    {
+      "actual": "line=0192f0c1-6005-7a2b-8c4d-5e6f70819322 category=0192f0c1-6002-7a2b-8c4d-5e6f70819311 review=Awaiting",
+      "expected": "line=0192f0c1-6005-7a2b-8c4d-5e6f70819322 category=0192f0c1-6002-7a2b-8c4d-5e6f70819311 review=Awaiting",
+      "feature": "all",
+      "id": "ai-tools-viewer-reads-one-line",
+      "passed": true,
+      "step": "ai-tools"
+    },
+    {
+      "actual": "reports=2 kinds=exploration,report",
+      "expected": "reports=2 kinds=exploration,report",
+      "feature": "all",
+      "id": "ai-tools-viewer-lists-reports",
+      "passed": true,
+      "step": "ai-tools"
+    },
+    {
+      "actual": "reason=notPermitted field=none",
+      "expected": "reason=notPermitted field=none",
+      "feature": "all",
+      "id": "ai-tools-refuses-a-viewer-confirm",
+      "passed": true,
+      "step": "ai-tools"
+    },
+    {
+      "actual": "line=0192f0c1-6005-7a2b-8c4d-5e6f70819322 category=0192f0c1-6002-7a2b-8c4d-5e6f70819311",
+      "expected": "line=0192f0c1-6005-7a2b-8c4d-5e6f70819322 category=0192f0c1-6002-7a2b-8c4d-5e6f70819311",
+      "feature": "all",
+      "id": "ai-tools-viewer-confirm-changes-nothing",
+      "passed": true,
+      "step": "ai-tools"
+    },
+    {
+      "actual": "reason=notPermitted field=none",
+      "expected": "reason=notPermitted field=none",
+      "feature": "all",
+      "id": "ai-tools-refuses-a-viewer-write",
+      "passed": true,
+      "step": "ai-tools"
+    },
+    {
+      "actual": "suggestions=1 lines=0192f0c1-6005-7a2b-8c4d-5e6f70819322",
+      "expected": "suggestions=1 lines=0192f0c1-6005-7a2b-8c4d-5e6f70819322",
+      "feature": "all",
+      "id": "ai-tools-viewer-suggest-stores-nothing",
+      "passed": true,
+      "step": "ai-tools"
+    },
+    {
+      "actual": "reason=unknownTool field=none",
+      "expected": "reason=unknownTool field=none",
+      "feature": "all",
+      "id": "ai-tools-refuses-an-unknown-tool",
+      "passed": true,
+      "step": "ai-tools"
+    },
+    {
+      "actual": "£48,250.00",
+      "expected": "£48,250.00",
+      "feature": "all",
+      "id": "web-dashboard-net-worth",
+      "passed": true,
+      "step": "web-dashboard"
+    },
+    {
+      "actual": "true",
+      "expected": "true",
+      "feature": "all",
+      "id": "web-dashboard-net-worth-matches-accounts",
+      "passed": true,
+      "step": "web-dashboard"
+    },
+    {
+      "actual": "Rent,Groceries,Transport,Eating out,Utilities,Everything else",
+      "expected": "Rent,Groceries,Transport,Eating out,Utilities,Everything else",
+      "feature": "all",
+      "id": "web-dashboard-spend-by-category",
+      "passed": true,
+      "step": "web-dashboard"
+    },
+    {
+      "actual": "12",
+      "expected": "12",
+      "feature": "all",
+      "id": "web-transactions-lists-every-demo-line",
+      "passed": true,
+      "step": "web-transactions"
+    },
+    {
+      "actual": "Demo Coffee; 2",
+      "expected": "Demo Coffee; 2",
+      "feature": "all",
+      "id": "web-transactions-search-narrows-the-list",
+      "passed": true,
+      "step": "web-transactions"
+    },
+    {
+      "actual": "2",
+      "expected": "2",
+      "feature": "all",
+      "id": "web-transactions-category-link-filters-the-list",
+      "passed": true,
+      "step": "web-transactions"
+    },
+    {
+      "actual": "true",
+      "expected": "true",
+      "feature": "all",
+      "id": "web-transactions-category-link-is-its-own-url",
+      "passed": true,
+      "step": "web-transactions"
+    },
+    {
+      "actual": "Category,Note",
+      "expected": "Category,Note",
+      "feature": "all",
+      "id": "web-transactions-edit-form-opens",
+      "passed": true,
+      "step": "web-transactions"
+    },
+    {
+      "actual": "Spend in Mar 2026; Everything else; £2,500.00; £2,500.00; 82.4%",
+      "expected": "Spend in Mar 2026; Everything else; £2,500.00; £2,500.00; 82.4%",
+      "feature": "all",
+      "id": "web-categories-spend-table",
+      "passed": true,
+      "step": "web-categories"
+    },
+    {
+      "actual": "Spend in Jan 2026; Everything else; £2,500.00; £2,500.00; 82.4%",
+      "expected": "Spend in Jan 2026; Everything else; £2,500.00; £2,500.00; 82.4%",
+      "feature": "all",
+      "id": "web-categories-month-picker",
+      "passed": true,
+      "step": "web-categories"
+    },
+    {
+      "actual": "9",
+      "expected": "9",
+      "feature": "all",
+      "id": "web-categories-management-lists-every-category",
+      "passed": true,
+      "step": "web-categories"
+    },
+    {
+      "actual": "6",
+      "expected": "6",
+      "feature": "all",
+      "id": "web-rules-lists-every-rule",
+      "passed": true,
+      "step": "web-rules"
+    },
+    {
+      "actual": "Demo Grocer; contains \"Demo Grocer\"; Groceries",
+      "expected": "Demo Grocer; contains \"Demo Grocer\"; Groceries",
+      "feature": "all",
+      "id": "web-rules-shows-the-pattern",
+      "passed": true,
+      "step": "web-rules"
+    },
+    {
+      "actual": "Least amount",
+      "expected": "Least amount",
+      "feature": "all",
+      "id": "web-rules-new-rule-form-opens",
+      "passed": true,
+      "step": "web-rules"
+    },
+    {
+      "actual": "4",
+      "expected": "4",
+      "feature": "all",
+      "id": "web-aliases-lists-every-alias",
+      "passed": true,
+      "step": "web-aliases"
+    },
+    {
+      "actual": "prefix",
+      "expected": "prefix",
+      "feature": "all",
+      "id": "web-aliases-shows-the-match-kind",
+      "passed": true,
+      "step": "web-aliases"
+    },
+    {
+      "actual": "Text on the statement",
+      "expected": "Text on the statement",
+      "feature": "all",
+      "id": "web-aliases-new-alias-form-opens",
+      "passed": true,
+      "step": "web-aliases"
+    },
+    {
+      "actual": "8 of 8 merchants",
+      "expected": "8 of 8 merchants",
+      "feature": "all",
+      "id": "web-merchants-lists-every-merchant",
+      "passed": true,
+      "step": "web-merchants"
+    },
+    {
+      "actual": "2 of 8 merchants",
+      "expected": "2 of 8 merchants",
+      "feature": "all",
+      "id": "web-merchants-filter-narrows-the-list",
+      "passed": true,
+      "step": "web-merchants"
+    },
+    {
+      "actual": "Demo Grocer; 12; £1,036.80",
+      "expected": "Demo Grocer; 12; £1,036.80",
+      "feature": "all",
+      "id": "web-merchants-shows-count-and-total",
+      "passed": true,
+      "step": "web-merchants"
+    },
+    {
+      "actual": "5",
+      "expected": "5",
+      "feature": "all",
+      "id": "web-review-lists-uncategorised-lines",
+      "passed": true,
+      "step": "web-review"
+    },
+    {
+      "actual": "2 suggestions are ready.",
+      "expected": "2 suggestions are ready.",
+      "feature": "all",
+      "id": "web-review-suggests-categories",
+      "passed": true,
+      "step": "web-review"
+    },
+    {
+      "actual": "5",
+      "expected": "5",
+      "feature": "all",
+      "id": "web-search-suggests-while-typing",
+      "passed": true,
+      "step": "web-search"
+    },
+    {
+      "actual": "Holdings,Payments; 11",
+      "expected": "Holdings,Payments; 11",
+      "feature": "all",
+      "id": "web-search-finds-payments-and-holdings",
+      "passed": true,
+      "step": "web-search"
+    },
+    {
+      "actual": "This screen lands in a later slice. The demo book has no data for it yet.",
+      "expected": "This screen lands in a later slice. The demo book has no data for it yet.",
+      "feature": "all",
+      "id": "web-budgets-is-a-later-slice",
+      "passed": true,
+      "step": "web-budgets"
+    },
+    {
+      "actual": "Demo Cloud Hosting,Demo Coffee",
+      "expected": "Demo Cloud Hosting,Demo Coffee",
+      "feature": "all",
+      "id": "web-subscriptions-lists-repeat-payments",
+      "passed": true,
+      "step": "web-subscriptions"
+    },
+    {
+      "actual": "Monthly · €3,588.00 a year,Weekly · €2,210.00 a year",
+      "expected": "Monthly · €3,588.00 a year,Weekly · €2,210.00 a year",
+      "feature": "all",
+      "id": "web-subscriptions-shows-frequency",
+      "passed": true,
+      "step": "web-subscriptions"
+    },
+    {
+      "actual": "96% confidence,61% confidence",
+      "expected": "96% confidence,61% confidence",
+      "feature": "all",
+      "id": "web-subscriptions-shows-confidence",
+      "passed": true,
+      "step": "web-subscriptions"
+    },
+    {
+      "actual": "€299.00; €3,588.00",
+      "expected": "€299.00; €3,588.00",
+      "feature": "all",
+      "id": "web-subscriptions-shows-the-annual-total",
+      "passed": true,
+      "step": "web-subscriptions"
+    },
+    {
+      "actual": "active=1 all=2 confirmed=1",
+      "expected": "active=1 all=2 confirmed=1",
+      "feature": "all",
+      "id": "web-subscriptions-filters-to-active",
+      "passed": true,
+      "step": "web-subscriptions"
+    },
+    {
+      "actual": "annual=€0.00",
+      "expected": "annual=€0.00",
+      "feature": "all",
+      "id": "web-subscriptions-cancels-a-repeat-payment",
+      "passed": true,
+      "step": "web-subscriptions"
+    },
+    {
+      "actual": "Generic Broker,Generic Crypto Exchange",
+      "expected": "Generic Broker,Generic Crypto Exchange",
+      "feature": "all",
+      "id": "web-investments-groups-holdings-by-platform",
+      "passed": true,
+      "step": "web-investments"
+    },
+    {
+      "actual": "1",
+      "expected": "1",
+      "feature": "all",
+      "id": "web-investments-shows-a-priceless-holding",
+      "passed": true,
+      "step": "web-investments"
+    },
+    {
+      "actual": "€86,400.00 Gain €80,400.00",
+      "expected": "€86,400.00 Gain €80,400.00",
+      "feature": "all",
+      "id": "web-investments-shows-value-and-gain",
+      "passed": true,
+      "step": "web-investments"
+    },
+    {
+      "actual": "GBP; en-GB; Europe/London",
+      "expected": "GBP; en-GB; Europe/London",
+      "feature": "all",
+      "id": "web-settings-shows-the-demo-values",
+      "passed": true,
+      "step": "web-settings"
+    },
+    {
+      "actual": "Example Ltd,Demo Person",
+      "expected": "Example Ltd,Demo Person",
+      "feature": "all",
+      "id": "web-settings-lists-the-profiles",
+      "passed": true,
+      "step": "web-settings"
+    }
+  ],
+  "commit": "34817f2e",
+  "declared": 189,
+  "demoBookSha256": "527991d3898ec8fdce1029ee97f92a7c25f955c54e2375b38566f95f32537191",
+  "evaluated": 189,
+  "failed": 0,
+  "failedSteps": 0,
+  "failures": [],
+  "feature": "all",
+  "node": "v24.18.0",
+  "passed": true,
+  "ranAt": "2026-11-26T09:42:40Z",
+  "seed": {
+    "command": "pnpm --filter @pecunia/database db:seed:demo /tmp/pecunia-verify-ETjd4R/demo.sqlite"
+  },
+  "stepExpectations": {
+    "feature-map": 1,
+    "parity": 1,
+    "generic": 4,
+    "accounts-and-bank-lines": 16,
+    "bank-line-list": 4,
+    "bank-line-edit": 7,
+    "bank-line-review": 4,
+    "categories-and-rules": 5,
+    "dashboard-sums": 18,
+    "subscriptions": 12,
+    "investments": 16,
+    "fx-conversion": 4,
+    "tax": 12,
+    "invoices": 32,
+    "ai-tools": 17,
+    "web-dashboard": 3,
+    "web-transactions": 5,
+    "web-categories": 3,
+    "web-rules": 3,
+    "web-aliases": 3,
+    "web-merchants": 3,
+    "web-review": 2,
+    "web-search": 2,
+    "web-budgets": 1,
+    "web-subscriptions": 6,
+    "web-investments": 3,
+    "web-settings": 2
+  },
+  "steps": 30,
+  "total": 189
+}

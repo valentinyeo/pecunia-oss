@@ -1,0 +1,381 @@
+{
+  "observations": [
+    {
+      "id": "investments-capability-values-demo",
+      "value": "total=788640000 valued=2 unknown=1 Demo Bitcoin=8640000 gain=8040000,Demo Tech Stock=no-price,Demo World ETF=780000000 gain=779550000"
+    },
+    {
+      "id": "investments-capability-adds-holding",
+      "value": "symbol=DEMO-VERIFY quantity=2000000"
+    },
+    {
+      "id": "investments-add-reads-back",
+      "operation": "readInvestmentPortfolio",
+      "value": [
+        {
+          "gainMinor": null,
+          "id": "generic-broker:DEMO-TECH",
+          "name": "Demo Tech Stock",
+          "platformId": "generic-broker",
+          "portfolioTotalMinor": 788640300,
+          "priceMinor": null,
+          "profileId": "0192f0c1-0001-702d-8484-48490b729601",
+          "quantity": 0,
+          "symbol": "DEMO-TECH",
+          "unknownCount": 1,
+          "valueMinor": null,
+          "valuedCount": 3
+        },
+        {
+          "gainMinor": 779550000,
+          "id": "generic-broker:DEMO-WORLD",
+          "name": "Demo World ETF",
+          "platformId": "generic-broker",
+          "portfolioTotalMinor": 788640300,
+          "priceMinor": 520000,
+          "profileId": "0192f0c1-0001-702d-8484-48490b729601",
+          "quantity": 1500000000,
+          "symbol": "DEMO-WORLD",
+          "unknownCount": 1,
+          "valueMinor": 780000000,
+          "valuedCount": 3
+        },
+        {
+          "gainMinor": 8040000,
+          "id": "generic-crypto-exchange:DEMO-BTC",
+          "name": "Demo Bitcoin",
+          "platformId": "generic-crypto-exchange",
+          "portfolioTotalMinor": 788640300,
+          "priceMinor": 720000,
+          "profileId": "0192f0c1-0001-702d-8484-48490b729601",
+          "quantity": 12000000,
+          "symbol": "DEMO-BTC",
+          "unknownCount": 1,
+          "valueMinor": 8640000,
+          "valuedCount": 3
+        },
+        {
+          "gainMinor": 100,
+          "id": "manual:DEMO-VERIFY",
+          "name": "Demo Verify Stock",
+          "platformId": "manual",
+          "portfolioTotalMinor": 788640300,
+          "priceMinor": 150,
+          "profileId": "0192f0c1-0001-702d-8484-48490b729601",
+          "quantity": 2000000,
+          "symbol": "DEMO-VERIFY",
+          "unknownCount": 1,
+          "valueMinor": 300,
+          "valuedCount": 3
+        }
+      ]
+    },
+    {
+      "id": "investments-capability-edits-holding",
+      "value": "Demo Renamed Stock quantity=3000000 price=200"
+    },
+    {
+      "id": "investments-edit-reads-back",
+      "operation": "readInvestmentPortfolio",
+      "value": [
+        {
+          "gainMinor": null,
+          "id": "generic-broker:DEMO-TECH",
+          "name": "Demo Tech Stock",
+          "platformId": "generic-broker",
+          "portfolioTotalMinor": 788640600,
+          "priceMinor": null,
+          "profileId": "0192f0c1-0001-702d-8484-48490b729601",
+          "quantity": 0,
+          "symbol": "DEMO-TECH",
+          "unknownCount": 1,
+          "valueMinor": null,
+          "valuedCount": 3
+        },
+        {
+          "gainMinor": 779550000,
+          "id": "generic-broker:DEMO-WORLD",
+          "name": "Demo World ETF",
+          "platformId": "generic-broker",
+          "portfolioTotalMinor": 788640600,
+          "priceMinor": 520000,
+          "profileId": "0192f0c1-0001-702d-8484-48490b729601",
+          "quantity": 1500000000,
+          "symbol": "DEMO-WORLD",
+          "unknownCount": 1,
+          "valueMinor": 780000000,
+          "valuedCount": 3
+        },
+        {
+          "gainMinor": 8040000,
+          "id": "generic-crypto-exchange:DEMO-BTC",
+          "name": "Demo Bitcoin",
+          "platformId": "generic-crypto-exchange",
+          "portfolioTotalMinor": 788640600,
+          "priceMinor": 720000,
+          "profileId": "0192f0c1-0001-702d-8484-48490b729601",
+          "quantity": 12000000,
+          "symbol": "DEMO-BTC",
+          "unknownCount": 1,
+          "valueMinor": 8640000,
+          "valuedCount": 3
+        },
+        {
+          "gainMinor": 400,
+          "id": "manual:DEMO-VERIFY",
+          "name": "Demo Renamed Stock",
+          "platformId": "manual",
+          "portfolioTotalMinor": 788640600,
+          "priceMinor": 200,
+          "profileId": "0192f0c1-0001-702d-8484-48490b729601",
+          "quantity": 3000000,
+          "symbol": "DEMO-VERIFY",
+          "unknownCount": 1,
+          "valueMinor": 600,
+          "valuedCount": 3
+        }
+      ]
+    },
+    {
+      "id": "investments-capability-deletes-holding",
+      "value": "DEMO-VERIFY"
+    },
+    {
+      "id": "investments-delete-reads-back",
+      "operation": "readInvestmentPortfolio",
+      "value": [
+        {
+          "gainMinor": null,
+          "id": "generic-broker:DEMO-TECH",
+          "name": "Demo Tech Stock",
+          "platformId": "generic-broker",
+          "portfolioTotalMinor": 788640000,
+          "priceMinor": null,
+          "profileId": "0192f0c1-0001-702d-8484-48490b729601",
+          "quantity": 0,
+          "symbol": "DEMO-TECH",
+          "unknownCount": 1,
+          "valueMinor": null,
+          "valuedCount": 2
+        },
+        {
+          "gainMinor": 779550000,
+          "id": "generic-broker:DEMO-WORLD",
+          "name": "Demo World ETF",
+          "platformId": "generic-broker",
+          "portfolioTotalMinor": 788640000,
+          "priceMinor": 520000,
+          "profileId": "0192f0c1-0001-702d-8484-48490b729601",
+          "quantity": 1500000000,
+          "symbol": "DEMO-WORLD",
+          "unknownCount": 1,
+          "valueMinor": 780000000,
+          "valuedCount": 2
+        },
+        {
+          "gainMinor": 8040000,
+          "id": "generic-crypto-exchange:DEMO-BTC",
+          "name": "Demo Bitcoin",
+          "platformId": "generic-crypto-exchange",
+          "portfolioTotalMinor": 788640000,
+          "priceMinor": 720000,
+          "profileId": "0192f0c1-0001-702d-8484-48490b729601",
+          "quantity": 12000000,
+          "symbol": "DEMO-BTC",
+          "unknownCount": 1,
+          "valueMinor": 8640000,
+          "valuedCount": 2
+        }
+      ]
+    },
+    {
+      "id": "investments-capability-syncs-broker",
+      "value": "created=3 updated=0 unpriced=1"
+    },
+    {
+      "id": "investments-sync-reads-back",
+      "operation": "readInvestmentPortfolio",
+      "value": [
+        {
+          "gainMinor": null,
+          "id": "generic-broker:DEMO-TECH",
+          "name": "Demo Tech Stock",
+          "platformId": "generic-broker",
+          "portfolioTotalMinor": 1577280000,
+          "priceMinor": null,
+          "profileId": "0192f0c1-0001-702d-8484-48490b729601",
+          "quantity": 0,
+          "symbol": "DEMO-TECH",
+          "unknownCount": 2,
+          "valueMinor": null,
+          "valuedCount": 4
+        },
+        {
+          "gainMinor": 779550000,
+          "id": "generic-broker:DEMO-WORLD",
+          "name": "Demo World ETF",
+          "platformId": "generic-broker",
+          "portfolioTotalMinor": 1577280000,
+          "priceMinor": 520000,
+          "profileId": "0192f0c1-0001-702d-8484-48490b729601",
+          "quantity": 1500000000,
+          "symbol": "DEMO-WORLD",
+          "unknownCount": 2,
+          "valueMinor": 780000000,
+          "valuedCount": 4
+        },
+        {
+          "gainMinor": 8040000,
+          "id": "generic-crypto-exchange:DEMO-BTC",
+          "name": "Demo Bitcoin",
+          "platformId": "generic-crypto-exchange",
+          "portfolioTotalMinor": 1577280000,
+          "priceMinor": 720000,
+          "profileId": "0192f0c1-0001-702d-8484-48490b729601",
+          "quantity": 12000000,
+          "symbol": "DEMO-BTC",
+          "unknownCount": 2,
+          "valueMinor": 8640000,
+          "valuedCount": 4
+        },
+        {
+          "gainMinor": 8040000,
+          "id": "trading212:DEMO-BTC",
+          "name": "Demo Bitcoin",
+          "platformId": "trading212",
+          "portfolioTotalMinor": 1577280000,
+          "priceMinor": 720000,
+          "profileId": "0192f0c1-0001-702d-8484-48490b729601",
+          "quantity": 12000000,
+          "symbol": "DEMO-BTC",
+          "unknownCount": 2,
+          "valueMinor": 8640000,
+          "valuedCount": 4
+        },
+        {
+          "gainMinor": null,
+          "id": "trading212:DEMO-TECH",
+          "name": "Demo Tech Stock",
+          "platformId": "trading212",
+          "portfolioTotalMinor": 1577280000,
+          "priceMinor": null,
+          "profileId": "0192f0c1-0001-702d-8484-48490b729601",
+          "quantity": 0,
+          "symbol": "DEMO-TECH",
+          "unknownCount": 2,
+          "valueMinor": null,
+          "valuedCount": 4
+        },
+        {
+          "gainMinor": 779550000,
+          "id": "trading212:DEMO-WORLD",
+          "name": "Demo World ETF",
+          "platformId": "trading212",
+          "portfolioTotalMinor": 1577280000,
+          "priceMinor": 520000,
+          "profileId": "0192f0c1-0001-702d-8484-48490b729601",
+          "quantity": 1500000000,
+          "symbol": "DEMO-WORLD",
+          "unknownCount": 2,
+          "valueMinor": 780000000,
+          "valuedCount": 4
+        }
+      ]
+    },
+    {
+      "id": "investments-capability-refreshes-prices",
+      "value": "priced=4 unpriced=2"
+    },
+    {
+      "id": "investments-refresh-reads-back",
+      "operation": "readInvestmentPortfolio",
+      "value": [
+        {
+          "gainMinor": null,
+          "id": "generic-broker:DEMO-TECH",
+          "name": "Demo Tech Stock",
+          "platformId": "generic-broker",
+          "portfolioTotalMinor": 1577520000,
+          "priceMinor": null,
+          "profileId": "0192f0c1-0001-702d-8484-48490b729601",
+          "quantity": 0,
+          "symbol": "DEMO-TECH",
+          "unknownCount": 2,
+          "valueMinor": null,
+          "valuedCount": 4
+        },
+        {
+          "gainMinor": 779550000,
+          "id": "generic-broker:DEMO-WORLD",
+          "name": "Demo World ETF",
+          "platformId": "generic-broker",
+          "portfolioTotalMinor": 1577520000,
+          "priceMinor": 520000,
+          "profileId": "0192f0c1-0001-702d-8484-48490b729601",
+          "quantity": 1500000000,
+          "symbol": "DEMO-WORLD",
+          "unknownCount": 2,
+          "valueMinor": 780000000,
+          "valuedCount": 4
+        },
+        {
+          "gainMinor": 8160000,
+          "id": "generic-crypto-exchange:DEMO-BTC",
+          "name": "Demo Bitcoin",
+          "platformId": "generic-crypto-exchange",
+          "portfolioTotalMinor": 1577520000,
+          "priceMinor": 730000,
+          "profileId": "0192f0c1-0001-702d-8484-48490b729601",
+          "quantity": 12000000,
+          "symbol": "DEMO-BTC",
+          "unknownCount": 2,
+          "valueMinor": 8760000,
+          "valuedCount": 4
+        },
+        {
+          "gainMinor": 8160000,
+          "id": "trading212:DEMO-BTC",
+          "name": "Demo Bitcoin",
+          "platformId": "trading212",
+          "portfolioTotalMinor": 1577520000,
+          "priceMinor": 730000,
+          "profileId": "0192f0c1-0001-702d-8484-48490b729601",
+          "quantity": 12000000,
+          "symbol": "DEMO-BTC",
+          "unknownCount": 2,
+          "valueMinor": 8760000,
+          "valuedCount": 4
+        },
+        {
+          "gainMinor": null,
+          "id": "trading212:DEMO-TECH",
+          "name": "Demo Tech Stock",
+          "platformId": "trading212",
+          "portfolioTotalMinor": 1577520000,
+          "priceMinor": null,
+          "profileId": "0192f0c1-0001-702d-8484-48490b729601",
+          "quantity": 0,
+          "symbol": "DEMO-TECH",
+          "unknownCount": 2,
+          "valueMinor": null,
+          "valuedCount": 4
+        },
+        {
+          "gainMinor": 779550000,
+          "id": "trading212:DEMO-WORLD",
+          "name": "Demo World ETF",
+          "platformId": "trading212",
+          "portfolioTotalMinor": 1577520000,
+          "priceMinor": 520000,
+          "profileId": "0192f0c1-0001-702d-8484-48490b729601",
+          "quantity": 1500000000,
+          "symbol": "DEMO-WORLD",
+          "unknownCount": 2,
+          "valueMinor": 780000000,
+          "valuedCount": 4
+        }
+      ]
+    }
+  ],
+  "mutatingCalls": 10
+}

@@ -1,0 +1,225 @@
+{
+  "observations": [
+    {
+      "id": "import-targets-listed",
+      "value": "label=Demo Bank kind=bank base=EUR provider=Wise"
+    },
+    {
+      "id": "import-writes-every-line",
+      "value": "imported=5 alreadyImported=0 rejected=0"
+    },
+    {
+      "id": "import-stores-every-line",
+      "operation": "storedLines",
+      "value": [
+        {
+          "amountMinor": -12000,
+          "currency": "EUR",
+          "date": "2026-02-03",
+          "description": "Demo Rail ticket",
+          "reference": "DEMO-2026-0004",
+          "fingerprint": "csv-c98c919682c411243879183144f83dd048fcc0157861274dd116cff9e7588320"
+        },
+        {
+          "amountMinor": 4250,
+          "currency": "EUR",
+          "date": "2026-01-12",
+          "description": "Demo Coffee",
+          "reference": "",
+          "fingerprint": "csv-2776d142c8af23c8a90b64b1fc00e39d80cced9f7836753966424607c85d8f8f"
+        },
+        {
+          "amountMinor": -29900,
+          "currency": "EUR",
+          "date": "2026-01-09",
+          "description": "Demo Cloud Hosting, monthly",
+          "reference": "DEMO-2026-0002",
+          "fingerprint": "csv-9f0ab9b845f92b8d8eefc1ba380e7e3035b4eb9602157290b8e7b8ba8d1ee81a"
+        },
+        {
+          "amountMinor": 480000,
+          "currency": "EUR",
+          "date": "2026-01-06",
+          "description": "Invoice payment from Example Ltd",
+          "reference": "DEMO-2026-0001",
+          "fingerprint": "csv-65fce43f1786bfb10b732417e2e523a41c5ca43403b5a2d07e1be8752d513c77"
+        },
+        {
+          "amountMinor": 3500,
+          "currency": "EUR",
+          "date": "2026-02-17",
+          "description": "Refund from Demo Design Tool",
+          "reference": "DEMO-2026-0005",
+          "fingerprint": "csv-2bed9b6e42fe51830e3cc3dcd3a1d0c0a8bef7106e49a2140b816f16391a85d0"
+        }
+      ]
+    },
+    {
+      "id": "import-replay-adds-nothing",
+      "value": "imported=0 alreadyImported=5"
+    },
+    {
+      "id": "import-replay-stores-nothing",
+      "operation": "storedLines",
+      "value": [
+        {
+          "amountMinor": -12000,
+          "currency": "EUR",
+          "date": "2026-02-03",
+          "description": "Demo Rail ticket",
+          "reference": "DEMO-2026-0004",
+          "fingerprint": "csv-c98c919682c411243879183144f83dd048fcc0157861274dd116cff9e7588320"
+        },
+        {
+          "amountMinor": 4250,
+          "currency": "EUR",
+          "date": "2026-01-12",
+          "description": "Demo Coffee",
+          "reference": "",
+          "fingerprint": "csv-2776d142c8af23c8a90b64b1fc00e39d80cced9f7836753966424607c85d8f8f"
+        },
+        {
+          "amountMinor": -29900,
+          "currency": "EUR",
+          "date": "2026-01-09",
+          "description": "Demo Cloud Hosting, monthly",
+          "reference": "DEMO-2026-0002",
+          "fingerprint": "csv-9f0ab9b845f92b8d8eefc1ba380e7e3035b4eb9602157290b8e7b8ba8d1ee81a"
+        },
+        {
+          "amountMinor": 480000,
+          "currency": "EUR",
+          "date": "2026-01-06",
+          "description": "Invoice payment from Example Ltd",
+          "reference": "DEMO-2026-0001",
+          "fingerprint": "csv-65fce43f1786bfb10b732417e2e523a41c5ca43403b5a2d07e1be8752d513c77"
+        },
+        {
+          "amountMinor": 3500,
+          "currency": "EUR",
+          "date": "2026-02-17",
+          "description": "Refund from Demo Design Tool",
+          "reference": "DEMO-2026-0005",
+          "fingerprint": "csv-2bed9b6e42fe51830e3cc3dcd3a1d0c0a8bef7106e49a2140b816f16391a85d0"
+        }
+      ]
+    },
+    {
+      "id": "import-names-a-rejected-line",
+      "value": "imported=1 rejected=1 reason=bad-date"
+    },
+    {
+      "id": "import-rejected-line-stores-once",
+      "operation": "storedLines",
+      "value": [
+        {
+          "amountMinor": -12000,
+          "currency": "EUR",
+          "date": "2026-02-03",
+          "description": "Demo Rail ticket",
+          "reference": "DEMO-2026-0004",
+          "fingerprint": "csv-c98c919682c411243879183144f83dd048fcc0157861274dd116cff9e7588320"
+        },
+        {
+          "amountMinor": 4250,
+          "currency": "EUR",
+          "date": "2026-01-12",
+          "description": "Demo Coffee",
+          "reference": "",
+          "fingerprint": "csv-2776d142c8af23c8a90b64b1fc00e39d80cced9f7836753966424607c85d8f8f"
+        },
+        {
+          "amountMinor": -29900,
+          "currency": "EUR",
+          "date": "2026-01-09",
+          "description": "Demo Cloud Hosting, monthly",
+          "reference": "DEMO-2026-0002",
+          "fingerprint": "csv-9f0ab9b845f92b8d8eefc1ba380e7e3035b4eb9602157290b8e7b8ba8d1ee81a"
+        },
+        {
+          "amountMinor": 480000,
+          "currency": "EUR",
+          "date": "2026-01-06",
+          "description": "Invoice payment from Example Ltd",
+          "reference": "DEMO-2026-0001",
+          "fingerprint": "csv-65fce43f1786bfb10b732417e2e523a41c5ca43403b5a2d07e1be8752d513c77"
+        },
+        {
+          "amountMinor": -4500,
+          "currency": "EUR",
+          "date": "2026-03-02",
+          "description": "Demo Notebook",
+          "reference": "DEMO-2026-0006",
+          "fingerprint": "csv-74235e706f8cdf7e157517cd3c4cec5de6cbeac113429e4f47f2fdd7e605b71d"
+        },
+        {
+          "amountMinor": 3500,
+          "currency": "EUR",
+          "date": "2026-02-17",
+          "description": "Refund from Demo Design Tool",
+          "reference": "DEMO-2026-0005",
+          "fingerprint": "csv-2bed9b6e42fe51830e3cc3dcd3a1d0c0a8bef7106e49a2140b816f16391a85d0"
+        }
+      ]
+    },
+    {
+      "id": "import-refuses-unknown-account",
+      "value": "ImportAccountNotFound"
+    },
+    {
+      "id": "import-unknown-account-stores-nothing",
+      "operation": "storedLines",
+      "value": [
+        {
+          "amountMinor": -12000,
+          "currency": "EUR",
+          "date": "2026-02-03",
+          "description": "Demo Rail ticket",
+          "reference": "DEMO-2026-0004",
+          "fingerprint": "csv-c98c919682c411243879183144f83dd048fcc0157861274dd116cff9e7588320"
+        },
+        {
+          "amountMinor": 4250,
+          "currency": "EUR",
+          "date": "2026-01-12",
+          "description": "Demo Coffee",
+          "reference": "",
+          "fingerprint": "csv-2776d142c8af23c8a90b64b1fc00e39d80cced9f7836753966424607c85d8f8f"
+        },
+        {
+          "amountMinor": -29900,
+          "currency": "EUR",
+          "date": "2026-01-09",
+          "description": "Demo Cloud Hosting, monthly",
+          "reference": "DEMO-2026-0002",
+          "fingerprint": "csv-9f0ab9b845f92b8d8eefc1ba380e7e3035b4eb9602157290b8e7b8ba8d1ee81a"
+        },
+        {
+          "amountMinor": 480000,
+          "currency": "EUR",
+          "date": "2026-01-06",
+          "description": "Invoice payment from Example Ltd",
+          "reference": "DEMO-2026-0001",
+          "fingerprint": "csv-65fce43f1786bfb10b732417e2e523a41c5ca43403b5a2d07e1be8752d513c77"
+        },
+        {
+          "amountMinor": -4500,
+          "currency": "EUR",
+          "date": "2026-03-02",
+          "description": "Demo Notebook",
+          "reference": "DEMO-2026-0006",
+          "fingerprint": "csv-74235e706f8cdf7e157517cd3c4cec5de6cbeac113429e4f47f2fdd7e605b71d"
+        },
+        {
+          "amountMinor": 3500,
+          "currency": "EUR",
+          "date": "2026-02-17",
+          "description": "Refund from Demo Design Tool",
+          "reference": "DEMO-2026-0005",
+          "fingerprint": "csv-2bed9b6e42fe51830e3cc3dcd3a1d0c0a8bef7106e49a2140b816f16391a85d0"
+        }
+      ]
+    }
+  ],
+  "mutatingCalls": 3
+}

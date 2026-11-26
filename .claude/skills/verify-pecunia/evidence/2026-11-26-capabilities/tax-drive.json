@@ -1,0 +1,137 @@
+{
+  "observations": [
+    {
+      "id": "tax-capability-lists-dues",
+      "value": "year=GB 4-6 vat:2025-11-07:EUR:312500:Estimated"
+    },
+    {
+      "id": "tax-capability-syncs-recorded-books",
+      "value": "inserted=2 removed=0 unchanged=0 updated=0"
+    },
+    {
+      "id": "tax-sync-reads-back",
+      "operation": "listTaxDues",
+      "value": [
+        {
+          "amount": {
+            "currency": "EUR",
+            "minor": 312500
+          },
+          "dueOn": "2025-11-07",
+          "id": "vat:2025-11-07:2025-09-30",
+          "kind": "vat",
+          "label": "Demo VAT",
+          "periodEndsOn": "2025-09-30",
+          "profileId": "0192f0c1-0001-702d-8484-48490b729601",
+          "status": "Estimated",
+          "taxProfileId": "0192f0c1-0040-75c4-8a37-7c0d1c2b6f10"
+        },
+        {
+          "amount": {
+            "currency": "GBP",
+            "minor": 124050
+          },
+          "dueOn": "2026-01-31",
+          "id": "SelfAssessment:2026-01-31:2025-04-05",
+          "kind": "SelfAssessment",
+          "label": "Self Assessment",
+          "periodEndsOn": "2025-04-05",
+          "profileId": "0192f0c1-0001-702d-8484-48490b729601",
+          "status": "Estimated",
+          "taxProfileId": "0192f0c1-0040-75c4-8a37-7c0d1c2b6f10"
+        },
+        {
+          "amount": {
+            "currency": "GBP",
+            "minor": 98000
+          },
+          "dueOn": "2026-07-31",
+          "id": "SelfAssessment:2026-07-31:2026-04-05",
+          "kind": "SelfAssessment",
+          "label": "Self Assessment",
+          "periodEndsOn": "2026-04-05",
+          "profileId": "0192f0c1-0001-702d-8484-48490b729601",
+          "status": "Estimated",
+          "taxProfileId": "0192f0c1-0040-75c4-8a37-7c0d1c2b6f10"
+        }
+      ]
+    },
+    {
+      "id": "tax-sync-removes-missing-payment",
+      "value": "inserted=0 removed=1 unchanged=1 updated=0"
+    },
+    {
+      "id": "tax-removal-reads-back",
+      "operation": "listTaxDues",
+      "value": [
+        {
+          "amount": {
+            "currency": "EUR",
+            "minor": 312500
+          },
+          "dueOn": "2025-11-07",
+          "id": "vat:2025-11-07:2025-09-30",
+          "kind": "vat",
+          "label": "Demo VAT",
+          "periodEndsOn": "2025-09-30",
+          "profileId": "0192f0c1-0001-702d-8484-48490b729601",
+          "status": "Estimated",
+          "taxProfileId": "0192f0c1-0040-75c4-8a37-7c0d1c2b6f10"
+        },
+        {
+          "amount": {
+            "currency": "GBP",
+            "minor": 124050
+          },
+          "dueOn": "2026-01-31",
+          "id": "SelfAssessment:2026-01-31:2025-04-05",
+          "kind": "SelfAssessment",
+          "label": "Self Assessment",
+          "periodEndsOn": "2025-04-05",
+          "profileId": "0192f0c1-0001-702d-8484-48490b729601",
+          "status": "Estimated",
+          "taxProfileId": "0192f0c1-0040-75c4-8a37-7c0d1c2b6f10"
+        }
+      ]
+    },
+    {
+      "id": "tax-sync-replay-is-unchanged",
+      "value": "inserted=0 removed=0 unchanged=1 updated=0"
+    },
+    {
+      "id": "tax-replay-reads-back",
+      "operation": "listTaxDues",
+      "value": [
+        {
+          "amount": {
+            "currency": "EUR",
+            "minor": 312500
+          },
+          "dueOn": "2025-11-07",
+          "id": "vat:2025-11-07:2025-09-30",
+          "kind": "vat",
+          "label": "Demo VAT",
+          "periodEndsOn": "2025-09-30",
+          "profileId": "0192f0c1-0001-702d-8484-48490b729601",
+          "status": "Estimated",
+          "taxProfileId": "0192f0c1-0040-75c4-8a37-7c0d1c2b6f10"
+        },
+        {
+          "amount": {
+            "currency": "GBP",
+            "minor": 124050
+          },
+          "dueOn": "2026-01-31",
+          "id": "SelfAssessment:2026-01-31:2025-04-05",
+          "kind": "SelfAssessment",
+          "label": "Self Assessment",
+          "periodEndsOn": "2025-04-05",
+          "profileId": "0192f0c1-0001-702d-8484-48490b729601",
+          "status": "Estimated",
+          "taxProfileId": "0192f0c1-0040-75c4-8a37-7c0d1c2b6f10"
+        }
+      ]
+    }
+  ],
+  "mutatingCalls": 3
+}

@@ -1,0 +1,278 @@
+{
+  "observations": [
+    {
+      "id": "invoices-capability-lists-status",
+      "value": "missing=1 Demo Coffee:Excepted,Demo Design Tool:Missing,Demo Cloud Hosting:Archived"
+    },
+    {
+      "id": "invoices-capability-counts-coverage",
+      "value": "2025-04:1:0:1:0,2025-03:1:0:0:1,2025-02:1:1:0:0"
+    },
+    {
+      "id": "invoices-capability-reads-places",
+      "value": "local:demo-archive:*.tmp"
+    },
+    {
+      "id": "invoices-capability-reads-sources",
+      "value": "Demo Design Tool:https://portal.example.com"
+    },
+    {
+      "id": "invoices-capability-proposes-match",
+      "value": "proposals=1 document=true payment=true stillUnattached=true"
+    },
+    {
+      "id": "invoices-capability-saves-place",
+      "value": "sameId=true root=demo-verify-archive"
+    },
+    {
+      "id": "invoices-place-reads-back",
+      "operation": "readArchivePlaces",
+      "value": [
+        {
+          "blocklist": [
+            "*.tmp",
+            "private*"
+          ],
+          "id": "0192f0c1-0036-72cc-8abe-abebbea44bc0",
+          "profileId": "0192f0c1-0001-702d-8484-48490b729601",
+          "provider": "local",
+          "rootRef": "demo-verify-archive"
+        }
+      ]
+    },
+    {
+      "id": "invoices-capability-attaches-document",
+      "value": "payment=true amount=EUR:2765"
+    },
+    {
+      "id": "invoices-attach-reads-back",
+      "operation": "readInvoiceDocument",
+      "value": [
+        {
+          "amountCurrency": "EUR",
+          "amountMinor": 2765,
+          "archiveFileId": null,
+          "archivePlaceId": null,
+          "archiveStamped": false,
+          "archiveState": "Unarchived",
+          "id": "0192f0c1-0038-7d36-85ce-5ceb83cb9775",
+          "originalFilename": "demo-design-tool-2025-03.pdf",
+          "path": null,
+          "profileId": "0192f0c1-0001-702d-8484-48490b729601",
+          "sha256": "5555555555555555555555555555555555555555555555555555555555555555",
+          "sizeBytes": 12288,
+          "transactionId": "0192f0c1-0029-768c-8adb-adbefc188d19"
+        }
+      ]
+    },
+    {
+      "id": "invoices-capability-reserves-archive",
+      "value": "Reserved"
+    },
+    {
+      "id": "invoices-reserve-reads-back",
+      "operation": "readInvoiceDocument",
+      "value": [
+        {
+          "amountCurrency": "EUR",
+          "amountMinor": 2765,
+          "archiveFileId": "demo-file-2",
+          "archivePlaceId": "0192f0c1-0036-72cc-8abe-abebbea44bc0",
+          "archiveStamped": false,
+          "archiveState": "Reserved",
+          "id": "0192f0c1-0038-7d36-85ce-5ceb83cb9775",
+          "originalFilename": "demo-design-tool-2025-03.pdf",
+          "path": null,
+          "profileId": "0192f0c1-0001-702d-8484-48490b729601",
+          "sha256": "5555555555555555555555555555555555555555555555555555555555555555",
+          "sizeBytes": 12288,
+          "transactionId": "0192f0c1-0029-768c-8adb-adbefc188d19"
+        }
+      ]
+    },
+    {
+      "id": "invoices-capability-records-archive",
+      "value": "Archived"
+    },
+    {
+      "id": "invoices-archive-reads-back",
+      "operation": "readInvoiceDocument",
+      "value": [
+        {
+          "amountCurrency": "EUR",
+          "amountMinor": 2765,
+          "archiveFileId": "demo-file-2",
+          "archivePlaceId": "0192f0c1-0036-72cc-8abe-abebbea44bc0",
+          "archiveStamped": true,
+          "archiveState": "Archived",
+          "id": "0192f0c1-0038-7d36-85ce-5ceb83cb9775",
+          "originalFilename": "demo-design-tool-2025-03.pdf",
+          "path": "demo-verify-archive/2025/03/555555555555-demo-design-tool-2025-03.pdf",
+          "profileId": "0192f0c1-0001-702d-8484-48490b729601",
+          "sha256": "5555555555555555555555555555555555555555555555555555555555555555",
+          "sizeBytes": 12288,
+          "transactionId": "0192f0c1-0029-768c-8adb-adbefc188d19"
+        }
+      ]
+    },
+    {
+      "id": "invoices-capability-pages-archive",
+      "value": "total=2 first=demo-design-tool-2025-03.pdf second=demo-cloud-hosting-2025-02.pdf end=true"
+    },
+    {
+      "id": "invoices-capability-records-exception",
+      "value": "Demo receipt requested."
+    },
+    {
+      "id": "invoices-exception-reads-back",
+      "operation": "listInvoiceStatus",
+      "value": [
+        {
+          "id": "0192f0c1-002a-7549-8811-8111b948c159",
+          "merchant": "Demo Coffee",
+          "missingCount": 0,
+          "profileId": "0192f0c1-0001-702d-8484-48490b729601",
+          "reason": "Demo receipt requested.",
+          "status": "Excepted"
+        },
+        {
+          "id": "0192f0c1-0029-768c-8adb-adbefc188d19",
+          "merchant": "Demo Design Tool",
+          "missingCount": 0,
+          "profileId": "0192f0c1-0001-702d-8484-48490b729601",
+          "reason": null,
+          "status": "Archived"
+        },
+        {
+          "id": "0192f0c1-0028-7018-8357-3578945c907b",
+          "merchant": "Demo Cloud Hosting",
+          "missingCount": 0,
+          "profileId": "0192f0c1-0001-702d-8484-48490b729601",
+          "reason": null,
+          "status": "Archived"
+        }
+      ]
+    },
+    {
+      "id": "invoices-capability-saves-source",
+      "value": "sameId=true pattern=demo design tool"
+    },
+    {
+      "id": "invoices-source-reads-back",
+      "operation": "readInvoiceSources",
+      "value": [
+        {
+          "emailRetrieval": false,
+          "id": "0192f0c1-0035-7dd0-8aba-aba363f96bd0",
+          "notes": "Demo updated portal.",
+          "pattern": "demo design tool",
+          "portalRetrieval": true,
+          "portalUrl": "https://portal.example.com/invoices",
+          "profileId": "0192f0c1-0001-702d-8484-48490b729601",
+          "twoFactor": true
+        }
+      ]
+    },
+    {
+      "id": "invoices-capability-saves-file-once",
+      "value": "sameId=true payment=true"
+    },
+    {
+      "id": "invoices-file-reads-back",
+      "operation": "readInvoiceDocument",
+      "value": [
+        {
+          "amountCurrency": "EUR",
+          "amountMinor": 4250,
+          "archiveFileId": null,
+          "archivePlaceId": null,
+          "archiveStamped": false,
+          "archiveState": "Unarchived",
+          "id": "document-new-0192f0c1-0001-702d-8484-48490b729601-2",
+          "originalFilename": "demo-verify.txt",
+          "path": null,
+          "profileId": "0192f0c1-0001-702d-8484-48490b729601",
+          "sha256": "496512b6ce7b02198462a4324d3e6731d5866cd6170ebd3ce9ced663dda534a2",
+          "sizeBytes": 31,
+          "transactionId": "0192f0c1-002a-7549-8811-8111b948c159"
+        }
+      ]
+    },
+    {
+      "id": "invoices-capability-registers-legacy-once",
+      "value": "first=Existing,Stored replay=Existing,Existing"
+    },
+    {
+      "id": "invoices-legacy-reads-back",
+      "operation": "readInvoiceDocument",
+      "value": [
+        {
+          "amountCurrency": null,
+          "amountMinor": null,
+          "archiveFileId": null,
+          "archivePlaceId": null,
+          "archiveStamped": false,
+          "archiveState": "Unarchived",
+          "id": "document-new-0192f0c1-0001-702d-8484-48490b729601-3",
+          "originalFilename": "demo-legacy.txt",
+          "path": null,
+          "profileId": "0192f0c1-0001-702d-8484-48490b729601",
+          "sha256": "fcd7af76b2bf09a1bd97fcf5e03cf3ce467d8ba8ee3a547ffd881beb20e8c1c5",
+          "sizeBytes": 38,
+          "transactionId": null
+        }
+      ]
+    },
+    {
+      "id": "invoices-capability-deletes-source",
+      "value": "sameId=true"
+    },
+    {
+      "id": "invoices-source-delete-reads-back",
+      "operation": "readInvoiceSources",
+      "value": [
+        {
+          "deletedSourceId": "0192f0c1-0035-7dd0-8aba-aba363f96bd0",
+          "id": "invoice-sources",
+          "profileId": "0192f0c1-0001-702d-8484-48490b729601",
+          "remainingCount": 0
+        }
+      ]
+    },
+    {
+      "id": "invoices-capability-removes-document",
+      "value": "sameId=true"
+    },
+    {
+      "id": "invoices-remove-reads-back",
+      "operation": "listInvoiceStatus",
+      "value": [
+        {
+          "id": "0192f0c1-002a-7549-8811-8111b948c159",
+          "merchant": "Demo Coffee",
+          "missingCount": 1,
+          "profileId": "0192f0c1-0001-702d-8484-48490b729601",
+          "reason": null,
+          "status": "Invoiced"
+        },
+        {
+          "id": "0192f0c1-0029-768c-8adb-adbefc188d19",
+          "merchant": "Demo Design Tool",
+          "missingCount": 1,
+          "profileId": "0192f0c1-0001-702d-8484-48490b729601",
+          "reason": null,
+          "status": "Missing"
+        },
+        {
+          "id": "0192f0c1-0028-7018-8357-3578945c907b",
+          "merchant": "Demo Cloud Hosting",
+          "missingCount": 1,
+          "profileId": "0192f0c1-0001-702d-8484-48490b729601",
+          "reason": null,
+          "status": "Archived"
+        }
+      ]
+    }
+  ],
+  "mutatingCalls": 11
+}

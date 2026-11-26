@@ -1,0 +1,139 @@
+{
+  "observations": [
+    {
+      "id": "subscriptions-capability-lists-costs",
+      "value": "rows=2 monthly=29900 annual=358800 cancelled=1"
+    },
+    {
+      "id": "subscriptions-capability-detects-history",
+      "value": "Demo Cloud Hosting:monthly:29900:11,Demo Coffee:weekly:4250:6,Demo Design Tool:monthly:2765:3"
+    },
+    {
+      "id": "subscriptions-capability-marks-existing",
+      "value": "sameId=true status=Confirmed annual=51000"
+    },
+    {
+      "id": "subscriptions-mark-reads-back",
+      "operation": "listSubscriptions",
+      "value": [
+        {
+          "activeAnnualMinor": 409800,
+          "activeMonthlyMinor": 34150,
+          "annualMinor": 358800,
+          "categoryId": "0192f0c1-000e-7d8a-8a87-a87dd2b6c1ba",
+          "chargesCount": 11,
+          "currency": "EUR",
+          "frequency": "monthly",
+          "id": "0192f0c1-0033-7362-801a-01a8162ef271",
+          "matchingCharges": 11,
+          "monthlyMinor": 29900,
+          "nextCharge": "2026-01-08",
+          "payeeId": "0192f0c1-0009-71f7-8998-998f8330df68",
+          "profileId": "0192f0c1-0001-702d-8484-48490b729601",
+          "status": "Confirmed"
+        },
+        {
+          "activeAnnualMinor": 409800,
+          "activeMonthlyMinor": 34150,
+          "annualMinor": 51000,
+          "categoryId": "0192f0c1-0011-79f9-8c9a-c9af5a7eff0d",
+          "chargesCount": 6,
+          "currency": "EUR",
+          "frequency": "monthly",
+          "id": "0192f0c1-0034-7407-85f0-5f03b39b14e9",
+          "matchingCharges": 6,
+          "monthlyMinor": 4250,
+          "nextCharge": "2025-11-28",
+          "payeeId": "0192f0c1-000a-743c-890f-90fb094546ce",
+          "profileId": "0192f0c1-0001-702d-8484-48490b729601",
+          "status": "Confirmed"
+        }
+      ]
+    },
+    {
+      "id": "subscriptions-capability-cancels",
+      "value": "status=Cancelled next=null"
+    },
+    {
+      "id": "subscriptions-cancel-reads-back",
+      "operation": "listSubscriptions",
+      "value": [
+        {
+          "activeAnnualMinor": 51000,
+          "activeMonthlyMinor": 4250,
+          "annualMinor": 358800,
+          "categoryId": "0192f0c1-000e-7d8a-8a87-a87dd2b6c1ba",
+          "chargesCount": 11,
+          "currency": "EUR",
+          "frequency": "monthly",
+          "id": "0192f0c1-0033-7362-801a-01a8162ef271",
+          "matchingCharges": 11,
+          "monthlyMinor": 29900,
+          "nextCharge": null,
+          "payeeId": "0192f0c1-0009-71f7-8998-998f8330df68",
+          "profileId": "0192f0c1-0001-702d-8484-48490b729601",
+          "status": "Cancelled"
+        },
+        {
+          "activeAnnualMinor": 51000,
+          "activeMonthlyMinor": 4250,
+          "annualMinor": 51000,
+          "categoryId": "0192f0c1-0011-79f9-8c9a-c9af5a7eff0d",
+          "chargesCount": 6,
+          "currency": "EUR",
+          "frequency": "monthly",
+          "id": "0192f0c1-0034-7407-85f0-5f03b39b14e9",
+          "matchingCharges": 6,
+          "monthlyMinor": 4250,
+          "nextCharge": "2025-11-28",
+          "payeeId": "0192f0c1-000a-743c-890f-90fb094546ce",
+          "profileId": "0192f0c1-0001-702d-8484-48490b729601",
+          "status": "Confirmed"
+        }
+      ]
+    },
+    {
+      "id": "subscriptions-capability-sets-category",
+      "value": "0192f0c1-000d-75e9-8fd7-fd7e43c901ee"
+    },
+    {
+      "id": "subscriptions-category-reads-back",
+      "operation": "listSubscriptions",
+      "value": [
+        {
+          "activeAnnualMinor": 51000,
+          "activeMonthlyMinor": 4250,
+          "annualMinor": 358800,
+          "categoryId": "0192f0c1-000e-7d8a-8a87-a87dd2b6c1ba",
+          "chargesCount": 11,
+          "currency": "EUR",
+          "frequency": "monthly",
+          "id": "0192f0c1-0033-7362-801a-01a8162ef271",
+          "matchingCharges": 11,
+          "monthlyMinor": 29900,
+          "nextCharge": null,
+          "payeeId": "0192f0c1-0009-71f7-8998-998f8330df68",
+          "profileId": "0192f0c1-0001-702d-8484-48490b729601",
+          "status": "Cancelled"
+        },
+        {
+          "activeAnnualMinor": 51000,
+          "activeMonthlyMinor": 4250,
+          "annualMinor": 51000,
+          "categoryId": "0192f0c1-000d-75e9-8fd7-fd7e43c901ee",
+          "chargesCount": 6,
+          "currency": "EUR",
+          "frequency": "monthly",
+          "id": "0192f0c1-0034-7407-85f0-5f03b39b14e9",
+          "matchingCharges": 6,
+          "monthlyMinor": 4250,
+          "nextCharge": "2025-11-28",
+          "payeeId": "0192f0c1-000a-743c-890f-90fb094546ce",
+          "profileId": "0192f0c1-0001-702d-8484-48490b729601",
+          "status": "Confirmed"
+        }
+      ]
+    }
+  ],
+  "mutatingCalls": 3
+}

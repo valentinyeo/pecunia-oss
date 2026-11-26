@@ -1,0 +1,44 @@
+{
+  "observations": [
+    {
+      "id": "reporting-dashboard-totals",
+      "value": "spend=90945 income=205200 refund=2500 balance=422000 tax=120000"
+    },
+    {
+      "id": "reporting-category-totals",
+      "value": "spend=90945 Living:29945,Rent:45000,Software:12000,Transport:4000"
+    },
+    {
+      "id": "reporting-spending-split",
+      "value": "business:12000:1319,mixed:0:0,personal:78945:8681,uncategorised:0:0"
+    },
+    {
+      "id": "reporting-parent-payments",
+      "value": "spend=29945 lines=Demo Market,Demo Ferry,Demo Market,Demo Market sum=29945"
+    },
+    {
+      "id": "reporting-income-clients",
+      "value": "income=205200 refund=2500 Example Ltd:150000,Example Studio:55200"
+    },
+    {
+      "id": "reporting-month-statement",
+      "value": "spend=90945 days=31 daily=90945 payments=11"
+    },
+    {
+      "id": "reporting-months-held",
+      "value": "2024-04,2024-03,2024-02"
+    },
+    {
+      "id": "reporting-spending-summary",
+      "value": "EUR 90945 Living:29945,Rent:45000,Software:12000,Transport:4000"
+    },
+    {
+      "id": "reporting-income-summary",
+      "value": "EUR income=205200 refund=2500 Example Ltd:150000,Example Studio:55200"
+    },
+    {
+      "id": "reporting-monthly-totals",
+      "value": "2024-03 in=207700 out=110945 net=96755"
+    }
+  ]
+}
