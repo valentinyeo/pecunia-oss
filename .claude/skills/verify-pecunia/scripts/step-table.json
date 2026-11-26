@@ -78,7 +78,6 @@
     "webSearchSuggestions": "5",
     "webSearchResults": "Holdings,Payments; 11",
     "webBudgetsPlaceholder": "This screen lands in a later slice. The demo book has no data for it yet.",
-    "webSubscriptionsFailure": "Service not found: @pecunia/web/SubscriptionsGateway",
     "webInvestmentsPlatforms": "Generic Broker,Generic Crypto Exchange",
     "webInvestmentsPriceless": "1",
     "webInvestmentsValue": "€86,400.00 Gain €80,400.00",
@@ -953,8 +952,28 @@
       "capabilities": [],
       "expectations": [
         {
-          "id": "web-subscriptions-fails-to-load",
-          "equalsDemoNumber": "webSubscriptionsFailure"
+          "id": "web-subscriptions-lists-repeat-payments",
+          "equals": "Demo Cloud Hosting,Demo Coffee"
+        },
+        {
+          "id": "web-subscriptions-shows-frequency",
+          "equals": "Monthly · €3,588.00 a year,Weekly · €2,210.00 a year"
+        },
+        {
+          "id": "web-subscriptions-shows-confidence",
+          "equals": "96% confidence,61% confidence"
+        },
+        {
+          "id": "web-subscriptions-shows-the-annual-total",
+          "equals": "€299.00; €3,588.00"
+        },
+        {
+          "id": "web-subscriptions-filters-to-active",
+          "equals": "active=1 all=2 confirmed=1"
+        },
+        {
+          "id": "web-subscriptions-cancels-a-repeat-payment",
+          "equals": "annual=€0.00"
         }
       ]
     },

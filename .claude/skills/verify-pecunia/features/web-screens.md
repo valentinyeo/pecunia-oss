@@ -1,10 +1,10 @@
 # App screens
 
-Status: partly built. The app serves twelve screens under `/app`: Dashboard, Transactions, Review, Search, Budgets, Subscriptions, Investments, Categories, Rules, Aliases, Merchants, and Settings. Eleven render and answer clicks. Budgets is a placeholder and Subscriptions crashes on load. None of them reads the database: each draws a client-side fixture.
+Status: partly built. The app serves twelve screens under `/app`: Dashboard, Transactions, Review, Search, Budgets, Subscriptions, Investments, Categories, Rules, Aliases, Merchants, and Settings. All twelve render and answer clicks. Budgets is a placeholder. None of them reads the database: each draws a client-side fixture.
 
 ## What it promises
 
-- Every screen the sidebar names has an address under `/app` and renders without a console error, except the two gaps below.
+- Every screen the sidebar names has an address under `/app` and renders without a console error, except the Budgets placeholder.
 - A click on a control on one of these screens changes what the same screen shows. The drive types in the search boxes, chooses a month, opens the edit forms, and follows a link, then reads the result off the page.
 - A screen that shows money shows it as a currency amount with a symbol and two decimals, formatted from integer minor units. No float and no bare number reaches the page.
 - A screen that has no data says so. Budgets says the screen lands in a later slice; the transactions search says no bank line matches.
@@ -53,7 +53,12 @@ Checks this drive runs, on top of the four cross-cutting money checks:
 - `web-search-suggests-while-typing`: typing `Demo` offers 5 suggestions.
 - `web-search-finds-payments-and-holdings`: pressing Search answers with a Holdings section and a Payments section holding 11 rows.
 - `web-budgets-is-a-later-slice`: Budgets renders the sentence `This screen lands in a later slice. The demo book has no data for it yet.` and nothing else.
-- `web-subscriptions-fails-to-load`: Subscriptions reports `Service not found: @pecunia/web/SubscriptionsGateway` and renders no repeat payment.
+- `web-subscriptions-lists-repeat-payments`: the list holds `Demo Cloud Hosting` and `Demo Coffee`, in that order.
+- `web-subscriptions-shows-frequency`: the two rows read `Monthly · €3,588.00 a year` and `Weekly · €2,210.00 a year`.
+- `web-subscriptions-shows-confidence`: the two rows read `96% confidence` and `61% confidence`.
+- `web-subscriptions-shows-the-annual-total`: the totals read `€299.00` active monthly and `€3,588.00` active yearly.
+- `web-subscriptions-filters-to-active`: All holds 2 rows, Active holds 1, and 1 of the two is confirmed.
+- `web-subscriptions-cancels-a-repeat-payment`: cancelling `Demo Cloud Hosting` takes the active yearly total to `€0.00`.
 - `web-investments-groups-holdings-by-platform`: the screen shows the `Generic Broker` and `Generic Crypto Exchange` groups.
 - `web-investments-shows-a-priceless-holding`: exactly 1 cell reads `No price yet`, and it belongs to the pending `Demo Tech Stock`.
 - `web-investments-shows-value-and-gain`: the `Demo Bitcoin` row reads value `€86,400.00` and gain `€80,400.00`.
@@ -73,7 +78,6 @@ Each screen step writes one full-page screenshot next to `proof.json`: `web-dash
 ## Gotchas
 
 - Budgets is a placeholder. `web-budgets-is-a-later-slice` proves the sentence, not a budget. There is no budget table and no budget capability.
-- Subscriptions crashes on load with `Service not found: @pecunia/web/SubscriptionsGateway`. `apps/web/src/client/pecunia/application.ts` merges three client gateways into `pecuniaResources` and leaves that one out, so `SubscriptionsGateway.use` in `apps/web/src/client/pecunia/subscriptions/command.ts` resolves nothing. The step records the crash by name, so a green run does not mean the screen works.
 - The screens draw client fixtures, not the demo book. The dashboard's `£48,250.00` and the transactions screen's 12 lines come from different files and do not describe the same book. A number read on a screen is never evidence for a capability.
 - The transactions screen draws 6 categories from `apps/web/src/client/pecunia/catalogue.ts`; the categories screen draws 9 from `apps/web/src/client/pecunia/categorize/demo.ts`. The two fixtures disagree, so a category picked on one has no id on the other.
 - The category drill-down at `/app/spending/category/<id>` filters the list but keeps the heading `Transactions` and the notice about every line the demo sync wrote. A user who follows a category link cannot read which category they are on from the page.

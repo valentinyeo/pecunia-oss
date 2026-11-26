@@ -6,11 +6,13 @@ import { CategorizeGateway } from "./categorize/gateway.js";
 import { Message } from "./message.js";
 import { pecuniaProgram } from "./program.js";
 import { SettingsGateway } from "./settings/gateway.js";
+import { SubscriptionsGateway } from "./subscriptions/gateway.js";
 
 export const pecuniaResources = Layer.mergeAll(
   BankLinesGateway.layer,
   CategorizeGateway.layer,
-  SettingsGateway.layer
+  SettingsGateway.layer,
+  SubscriptionsGateway.layer
 );
 
 export const pecuniaApplication = (container: HTMLElement | null) =>

@@ -437,28 +437,89 @@ const screens = {
   },
   subscriptions: {
     path: "/app/subscriptions",
-    drive: async ({ consoleErrors, page }) => {
+    drive: async ({ page }) => {
+      await page.getByLabel("Show").waitFor({ timeout: 20_000 });
+      await waitForRows(page, 2);
+      await settle(page);
+
+      const listed = await mainText(page);
+
+      const monthly = await page.evaluate(
+        () =>
+          document.querySelector('[data-total="monthly"]')?.textContent ?? ""
+      );
+
+      const annual = await page.evaluate(
+        () => document.querySelector('[data-total="annual"]')?.textContent ?? ""
+      );
+
+      const rows = await page.evaluate(() =>
+        [...document.querySelectorAll("main ul li")].map((entry) =>
+          // oxlint-disable-next-line unicorn/prefer-dom-node-text-content -- a row's payee, cost and status sit on separate rendered lines; `textContent` joins them with no separator.
+          entry.innerText.split("\n").map((line) => line.trim())
+        )
+      );
+
+      const payees = rows.map((lines) => lines[0] ?? "").join(",");
+
+      const confirmed = rows.filter((lines) =>
+        lines.includes("Confirmed")
+      ).length;
+
+      const confidences = listed
+        .filter((line) => line.endsWith("confidence"))
+        .join(",");
+
+      const frequencies = listed
+        .filter((line) => line.includes(" a year"))
+        .join(",");
+
+      await buttonNamed(page, "Active").click();
+      await settle(page);
+      const activeRows = await rowCount(page);
+
+      await buttonNamed(page, "All").click();
+      await settle(page);
+      const allRows = await rowCount(page);
+
+      await buttonNamed(page, "Cancel Demo Cloud Hosting").click();
       await page.waitForFunction(
-        () => document.body.textContent.includes("Application Crash"),
+        () =>
+          /Cancelled Demo Cloud Hosting\./u.test(
+            document.querySelector("main").textContent
+          ),
         { timeout: 20_000 }
       );
       await settle(page);
 
-      const failure = consoleErrors.find((entry) =>
-        entry.includes("Service not found")
-      );
-
-      const reason = /Service not found: (?<service>[^\s]+)/u.exec(
-        failure ?? ""
+      const afterCancel = await page.evaluate(
+        () => document.querySelector('[data-total="annual"]')?.textContent ?? ""
       );
 
       return [
         observe({
-          id: "web-subscriptions-fails-to-load",
-          value:
-            reason === null
-              ? "the screen did not report a missing service"
-              : `Service not found: ${reason.groups.service}`,
+          id: "web-subscriptions-lists-repeat-payments",
+          value: payees,
+        }),
+        observe({
+          id: "web-subscriptions-shows-frequency",
+          value: frequencies,
+        }),
+        observe({
+          id: "web-subscriptions-shows-confidence",
+          value: confidences,
+        }),
+        observe({
+          id: "web-subscriptions-shows-the-annual-total",
+          value: `${monthly}; ${annual}`,
+        }),
+        observe({
+          id: "web-subscriptions-filters-to-active",
+          value: `active=${activeRows} all=${allRows} confirmed=${confirmed}`,
+        }),
+        observe({
+          id: "web-subscriptions-cancels-a-repeat-payment",
+          value: `annual=${afterCancel}`,
         }),
       ];
     },
