@@ -961,6 +961,23 @@ const proofCommands = ({ data, feature, label }) => {
   return commands;
 };
 
+const tableLines = ({ head, rows }) => {
+  const widths = head.map((cell, index) =>
+    Math.max(3, cell.length, ...rows.map((row) => (row[index] ?? "").length))
+  );
+
+  const cellText = (value) => String(value ?? "").replaceAll("|", "\\|");
+
+  const line = (cells) =>
+    `| ${cells.map((cell, index) => cellText(cell).padEnd(widths[index])).join(" | ")} |`;
+
+  return [
+    line(head),
+    line(widths.map((width) => "-".repeat(width))),
+    ...rows.map(line),
+  ];
+};
+
 const stepTableLines = ({ records, result }) => {
   const rows = [];
 
@@ -979,10 +996,13 @@ const stepTableLines = ({ records, result }) => {
       (expectation) => expectation.step === id
     ).length;
 
-    rows.push(`| \`${id}\` | ${exit} | ${commandList} | ${count} |`);
+    rows.push([`\`${id}\``, exit, commandList, `${count}`]);
   }
 
-  return rows;
+  return tableLines({
+    head: ["Step", "Exit", "Commands", "Expectations"],
+    rows,
+  });
 };
 
 const artifactLines = (records) =>
@@ -1072,8 +1092,6 @@ const proofMarkdown = ({
     "",
     "## Steps",
     "",
-    "| Step | Exit | Commands | Expectations |",
-    "| --- | --- | --- | --- |",
     ...stepTableLines({ records, result }),
     "",
     `Total: ${result.expectations.length} expectations across ${result.steps.length} steps, ${result.declared} declared, ${result.evaluated} evaluated.`,
@@ -1107,7 +1125,7 @@ const proofMarkdown = ({
     "## What this does not prove",
     "",
     "- The capability drives run on the package memory ledger and the demo seed; a persistent store and the RPC, MCP, and CLI projections are not exercised.",
-    "- No finance screen is reached, so the demo-book expectations read the seeded data at the data layer.",
+    "- A screen step drives a client fixture in a browser. The figure it reads is not evidence for the capability that will feed that screen.",
     ""
   );
 

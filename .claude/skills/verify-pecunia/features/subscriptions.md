@@ -33,7 +33,7 @@ All five are implemented and tested at the package level. Reads need profile mem
 
 ## How to get to it (user POV)
 
-Today: the five capabilities through their package handlers, and the demo book through the package memory store. No screen or transport.
+Today: the five capabilities through their package handlers, the demo book through the package memory store, and a subscriptions screen at `/app/subscriptions` that does not load. The browser mounts the screen, looks for a `SubscriptionsGateway` service, finds none, and the foldkit runtime replaces the page with an Application Crash panel and a Reload button.
 
 Planned: the subscriptions section of the app. The slice that adds it names the route, and the same capabilities reach MCP and the CLI. This page gets the exact route and tool name from that slice, not before.
 
@@ -54,6 +54,16 @@ Checks this drive runs, on top of the four cross-cutting money checks:
 
 Read a failure with `jq '.checks[] | select(.passed | not)' .claude/skills/verify-pecunia/evidence/<date>-<label>/proof.json`.
 
+### The subscriptions screen
+
+`/app/subscriptions` is the screen. The app screens feature opens it in headless Chromium and writes `web-subscriptions.png`, the crash panel. Its one check is `web-subscriptions-fails-to-load`, listed on [App screens](web-screens.md) because that run owns the browser:
+
+```sh
+bash .claude/skills/verify-pecunia/scripts/prove-demo-book.sh --feature web-screens
+```
+
+That expectation records the failure, not a promise. The cause is in product code and outside this skill: `apps/web/src/client/pecunia/application.ts` merges the bank-lines, categorize, and settings gateways into `pecuniaResources` and leaves out `SubscriptionsGateway`, so `SubscriptionsGateway.use` in `apps/web/src/client/pecunia/subscriptions/command.ts` resolves nothing. The step writes `web-subscriptions.png`, the crash panel, next to `proof.json`. When the gateway is provided, replace this expectation with the screen's own content and update this page.
+
 ## Proof a pull request must attach
 
 1. The demo-book run for this feature with a fresh label, and its evidence committed.
@@ -65,6 +75,7 @@ Read a failure with `jq '.checks[] | select(.passed | not)' .claude/skills/verif
 
 ## Gotchas
 
+- The subscriptions screen crashes on load. `apps/web/src/client/pecunia/application.ts` provides three client gateways and not `SubscriptionsGateway`, so the route reaches `Service not found: @pecunia/web/SubscriptionsGateway` before any capability is called. The drive records the crash by name; a green proof here does not mean the screen works.
 - Weekly x 52 is a year of weekly charges. Do not use 4 x 12.
 - The typical charge is in the charged currency; the typical base charge is in the profile's base currency. Annualize the base amount, never the charged amount.
 - With an even count the median is the mean of the two middle values, rounded down. Taking the lower middle value turns gaps of 9 and 25 days into a weekly claim.

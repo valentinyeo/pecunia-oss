@@ -1,0 +1,334 @@
+{
+  "branch": "verify-drive",
+  "checks": [
+    {
+      "actual": "unnamed=0 unexported=0 planned=0 status=0 problems=0 exit=0",
+      "expected": "unnamed=0 unexported=0 planned=0 status=0 problems=0 exit=0",
+      "feature": "web-screens",
+      "id": "feature-map-matches-capabilities",
+      "passed": true,
+      "step": "feature-map"
+    },
+    {
+      "actual": "problems=0 exit=0",
+      "expected": "problems=0 exit=0",
+      "feature": "web-screens",
+      "id": "parity-matches-old-behaviours",
+      "passed": true,
+      "step": "parity"
+    },
+    {
+      "actual": "wrongDeclarations=0 wrongRows=0 columns=11",
+      "expected": "wrongDeclarations=0 wrongRows=0 columns=11",
+      "feature": "web-screens",
+      "id": "money-is-integer-minor-units",
+      "passed": true,
+      "step": "generic"
+    },
+    {
+      "actual": "wrongCurrencies=0 columns=13",
+      "expected": "wrongCurrencies=0 columns=13",
+      "feature": "web-screens",
+      "id": "currency-is-an-iso-code",
+      "passed": true,
+      "step": "generic"
+    },
+    {
+      "actual": "integrity=ok foreignKeyViolations=0 tablesWithOrphans=0 scopedTables=17",
+      "expected": "integrity=ok foreignKeyViolations=0 tablesWithOrphans=0 scopedTables=17",
+      "feature": "web-screens",
+      "id": "every-row-belongs-to-a-profile",
+      "passed": true,
+      "step": "generic"
+    },
+    {
+      "actual": "nonPlaceholderEmails=0 profiles=Demo Person,Example Ltd",
+      "expected": "nonPlaceholderEmails=0 profiles=Demo Person,Example Ltd",
+      "feature": "web-screens",
+      "id": "demo-book-holds-made-up-identities",
+      "passed": true,
+      "step": "generic"
+    },
+    {
+      "actual": "£48,250.00",
+      "expected": "£48,250.00",
+      "feature": "web-screens",
+      "id": "web-dashboard-net-worth",
+      "passed": true,
+      "step": "web-dashboard"
+    },
+    {
+      "actual": "true",
+      "expected": "true",
+      "feature": "web-screens",
+      "id": "web-dashboard-net-worth-matches-accounts",
+      "passed": true,
+      "step": "web-dashboard"
+    },
+    {
+      "actual": "Rent,Groceries,Transport,Eating out,Utilities,Everything else",
+      "expected": "Rent,Groceries,Transport,Eating out,Utilities,Everything else",
+      "feature": "web-screens",
+      "id": "web-dashboard-spend-by-category",
+      "passed": true,
+      "step": "web-dashboard"
+    },
+    {
+      "actual": "12",
+      "expected": "12",
+      "feature": "web-screens",
+      "id": "web-transactions-lists-every-demo-line",
+      "passed": true,
+      "step": "web-transactions"
+    },
+    {
+      "actual": "Demo Coffee; 2",
+      "expected": "Demo Coffee; 2",
+      "feature": "web-screens",
+      "id": "web-transactions-search-narrows-the-list",
+      "passed": true,
+      "step": "web-transactions"
+    },
+    {
+      "actual": "2",
+      "expected": "2",
+      "feature": "web-screens",
+      "id": "web-transactions-category-link-filters-the-list",
+      "passed": true,
+      "step": "web-transactions"
+    },
+    {
+      "actual": "true",
+      "expected": "true",
+      "feature": "web-screens",
+      "id": "web-transactions-category-link-is-its-own-url",
+      "passed": true,
+      "step": "web-transactions"
+    },
+    {
+      "actual": "Category,Note",
+      "expected": "Category,Note",
+      "feature": "web-screens",
+      "id": "web-transactions-edit-form-opens",
+      "passed": true,
+      "step": "web-transactions"
+    },
+    {
+      "actual": "Spend in Mar 2026; Everything else; £2,500.00; £2,500.00; 82.4%",
+      "expected": "Spend in Mar 2026; Everything else; £2,500.00; £2,500.00; 82.4%",
+      "feature": "web-screens",
+      "id": "web-categories-spend-table",
+      "passed": true,
+      "step": "web-categories"
+    },
+    {
+      "actual": "Spend in Jan 2026; Everything else; £2,500.00; £2,500.00; 82.4%",
+      "expected": "Spend in Jan 2026; Everything else; £2,500.00; £2,500.00; 82.4%",
+      "feature": "web-screens",
+      "id": "web-categories-month-picker",
+      "passed": true,
+      "step": "web-categories"
+    },
+    {
+      "actual": "9",
+      "expected": "9",
+      "feature": "web-screens",
+      "id": "web-categories-management-lists-every-category",
+      "passed": true,
+      "step": "web-categories"
+    },
+    {
+      "actual": "6",
+      "expected": "6",
+      "feature": "web-screens",
+      "id": "web-rules-lists-every-rule",
+      "passed": true,
+      "step": "web-rules"
+    },
+    {
+      "actual": "Demo Grocer; contains \"Demo Grocer\"; Groceries",
+      "expected": "Demo Grocer; contains \"Demo Grocer\"; Groceries",
+      "feature": "web-screens",
+      "id": "web-rules-shows-the-pattern",
+      "passed": true,
+      "step": "web-rules"
+    },
+    {
+      "actual": "Least amount",
+      "expected": "Least amount",
+      "feature": "web-screens",
+      "id": "web-rules-new-rule-form-opens",
+      "passed": true,
+      "step": "web-rules"
+    },
+    {
+      "actual": "4",
+      "expected": "4",
+      "feature": "web-screens",
+      "id": "web-aliases-lists-every-alias",
+      "passed": true,
+      "step": "web-aliases"
+    },
+    {
+      "actual": "prefix",
+      "expected": "prefix",
+      "feature": "web-screens",
+      "id": "web-aliases-shows-the-match-kind",
+      "passed": true,
+      "step": "web-aliases"
+    },
+    {
+      "actual": "Text on the statement",
+      "expected": "Text on the statement",
+      "feature": "web-screens",
+      "id": "web-aliases-new-alias-form-opens",
+      "passed": true,
+      "step": "web-aliases"
+    },
+    {
+      "actual": "8 of 8 merchants",
+      "expected": "8 of 8 merchants",
+      "feature": "web-screens",
+      "id": "web-merchants-lists-every-merchant",
+      "passed": true,
+      "step": "web-merchants"
+    },
+    {
+      "actual": "2 of 8 merchants",
+      "expected": "2 of 8 merchants",
+      "feature": "web-screens",
+      "id": "web-merchants-filter-narrows-the-list",
+      "passed": true,
+      "step": "web-merchants"
+    },
+    {
+      "actual": "Demo Grocer; 12; £1,036.80",
+      "expected": "Demo Grocer; 12; £1,036.80",
+      "feature": "web-screens",
+      "id": "web-merchants-shows-count-and-total",
+      "passed": true,
+      "step": "web-merchants"
+    },
+    {
+      "actual": "5",
+      "expected": "5",
+      "feature": "web-screens",
+      "id": "web-review-lists-uncategorised-lines",
+      "passed": true,
+      "step": "web-review"
+    },
+    {
+      "actual": "2 suggestions are ready.",
+      "expected": "2 suggestions are ready.",
+      "feature": "web-screens",
+      "id": "web-review-suggests-categories",
+      "passed": true,
+      "step": "web-review"
+    },
+    {
+      "actual": "5",
+      "expected": "5",
+      "feature": "web-screens",
+      "id": "web-search-suggests-while-typing",
+      "passed": true,
+      "step": "web-search"
+    },
+    {
+      "actual": "Holdings,Payments; 11",
+      "expected": "Holdings,Payments; 11",
+      "feature": "web-screens",
+      "id": "web-search-finds-payments-and-holdings",
+      "passed": true,
+      "step": "web-search"
+    },
+    {
+      "actual": "This screen lands in a later slice. The demo book has no data for it yet.",
+      "expected": "This screen lands in a later slice. The demo book has no data for it yet.",
+      "feature": "web-screens",
+      "id": "web-budgets-is-a-later-slice",
+      "passed": true,
+      "step": "web-budgets"
+    },
+    {
+      "actual": "Service not found: @pecunia/web/SubscriptionsGateway",
+      "expected": "Service not found: @pecunia/web/SubscriptionsGateway",
+      "feature": "web-screens",
+      "id": "web-subscriptions-fails-to-load",
+      "passed": true,
+      "step": "web-subscriptions"
+    },
+    {
+      "actual": "Generic Broker,Generic Crypto Exchange",
+      "expected": "Generic Broker,Generic Crypto Exchange",
+      "feature": "web-screens",
+      "id": "web-investments-groups-holdings-by-platform",
+      "passed": true,
+      "step": "web-investments"
+    },
+    {
+      "actual": "1",
+      "expected": "1",
+      "feature": "web-screens",
+      "id": "web-investments-shows-a-priceless-holding",
+      "passed": true,
+      "step": "web-investments"
+    },
+    {
+      "actual": "€86,400.00 Gain €80,400.00",
+      "expected": "€86,400.00 Gain €80,400.00",
+      "feature": "web-screens",
+      "id": "web-investments-shows-value-and-gain",
+      "passed": true,
+      "step": "web-investments"
+    },
+    {
+      "actual": "GBP; en-GB; Europe/London",
+      "expected": "GBP; en-GB; Europe/London",
+      "feature": "web-screens",
+      "id": "web-settings-shows-the-demo-values",
+      "passed": true,
+      "step": "web-settings"
+    },
+    {
+      "actual": "Example Ltd,Demo Person",
+      "expected": "Example Ltd,Demo Person",
+      "feature": "web-screens",
+      "id": "web-settings-lists-the-profiles",
+      "passed": true,
+      "step": "web-settings"
+    }
+  ],
+  "commit": "38313e3e",
+  "declared": 37,
+  "demoBookSha256": "527991d3898ec8fdce1029ee97f92a7c25f955c54e2375b38566f95f32537191",
+  "evaluated": 37,
+  "failed": 0,
+  "failedSteps": 0,
+  "failures": [],
+  "feature": "web-screens",
+  "node": "v24.18.0",
+  "passed": true,
+  "ranAt": "2026-11-26T00:29:19Z",
+  "seed": {
+    "command": "pnpm --filter @pecunia/database db:seed:demo /tmp/pecunia-verify-MRMYl2/demo.sqlite"
+  },
+  "stepExpectations": {
+    "feature-map": 1,
+    "parity": 1,
+    "generic": 4,
+    "web-dashboard": 3,
+    "web-transactions": 5,
+    "web-categories": 3,
+    "web-rules": 3,
+    "web-aliases": 3,
+    "web-merchants": 3,
+    "web-review": 2,
+    "web-search": 2,
+    "web-budgets": 1,
+    "web-subscriptions": 1,
+    "web-investments": 3,
+    "web-settings": 2
+  },
+  "steps": 17,
+  "total": 37
+}

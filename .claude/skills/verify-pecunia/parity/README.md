@@ -114,6 +114,8 @@ Every place the old app put a behaviour. A place with no row is a behaviour nobo
 | A switcher in the header chooses which book every page shows, and the browser remembers it | shell: every page | planned | no ticket yet |
 | An outside login gate in front of the whole app decides who gets in | shell: every page | dropped | the new app signs people in itself with email and password, so the outside gate has no job left to do |
 | Money in, money out and the net for a chosen period | route: dashboard | built | capability:readDashboard |
+| The dashboard screen's figures come from the stored book rather than a fixture | route: dashboard | planned | no ticket yet |
+| A period picker on the dashboard screen that changes the figures it shows | route: dashboard | planned | no ticket yet |
 | Total balance across every account and savings jar, converted to one currency | route: dashboard | built | capability:readDashboard |
 | Spend split by the currency it was paid in | route: dashboard | built | capability:readDashboard |
 | A daily spending chart for the chosen period | route: dashboard | built | capability:readDashboard |
@@ -155,6 +157,7 @@ Every place the old app put a behaviour. A place with no row is a behaviour nobo
 | Personal against business spend for a period | route: spending | built | capability:readSpending |
 | A doughnut by category and a stacked monthly trend | route: spending | built | capability:readSpending |
 | One category's payments, and tagging a payment as reviewed from there | route: spending category | built | capability:readCategoryPayments, capability:reviewBankLine |
+| A category page names the category whose payments it lists | route: spending category | planned | no ticket yet |
 | Income by client, read from the transfer reference rather than the merchant | route: income | built | capability:readIncome |
 | Income narrowed to one client, with a monthly chart | route: income | built | capability:readIncome |
 | Money in that is a refund is kept apart from income | route: income | built | capability:readIncome |
@@ -170,6 +173,7 @@ Every place the old app put a behaviour. A place with no row is a behaviour nobo
 | Set a repeat payment's category and push it onto its past payments | route: subscriptions | built | capability:setSubscriptionCategory |
 | Turn tracking of a repeat payment on and off | route: subscriptions | built | capability:changeSubscriptionStatus |
 | Find repeat payments from the payment history | route: subscriptions | built | capability:findRepeatPayments |
+| The subscriptions screen opens and lists the repeat payments | route: subscriptions | planned | no ticket yet |
 | A six month spend projection from the repeat payments | route: forecast | dropped | the app never served this page, because the router never mounted it, so no user could open it and there is no user behaviour to carry over |
 | Holdings grouped by platform with price, value and gain | route: investments | built | capability:readInvestmentPortfolio |
 | Add a holding by hand | route: investments | built | capability:addHolding |

@@ -1,6 +1,6 @@
 # Categories and rules
 
-Status: planned. The schema and the demo rules exist on `main`. No capability, screen, CLI command, or MCP tool yet.
+Status: partly built. The schema, the demo rules, and the categories and rules screens at `/app/categories` and `/app/rules` exist on `main`. The screens read a client-side demo catalogue and write to the browser's memory, so no capability, CLI command, or MCP tool carries them yet.
 
 ## What it promises
 
@@ -21,7 +21,7 @@ Status: planned. The schema and the demo rules exist on `main`. No capability, s
 
 ## How to get to it (user POV)
 
-Today: nowhere. The demo book carries the categories, payees, aliases, and rules.
+Today: nowhere durable. The demo book carries the categories, payees, aliases, and rules, and the screens at `/app/categories` and `/app/rules` render and edit a separate client-side demo catalogue. Nothing a user changes there reaches the database.
 
 Planned: the categories and rules section of the app. The categories-rules slice adds the editors, and the same capabilities reach MCP and the CLI. That slice names the exact routes and tools.
 
@@ -43,6 +43,16 @@ Checks this drive runs, on top of the four cross-cutting money checks:
 
 The demo rule set is the fixture for ordering: the `Demo Cloud Hosting` contains-rule sets `Cloud`, `Example Ltd` sets income with a client payee, `TAX` sets a tax payment, `Moved` is an internal transfer, `Transfer to Demo Person` is a self transfer with a counterpart profile, `Refund` is a refund, and `0000` on digits only excludes a line.
 
+### The categories and rules screens
+
+`/app/categories` and `/app/rules` render both screens. The app screens feature drives them in headless Chromium with real clicks: choosing a month, opening the New category form, opening the New rule form. It writes `web-categories.png` and `web-rules.png`, full-page screenshots. The six checks are `web-categories-spend-table`, `web-categories-month-picker`, `web-categories-management-lists-every-category`, `web-rules-lists-every-rule`, `web-rules-shows-the-pattern`, and `web-rules-new-rule-form-opens`, listed on [App screens](web-screens.md) because that run owns the browser:
+
+```sh
+bash .claude/skills/verify-pecunia/scripts/prove-demo-book.sh --feature web-screens
+```
+
+Category management and rule edits are opened but not submitted: they would write to the browser's memory gateway and prove nothing that survives the tab.
+
 ## Proof a pull request must attach
 
 1. The demo-book run for this feature with a fresh label, and its evidence committed.
@@ -53,6 +63,8 @@ The demo rule set is the fixture for ordering: the `Demo Cloud Hosting` contains
 
 ## Gotchas
 
+- The month picker changes the table's title and never its numbers. `apps/web/src/client/pecunia/categorize/demo.ts` generates the same payments for every month in the demo list, so `Jan 2026` and `Mar 2026` hold identical rows. That is a fixture decision, not a sum bug: the titles move, the rows cannot.
+- The categories screen draws nine categories; the transactions screen draws six from `apps/web/src/client/pecunia/catalogue.ts`. The two fixtures do not agree, so a category name picked on one screen has no id on the other.
 - Rule priority is ascending. A lower number wins. Two rules with the same priority need a stable tiebreak, or the result depends on insert order.
 - A classification rule writes `classification`, not `category`. `categorize` writes `category` and sets `categorization` to `applied`.
 - The mapping is not identity: rule kind `exclude` writes classification `excluded`, and `income_client` writes `income`. A naive equality check fails on the demo book.

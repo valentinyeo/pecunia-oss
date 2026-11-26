@@ -63,6 +63,14 @@ Checks this drive runs, on top of the four cross-cutting money checks:
 - `holdings-known-value`: the known total is 788640000 EUR minor units, and the pending holding is outside it.
 - `holdings-platforms`: every holding's platform exists.
 
+### The investments screen
+
+`/app/investments` renders the holdings. The app screens feature drives it in headless Chromium, read-only, and writes `web-investments.png`, a full-page screenshot. Its three checks are `web-investments-groups-holdings-by-platform`, `web-investments-shows-a-priceless-holding`, and `web-investments-shows-value-and-gain`, listed on [App screens](web-screens.md) because that run owns the browser:
+
+```sh
+bash .claude/skills/verify-pecunia/scripts/prove-demo-book.sh --feature web-screens
+```
+
 ## Proof a pull request must attach
 
 1. The demo-book run for this feature with a fresh label, and its evidence committed.
@@ -75,6 +83,7 @@ Checks this drive runs, on top of the four cross-cutting money checks:
 
 ## Gotchas
 
+- The screen's figures come from `packages/investments/src/demo.ts` and its own valuation, not from D1 and not from `readInvestmentPortfolio`. A number read on the screen is not evidence for the capability.
 - Quantity is millionths. `1500000000` is 1500 units, not 1.5 billion.
 - The demo fixtures have very large gains because the prices are made up. Assert the exact demo values; do not present them as realistic returns.
 - `780000000` is EUR 7,800,000.00 in minor units. Compare minor units.

@@ -84,7 +84,12 @@ DRIVE_JSON="$SCRATCH/bank-import-drive.json"
 BUILD_COMMAND="pnpm turbo run build --filter=@pecunia/bank-import..."
 BUILD_LINES_COMMAND="pnpm turbo run build --filter=@pecunia/bank-lines..."
 SEED_COMMAND="pnpm --filter @pecunia/database db:seed:demo $DATABASE"
+WEB_LOG="$SCRATCH/web-server.log"
+WEB_PID=
+WEB_PORT=
+WEB_BASE_URL=
 cleanup() {
+  stop_web_server
   rm -rf "$SCRATCH"
 }
 trap cleanup EXIT
@@ -245,6 +250,105 @@ step_ai_tools() {
   steps_keep_artifact ai-tools-drive.json "$drive"
   steps_count_mutations "$(jq -r '.mutatingCalls // 0' "$drive" 2>/dev/null || printf '0')"
   steps_observe_json "$drive"
+}
+
+stop_web_server() {
+  if [ -n "$WEB_PID" ]; then
+    kill -TERM "-$WEB_PID" 2>/dev/null || kill -TERM "$WEB_PID" 2>/dev/null || true
+    WEB_PID=
+  fi
+}
+
+free_web_port() {
+  node -e 'const { createServer } = require("node:net"); const server = createServer(); server.listen(0, "127.0.0.1", () => { process.stdout.write(String(server.address().port)); server.close(); });'
+}
+
+ensure_web_server() {
+  WEB_PORT=$(free_web_port)
+  WEB_BASE_URL="http://127.0.0.1:$WEB_PORT"
+  printf 'Serving the web app on %s\n' "$WEB_BASE_URL" >> "$WEB_LOG"
+  (
+    cd "$REPO_ROOT/apps/web" || exit 1
+    setsid pnpm exec vite dev --host 127.0.0.1 --port "$WEB_PORT" --strictPort >> "$WEB_LOG" 2>&1 < /dev/null &
+    printf '%s\n' "$!" > "$SCRATCH/web.pid"
+  )
+  WEB_PID=$(cat "$SCRATCH/web.pid" 2>/dev/null || true)
+  local attempt=0
+  while [ "$attempt" -lt 90 ]; do
+    if curl -fsS -o /dev/null "$WEB_BASE_URL/app" 2>/dev/null; then
+      return 0
+    fi
+    attempt=$((attempt + 1))
+    sleep 1
+  done
+  return 1
+}
+
+run_web_screen() {
+  local screen=$1 drive=$SCRATCH/web-$1.json shot=$SCRATCH/web-$1.png
+  steps_run_command "web-$screen" node "$SCRIPT_DIR/drive-web-screen.mjs" --screen "$screen" --base-url "$WEB_BASE_URL" --screenshot "$shot" > "$drive"
+  steps_keep_artifact "web-$screen.png" "$shot"
+  steps_observe_json "$drive"
+}
+
+step_web_server() {
+  steps_run_command web-build pnpm turbo run build --filter=@pecunia/web... >> "$WEB_LOG" 2>&1
+  if [ "$(steps_command_exit web-build)" != 0 ]; then
+    cat "$WEB_LOG" >&2
+  fi
+  steps_run_command web-serve ensure_web_server
+  if [ "$(steps_command_exit web-serve)" != 0 ]; then
+    cat "$WEB_LOG" >&2
+  fi
+  steps_require_file web-server-log "$WEB_LOG"
+}
+
+step_web_dashboard() {
+  run_web_screen dashboard
+}
+
+step_web_transactions() {
+  run_web_screen transactions
+}
+
+step_web_categories() {
+  run_web_screen categories
+}
+
+step_web_rules() {
+  run_web_screen rules
+}
+
+step_web_aliases() {
+  run_web_screen aliases
+}
+
+step_web_merchants() {
+  run_web_screen merchants
+}
+
+step_web_review() {
+  run_web_screen review
+}
+
+step_web_search() {
+  run_web_screen search
+}
+
+step_web_budgets() {
+  run_web_screen budgets
+}
+
+step_web_subscriptions() {
+  run_web_screen subscriptions
+}
+
+step_web_investments() {
+  run_web_screen investments
+}
+
+step_web_settings() {
+  run_web_screen settings
 }
 
 step_categories_and_rules() {

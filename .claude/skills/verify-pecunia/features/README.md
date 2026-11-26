@@ -8,15 +8,16 @@ The map is the maintained verification source. A proof that drives one convenien
 
 | Feature | Status | User surface today | Demo-book drive |
 | --- | --- | --- | --- |
-| [Accounts and bank lines](accounts-and-bank-lines.md) | partly built | import capabilities, no transport | `--feature accounts-and-bank-lines` |
-| [Categories and rules](categories-and-rules.md) | planned | none | `--feature categories-and-rules` |
-| [Dashboard sums](dashboard-sums.md) | partly built | seven read capabilities and three tools, no transport | `--feature dashboard-sums` |
-| [Subscriptions](subscriptions.md) | partly built | capabilities, no screen or transport | `--feature subscriptions` |
+| [Accounts and bank lines](accounts-and-bank-lines.md) | partly built | import capabilities and a transactions screen on client demo data, no transport | `--feature accounts-and-bank-lines` |
+| [Categories and rules](categories-and-rules.md) | partly built | category and rule screens on client demo data, no capability | `--feature categories-and-rules` |
+| [Dashboard sums](dashboard-sums.md) | partly built | seven read capabilities and three tools, a dashboard screen on client demo data, no transport | `--feature dashboard-sums` |
+| [Subscriptions](subscriptions.md) | partly built | capabilities, and a screen that crashes on load, no transport | `--feature subscriptions` |
 | [Investments](investments.md) | partly built | capabilities, demo screen, no transport | `--feature investments` |
 | [FX conversion](fx-conversion.md) | planned | none | `--feature fx-conversion` |
 | [Tax](tax.md) | partly built | `listTaxDues` and `syncTaxDues` capabilities, no transport | `--feature tax` |
 | [Invoices](invoices.md) | partly built | seventeen package capabilities, no transport | `--feature invoices` |
 | [AI tools](ai-tools.md) | partly built | the six tool capabilities and their dispatcher, no transport | `--feature ai-tools` |
+| [App screens](web-screens.md) | partly built | twelve screens at `/app` on client demo data, Budgets empty and Subscriptions crashing | `--feature web-screens` |
 
 `planned` means the schema and demo fixtures exist but no capability, screen, CLI command, or MCP tool reaches a user yet. `partly built` means a capability exists at the package level while a screen or transport is still missing. `built` means the page's "How to get to it" names a real route, tool, or command a person can drive.
 

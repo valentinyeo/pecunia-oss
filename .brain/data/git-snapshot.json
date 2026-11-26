@@ -160,7 +160,7 @@
     ".brain/resources/peers.svx": "f8d10d4361a41e9501a13295ad8daf6f663b8592715ed5d14439051cc16c05fd",
     ".brain/resources/same-version-repos.svx": "3ba27e1ab85bdb8f7f0288936a65708e7cc72dc55fd00c7eabd06a55fb75e9b0",
     ".brain/resources/schema-projections-and-code-mode.svx": "bd3ba3daef235e5cb37df8bd7dbd0b589113e958a531c769fbaf72d9ba248651",
-    ".claude/skills/verify-pecunia/SKILL.md": "f12b4cc369fa082882a39140f0e3df0a45ced93bc8a9e25e9580d5c9003c21ee",
+    ".claude/skills/verify-pecunia/SKILL.md": "c7789f8266d642403b39a968ff1cd52867f7eeceeabcfa535344b11e8bc19512",
     "AGENTS.md": "ee924eca25ec4fa310eb64f12cc7081bc9fbbead912bd11736c5bb7914bd288f",
     "apps/cli/src/cli.ts": "2296268548b4b814dd0e63ed9e8e42fa513fe53d1d91086962189cab4dd5350d",
     "apps/cli/src/command.ts": "78d2d87edba945fd3cb935fd9745c444cd73cc139d639c558192135a4ac134a3",

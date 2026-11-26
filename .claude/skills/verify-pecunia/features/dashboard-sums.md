@@ -1,6 +1,6 @@
 # Dashboard sums
 
-Status: partly built. The read capabilities and their package tests exist on the branch of [pull request 21](https://github.com/valentinyeo/pecunia-oss/pull/21) in `packages/reporting`, not yet on `main`. No dashboard screen, web RPC wiring, D1 store, tax-owed provider adapter, CLI command, or MCP mount reaches them yet.
+Status: partly built. The read capabilities and their package tests exist on the branch of [pull request 21](https://github.com/valentinyeo/pecunia-oss/pull/21) in `packages/reporting`, not yet on `main`. The dashboard screen renders at `/app` over a separate client-side fixture, so the sums a user sees are made up and do not come from those capabilities. No web RPC wiring, D1 store, tax-owed provider adapter, CLI command, or MCP mount reaches them yet.
 
 ## What it promises
 
@@ -38,7 +38,7 @@ All are implemented and tested at the package level, against a memory source key
 
 ## How to get to it (user POV)
 
-Today: the read capabilities through their package handlers, with the package demo seed. No screen or transport.
+Today: the read capabilities through their package handlers with the package demo seed, and a dashboard screen at `/app` whose figures come from `apps/web/src/client/pecunia/demo-data.ts`. The screen is not wired to these capabilities and reads no database; it exists so the layout can be seen.
 
 Planned: the dashboard screen the ui-shell slice adds, with the sums coming from these capabilities that the web, MCP, and CLI share. That slice names the exact route and tool, not before.
 
@@ -63,6 +63,16 @@ Checks this drive runs, on top of the four cross-cutting money checks:
 
 This drive reads the SQLite demo book. The package tests read a different demo seed, `packages/reporting/src/demo.ts`, whose March spend is 90945 EUR minor units for the demo profile and 2500 GBP minor units for the second profile.
 
+### The dashboard screen
+
+`/app` renders the dashboard. The app screens feature drives it in headless Chromium with real clicks and writes `web-dashboard.png`, a full-page screenshot. Its three checks are `web-dashboard-net-worth`, `web-dashboard-net-worth-matches-accounts`, and `web-dashboard-spend-by-category`, listed on [App screens](web-screens.md) because that run owns the browser:
+
+```sh
+bash .claude/skills/verify-pecunia/scripts/prove-demo-book.sh --feature web-screens
+```
+
+They prove the screen's own fixture, not the sums above.
+
 ## Proof a pull request must attach
 
 1. The demo-book run for this feature with a fresh label, and its evidence committed.
@@ -74,6 +84,8 @@ This drive reads the SQLite demo book. The package tests read a different demo s
 
 ## Gotchas
 
+- The dashboard screen's numbers are a client fixture in `apps/web/src/client/pecunia/demo-data.ts`: `£48,250.00` net worth, `£2,318.47` spent this month, six spend categories. They do not come from the seeded SQLite book and they do not agree with it. Never read a dashboard figure as a sum over `transactions`.
+- The dashboard screen has no period picker. The shared picker in `packages/reporting/src/date.ts` has no control on this page yet.
 - `328955` is EUR 3,289.55. Do not divide by 100 to compare; compare minor units.
 - A pending line is a forecast, not spend. `transaction-demo-12` is 5200 and must stay out of the posted total.
 - The refund at `transaction-demo-10` is a credit but not income. It carries classification `refund`.

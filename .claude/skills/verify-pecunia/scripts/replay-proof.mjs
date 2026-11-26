@@ -21,7 +21,7 @@ const EVIDENCE_ROOT =
   path.join(REPO_ROOT, ".claude", "skills", "verify-pecunia", "evidence");
 
 const RUNNER =
-  /^bash\s+(?<command>skills\/verify-pecunia\/scripts\/prove-demo-book\.sh\b.*)$/mu;
+  /^bash\s+(?:\.claude\/)?skills\/verify-pecunia\/scripts\/prove-demo-book\.sh\b.*$/mu;
 
 const failures = [];
 
@@ -102,7 +102,7 @@ try {
       /^- Run label: `(?<label>[^`]+)`$/mu.exec(proof)?.groups.label ??
       directory.replace(/^\d{4}-\d{2}-\d{2}-/u, "");
 
-    const command = RUNNER.exec(proof)?.groups.command;
+    const command = RUNNER.exec(proof)?.[0].trim();
 
     if (command === undefined) {
       fail(`${directory} records no prove-demo-book.sh command`);

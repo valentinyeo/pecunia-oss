@@ -7,6 +7,7 @@ export default defineConfig({
     ...(ultracite.ignorePatterns ?? []),
     "skills/security-audit/**",
     "examples/**",
+    ".claude/skills/verify-pecunia/evidence/**",
   ],
   overrides: [
     {

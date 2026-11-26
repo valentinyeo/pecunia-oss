@@ -1,6 +1,6 @@
 # Accounts and bank lines
 
-Status: partly built. The import capability exists on `main` with its checks. No screen, RPC route, MCP tool, or CLI command reaches it yet.
+Status: partly built. The import capability exists on `main` with its checks, and the transactions screen renders the demo book at `/app/transactions`. The screen reads a client-side fixture through the bank-lines gateway, not the capability over RPC, and no MCP tool or CLI command reaches it yet.
 
 ## What it promises
 
@@ -32,7 +32,7 @@ All are implemented and tested at the package level. The RPC, MCP, and CLI proje
 
 ## How to get to it (user POV)
 
-Today: the import capabilities through their package handlers, and the demo book through SQLite. No screen or transport.
+Today: the import capabilities through their package handlers, the demo book through SQLite, and the transactions screen at `/app/transactions` over a client-side demo fixture. The screen's search box, category links, edit form, and review button are real clicks in a real browser; the write they lead to stays in the browser's memory gateway, not in D1.
 
 Planned: the accounts section of the app, then an account, then its lines. The bank-lines slice adds the list, filter, search, edit, and review surfaces, and the same capability reaches MCP and the CLI. This page gets the exact route and tool name from that slice, not before.
 
@@ -83,6 +83,16 @@ The three bank-line capabilities have their own steps, so a run that skips one i
 
 Read a failure with `jq '.checks[] | select(.passed | not)' .claude/skills/verify-pecunia/evidence/<date>-<label>/proof.json`.
 
+### The transactions screen
+
+`/app/transactions` renders the list. The app screens feature drives it in headless Chromium with real clicks: typing in the search box, following a category link, and opening a line's edit form. It writes `web-transactions.png`, a full-page screenshot. The five checks are `web-transactions-lists-every-demo-line`, `web-transactions-search-narrows-the-list`, `web-transactions-category-link-filters-the-list`, `web-transactions-category-link-is-its-own-url`, and `web-transactions-edit-form-opens`, listed on [App screens](web-screens.md) because that run owns the browser:
+
+```sh
+bash .claude/skills/verify-pecunia/scripts/prove-demo-book.sh --feature web-screens
+```
+
+It is a read-only journey: no write leaves the browser.
+
 ## Driving the capability handlers by hand
 
 ```sh
@@ -111,6 +121,8 @@ node .claude/skills/verify-pecunia/scripts/drive-bank-lines.mjs --capability rev
 
 ## Gotchas
 
+- The category drill-down at `/app/spending/category/<id>` filters the list but keeps the heading `Transactions` and the notice about every line the demo sync wrote. A user who follows a category link cannot tell which category they are looking at from the page title. The drive records the filtered count and the address, not a category heading, because the heading is wrong today.
+- The transactions screen draws its categories from `apps/web/src/client/pecunia/catalogue.ts`, six of them, while the categories screen draws nine from a different fixture. The same demo book shows two different category lists on two screens.
 - The idempotency key is `(provider_account_id, external_id)` for synced lines and the line fingerprint for imported lines. A change that alters either key imports duplicates.
 - The import drive uses the package memory ledger. It proves the parse, fingerprint, and dedupe rules, not that a persistent store keeps them.
 - A failed sync keeps its quarantine rows. Deleting them hides the evidence a user needs to retry.

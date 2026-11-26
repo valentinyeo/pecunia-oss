@@ -54,7 +54,36 @@
     "aiToolsViewerConfirmLeavesCategory": "line=0192f0c1-6005-7a2b-8c4d-5e6f70819322 category=0192f0c1-6002-7a2b-8c4d-5e6f70819311",
     "aiToolsViewerSuggestStoresNothing": "suggestions=1 lines=0192f0c1-6005-7a2b-8c4d-5e6f70819322",
     "aiToolsViewerWrite": "reason=notPermitted field=none",
-    "aiToolsUnknownTool": "reason=unknownTool field=none"
+    "aiToolsUnknownTool": "reason=unknownTool field=none",
+    "webDashboardNetWorth": "£48,250.00",
+    "webDashboardSpendCategories": "Rent,Groceries,Transport,Eating out,Utilities,Everything else",
+    "webTransactionsLines": "12",
+    "webTransactionsSearch": "Demo Coffee; 2",
+    "webTransactionsCategoryLines": "2",
+    "webTransactionsEditForm": "Category,Note",
+    "webCategoriesSpendTable": "Spend in Mar 2026; Everything else; £2,500.00; £2,500.00; 82.4%",
+    "webCategoriesMonthPicker": "Spend in Jan 2026; Everything else; £2,500.00; £2,500.00; 82.4%",
+    "webCategoriesManaged": "9",
+    "webRules": "6",
+    "webRulesFirst": "Demo Grocer; contains \"Demo Grocer\"; Groceries",
+    "webRulesForm": "Least amount",
+    "webAliases": "4",
+    "webAliasMatchKind": "prefix",
+    "webAliasForm": "Text on the statement",
+    "webMerchants": "8 of 8 merchants",
+    "webMerchantsUncategorised": "2 of 8 merchants",
+    "webMerchantTop": "Demo Grocer; 12; £1,036.80",
+    "webReviewLines": "5",
+    "webReviewSuggestions": "2 suggestions are ready.",
+    "webSearchSuggestions": "5",
+    "webSearchResults": "Holdings,Payments; 11",
+    "webBudgetsPlaceholder": "This screen lands in a later slice. The demo book has no data for it yet.",
+    "webSubscriptionsFailure": "Service not found: @pecunia/web/SubscriptionsGateway",
+    "webInvestmentsPlatforms": "Generic Broker,Generic Crypto Exchange",
+    "webInvestmentsPriceless": "1",
+    "webInvestmentsValue": "€86,400.00 Gain €80,400.00",
+    "webSettingsValues": "GBP; en-GB; Europe/London",
+    "webSettingsProfiles": "Example Ltd,Demo Person"
   },
   "features": {
     "all": [
@@ -74,7 +103,20 @@
       "fx-conversion",
       "tax",
       "invoices",
-      "ai-tools"
+      "ai-tools",
+      "web-server",
+      "web-dashboard",
+      "web-transactions",
+      "web-categories",
+      "web-rules",
+      "web-aliases",
+      "web-merchants",
+      "web-review",
+      "web-search",
+      "web-budgets",
+      "web-subscriptions",
+      "web-investments",
+      "web-settings"
     ],
     "accounts-and-bank-lines": [
       "seed",
@@ -125,6 +167,25 @@
       "parity",
       "generic",
       "ai-tools"
+    ],
+    "web-screens": [
+      "seed",
+      "feature-map",
+      "parity",
+      "generic",
+      "web-server",
+      "web-dashboard",
+      "web-transactions",
+      "web-categories",
+      "web-rules",
+      "web-aliases",
+      "web-merchants",
+      "web-review",
+      "web-search",
+      "web-budgets",
+      "web-subscriptions",
+      "web-investments",
+      "web-settings"
     ]
   },
   "steps": [
@@ -692,6 +753,246 @@
         {
           "id": "invoice-archive-states",
           "equals": "0"
+        }
+      ]
+    },
+    {
+      "id": "web-server",
+      "commands": ["web-build", "web-serve"],
+      "outputs": ["web-server-log"],
+      "artifacts": [],
+      "capabilities": [],
+      "expectations": []
+    },
+    {
+      "id": "web-dashboard",
+      "commands": ["web-dashboard"],
+      "outputs": [],
+      "artifacts": ["web-dashboard.png"],
+      "capabilities": [],
+      "expectations": [
+        {
+          "id": "web-dashboard-net-worth",
+          "equalsDemoNumber": "webDashboardNetWorth"
+        },
+        {
+          "id": "web-dashboard-net-worth-matches-accounts",
+          "isTrue": true
+        },
+        {
+          "id": "web-dashboard-spend-by-category",
+          "equalsDemoNumber": "webDashboardSpendCategories"
+        }
+      ]
+    },
+    {
+      "id": "web-transactions",
+      "commands": ["web-transactions"],
+      "outputs": [],
+      "artifacts": ["web-transactions.png"],
+      "capabilities": [],
+      "expectations": [
+        {
+          "id": "web-transactions-lists-every-demo-line",
+          "equalsDemoNumber": "webTransactionsLines"
+        },
+        {
+          "id": "web-transactions-search-narrows-the-list",
+          "equalsDemoNumber": "webTransactionsSearch"
+        },
+        {
+          "id": "web-transactions-category-link-filters-the-list",
+          "equalsDemoNumber": "webTransactionsCategoryLines"
+        },
+        {
+          "id": "web-transactions-category-link-is-its-own-url",
+          "isTrue": true
+        },
+        {
+          "id": "web-transactions-edit-form-opens",
+          "equalsDemoNumber": "webTransactionsEditForm"
+        }
+      ]
+    },
+    {
+      "id": "web-categories",
+      "commands": ["web-categories"],
+      "outputs": [],
+      "artifacts": ["web-categories.png"],
+      "capabilities": [],
+      "expectations": [
+        {
+          "id": "web-categories-spend-table",
+          "equalsDemoNumber": "webCategoriesSpendTable"
+        },
+        {
+          "id": "web-categories-month-picker",
+          "equalsDemoNumber": "webCategoriesMonthPicker"
+        },
+        {
+          "id": "web-categories-management-lists-every-category",
+          "equalsDemoNumber": "webCategoriesManaged"
+        }
+      ]
+    },
+    {
+      "id": "web-rules",
+      "commands": ["web-rules"],
+      "outputs": [],
+      "artifacts": ["web-rules.png"],
+      "capabilities": [],
+      "expectations": [
+        {
+          "id": "web-rules-lists-every-rule",
+          "equalsDemoNumber": "webRules"
+        },
+        {
+          "id": "web-rules-shows-the-pattern",
+          "equalsDemoNumber": "webRulesFirst"
+        },
+        {
+          "id": "web-rules-new-rule-form-opens",
+          "equalsDemoNumber": "webRulesForm"
+        }
+      ]
+    },
+    {
+      "id": "web-aliases",
+      "commands": ["web-aliases"],
+      "outputs": [],
+      "artifacts": ["web-aliases.png"],
+      "capabilities": [],
+      "expectations": [
+        {
+          "id": "web-aliases-lists-every-alias",
+          "equalsDemoNumber": "webAliases"
+        },
+        {
+          "id": "web-aliases-shows-the-match-kind",
+          "equalsDemoNumber": "webAliasMatchKind"
+        },
+        {
+          "id": "web-aliases-new-alias-form-opens",
+          "equalsDemoNumber": "webAliasForm"
+        }
+      ]
+    },
+    {
+      "id": "web-merchants",
+      "commands": ["web-merchants"],
+      "outputs": [],
+      "artifacts": ["web-merchants.png"],
+      "capabilities": [],
+      "expectations": [
+        {
+          "id": "web-merchants-lists-every-merchant",
+          "equalsDemoNumber": "webMerchants"
+        },
+        {
+          "id": "web-merchants-filter-narrows-the-list",
+          "equalsDemoNumber": "webMerchantsUncategorised"
+        },
+        {
+          "id": "web-merchants-shows-count-and-total",
+          "equalsDemoNumber": "webMerchantTop"
+        }
+      ]
+    },
+    {
+      "id": "web-review",
+      "commands": ["web-review"],
+      "outputs": [],
+      "artifacts": ["web-review.png"],
+      "capabilities": [],
+      "expectations": [
+        {
+          "id": "web-review-lists-uncategorised-lines",
+          "equalsDemoNumber": "webReviewLines"
+        },
+        {
+          "id": "web-review-suggests-categories",
+          "equalsDemoNumber": "webReviewSuggestions"
+        }
+      ]
+    },
+    {
+      "id": "web-search",
+      "commands": ["web-search"],
+      "outputs": [],
+      "artifacts": ["web-search.png"],
+      "capabilities": [],
+      "expectations": [
+        {
+          "id": "web-search-suggests-while-typing",
+          "equalsDemoNumber": "webSearchSuggestions"
+        },
+        {
+          "id": "web-search-finds-payments-and-holdings",
+          "equalsDemoNumber": "webSearchResults"
+        }
+      ]
+    },
+    {
+      "id": "web-budgets",
+      "commands": ["web-budgets"],
+      "outputs": [],
+      "artifacts": ["web-budgets.png"],
+      "capabilities": [],
+      "expectations": [
+        {
+          "id": "web-budgets-is-a-later-slice",
+          "equalsDemoNumber": "webBudgetsPlaceholder"
+        }
+      ]
+    },
+    {
+      "id": "web-subscriptions",
+      "commands": ["web-subscriptions"],
+      "outputs": [],
+      "artifacts": ["web-subscriptions.png"],
+      "capabilities": [],
+      "expectations": [
+        {
+          "id": "web-subscriptions-fails-to-load",
+          "equalsDemoNumber": "webSubscriptionsFailure"
+        }
+      ]
+    },
+    {
+      "id": "web-investments",
+      "commands": ["web-investments"],
+      "outputs": [],
+      "artifacts": ["web-investments.png"],
+      "capabilities": [],
+      "expectations": [
+        {
+          "id": "web-investments-groups-holdings-by-platform",
+          "equalsDemoNumber": "webInvestmentsPlatforms"
+        },
+        {
+          "id": "web-investments-shows-a-priceless-holding",
+          "equalsDemoNumber": "webInvestmentsPriceless"
+        },
+        {
+          "id": "web-investments-shows-value-and-gain",
+          "equalsDemoNumber": "webInvestmentsValue"
+        }
+      ]
+    },
+    {
+      "id": "web-settings",
+      "commands": ["web-settings"],
+      "outputs": [],
+      "artifacts": ["web-settings.png"],
+      "capabilities": [],
+      "expectations": [
+        {
+          "id": "web-settings-shows-the-demo-values",
+          "equalsDemoNumber": "webSettingsValues"
+        },
+        {
+          "id": "web-settings-lists-the-profiles",
+          "equalsDemoNumber": "webSettingsProfiles"
         }
       ]
     }
