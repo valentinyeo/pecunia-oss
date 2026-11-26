@@ -746,9 +746,9 @@
         },
         {
           "id": "subscriptions-mark-reads-back",
-          "equals": "rows=2 frequency=monthly status=Confirmed annual=51000 next=2025-11-28",
           "readback": true,
-          "readOperation": "listSubscriptions"
+          "readOperation": "listSubscriptions",
+          "equalsRecords": "subscriptionsAfterMark"
         },
         {
           "id": "subscriptions-capability-cancels",
@@ -757,9 +757,9 @@
         },
         {
           "id": "subscriptions-cancel-reads-back",
-          "equals": "cloud=Cancelled monthly=4250 annual=51000",
           "readback": true,
-          "readOperation": "listSubscriptions"
+          "readOperation": "listSubscriptions",
+          "equalsRecords": "subscriptionsAfterCancel"
         },
         {
           "id": "subscriptions-capability-sets-category",
@@ -768,9 +768,9 @@
         },
         {
           "id": "subscriptions-category-reads-back",
-          "equals": "category=0192f0c1-000d-75e9-8fd7-fd7e43c901ee charges=6 matching=6",
           "readback": true,
-          "readOperation": "listSubscriptions"
+          "readOperation": "listSubscriptions",
+          "equalsRecords": "subscriptionsAfterCategory"
         }
       ],
       "writes": true,
@@ -826,9 +826,9 @@
         },
         {
           "id": "investments-add-reads-back",
-          "equals": "Demo Verify Stock quantity=2000000 value=300 gain=100",
           "readback": true,
-          "readOperation": "readInvestmentPortfolio"
+          "readOperation": "readInvestmentPortfolio",
+          "equalsRecords": "investmentsAfterAdd"
         },
         {
           "id": "investments-capability-edits-holding",
@@ -837,9 +837,9 @@
         },
         {
           "id": "investments-edit-reads-back",
-          "equals": "Demo Renamed Stock quantity=3000000 value=600 gain=400",
           "readback": true,
-          "readOperation": "readInvestmentPortfolio"
+          "readOperation": "readInvestmentPortfolio",
+          "equalsRecords": "investmentsAfterEdit"
         },
         {
           "id": "investments-capability-deletes-holding",
@@ -848,9 +848,9 @@
         },
         {
           "id": "investments-delete-reads-back",
-          "equals": "absent total=788640000 valued=2 unknown=1",
           "readback": true,
-          "readOperation": "readInvestmentPortfolio"
+          "readOperation": "readInvestmentPortfolio",
+          "equalsRecords": "investmentsAfterDelete"
         },
         {
           "id": "investments-capability-syncs-broker",
@@ -859,9 +859,9 @@
         },
         {
           "id": "investments-sync-reads-back",
-          "equals": "total=1577280000 valued=4 unknown=2 broker=3",
           "readback": true,
-          "readOperation": "readInvestmentPortfolio"
+          "readOperation": "readInvestmentPortfolio",
+          "equalsRecords": "investmentsAfterSync"
         },
         {
           "id": "investments-capability-refreshes-prices",
@@ -870,9 +870,9 @@
         },
         {
           "id": "investments-refresh-reads-back",
-          "equals": "total=1577520000 valued=4 unknown=2 crypto=generic-crypto-exchange:730000:8760000 gain=8160000,trading212:730000:8760000 gain=8160000",
           "readback": true,
-          "readOperation": "readInvestmentPortfolio"
+          "readOperation": "readInvestmentPortfolio",
+          "equalsRecords": "investmentsAfterRefresh"
         }
       ],
       "writes": true,
@@ -948,9 +948,9 @@
         },
         {
           "id": "tax-sync-reads-back",
-          "equals": "vat:2025-11-07:EUR:312500:Estimated,SelfAssessment:2026-01-31:GBP:124050:Estimated,SelfAssessment:2026-07-31:GBP:98000:Estimated",
           "readback": true,
-          "readOperation": "listTaxDues"
+          "readOperation": "listTaxDues",
+          "equalsRecords": "taxAfterSync"
         },
         {
           "id": "tax-sync-removes-missing-payment",
@@ -958,9 +958,9 @@
         },
         {
           "id": "tax-removal-reads-back",
-          "equals": "vat:2025-11-07:EUR:312500:Estimated,SelfAssessment:2026-01-31:GBP:124050:Estimated",
           "readback": true,
-          "readOperation": "listTaxDues"
+          "readOperation": "listTaxDues",
+          "equalsRecords": "taxAfterRemoval"
         },
         {
           "id": "tax-sync-replay-is-unchanged",
@@ -968,9 +968,9 @@
         },
         {
           "id": "tax-replay-reads-back",
-          "equals": "vat:2025-11-07:EUR:312500:Estimated,SelfAssessment:2026-01-31:GBP:124050:Estimated",
           "readback": true,
-          "readOperation": "listTaxDues"
+          "readOperation": "listTaxDues",
+          "equalsRecords": "taxAfterReplay"
         }
       ],
       "writes": true,
@@ -1057,9 +1057,9 @@
         },
         {
           "id": "invoices-place-reads-back",
-          "equals": "local:demo-verify-archive:*.tmp,private*",
           "readback": true,
-          "readOperation": "readArchivePlaces"
+          "readOperation": "readArchivePlaces",
+          "equalsRecords": "invoicesAfterPlace"
         },
         {
           "id": "invoices-capability-attaches-document",
@@ -1068,10 +1068,10 @@
         },
         {
           "id": "invoices-attach-reads-back",
-          "equals": "payment=true amount=EUR:2765 archive=Unarchived",
           "capability": "readInvoiceDocument",
           "readback": true,
-          "readOperation": "readInvoiceDocument"
+          "readOperation": "readInvoiceDocument",
+          "equalsRecords": "invoicesAfterAttach"
         },
         {
           "id": "invoices-capability-reserves-archive",
@@ -1080,9 +1080,9 @@
         },
         {
           "id": "invoices-reserve-reads-back",
-          "equals": "Reserved file=demo-file-2 place=true path=null",
           "readback": true,
-          "readOperation": "readInvoiceDocument"
+          "readOperation": "readInvoiceDocument",
+          "equalsRecords": "invoicesAfterReserve"
         },
         {
           "id": "invoices-capability-records-archive",
@@ -1091,9 +1091,9 @@
         },
         {
           "id": "invoices-archive-reads-back",
-          "equals": "Archived file=demo-file-2 stamped=true path=demo-verify-archive/2025/03/555555555555-demo-design-tool-2025-03.pdf",
           "readback": true,
-          "readOperation": "readInvoiceDocument"
+          "readOperation": "readInvoiceDocument",
+          "equalsRecords": "invoicesAfterArchive"
         },
         {
           "id": "invoices-capability-pages-archive",
@@ -1107,9 +1107,9 @@
         },
         {
           "id": "invoices-exception-reads-back",
-          "equals": "Excepted:Demo receipt requested.",
           "readback": true,
-          "readOperation": "listInvoiceStatus"
+          "readOperation": "listInvoiceStatus",
+          "equalsRecords": "invoicesAfterException"
         },
         {
           "id": "invoices-capability-saves-source",
@@ -1118,9 +1118,9 @@
         },
         {
           "id": "invoices-source-reads-back",
-          "equals": "demo design tool:https://portal.example.com/invoices:Demo updated portal.:email=false",
           "readback": true,
-          "readOperation": "readInvoiceSources"
+          "readOperation": "readInvoiceSources",
+          "equalsRecords": "invoicesAfterSource"
         },
         {
           "id": "invoices-capability-saves-file-once",
@@ -1129,9 +1129,9 @@
         },
         {
           "id": "invoices-file-reads-back",
-          "equals": "demo-verify.txt bytes=31 hash=496512b6ce7b02198462a4324d3e6731d5866cd6170ebd3ce9ced663dda534a2 amount=4250 attached=true",
           "readback": true,
-          "readOperation": "readInvoiceDocument"
+          "readOperation": "readInvoiceDocument",
+          "equalsRecords": "invoicesAfterFile"
         },
         {
           "id": "invoices-capability-registers-legacy-once",
@@ -1140,9 +1140,9 @@
         },
         {
           "id": "invoices-legacy-reads-back",
-          "equals": "demo-legacy.txt bytes=38 hash=fcd7af76b2bf09a1bd97fcf5e03cf3ce467d8ba8ee3a547ffd881beb20e8c1c5 amount=none attached=false",
           "readback": true,
-          "readOperation": "readInvoiceDocument"
+          "readOperation": "readInvoiceDocument",
+          "equalsRecords": "invoicesAfterLegacy"
         },
         {
           "id": "invoices-capability-deletes-source",
@@ -1151,9 +1151,9 @@
         },
         {
           "id": "invoices-source-delete-reads-back",
-          "equals": "0",
           "readback": true,
-          "readOperation": "readInvoiceSources"
+          "readOperation": "readInvoiceSources",
+          "equalsRecords": "invoicesAfterSourceDelete"
         },
         {
           "id": "invoices-capability-removes-document",
@@ -1162,9 +1162,9 @@
         },
         {
           "id": "invoices-remove-reads-back",
-          "equals": "missing=1 Demo Coffee:Invoiced,Demo Design Tool:Missing,Demo Cloud Hosting:Archived",
           "readback": true,
-          "readOperation": "listInvoiceStatus"
+          "readOperation": "listInvoiceStatus",
+          "equalsRecords": "invoicesAfterRemove"
         }
       ],
       "writes": true,
@@ -2290,6 +2290,710 @@
         },
         "status": "posted",
         "valueDate": "2024-02-10"
+      }
+    ],
+    "subscriptionsAfterMark": [
+      {
+        "activeAnnualMinor": 409800,
+        "activeMonthlyMinor": 34150,
+        "annualMinor": 358800,
+        "categoryId": "0192f0c1-000e-7d8a-8a87-a87dd2b6c1ba",
+        "chargesCount": 11,
+        "currency": "EUR",
+        "frequency": "monthly",
+        "id": "0192f0c1-0033-7362-801a-01a8162ef271",
+        "matchingCharges": 11,
+        "monthlyMinor": 29900,
+        "nextCharge": "2026-01-08",
+        "payeeId": "0192f0c1-0009-71f7-8998-998f8330df68",
+        "profileId": "0192f0c1-0001-702d-8484-48490b729601",
+        "status": "Confirmed"
+      },
+      {
+        "activeAnnualMinor": 409800,
+        "activeMonthlyMinor": 34150,
+        "annualMinor": 51000,
+        "categoryId": "0192f0c1-0011-79f9-8c9a-c9af5a7eff0d",
+        "chargesCount": 6,
+        "currency": "EUR",
+        "frequency": "monthly",
+        "id": "0192f0c1-0034-7407-85f0-5f03b39b14e9",
+        "matchingCharges": 6,
+        "monthlyMinor": 4250,
+        "nextCharge": "2025-11-28",
+        "payeeId": "0192f0c1-000a-743c-890f-90fb094546ce",
+        "profileId": "0192f0c1-0001-702d-8484-48490b729601",
+        "status": "Confirmed"
+      }
+    ],
+    "subscriptionsAfterCancel": [
+      {
+        "activeAnnualMinor": 51000,
+        "activeMonthlyMinor": 4250,
+        "annualMinor": 358800,
+        "categoryId": "0192f0c1-000e-7d8a-8a87-a87dd2b6c1ba",
+        "chargesCount": 11,
+        "currency": "EUR",
+        "frequency": "monthly",
+        "id": "0192f0c1-0033-7362-801a-01a8162ef271",
+        "matchingCharges": 11,
+        "monthlyMinor": 29900,
+        "nextCharge": null,
+        "payeeId": "0192f0c1-0009-71f7-8998-998f8330df68",
+        "profileId": "0192f0c1-0001-702d-8484-48490b729601",
+        "status": "Cancelled"
+      },
+      {
+        "activeAnnualMinor": 51000,
+        "activeMonthlyMinor": 4250,
+        "annualMinor": 51000,
+        "categoryId": "0192f0c1-0011-79f9-8c9a-c9af5a7eff0d",
+        "chargesCount": 6,
+        "currency": "EUR",
+        "frequency": "monthly",
+        "id": "0192f0c1-0034-7407-85f0-5f03b39b14e9",
+        "matchingCharges": 6,
+        "monthlyMinor": 4250,
+        "nextCharge": "2025-11-28",
+        "payeeId": "0192f0c1-000a-743c-890f-90fb094546ce",
+        "profileId": "0192f0c1-0001-702d-8484-48490b729601",
+        "status": "Confirmed"
+      }
+    ],
+    "subscriptionsAfterCategory": [
+      {
+        "activeAnnualMinor": 51000,
+        "activeMonthlyMinor": 4250,
+        "annualMinor": 358800,
+        "categoryId": "0192f0c1-000e-7d8a-8a87-a87dd2b6c1ba",
+        "chargesCount": 11,
+        "currency": "EUR",
+        "frequency": "monthly",
+        "id": "0192f0c1-0033-7362-801a-01a8162ef271",
+        "matchingCharges": 11,
+        "monthlyMinor": 29900,
+        "nextCharge": null,
+        "payeeId": "0192f0c1-0009-71f7-8998-998f8330df68",
+        "profileId": "0192f0c1-0001-702d-8484-48490b729601",
+        "status": "Cancelled"
+      },
+      {
+        "activeAnnualMinor": 51000,
+        "activeMonthlyMinor": 4250,
+        "annualMinor": 51000,
+        "categoryId": "0192f0c1-000d-75e9-8fd7-fd7e43c901ee",
+        "chargesCount": 6,
+        "currency": "EUR",
+        "frequency": "monthly",
+        "id": "0192f0c1-0034-7407-85f0-5f03b39b14e9",
+        "matchingCharges": 6,
+        "monthlyMinor": 4250,
+        "nextCharge": "2025-11-28",
+        "payeeId": "0192f0c1-000a-743c-890f-90fb094546ce",
+        "profileId": "0192f0c1-0001-702d-8484-48490b729601",
+        "status": "Confirmed"
+      }
+    ],
+    "investmentsAfterAdd": [
+      {
+        "gainMinor": null,
+        "id": "generic-broker:DEMO-TECH",
+        "name": "Demo Tech Stock",
+        "platformId": "generic-broker",
+        "portfolioTotalMinor": 788640300,
+        "priceMinor": null,
+        "profileId": "0192f0c1-0001-702d-8484-48490b729601",
+        "quantity": 0,
+        "symbol": "DEMO-TECH",
+        "unknownCount": 1,
+        "valueMinor": null,
+        "valuedCount": 3
+      },
+      {
+        "gainMinor": 779550000,
+        "id": "generic-broker:DEMO-WORLD",
+        "name": "Demo World ETF",
+        "platformId": "generic-broker",
+        "portfolioTotalMinor": 788640300,
+        "priceMinor": 520000,
+        "profileId": "0192f0c1-0001-702d-8484-48490b729601",
+        "quantity": 1500000000,
+        "symbol": "DEMO-WORLD",
+        "unknownCount": 1,
+        "valueMinor": 780000000,
+        "valuedCount": 3
+      },
+      {
+        "gainMinor": 8040000,
+        "id": "generic-crypto-exchange:DEMO-BTC",
+        "name": "Demo Bitcoin",
+        "platformId": "generic-crypto-exchange",
+        "portfolioTotalMinor": 788640300,
+        "priceMinor": 720000,
+        "profileId": "0192f0c1-0001-702d-8484-48490b729601",
+        "quantity": 12000000,
+        "symbol": "DEMO-BTC",
+        "unknownCount": 1,
+        "valueMinor": 8640000,
+        "valuedCount": 3
+      },
+      {
+        "gainMinor": 100,
+        "id": "manual:DEMO-VERIFY",
+        "name": "Demo Verify Stock",
+        "platformId": "manual",
+        "portfolioTotalMinor": 788640300,
+        "priceMinor": 150,
+        "profileId": "0192f0c1-0001-702d-8484-48490b729601",
+        "quantity": 2000000,
+        "symbol": "DEMO-VERIFY",
+        "unknownCount": 1,
+        "valueMinor": 300,
+        "valuedCount": 3
+      }
+    ],
+    "investmentsAfterEdit": [
+      {
+        "gainMinor": null,
+        "id": "generic-broker:DEMO-TECH",
+        "name": "Demo Tech Stock",
+        "platformId": "generic-broker",
+        "portfolioTotalMinor": 788640600,
+        "priceMinor": null,
+        "profileId": "0192f0c1-0001-702d-8484-48490b729601",
+        "quantity": 0,
+        "symbol": "DEMO-TECH",
+        "unknownCount": 1,
+        "valueMinor": null,
+        "valuedCount": 3
+      },
+      {
+        "gainMinor": 779550000,
+        "id": "generic-broker:DEMO-WORLD",
+        "name": "Demo World ETF",
+        "platformId": "generic-broker",
+        "portfolioTotalMinor": 788640600,
+        "priceMinor": 520000,
+        "profileId": "0192f0c1-0001-702d-8484-48490b729601",
+        "quantity": 1500000000,
+        "symbol": "DEMO-WORLD",
+        "unknownCount": 1,
+        "valueMinor": 780000000,
+        "valuedCount": 3
+      },
+      {
+        "gainMinor": 8040000,
+        "id": "generic-crypto-exchange:DEMO-BTC",
+        "name": "Demo Bitcoin",
+        "platformId": "generic-crypto-exchange",
+        "portfolioTotalMinor": 788640600,
+        "priceMinor": 720000,
+        "profileId": "0192f0c1-0001-702d-8484-48490b729601",
+        "quantity": 12000000,
+        "symbol": "DEMO-BTC",
+        "unknownCount": 1,
+        "valueMinor": 8640000,
+        "valuedCount": 3
+      },
+      {
+        "gainMinor": 400,
+        "id": "manual:DEMO-VERIFY",
+        "name": "Demo Renamed Stock",
+        "platformId": "manual",
+        "portfolioTotalMinor": 788640600,
+        "priceMinor": 200,
+        "profileId": "0192f0c1-0001-702d-8484-48490b729601",
+        "quantity": 3000000,
+        "symbol": "DEMO-VERIFY",
+        "unknownCount": 1,
+        "valueMinor": 600,
+        "valuedCount": 3
+      }
+    ],
+    "investmentsAfterDelete": [
+      {
+        "gainMinor": null,
+        "id": "generic-broker:DEMO-TECH",
+        "name": "Demo Tech Stock",
+        "platformId": "generic-broker",
+        "portfolioTotalMinor": 788640000,
+        "priceMinor": null,
+        "profileId": "0192f0c1-0001-702d-8484-48490b729601",
+        "quantity": 0,
+        "symbol": "DEMO-TECH",
+        "unknownCount": 1,
+        "valueMinor": null,
+        "valuedCount": 2
+      },
+      {
+        "gainMinor": 779550000,
+        "id": "generic-broker:DEMO-WORLD",
+        "name": "Demo World ETF",
+        "platformId": "generic-broker",
+        "portfolioTotalMinor": 788640000,
+        "priceMinor": 520000,
+        "profileId": "0192f0c1-0001-702d-8484-48490b729601",
+        "quantity": 1500000000,
+        "symbol": "DEMO-WORLD",
+        "unknownCount": 1,
+        "valueMinor": 780000000,
+        "valuedCount": 2
+      },
+      {
+        "gainMinor": 8040000,
+        "id": "generic-crypto-exchange:DEMO-BTC",
+        "name": "Demo Bitcoin",
+        "platformId": "generic-crypto-exchange",
+        "portfolioTotalMinor": 788640000,
+        "priceMinor": 720000,
+        "profileId": "0192f0c1-0001-702d-8484-48490b729601",
+        "quantity": 12000000,
+        "symbol": "DEMO-BTC",
+        "unknownCount": 1,
+        "valueMinor": 8640000,
+        "valuedCount": 2
+      }
+    ],
+    "investmentsAfterSync": [
+      {
+        "gainMinor": null,
+        "id": "generic-broker:DEMO-TECH",
+        "name": "Demo Tech Stock",
+        "platformId": "generic-broker",
+        "portfolioTotalMinor": 1577280000,
+        "priceMinor": null,
+        "profileId": "0192f0c1-0001-702d-8484-48490b729601",
+        "quantity": 0,
+        "symbol": "DEMO-TECH",
+        "unknownCount": 2,
+        "valueMinor": null,
+        "valuedCount": 4
+      },
+      {
+        "gainMinor": 779550000,
+        "id": "generic-broker:DEMO-WORLD",
+        "name": "Demo World ETF",
+        "platformId": "generic-broker",
+        "portfolioTotalMinor": 1577280000,
+        "priceMinor": 520000,
+        "profileId": "0192f0c1-0001-702d-8484-48490b729601",
+        "quantity": 1500000000,
+        "symbol": "DEMO-WORLD",
+        "unknownCount": 2,
+        "valueMinor": 780000000,
+        "valuedCount": 4
+      },
+      {
+        "gainMinor": 8040000,
+        "id": "generic-crypto-exchange:DEMO-BTC",
+        "name": "Demo Bitcoin",
+        "platformId": "generic-crypto-exchange",
+        "portfolioTotalMinor": 1577280000,
+        "priceMinor": 720000,
+        "profileId": "0192f0c1-0001-702d-8484-48490b729601",
+        "quantity": 12000000,
+        "symbol": "DEMO-BTC",
+        "unknownCount": 2,
+        "valueMinor": 8640000,
+        "valuedCount": 4
+      },
+      {
+        "gainMinor": 8040000,
+        "id": "trading212:DEMO-BTC",
+        "name": "Demo Bitcoin",
+        "platformId": "trading212",
+        "portfolioTotalMinor": 1577280000,
+        "priceMinor": 720000,
+        "profileId": "0192f0c1-0001-702d-8484-48490b729601",
+        "quantity": 12000000,
+        "symbol": "DEMO-BTC",
+        "unknownCount": 2,
+        "valueMinor": 8640000,
+        "valuedCount": 4
+      },
+      {
+        "gainMinor": null,
+        "id": "trading212:DEMO-TECH",
+        "name": "Demo Tech Stock",
+        "platformId": "trading212",
+        "portfolioTotalMinor": 1577280000,
+        "priceMinor": null,
+        "profileId": "0192f0c1-0001-702d-8484-48490b729601",
+        "quantity": 0,
+        "symbol": "DEMO-TECH",
+        "unknownCount": 2,
+        "valueMinor": null,
+        "valuedCount": 4
+      },
+      {
+        "gainMinor": 779550000,
+        "id": "trading212:DEMO-WORLD",
+        "name": "Demo World ETF",
+        "platformId": "trading212",
+        "portfolioTotalMinor": 1577280000,
+        "priceMinor": 520000,
+        "profileId": "0192f0c1-0001-702d-8484-48490b729601",
+        "quantity": 1500000000,
+        "symbol": "DEMO-WORLD",
+        "unknownCount": 2,
+        "valueMinor": 780000000,
+        "valuedCount": 4
+      }
+    ],
+    "investmentsAfterRefresh": [
+      {
+        "gainMinor": null,
+        "id": "generic-broker:DEMO-TECH",
+        "name": "Demo Tech Stock",
+        "platformId": "generic-broker",
+        "portfolioTotalMinor": 1577520000,
+        "priceMinor": null,
+        "profileId": "0192f0c1-0001-702d-8484-48490b729601",
+        "quantity": 0,
+        "symbol": "DEMO-TECH",
+        "unknownCount": 2,
+        "valueMinor": null,
+        "valuedCount": 4
+      },
+      {
+        "gainMinor": 779550000,
+        "id": "generic-broker:DEMO-WORLD",
+        "name": "Demo World ETF",
+        "platformId": "generic-broker",
+        "portfolioTotalMinor": 1577520000,
+        "priceMinor": 520000,
+        "profileId": "0192f0c1-0001-702d-8484-48490b729601",
+        "quantity": 1500000000,
+        "symbol": "DEMO-WORLD",
+        "unknownCount": 2,
+        "valueMinor": 780000000,
+        "valuedCount": 4
+      },
+      {
+        "gainMinor": 8160000,
+        "id": "generic-crypto-exchange:DEMO-BTC",
+        "name": "Demo Bitcoin",
+        "platformId": "generic-crypto-exchange",
+        "portfolioTotalMinor": 1577520000,
+        "priceMinor": 730000,
+        "profileId": "0192f0c1-0001-702d-8484-48490b729601",
+        "quantity": 12000000,
+        "symbol": "DEMO-BTC",
+        "unknownCount": 2,
+        "valueMinor": 8760000,
+        "valuedCount": 4
+      },
+      {
+        "gainMinor": 8160000,
+        "id": "trading212:DEMO-BTC",
+        "name": "Demo Bitcoin",
+        "platformId": "trading212",
+        "portfolioTotalMinor": 1577520000,
+        "priceMinor": 730000,
+        "profileId": "0192f0c1-0001-702d-8484-48490b729601",
+        "quantity": 12000000,
+        "symbol": "DEMO-BTC",
+        "unknownCount": 2,
+        "valueMinor": 8760000,
+        "valuedCount": 4
+      },
+      {
+        "gainMinor": null,
+        "id": "trading212:DEMO-TECH",
+        "name": "Demo Tech Stock",
+        "platformId": "trading212",
+        "portfolioTotalMinor": 1577520000,
+        "priceMinor": null,
+        "profileId": "0192f0c1-0001-702d-8484-48490b729601",
+        "quantity": 0,
+        "symbol": "DEMO-TECH",
+        "unknownCount": 2,
+        "valueMinor": null,
+        "valuedCount": 4
+      },
+      {
+        "gainMinor": 779550000,
+        "id": "trading212:DEMO-WORLD",
+        "name": "Demo World ETF",
+        "platformId": "trading212",
+        "portfolioTotalMinor": 1577520000,
+        "priceMinor": 520000,
+        "profileId": "0192f0c1-0001-702d-8484-48490b729601",
+        "quantity": 1500000000,
+        "symbol": "DEMO-WORLD",
+        "unknownCount": 2,
+        "valueMinor": 780000000,
+        "valuedCount": 4
+      }
+    ],
+    "taxAfterSync": [
+      {
+        "amount": {
+          "currency": "EUR",
+          "minor": 312500
+        },
+        "dueOn": "2025-11-07",
+        "id": "vat:2025-11-07:2025-09-30",
+        "kind": "vat",
+        "label": "Demo VAT",
+        "periodEndsOn": "2025-09-30",
+        "profileId": "0192f0c1-0001-702d-8484-48490b729601",
+        "status": "Estimated",
+        "taxProfileId": "0192f0c1-0040-75c4-8a37-7c0d1c2b6f10"
+      },
+      {
+        "amount": {
+          "currency": "GBP",
+          "minor": 124050
+        },
+        "dueOn": "2026-01-31",
+        "id": "SelfAssessment:2026-01-31:2025-04-05",
+        "kind": "SelfAssessment",
+        "label": "Self Assessment",
+        "periodEndsOn": "2025-04-05",
+        "profileId": "0192f0c1-0001-702d-8484-48490b729601",
+        "status": "Estimated",
+        "taxProfileId": "0192f0c1-0040-75c4-8a37-7c0d1c2b6f10"
+      },
+      {
+        "amount": {
+          "currency": "GBP",
+          "minor": 98000
+        },
+        "dueOn": "2026-07-31",
+        "id": "SelfAssessment:2026-07-31:2026-04-05",
+        "kind": "SelfAssessment",
+        "label": "Self Assessment",
+        "periodEndsOn": "2026-04-05",
+        "profileId": "0192f0c1-0001-702d-8484-48490b729601",
+        "status": "Estimated",
+        "taxProfileId": "0192f0c1-0040-75c4-8a37-7c0d1c2b6f10"
+      }
+    ],
+    "taxAfterRemoval": [
+      {
+        "amount": {
+          "currency": "EUR",
+          "minor": 312500
+        },
+        "dueOn": "2025-11-07",
+        "id": "vat:2025-11-07:2025-09-30",
+        "kind": "vat",
+        "label": "Demo VAT",
+        "periodEndsOn": "2025-09-30",
+        "profileId": "0192f0c1-0001-702d-8484-48490b729601",
+        "status": "Estimated",
+        "taxProfileId": "0192f0c1-0040-75c4-8a37-7c0d1c2b6f10"
+      },
+      {
+        "amount": {
+          "currency": "GBP",
+          "minor": 124050
+        },
+        "dueOn": "2026-01-31",
+        "id": "SelfAssessment:2026-01-31:2025-04-05",
+        "kind": "SelfAssessment",
+        "label": "Self Assessment",
+        "periodEndsOn": "2025-04-05",
+        "profileId": "0192f0c1-0001-702d-8484-48490b729601",
+        "status": "Estimated",
+        "taxProfileId": "0192f0c1-0040-75c4-8a37-7c0d1c2b6f10"
+      }
+    ],
+    "taxAfterReplay": [
+      {
+        "amount": {
+          "currency": "EUR",
+          "minor": 312500
+        },
+        "dueOn": "2025-11-07",
+        "id": "vat:2025-11-07:2025-09-30",
+        "kind": "vat",
+        "label": "Demo VAT",
+        "periodEndsOn": "2025-09-30",
+        "profileId": "0192f0c1-0001-702d-8484-48490b729601",
+        "status": "Estimated",
+        "taxProfileId": "0192f0c1-0040-75c4-8a37-7c0d1c2b6f10"
+      },
+      {
+        "amount": {
+          "currency": "GBP",
+          "minor": 124050
+        },
+        "dueOn": "2026-01-31",
+        "id": "SelfAssessment:2026-01-31:2025-04-05",
+        "kind": "SelfAssessment",
+        "label": "Self Assessment",
+        "periodEndsOn": "2025-04-05",
+        "profileId": "0192f0c1-0001-702d-8484-48490b729601",
+        "status": "Estimated",
+        "taxProfileId": "0192f0c1-0040-75c4-8a37-7c0d1c2b6f10"
+      }
+    ],
+    "invoicesAfterPlace": [
+      {
+        "blocklist": ["*.tmp", "private*"],
+        "id": "0192f0c1-0036-72cc-8abe-abebbea44bc0",
+        "profileId": "0192f0c1-0001-702d-8484-48490b729601",
+        "provider": "local",
+        "rootRef": "demo-verify-archive"
+      }
+    ],
+    "invoicesAfterAttach": [
+      {
+        "amountCurrency": "EUR",
+        "amountMinor": 2765,
+        "archiveFileId": null,
+        "archivePlaceId": null,
+        "archiveStamped": false,
+        "archiveState": "Unarchived",
+        "id": "0192f0c1-0038-7d36-85ce-5ceb83cb9775",
+        "originalFilename": "demo-design-tool-2025-03.pdf",
+        "path": null,
+        "profileId": "0192f0c1-0001-702d-8484-48490b729601",
+        "sha256": "5555555555555555555555555555555555555555555555555555555555555555",
+        "sizeBytes": 12288,
+        "transactionId": "0192f0c1-0029-768c-8adb-adbefc188d19"
+      }
+    ],
+    "invoicesAfterReserve": [
+      {
+        "amountCurrency": "EUR",
+        "amountMinor": 2765,
+        "archiveFileId": "demo-file-2",
+        "archivePlaceId": "0192f0c1-0036-72cc-8abe-abebbea44bc0",
+        "archiveStamped": false,
+        "archiveState": "Reserved",
+        "id": "0192f0c1-0038-7d36-85ce-5ceb83cb9775",
+        "originalFilename": "demo-design-tool-2025-03.pdf",
+        "path": null,
+        "profileId": "0192f0c1-0001-702d-8484-48490b729601",
+        "sha256": "5555555555555555555555555555555555555555555555555555555555555555",
+        "sizeBytes": 12288,
+        "transactionId": "0192f0c1-0029-768c-8adb-adbefc188d19"
+      }
+    ],
+    "invoicesAfterArchive": [
+      {
+        "amountCurrency": "EUR",
+        "amountMinor": 2765,
+        "archiveFileId": "demo-file-2",
+        "archivePlaceId": "0192f0c1-0036-72cc-8abe-abebbea44bc0",
+        "archiveStamped": true,
+        "archiveState": "Archived",
+        "id": "0192f0c1-0038-7d36-85ce-5ceb83cb9775",
+        "originalFilename": "demo-design-tool-2025-03.pdf",
+        "path": "demo-verify-archive/2025/03/555555555555-demo-design-tool-2025-03.pdf",
+        "profileId": "0192f0c1-0001-702d-8484-48490b729601",
+        "sha256": "5555555555555555555555555555555555555555555555555555555555555555",
+        "sizeBytes": 12288,
+        "transactionId": "0192f0c1-0029-768c-8adb-adbefc188d19"
+      }
+    ],
+    "invoicesAfterException": [
+      {
+        "id": "0192f0c1-002a-7549-8811-8111b948c159",
+        "merchant": "Demo Coffee",
+        "missingCount": 0,
+        "profileId": "0192f0c1-0001-702d-8484-48490b729601",
+        "reason": "Demo receipt requested.",
+        "status": "Excepted"
+      },
+      {
+        "id": "0192f0c1-0029-768c-8adb-adbefc188d19",
+        "merchant": "Demo Design Tool",
+        "missingCount": 0,
+        "profileId": "0192f0c1-0001-702d-8484-48490b729601",
+        "reason": null,
+        "status": "Archived"
+      },
+      {
+        "id": "0192f0c1-0028-7018-8357-3578945c907b",
+        "merchant": "Demo Cloud Hosting",
+        "missingCount": 0,
+        "profileId": "0192f0c1-0001-702d-8484-48490b729601",
+        "reason": null,
+        "status": "Archived"
+      }
+    ],
+    "invoicesAfterSource": [
+      {
+        "emailRetrieval": false,
+        "id": "0192f0c1-0035-7dd0-8aba-aba363f96bd0",
+        "notes": "Demo updated portal.",
+        "pattern": "demo design tool",
+        "portalRetrieval": true,
+        "portalUrl": "https://portal.example.com/invoices",
+        "profileId": "0192f0c1-0001-702d-8484-48490b729601",
+        "twoFactor": true
+      }
+    ],
+    "invoicesAfterFile": [
+      {
+        "amountCurrency": "EUR",
+        "amountMinor": 4250,
+        "archiveFileId": null,
+        "archivePlaceId": null,
+        "archiveStamped": false,
+        "archiveState": "Unarchived",
+        "id": "document-new-0192f0c1-0001-702d-8484-48490b729601-2",
+        "originalFilename": "demo-verify.txt",
+        "path": null,
+        "profileId": "0192f0c1-0001-702d-8484-48490b729601",
+        "sha256": "496512b6ce7b02198462a4324d3e6731d5866cd6170ebd3ce9ced663dda534a2",
+        "sizeBytes": 31,
+        "transactionId": "0192f0c1-002a-7549-8811-8111b948c159"
+      }
+    ],
+    "invoicesAfterLegacy": [
+      {
+        "amountCurrency": null,
+        "amountMinor": null,
+        "archiveFileId": null,
+        "archivePlaceId": null,
+        "archiveStamped": false,
+        "archiveState": "Unarchived",
+        "id": "document-new-0192f0c1-0001-702d-8484-48490b729601-3",
+        "originalFilename": "demo-legacy.txt",
+        "path": null,
+        "profileId": "0192f0c1-0001-702d-8484-48490b729601",
+        "sha256": "fcd7af76b2bf09a1bd97fcf5e03cf3ce467d8ba8ee3a547ffd881beb20e8c1c5",
+        "sizeBytes": 38,
+        "transactionId": null
+      }
+    ],
+    "invoicesAfterSourceDelete": [
+      {
+        "deletedSourceId": "0192f0c1-0035-7dd0-8aba-aba363f96bd0",
+        "id": "invoice-sources",
+        "profileId": "0192f0c1-0001-702d-8484-48490b729601",
+        "remainingCount": 0
+      }
+    ],
+    "invoicesAfterRemove": [
+      {
+        "id": "0192f0c1-002a-7549-8811-8111b948c159",
+        "merchant": "Demo Coffee",
+        "missingCount": 1,
+        "profileId": "0192f0c1-0001-702d-8484-48490b729601",
+        "reason": null,
+        "status": "Invoiced"
+      },
+      {
+        "id": "0192f0c1-0029-768c-8adb-adbefc188d19",
+        "merchant": "Demo Design Tool",
+        "missingCount": 1,
+        "profileId": "0192f0c1-0001-702d-8484-48490b729601",
+        "reason": null,
+        "status": "Missing"
+      },
+      {
+        "id": "0192f0c1-0028-7018-8357-3578945c907b",
+        "merchant": "Demo Cloud Hosting",
+        "missingCount": 1,
+        "profileId": "0192f0c1-0001-702d-8484-48490b729601",
+        "reason": null,
+        "status": "Archived"
       }
     ]
   }

@@ -62,6 +62,22 @@ const duesText = (page) =>
     )
     .join(",");
 
+const dueRecords = (page) =>
+  page.dues.map((due) => ({
+    amount: {
+      currency: due.amount.currency,
+      minor: due.amount.minor,
+    },
+    dueOn: due.dueOn,
+    id: `${due.kind}:${due.dueOn}:${due.periodEndsOn}`,
+    kind: due.kind,
+    label: due.label,
+    periodEndsOn: due.periodEndsOn,
+    profileId: due.profileId,
+    status: due.status._tag,
+    taxProfileId: due.taxProfileId,
+  }));
+
 const observations = await Effect.runPromise(
   Effect.gen(function* driveTax() {
     const payload = yield* Ref.make(demoFreeAgentDues);
@@ -118,7 +134,7 @@ const observations = await Effect.runPromise(
         observe({
           id: "tax-sync-reads-back",
           operation: "listTaxDues",
-          value: duesText(stored),
+          value: dueRecords(stored),
         }),
         observe({
           id: "tax-sync-removes-missing-payment",
@@ -127,7 +143,7 @@ const observations = await Effect.runPromise(
         observe({
           id: "tax-removal-reads-back",
           operation: "listTaxDues",
-          value: duesText(afterRemoval),
+          value: dueRecords(afterRemoval),
         }),
         observe({
           id: "tax-sync-replay-is-unchanged",
@@ -136,7 +152,7 @@ const observations = await Effect.runPromise(
         observe({
           id: "tax-replay-reads-back",
           operation: "listTaxDues",
-          value: duesText(afterReplay),
+          value: dueRecords(afterReplay),
         }),
       ];
     }).pipe(Effect.provide(world));

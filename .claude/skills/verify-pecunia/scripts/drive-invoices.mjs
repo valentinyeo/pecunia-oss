@@ -112,11 +112,67 @@ const legacyFile = {
 const statusText = (page) =>
   `missing=${page.missingCount} ${page.rows.map((row) => `${row.merchant}:${row.status._tag}`).join(",")}`;
 
-const fileText = (stored) => {
-  const { document } = stored;
+const placeRecords = (page) =>
+  page.places.map((row) => ({
+    blocklist: [...row.blocklist],
+    id: row.id,
+    profileId: row.profileId,
+    provider: row.provider,
+    rootRef: row.rootRef,
+  }));
 
-  return `${document.originalFilename} bytes=${document.sizeBytes} hash=${document.sha256} amount=${Option.getOrNull(document.amount)?.minor ?? "none"} attached=${Option.isSome(document.transactionId)}`;
+const documentRecord = (stored) => {
+  const { document } = stored;
+  const amount = Option.getOrNull(document.amount);
+
+  return {
+    amountCurrency: amount?.currency ?? null,
+    amountMinor: amount?.minor ?? null,
+    archiveFileId:
+      document.archive._tag === "Reserved" ||
+      document.archive._tag === "Archived"
+        ? document.archive.fileId
+        : null,
+    archivePlaceId:
+      document.archive._tag === "Reserved" ||
+      document.archive._tag === "Archived"
+        ? document.archive.placeId
+        : null,
+    archiveStamped:
+      document.archive._tag === "Archived" &&
+      Number.isSafeInteger(document.archive.archivedAt),
+    archiveState: document.archive._tag,
+    id: document.id,
+    originalFilename: document.originalFilename,
+    path: Option.getOrNull(stored.path),
+    profileId: document.profileId,
+    sha256: document.sha256,
+    sizeBytes: document.sizeBytes,
+    transactionId: Option.getOrNull(document.transactionId),
+  };
 };
+
+const statusRecords = (page) =>
+  page.rows.map((row) => ({
+    id: row.transactionId,
+    merchant: row.merchant,
+    missingCount: page.missingCount,
+    profileId: demoProfileId,
+    reason: row.status._tag === "Excepted" ? row.status.reason : null,
+    status: row.status._tag,
+  }));
+
+const sourceRecords = (page) =>
+  page.sources.map((row) => ({
+    emailRetrieval: row.retrieval.email,
+    id: row.id,
+    notes: Option.getOrNull(row.notes),
+    pattern: row.pattern,
+    portalRetrieval: row.retrieval.portal,
+    portalUrl: Option.getOrNull(row.portalUrl),
+    profileId: row.profileId,
+    twoFactor: row.retrieval.twoFactor,
+  }));
 
 const observations = await Effect.runPromise(
   Effect.gen(function* driveInvoices() {
@@ -190,11 +246,7 @@ const observations = await Effect.runPromise(
       observe({
         id: "invoices-place-reads-back",
         operation: "readArchivePlaces",
-        value: afterPlace.places
-          .map(
-            (row) => `${row.provider}:${row.rootRef}:${row.blocklist.join(",")}`
-          )
-          .join(";"),
+        value: placeRecords(afterPlace),
       })
     );
 
@@ -220,7 +272,7 @@ const observations = await Effect.runPromise(
       observe({
         id: "invoices-attach-reads-back",
         operation: "readInvoiceDocument",
-        value: `payment=${Option.getOrNull(afterAttach.document.transactionId) === design.id} amount=${Option.getOrNull(afterAttach.document.amount)?.currency}:${Option.getOrNull(afterAttach.document.amount)?.minor} archive=${afterAttach.document.archive._tag}`,
+        value: [documentRecord(afterAttach)],
       })
     );
 
@@ -247,7 +299,7 @@ const observations = await Effect.runPromise(
       observe({
         id: "invoices-reserve-reads-back",
         operation: "readInvoiceDocument",
-        value: `${afterReserve.document.archive._tag} file=${afterReserve.document.archive.fileId} place=${afterReserve.document.archive.placeId === place.id} path=${Option.getOrNull(afterReserve.path)}`,
+        value: [documentRecord(afterReserve)],
       })
     );
 
@@ -273,7 +325,7 @@ const observations = await Effect.runPromise(
       observe({
         id: "invoices-archive-reads-back",
         operation: "readInvoiceDocument",
-        value: `${afterArchive.document.archive._tag} file=${afterArchive.document.archive.fileId} stamped=${Number.isSafeInteger(afterArchive.document.archive.archivedAt)} path=${Option.getOrNull(afterArchive.path)}`,
+        value: [documentRecord(afterArchive)],
       })
     );
 
@@ -311,15 +363,11 @@ const observations = await Effect.runPromise(
 
     const afterException = yield* listInvoiceStatus.handler(statusRequest);
 
-    const exceptedRow = afterException.rows.find(
-      (row) => row.transactionId === coffee.id
-    );
-
     emitted.push(
       observe({
         id: "invoices-exception-reads-back",
         operation: "listInvoiceStatus",
-        value: `${exceptedRow.status._tag}:${exceptedRow.status.reason}`,
+        value: statusRecords(afterException),
       })
     );
 
@@ -351,12 +399,7 @@ const observations = await Effect.runPromise(
       observe({
         id: "invoices-source-reads-back",
         operation: "readInvoiceSources",
-        value: afterSource.sources
-          .map(
-            (row) =>
-              `${row.pattern}:${Option.getOrNull(row.portalUrl)}:${Option.getOrNull(row.notes)}:email=${row.retrieval.email}`
-          )
-          .join(","),
+        value: sourceRecords(afterSource),
       })
     );
 
@@ -388,7 +431,7 @@ const observations = await Effect.runPromise(
       observe({
         id: "invoices-file-reads-back",
         operation: "readInvoiceDocument",
-        value: fileText(afterFile),
+        value: [documentRecord(afterFile)],
       })
     );
 
@@ -420,7 +463,7 @@ const observations = await Effect.runPromise(
       observe({
         id: "invoices-legacy-reads-back",
         operation: "readInvoiceDocument",
-        value: fileText(afterLegacy),
+        value: [documentRecord(afterLegacy)],
       })
     );
 
@@ -442,7 +485,14 @@ const observations = await Effect.runPromise(
       observe({
         id: "invoices-source-delete-reads-back",
         operation: "readInvoiceSources",
-        value: `${afterDeleteSource.sources.length}`,
+        value: [
+          {
+            deletedSourceId: savedSource.id,
+            id: "invoice-sources",
+            profileId: demoProfileId,
+            remainingCount: afterDeleteSource.sources.length,
+          },
+        ],
       })
     );
 
@@ -464,7 +514,7 @@ const observations = await Effect.runPromise(
       observe({
         id: "invoices-remove-reads-back",
         operation: "listInvoiceStatus",
-        value: statusText(afterRemove),
+        value: statusRecords(afterRemove),
       })
     );
 

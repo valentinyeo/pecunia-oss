@@ -98,15 +98,29 @@ const valueText = (row) =>
     ? `${row.value.amount.minor} gain=${Predicate.isTagged(row.value.gain, "Known") ? row.value.gain.amount.minor : row.value.gain.reason}`
     : row.value.reason;
 
-const manualText = (portfolio) => {
-  const row = rowsOf(portfolio).find(
-    (holding) => holding.symbol === "DEMO-VERIFY"
-  );
-
-  return row === undefined
-    ? `absent ${totalText(portfolio)}`
-    : `${row.name} quantity=${row.quantity} value=${valueText(row)}`;
-};
+const portfolioRecords = (portfolio) =>
+  rowsOf(portfolio).map((row) => ({
+    gainMinor:
+      Predicate.isTagged(row.value, "Known") &&
+      Predicate.isTagged(row.value.gain, "Known")
+        ? row.value.gain.amount.minor
+        : null,
+    id: `${row.platformId}:${row.symbol}`,
+    name: row.name,
+    platformId: row.platformId,
+    portfolioTotalMinor: Predicate.isTagged(portfolio.total, "Known")
+      ? portfolio.total.amount.minor
+      : null,
+    priceMinor: Option.getOrNull(row.price)?.minor ?? null,
+    profileId: demoProfileId,
+    quantity: row.quantity,
+    symbol: row.symbol,
+    unknownCount: portfolio.unknownCount,
+    valueMinor: Predicate.isTagged(row.value, "Known")
+      ? row.value.amount.minor
+      : null,
+    valuedCount: portfolio.valuedCount,
+  }));
 
 const observations = await Effect.runPromise(
   Effect.gen(function* driveInvestments() {
@@ -152,7 +166,7 @@ const observations = await Effect.runPromise(
       observe({
         id: "investments-add-reads-back",
         operation: "readInvestmentPortfolio",
-        value: manualText(afterAdd),
+        value: portfolioRecords(afterAdd),
       })
     );
 
@@ -181,7 +195,7 @@ const observations = await Effect.runPromise(
       observe({
         id: "investments-edit-reads-back",
         operation: "readInvestmentPortfolio",
-        value: manualText(afterEdit),
+        value: portfolioRecords(afterEdit),
       })
     );
 
@@ -203,7 +217,7 @@ const observations = await Effect.runPromise(
       observe({
         id: "investments-delete-reads-back",
         operation: "readInvestmentPortfolio",
-        value: manualText(afterDelete),
+        value: portfolioRecords(afterDelete),
       })
     );
 
@@ -226,7 +240,7 @@ const observations = await Effect.runPromise(
       observe({
         id: "investments-sync-reads-back",
         operation: "readInvestmentPortfolio",
-        value: `${totalText(afterSync)} broker=${afterSync.groups.find((group) => group.platform.id === demoTrading212PlatformId).holdings.length}`,
+        value: portfolioRecords(afterSync),
       })
     );
 
@@ -245,14 +259,7 @@ const observations = await Effect.runPromise(
       observe({
         id: "investments-refresh-reads-back",
         operation: "readInvestmentPortfolio",
-        value: `${totalText(afterRefresh)} crypto=${rowsOf(afterRefresh)
-          .filter((row) => row.symbol === "DEMO-BTC")
-          .map(
-            (row) =>
-              `${row.platformId}:${Option.getOrNull(row.price)?.minor}:${valueText(row)}`
-          )
-          .toSorted()
-          .join(",")}`,
+        value: portfolioRecords(afterRefresh),
       })
     );
 

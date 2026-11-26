@@ -196,6 +196,130 @@ const readbackFields = {
     "review",
   ],
   "ai-tools": ["id", "amount", "category", "note", "occurredAt", "status"],
+  subscriptions: [
+    "id",
+    "profileId",
+    "frequency",
+    "status",
+    "annualMinor",
+    "monthlyMinor",
+    "activeAnnualMinor",
+    "activeMonthlyMinor",
+    "nextCharge",
+    "categoryId",
+    "chargesCount",
+    "matchingCharges",
+  ],
+  investments: [
+    "id",
+    "profileId",
+    "platformId",
+    "symbol",
+    "name",
+    "quantity",
+    "priceMinor",
+    "valueMinor",
+    "gainMinor",
+    "portfolioTotalMinor",
+    "valuedCount",
+    "unknownCount",
+  ],
+  tax: [
+    "id",
+    "profileId",
+    "taxProfileId",
+    "kind",
+    "label",
+    "dueOn",
+    "periodEndsOn",
+    "amount",
+    "status",
+  ],
+  invoices: {
+    "invoices-place-reads-back": [
+      "id",
+      "profileId",
+      "provider",
+      "rootRef",
+      "blocklist",
+    ],
+    "invoices-attach-reads-back": [
+      "id",
+      "profileId",
+      "transactionId",
+      "amountCurrency",
+      "amountMinor",
+      "archiveState",
+    ],
+    "invoices-reserve-reads-back": [
+      "id",
+      "profileId",
+      "archiveState",
+      "archiveFileId",
+      "archivePlaceId",
+      "path",
+    ],
+    "invoices-archive-reads-back": [
+      "id",
+      "profileId",
+      "archiveState",
+      "archiveFileId",
+      "archiveStamped",
+      "path",
+    ],
+    "invoices-exception-reads-back": [
+      "id",
+      "profileId",
+      "merchant",
+      "status",
+      "reason",
+    ],
+    "invoices-source-reads-back": [
+      "id",
+      "profileId",
+      "pattern",
+      "portalUrl",
+      "notes",
+      "emailRetrieval",
+    ],
+    "invoices-file-reads-back": [
+      "id",
+      "profileId",
+      "originalFilename",
+      "sizeBytes",
+      "sha256",
+      "amountMinor",
+      "transactionId",
+    ],
+    "invoices-legacy-reads-back": [
+      "id",
+      "profileId",
+      "originalFilename",
+      "sizeBytes",
+      "sha256",
+      "amountMinor",
+      "transactionId",
+    ],
+    "invoices-source-delete-reads-back": [
+      "id",
+      "profileId",
+      "deletedSourceId",
+      "remainingCount",
+    ],
+    "invoices-remove-reads-back": [
+      "id",
+      "profileId",
+      "merchant",
+      "status",
+      "missingCount",
+    ],
+  },
+};
+
+const fieldsForReadback = (stepId, readbackId) => {
+  const entry = readbackFields[stepId];
+
+  return Array.isArray(entry) ? entry : entry[readbackId];
 };
 
 const awaitingReview = () => Object.fromEntries([["_tag", "Awaiting"]]);
@@ -495,21 +619,12 @@ const readbackCase = (kind, records, random) => {
   if (kind === 20) {
     const written = pick(random, writtenSteps(records));
     const readback = pick(random, readbacksOf(written));
+    const field = pick(random, fieldsForReadback(written.id, readback.id));
     const next = mutated(records);
 
     const matchedObservation = next
       .find((entry) => entry.step === written.id)
       .observations.find((entry) => entry.id === readback.id);
-
-    const fields = readbackFields[written.id];
-
-    if (fields === undefined) {
-      matchedObservation.value = `${matchedObservation.value}-corrupt`;
-
-      return caseResult(readback.id, next);
-    }
-
-    const field = pick(random, fields);
 
     matchedObservation.value = corruptRecords(matchedObservation.value, field);
 
@@ -1486,36 +1601,53 @@ test("the repository feature map reports no problems", () => {
 });
 
 test("a readback that differs in one field of one row fails and names the field", () => {
-  const fields = new Map([
-    ["accounts-and-bank-lines", "import-stores-every-line"],
-    ["bank-line-edit", "bank-line-edit-stores-category-and-note"],
-    ["bank-line-review", "bank-line-review-shows-in-the-list"],
-  ]);
+  const baseline = passingRecords();
 
-  for (const [step, id] of fields) {
-    for (const field of readbackFields[step]) {
-      const records = passingRecords();
+  for (const written of writtenSteps(baseline)) {
+    for (const readback of readbacksOf(written)) {
+      const fields = fieldsForReadback(written.id, readback.id);
 
-      const observation = records
-        .find((record) => record.step === step)
-        .observations.find((entry) => entry.id === id);
-
-      observation.value = corruptRecords(observation.value, field);
-
-      const result = judgeRecords(records);
-      const text = result.failures.join("\n");
-
-      /** @type {string | undefined} */
-      const line = result.failures.find(
-        (entry) =>
-          entry.includes(id) === true && entry.includes("observed") === true
-      );
-
-      assert.equal(result.passed, false, `${step} ${field} passed: ${text}`);
       assert.ok(
-        line !== undefined && line.includes(field),
-        `${step} ${field} did not name the field: ${text}`
+        Array.isArray(fields) && fields.length > 0,
+        `${written.id} ${readback.id} has no readbackFields entry`
       );
+
+      for (const field of fields) {
+        const records = passingRecords();
+
+        const observation = records
+          .find((record) => record.step === written.id)
+          .observations.find((entry) => entry.id === readback.id);
+
+        const rows = JSON.parse(observation.value);
+
+        assert.equal(
+          Object.hasOwn(rows[0], field),
+          true,
+          `${written.id} ${readback.id} row 0 is missing ${field}`
+        );
+
+        observation.value = corruptRecords(observation.value, field);
+
+        const result = judgeRecords(records);
+        const text = result.failures.join("\n");
+
+        const line = result.failures.find(
+          (entry) =>
+            entry.includes(readback.id) === true &&
+            entry.includes("observed") === true
+        );
+
+        assert.equal(
+          result.passed,
+          false,
+          `${written.id} ${readback.id} ${field} passed: ${text}`
+        );
+        assert.ok(
+          line !== undefined && line.includes(field),
+          `${written.id} ${readback.id} ${field} did not name the field: ${text}`
+        );
+      }
     }
   }
 });

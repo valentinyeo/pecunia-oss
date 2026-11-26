@@ -51,8 +51,40 @@ const [cloud, coffee] = demoSubscriptions;
 
 const categoryId = demoCategories[2].id;
 
+const subscriptionRecords = (page, allCharges) =>
+  page.subscriptions.map((row) => {
+    const rowCategory = Option.getOrNull(row.categoryId);
+
+    const payeeCharges = allCharges.filter(
+      (charge) => charge.payeeId === row.payeeId
+    );
+
+    return {
+      activeAnnualMinor: page.activeAnnual.minor,
+      activeMonthlyMinor: page.activeMonthly.minor,
+      annualMinor: row.cost.annual.minor,
+      categoryId: rowCategory,
+      chargesCount: payeeCharges.length,
+      currency: row.cost.annual.currency,
+      frequency: row.frequency,
+      id: row.id,
+      matchingCharges:
+        rowCategory === null
+          ? 0
+          : payeeCharges.filter((charge) =>
+              Option.contains(charge.categoryId, rowCategory)
+            ).length,
+      monthlyMinor: row.cost.monthly.minor,
+      nextCharge: Option.getOrNull(row.nextCharge),
+      payeeId: row.payeeId,
+      profileId: demoProfileId,
+      status: row.status._tag,
+    };
+  });
+
 const observations = await Effect.runPromise(
   Effect.gen(function* driveSubscriptions() {
+    const adapter = yield* SubscriptionStore;
     const before = yield* listSubscriptions.handler(request);
 
     const detected = yield* findRepeatPayments.handler({
@@ -90,16 +122,13 @@ const observations = await Effect.runPromise(
     );
 
     const afterMark = yield* listSubscriptions.handler(request);
-
-    const markedRow = afterMark.subscriptions.find(
-      (row) => row.id === coffee.id
-    );
+    const chargesAfterMark = yield* adapter.charges(demoProfileId);
 
     emitted.push(
       observe({
         id: "subscriptions-mark-reads-back",
         operation: "listSubscriptions",
-        value: `rows=${afterMark.subscriptions.length} frequency=${markedRow.frequency} status=${markedRow.status._tag} annual=${markedRow.cost.annual.minor} next=${Option.getOrNull(markedRow.nextCharge)}`,
+        value: subscriptionRecords(afterMark, chargesAfterMark),
       })
     );
 
@@ -116,11 +145,12 @@ const observations = await Effect.runPromise(
       })
     );
     const afterCancel = yield* listSubscriptions.handler(request);
+    const chargesAfterCancel = yield* adapter.charges(demoProfileId);
     emitted.push(
       observe({
         id: "subscriptions-cancel-reads-back",
         operation: "listSubscriptions",
-        value: `cloud=${afterCancel.subscriptions.find((row) => row.id === cloud.id).status._tag} monthly=${afterCancel.activeMonthly.minor} annual=${afterCancel.activeAnnual.minor}`,
+        value: subscriptionRecords(afterCancel, chargesAfterCancel),
       })
     );
 
@@ -139,17 +169,13 @@ const observations = await Effect.runPromise(
       })
     );
     const afterCategory = yield* listSubscriptions.handler(request);
-    const adapter = yield* SubscriptionStore;
-
-    const charges = (yield* adapter.charges(demoProfileId)).filter(
-      (row) => row.payeeId === coffee.payeeId
-    );
+    const chargesAfterCategory = yield* adapter.charges(demoProfileId);
 
     emitted.push(
       observe({
         id: "subscriptions-category-reads-back",
         operation: "listSubscriptions",
-        value: `category=${Option.getOrNull(afterCategory.subscriptions.find((row) => row.id === coffee.id).categoryId)} charges=${charges.length} matching=${charges.filter((row) => Option.contains(row.categoryId, categoryId)).length}`,
+        value: subscriptionRecords(afterCategory, chargesAfterCategory),
       })
     );
 
