@@ -409,7 +409,7 @@
     "[\"rat-stack\",\"log\",\"-n\",\"1\",\"--date=short\",\"--format=%ad%x09%H\",\"--\",\".brain/resources/peers.svx\"]": "2026-11-15\td2f3526f61d462cfc66622fb641bff53231afe2b\n",
     "[\"rat-stack\",\"log\",\"-n\",\"1\",\"--date=short\",\"--format=%ad%x09%H\",\"--\",\".brain/resources/same-version-repos.svx\"]": "2026-11-15\td2f3526f61d462cfc66622fb641bff53231afe2b\n",
     "[\"rat-stack\",\"log\",\"-n\",\"1\",\"--date=short\",\"--format=%ad%x09%H\",\"--\",\".brain/resources/schema-projections-and-code-mode.svx\"]": "2026-11-15\td2f3526f61d462cfc66622fb641bff53231afe2b\n",
-    "[\"rat-stack\",\"log\",\"-n\",\"1\",\"--date=short\",\"--format=%ad%x09%H\",\"--\",\".claude/skills/verify-pecunia/SKILL.md\"]": "2026-11-25\t9c0ba501def8d6b1d15bec8db6d32319c11302f6\n",
+    "[\"rat-stack\",\"log\",\"-n\",\"1\",\"--date=short\",\"--format=%ad%x09%H\",\"--\",\".claude/skills/verify-pecunia/SKILL.md\"]": "2026-11-26\t542cc049b05d7ca8290af56491e28ad174950408\n",
     "[\"rat-stack\",\"log\",\"-n\",\"1\",\"--date=short\",\"--format=%ad%x09%H\",\"--\",\"AGENTS.md\"]": "2026-11-20\t6dddeb70c7273fe9249ca2593ce10a377edbb01d\n",
     "[\"rat-stack\",\"log\",\"-n\",\"1\",\"--date=short\",\"--format=%ad%x09%H\",\"--\",\"README.md\"]": "2026-11-15\t6e1dd76a4ac7f7bde2f2a6a4b6216068d14b0ab8\n",
     "[\"rat-stack\",\"log\",\"-n\",\"1\",\"--date=short\",\"--format=%ad%x09%H\",\"--\",\"skills/add-a-capability/SKILL.md\"]": "2026-11-15\t6e1dd76a4ac7f7bde2f2a6a4b6216068d14b0ab8\n",
