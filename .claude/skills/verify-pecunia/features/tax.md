@@ -52,7 +52,17 @@ Checks this drive runs, on top of the four cross-cutting money checks:
 - `tax-unpaid-total`: unpaid tax is 312500 EUR minor units.
 - `tax-year`: the demo tax year is `GB`, starting 4-6.
 
-The demo-book drive reads the database. It does not run `syncTaxDues`; the sync is covered by the package tests below.
+The same drive calls both capability handlers against a separate memory book. Its FreeAgent adapter parses the recorded package demo payload; it makes no network call. A seeded VAT obligation checks that Self Assessment sync cannot replace other kinds:
+
+- `tax-capability-lists-dues`: the stored VAT due is 312500 EUR, with the GB tax year starting 6 April.
+- `tax-capability-syncs-recorded-books`: the first clean answer inserts two Self Assessment dues.
+- `tax-sync-reads-back`: listing returns the untouched VAT row and the two new GBP dues, 124050 and 98000, soonest first.
+- `tax-sync-removes-missing-payment`: dropping July from the recorded answer removes one due and leaves January unchanged.
+- `tax-removal-reads-back`: listing retains VAT and January, with July absent.
+- `tax-sync-replay-is-unchanged`: replay inserts, removes, and updates nothing; January is unchanged.
+- `tax-replay-reads-back`: the stored dues remain VAT and January after replay.
+
+`tax-drive.json` holds the observations and the adapter's successful replacement count. This proves the memory store and recorded parser, not D1 or live FreeAgent.
 
 ## Proof a pull request must attach
 

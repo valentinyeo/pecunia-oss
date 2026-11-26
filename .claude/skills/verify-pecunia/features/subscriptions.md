@@ -52,7 +52,18 @@ Checks this drive runs, on top of the four cross-cutting money checks:
 - `subscriptions-annual-cost`: the active repeat payment annualizes to 358800 EUR minor units.
 - `subscriptions-cancelled`: the cancelled repeat payment is present and outside active cost.
 
-Read a failure with `jq '.checks[] | select(.passed | not)' .claude/skills/verify-pecunia/evidence/<date>-<label>/proof.json`.
+The same drive calls all five capability handlers against `packages/subscriptions/src/demo.ts`. Writes affect only that run's memory store:
+
+- `subscriptions-capability-lists-costs`: two rows include one cancelled row; active monthly cost is 29900 and annual cost 358800.
+- `subscriptions-capability-detects-history`: Cloud, Coffee, and Design Tool are detected with their actual frequency, typical base charge, and occurrence count.
+- `subscriptions-capability-marks-existing`: marking Coffee monthly confirms its existing id and annualizes 4250 to 51000.
+- `subscriptions-mark-reads-back`: listing after marking still returns two rows, with Coffee monthly and confirmed, next due 28 November 2025.
+- `subscriptions-capability-cancels`: cancelling Cloud returns Cancelled without a next charge.
+- `subscriptions-cancel-reads-back`: listing after cancellation keeps Cloud cancelled and counts only Coffee's 51000 annual cost.
+- `subscriptions-capability-sets-category`: Coffee takes the Software category.
+- `subscriptions-category-reads-back`: a fresh list and charge-store read show Software on Coffee and all six past charges.
+
+`subscriptions-drive.json` holds the observations and the adapter's successful mutation count. Read a failure with `jq '.checks[] | select(.passed | not)' .claude/skills/verify-pecunia/evidence/<date>-<label>/proof.json`.
 
 ### The subscriptions screen
 

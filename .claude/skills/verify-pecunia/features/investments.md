@@ -63,6 +63,22 @@ Checks this drive runs, on top of the four cross-cutting money checks:
 - `holdings-known-value`: the known total is 788640000 EUR minor units, and the pending holding is outside it.
 - `holdings-platforms`: every holding's platform exists.
 
+The same drive calls all six capability handlers against `packages/investments/src/demo.ts`. The broker and quote adapters parse recorded demo payloads, without network calls:
+
+- `investments-capability-values-demo`: the portfolio returns 788640000 known value, two valued holdings, one unknown, and the exact per-holding gains above.
+- `investments-capability-adds-holding`: a manual demo stock is added with two units.
+- `investments-add-reads-back`: a fresh portfolio values that stock at 300 with a gain of 100.
+- `investments-capability-edits-holding`: the stock is renamed and changed to three units at 200 minor units.
+- `investments-edit-reads-back`: a fresh portfolio returns the new name, 600 value, and 400 gain.
+- `investments-capability-deletes-holding`: deletion returns the demo stock that left.
+- `investments-delete-reads-back`: the stock is absent and the original portfolio total is restored.
+- `investments-capability-syncs-broker`: the recorded broker answer creates three positions on the separate broker platform, one unpriced.
+- `investments-sync-reads-back`: the portfolio contains those positions, four valued holdings, and two unknowns.
+- `investments-capability-refreshes-prices`: the quote refresh prices four holdings and leaves two unknown.
+- `investments-refresh-reads-back`: both crypto positions take the changed recorded price, 730000, producing total known value 1577520000.
+
+`investments-drive.json` holds the observations and successful adapter mutation count. The changed crypto quote makes an omitted refresh observable; this is not a live price feed.
+
 ### The investments screen
 
 `/app/investments` renders the holdings. The app screens feature drives it in headless Chromium, read-only, and writes `web-investments.png`, a full-page screenshot. Its three checks are `web-investments-groups-holdings-by-platform`, `web-investments-shows-a-priceless-holding`, and `web-investments-shows-value-and-gain`, listed on [App screens](web-screens.md) because that run owns the browser:

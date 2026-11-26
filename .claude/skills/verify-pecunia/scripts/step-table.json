@@ -137,6 +137,7 @@
     ],
     "dashboard-sums": [
       "seed",
+      "build",
       "feature-map",
       "parity",
       "generic",
@@ -144,12 +145,20 @@
     ],
     "subscriptions": [
       "seed",
+      "build",
       "feature-map",
       "parity",
       "generic",
       "subscriptions"
     ],
-    "investments": ["seed", "feature-map", "parity", "generic", "investments"],
+    "investments": [
+      "seed",
+      "build",
+      "feature-map",
+      "parity",
+      "generic",
+      "investments"
+    ],
     "fx-conversion": [
       "seed",
       "feature-map",
@@ -157,8 +166,15 @@
       "generic",
       "fx-conversion"
     ],
-    "tax": ["seed", "feature-map", "parity", "generic", "tax"],
-    "invoices": ["seed", "feature-map", "parity", "generic", "invoices"],
+    "tax": ["seed", "build", "feature-map", "parity", "generic", "tax"],
+    "invoices": [
+      "seed",
+      "build",
+      "feature-map",
+      "parity",
+      "generic",
+      "invoices"
+    ],
     "ai-tools": [
       "seed",
       "build",
@@ -198,7 +214,16 @@
     },
     {
       "id": "build",
-      "commands": ["build-import", "build-lines", "build-ai-tools"],
+      "commands": [
+        "build-import",
+        "build-lines",
+        "build-ai-tools",
+        "build-reporting",
+        "build-subscriptions",
+        "build-tax",
+        "build-investments",
+        "build-invoices"
+      ],
       "outputs": ["build-log"],
       "artifacts": [],
       "capabilities": [],
@@ -575,10 +600,21 @@
     },
     {
       "id": "dashboard-sums",
-      "commands": [],
+      "commands": ["dashboard-sums-capabilities"],
       "outputs": [],
-      "artifacts": [],
-      "capabilities": [],
+      "artifacts": ["dashboard-sums-drive.json"],
+      "capabilities": [
+        "readDashboard",
+        "readCategories",
+        "readSpending",
+        "readCategoryPayments",
+        "readIncome",
+        "readMonth",
+        "listMonths",
+        "spendingSummary",
+        "incomeSummary",
+        "monthlyTotals"
+      ],
       "expectations": [
         {
           "id": "dashboard-spend",
@@ -611,15 +647,71 @@
         {
           "id": "dashboard-parent-category",
           "equalsDemoNumber": "dashboardParentCategory"
+        },
+        {
+          "id": "reporting-dashboard-totals",
+          "equals": "spend=90945 income=205200 refund=2500 balance=422000 tax=120000",
+          "capability": "readDashboard"
+        },
+        {
+          "id": "reporting-category-totals",
+          "equals": "spend=90945 Living:29945,Rent:45000,Software:12000,Transport:4000",
+          "capability": "readCategories"
+        },
+        {
+          "id": "reporting-spending-split",
+          "equals": "business:12000:1319,mixed:0:0,personal:78945:8681,uncategorised:0:0",
+          "capability": "readSpending"
+        },
+        {
+          "id": "reporting-parent-payments",
+          "equals": "spend=29945 lines=Demo Market,Demo Ferry,Demo Market,Demo Market sum=29945",
+          "capability": "readCategoryPayments"
+        },
+        {
+          "id": "reporting-income-clients",
+          "equals": "income=205200 refund=2500 Example Ltd:150000,Example Studio:55200",
+          "capability": "readIncome"
+        },
+        {
+          "id": "reporting-month-statement",
+          "equals": "spend=90945 days=31 daily=90945 payments=11",
+          "capability": "readMonth"
+        },
+        {
+          "id": "reporting-months-held",
+          "equals": "2024-04,2024-03,2024-02",
+          "capability": "listMonths"
+        },
+        {
+          "id": "reporting-spending-summary",
+          "equals": "EUR 90945 Living:29945,Rent:45000,Software:12000,Transport:4000",
+          "capability": "spendingSummary"
+        },
+        {
+          "id": "reporting-income-summary",
+          "equals": "EUR income=205200 refund=2500 Example Ltd:150000,Example Studio:55200",
+          "capability": "incomeSummary"
+        },
+        {
+          "id": "reporting-monthly-totals",
+          "equals": "2024-03 in=207700 out=110945 net=96755",
+          "capability": "monthlyTotals"
         }
       ]
     },
     {
       "id": "subscriptions",
-      "commands": [],
+      "commands": ["subscriptions-capabilities"],
       "outputs": [],
-      "artifacts": [],
-      "capabilities": [],
+      "artifacts": ["subscriptions-drive.json"],
+      "capabilities": [
+        "listSubscriptions",
+        "findRepeatPayments",
+        "markRepeatPayment",
+        "changeSubscriptionStatus",
+        "setSubscriptionCategory"
+      ],
       "expectations": [
         {
           "id": "subscriptions-have-a-frequency-rule",
@@ -636,15 +728,71 @@
         {
           "id": "subscriptions-cancelled",
           "equalsDemoNumber": "subscriptionsCancelled"
+        },
+        {
+          "id": "subscriptions-capability-lists-costs",
+          "equals": "rows=2 monthly=29900 annual=358800 cancelled=1",
+          "capability": "listSubscriptions"
+        },
+        {
+          "id": "subscriptions-capability-detects-history",
+          "equals": "Demo Cloud Hosting:monthly:29900:11,Demo Coffee:weekly:4250:6,Demo Design Tool:monthly:2765:3",
+          "capability": "findRepeatPayments"
+        },
+        {
+          "id": "subscriptions-capability-marks-existing",
+          "equals": "sameId=true status=Confirmed annual=51000",
+          "capability": "markRepeatPayment"
+        },
+        {
+          "id": "subscriptions-mark-reads-back",
+          "equals": "rows=2 frequency=monthly status=Confirmed annual=51000 next=2025-11-28",
+          "readback": true,
+          "readOperation": "listSubscriptions"
+        },
+        {
+          "id": "subscriptions-capability-cancels",
+          "equals": "status=Cancelled next=null",
+          "capability": "changeSubscriptionStatus"
+        },
+        {
+          "id": "subscriptions-cancel-reads-back",
+          "equals": "cloud=Cancelled monthly=4250 annual=51000",
+          "readback": true,
+          "readOperation": "listSubscriptions"
+        },
+        {
+          "id": "subscriptions-capability-sets-category",
+          "equals": "0192f0c1-000d-75e9-8fd7-fd7e43c901ee",
+          "capability": "setSubscriptionCategory"
+        },
+        {
+          "id": "subscriptions-category-reads-back",
+          "equals": "category=0192f0c1-000d-75e9-8fd7-fd7e43c901ee charges=6 matching=6",
+          "readback": true,
+          "readOperation": "listSubscriptions"
         }
+      ],
+      "writes": true,
+      "writeOperations": [
+        "markRepeatPayment",
+        "changeSubscriptionStatus",
+        "setSubscriptionCategory"
       ]
     },
     {
       "id": "investments",
-      "commands": [],
+      "commands": ["investments-capabilities"],
       "outputs": [],
-      "artifacts": [],
-      "capabilities": [],
+      "artifacts": ["investments-drive.json"],
+      "capabilities": [
+        "readInvestmentPortfolio",
+        "addHolding",
+        "editHolding",
+        "deleteHolding",
+        "syncInvestmentHoldings",
+        "refreshInvestmentPrices"
+      ],
       "expectations": [
         {
           "id": "holdings-value-math",
@@ -665,7 +813,75 @@
         {
           "id": "holdings-platforms",
           "equals": "0"
+        },
+        {
+          "id": "investments-capability-values-demo",
+          "equals": "total=788640000 valued=2 unknown=1 Demo Bitcoin=8640000 gain=8040000,Demo Tech Stock=no-price,Demo World ETF=780000000 gain=779550000",
+          "capability": "readInvestmentPortfolio"
+        },
+        {
+          "id": "investments-capability-adds-holding",
+          "equals": "symbol=DEMO-VERIFY quantity=2000000",
+          "capability": "addHolding"
+        },
+        {
+          "id": "investments-add-reads-back",
+          "equals": "Demo Verify Stock quantity=2000000 value=300 gain=100",
+          "readback": true,
+          "readOperation": "readInvestmentPortfolio"
+        },
+        {
+          "id": "investments-capability-edits-holding",
+          "equals": "Demo Renamed Stock quantity=3000000 price=200",
+          "capability": "editHolding"
+        },
+        {
+          "id": "investments-edit-reads-back",
+          "equals": "Demo Renamed Stock quantity=3000000 value=600 gain=400",
+          "readback": true,
+          "readOperation": "readInvestmentPortfolio"
+        },
+        {
+          "id": "investments-capability-deletes-holding",
+          "equals": "DEMO-VERIFY",
+          "capability": "deleteHolding"
+        },
+        {
+          "id": "investments-delete-reads-back",
+          "equals": "absent total=788640000 valued=2 unknown=1",
+          "readback": true,
+          "readOperation": "readInvestmentPortfolio"
+        },
+        {
+          "id": "investments-capability-syncs-broker",
+          "equals": "created=3 updated=0 unpriced=1",
+          "capability": "syncInvestmentHoldings"
+        },
+        {
+          "id": "investments-sync-reads-back",
+          "equals": "total=1577280000 valued=4 unknown=2 broker=3",
+          "readback": true,
+          "readOperation": "readInvestmentPortfolio"
+        },
+        {
+          "id": "investments-capability-refreshes-prices",
+          "equals": "priced=4 unpriced=2",
+          "capability": "refreshInvestmentPrices"
+        },
+        {
+          "id": "investments-refresh-reads-back",
+          "equals": "total=1577520000 valued=4 unknown=2 crypto=generic-crypto-exchange:730000:8760000 gain=8160000,trading212:730000:8760000 gain=8160000",
+          "readback": true,
+          "readOperation": "readInvestmentPortfolio"
         }
+      ],
+      "writes": true,
+      "writeOperations": [
+        "addHolding",
+        "editHolding",
+        "deleteHolding",
+        "syncInvestmentHoldings",
+        "refreshInvestmentPrices"
       ]
     },
     {
@@ -695,10 +911,10 @@
     },
     {
       "id": "tax",
-      "commands": [],
+      "commands": ["tax-capabilities"],
       "outputs": [],
-      "artifacts": [],
-      "capabilities": [],
+      "artifacts": ["tax-drive.json"],
+      "capabilities": ["listTaxDues", "syncTaxDues"],
       "expectations": [
         {
           "id": "tax-settles-once",
@@ -719,15 +935,71 @@
         {
           "id": "tax-year",
           "equalsDemoNumber": "taxYear"
+        },
+        {
+          "id": "tax-capability-lists-dues",
+          "equals": "year=GB 4-6 vat:2025-11-07:EUR:312500:Estimated",
+          "capability": "listTaxDues"
+        },
+        {
+          "id": "tax-capability-syncs-recorded-books",
+          "equals": "inserted=2 removed=0 unchanged=0 updated=0",
+          "capability": "syncTaxDues"
+        },
+        {
+          "id": "tax-sync-reads-back",
+          "equals": "vat:2025-11-07:EUR:312500:Estimated,SelfAssessment:2026-01-31:GBP:124050:Estimated,SelfAssessment:2026-07-31:GBP:98000:Estimated",
+          "readback": true,
+          "readOperation": "listTaxDues"
+        },
+        {
+          "id": "tax-sync-removes-missing-payment",
+          "equals": "inserted=0 removed=1 unchanged=1 updated=0"
+        },
+        {
+          "id": "tax-removal-reads-back",
+          "equals": "vat:2025-11-07:EUR:312500:Estimated,SelfAssessment:2026-01-31:GBP:124050:Estimated",
+          "readback": true,
+          "readOperation": "listTaxDues"
+        },
+        {
+          "id": "tax-sync-replay-is-unchanged",
+          "equals": "inserted=0 removed=0 unchanged=1 updated=0"
+        },
+        {
+          "id": "tax-replay-reads-back",
+          "equals": "vat:2025-11-07:EUR:312500:Estimated,SelfAssessment:2026-01-31:GBP:124050:Estimated",
+          "readback": true,
+          "readOperation": "listTaxDues"
         }
-      ]
+      ],
+      "writes": true,
+      "writeOperations": ["syncTaxDues"]
     },
     {
       "id": "invoices",
-      "commands": [],
+      "commands": ["invoices-capabilities"],
       "outputs": [],
-      "artifacts": [],
-      "capabilities": [],
+      "artifacts": ["invoices-drive.json"],
+      "capabilities": [
+        "listInvoiceStatus",
+        "countInvoiceCoverage",
+        "readArchivePlaces",
+        "readInvoiceSources",
+        "matchInvoices",
+        "saveArchivePlace",
+        "attachInvoice",
+        "readInvoiceDocument",
+        "reserveInvoiceArchive",
+        "recordInvoiceArchive",
+        "listArchivedDocuments",
+        "recordInvoiceException",
+        "saveInvoiceSource",
+        "saveInvoiceFile",
+        "registerLegacyInvoices",
+        "deleteInvoiceSource",
+        "removeInvoiceDocument"
+      ],
       "expectations": [
         {
           "id": "invoice-matches-its-line",
@@ -752,7 +1024,161 @@
         {
           "id": "invoice-archive-states",
           "equals": "0"
+        },
+        {
+          "id": "invoices-capability-lists-status",
+          "equals": "missing=1 Demo Coffee:Excepted,Demo Design Tool:Missing,Demo Cloud Hosting:Archived",
+          "capability": "listInvoiceStatus"
+        },
+        {
+          "id": "invoices-capability-counts-coverage",
+          "equals": "2025-04:1:0:1:0,2025-03:1:0:0:1,2025-02:1:1:0:0",
+          "capability": "countInvoiceCoverage"
+        },
+        {
+          "id": "invoices-capability-reads-places",
+          "equals": "local:demo-archive:*.tmp",
+          "capability": "readArchivePlaces"
+        },
+        {
+          "id": "invoices-capability-reads-sources",
+          "equals": "Demo Design Tool:https://portal.example.com",
+          "capability": "readInvoiceSources"
+        },
+        {
+          "id": "invoices-capability-proposes-match",
+          "equals": "proposals=1 document=true payment=true stillUnattached=true",
+          "capability": "matchInvoices"
+        },
+        {
+          "id": "invoices-capability-saves-place",
+          "equals": "sameId=true root=demo-verify-archive",
+          "capability": "saveArchivePlace"
+        },
+        {
+          "id": "invoices-place-reads-back",
+          "equals": "local:demo-verify-archive:*.tmp,private*",
+          "readback": true,
+          "readOperation": "readArchivePlaces"
+        },
+        {
+          "id": "invoices-capability-attaches-document",
+          "equals": "payment=true amount=EUR:2765",
+          "capability": "attachInvoice"
+        },
+        {
+          "id": "invoices-attach-reads-back",
+          "equals": "payment=true amount=EUR:2765 archive=Unarchived",
+          "capability": "readInvoiceDocument",
+          "readback": true,
+          "readOperation": "readInvoiceDocument"
+        },
+        {
+          "id": "invoices-capability-reserves-archive",
+          "equals": "Reserved",
+          "capability": "reserveInvoiceArchive"
+        },
+        {
+          "id": "invoices-reserve-reads-back",
+          "equals": "Reserved file=demo-file-2 place=true path=null",
+          "readback": true,
+          "readOperation": "readInvoiceDocument"
+        },
+        {
+          "id": "invoices-capability-records-archive",
+          "equals": "Archived",
+          "capability": "recordInvoiceArchive"
+        },
+        {
+          "id": "invoices-archive-reads-back",
+          "equals": "Archived file=demo-file-2 stamped=true path=demo-verify-archive/2025/03/555555555555-demo-design-tool-2025-03.pdf",
+          "readback": true,
+          "readOperation": "readInvoiceDocument"
+        },
+        {
+          "id": "invoices-capability-pages-archive",
+          "equals": "total=2 first=demo-design-tool-2025-03.pdf second=demo-cloud-hosting-2025-02.pdf end=true",
+          "capability": "listArchivedDocuments"
+        },
+        {
+          "id": "invoices-capability-records-exception",
+          "equals": "Demo receipt requested.",
+          "capability": "recordInvoiceException"
+        },
+        {
+          "id": "invoices-exception-reads-back",
+          "equals": "Excepted:Demo receipt requested.",
+          "readback": true,
+          "readOperation": "listInvoiceStatus"
+        },
+        {
+          "id": "invoices-capability-saves-source",
+          "equals": "sameId=true pattern=demo design tool",
+          "capability": "saveInvoiceSource"
+        },
+        {
+          "id": "invoices-source-reads-back",
+          "equals": "demo design tool:https://portal.example.com/invoices:Demo updated portal.:email=false",
+          "readback": true,
+          "readOperation": "readInvoiceSources"
+        },
+        {
+          "id": "invoices-capability-saves-file-once",
+          "equals": "sameId=true payment=true",
+          "capability": "saveInvoiceFile"
+        },
+        {
+          "id": "invoices-file-reads-back",
+          "equals": "demo-verify.txt bytes=31 hash=496512b6ce7b02198462a4324d3e6731d5866cd6170ebd3ce9ced663dda534a2 amount=4250 attached=true",
+          "readback": true,
+          "readOperation": "readInvoiceDocument"
+        },
+        {
+          "id": "invoices-capability-registers-legacy-once",
+          "equals": "first=Existing,Stored replay=Existing,Existing",
+          "capability": "registerLegacyInvoices"
+        },
+        {
+          "id": "invoices-legacy-reads-back",
+          "equals": "demo-legacy.txt bytes=38 hash=fcd7af76b2bf09a1bd97fcf5e03cf3ce467d8ba8ee3a547ffd881beb20e8c1c5 amount=none attached=false",
+          "readback": true,
+          "readOperation": "readInvoiceDocument"
+        },
+        {
+          "id": "invoices-capability-deletes-source",
+          "equals": "sameId=true",
+          "capability": "deleteInvoiceSource"
+        },
+        {
+          "id": "invoices-source-delete-reads-back",
+          "equals": "0",
+          "readback": true,
+          "readOperation": "readInvoiceSources"
+        },
+        {
+          "id": "invoices-capability-removes-document",
+          "equals": "sameId=true",
+          "capability": "removeInvoiceDocument"
+        },
+        {
+          "id": "invoices-remove-reads-back",
+          "equals": "missing=1 Demo Coffee:Invoiced,Demo Design Tool:Missing,Demo Cloud Hosting:Archived",
+          "readback": true,
+          "readOperation": "listInvoiceStatus"
         }
+      ],
+      "writes": true,
+      "writeOperations": [
+        "attachInvoice",
+        "saveArchivePlace",
+        "reserveInvoiceArchive",
+        "recordInvoiceArchive",
+        "recordInvoiceException",
+        "saveInvoiceSource",
+        "deleteInvoiceSource",
+        "saveInvoiceFile",
+        "registerLegacyInvoices",
+        "removeInvoiceDocument"
       ]
     },
     {

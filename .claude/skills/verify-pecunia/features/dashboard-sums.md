@@ -61,7 +61,20 @@ Checks this drive runs, on top of the four cross-cutting money checks:
 - `dashboard-category`: posted `Cloud` is 299000.
 - `dashboard-parent-category`: `Software` includes its `Cloud` child and is also 299000.
 
-This drive reads the SQLite demo book. The package tests read a different demo seed, `packages/reporting/src/demo.ts`, whose March spend is 90945 EUR minor units for the demo profile and 2500 GBP minor units for the second profile.
+The same drive also calls all ten reporting capability handlers against `packages/reporting/src/demo.ts`. These checks use its March 2024 book, not the SQLite totals above:
+
+- `reporting-dashboard-totals`: spend is 90945, income 205200, refunds 2500, balance 422000, and tax owed 120000.
+- `reporting-category-totals`: Living is 29945, Rent 45000, Software 12000, and Transport 4000.
+- `reporting-spending-split`: business spend is 12000 and personal spend 78945, with shares totaling 10000 basis points.
+- `reporting-parent-payments`: Living carries four child payments totaling 29945, newest first.
+- `reporting-income-clients`: Example Ltd contributes 150000 and Example Studio 55200; refunds stay separate.
+- `reporting-month-statement`: March has 31 daily rows totaling 90945 and eleven counted payments.
+- `reporting-months-held`: April, March, and February appear newest first.
+- `reporting-spending-summary`: the agent summary returns the same four category totals in EUR.
+- `reporting-income-summary`: the agent summary keeps client income and refunds apart.
+- `reporting-monthly-totals`: March has 207700 in, 110945 out, and 96755 net.
+
+`dashboard-sums-drive.json` holds the handler observations. The memory source proves the capability behavior, not a D1 adapter or a transport mount.
 
 ### The dashboard screen
 

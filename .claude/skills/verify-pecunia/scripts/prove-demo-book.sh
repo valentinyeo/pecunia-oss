@@ -124,7 +124,12 @@ step_build() {
   steps_run_command build-import pnpm turbo run build --filter=@pecunia/bank-import... > "$BUILD_LOG" 2>&1
   steps_run_command build-lines pnpm turbo run build --filter=@pecunia/bank-lines... >> "$BUILD_LOG" 2>&1
   steps_run_command build-ai-tools pnpm turbo run build --filter=@pecunia/ai-tools... >> "$BUILD_LOG" 2>&1
-  if [ "$(steps_command_exit build-import)" != 0 ] || [ "$(steps_command_exit build-lines)" != 0 ] || [ "$(steps_command_exit build-ai-tools)" != 0 ]; then
+  steps_run_command build-reporting pnpm turbo run build --filter=@pecunia/reporting... >> "$BUILD_LOG" 2>&1
+  steps_run_command build-subscriptions pnpm turbo run build --filter=@pecunia/subscriptions... >> "$BUILD_LOG" 2>&1
+  steps_run_command build-tax pnpm turbo run build --filter=@pecunia/tax... >> "$BUILD_LOG" 2>&1
+  steps_run_command build-investments pnpm turbo run build --filter=@pecunia/investments... >> "$BUILD_LOG" 2>&1
+  steps_run_command build-invoices pnpm turbo run build --filter=@pecunia/invoices... >> "$BUILD_LOG" 2>&1
+  if [ "$(steps_command_exit build-import)" != 0 ] || [ "$(steps_command_exit build-lines)" != 0 ] || [ "$(steps_command_exit build-ai-tools)" != 0 ] || [ "$(steps_command_exit build-reporting)" != 0 ] || [ "$(steps_command_exit build-subscriptions)" != 0 ] || [ "$(steps_command_exit build-tax)" != 0 ] || [ "$(steps_command_exit build-investments)" != 0 ] || [ "$(steps_command_exit build-invoices)" != 0 ]; then
     cat "$BUILD_LOG" >&2
   fi
   steps_require_file build-log "$BUILD_LOG"
@@ -386,6 +391,11 @@ step_dashboard_sums() {
   steps_observe dashboard-pending "$pending"
   steps_observe dashboard-category "$cloud"
   steps_observe dashboard-parent-category "$software"
+
+  local drive=$SCRATCH/dashboard-sums-drive.json
+  steps_run_command dashboard-sums-capabilities node "$SCRIPT_DIR/drive-reporting.mjs" > "$drive"
+  steps_keep_artifact dashboard-sums-drive.json "$drive"
+  steps_observe_json "$drive"
 }
 
 step_subscriptions() {
@@ -399,6 +409,12 @@ step_subscriptions() {
   steps_observe subscriptions-active "$active"
   steps_observe subscriptions-annual-cost "$annual"
   steps_observe subscriptions-cancelled "$cancelled"
+
+  local drive=$SCRATCH/subscriptions-drive.json
+  steps_run_command subscriptions-capabilities node "$SCRIPT_DIR/drive-subscriptions.mjs" > "$drive"
+  steps_keep_artifact subscriptions-drive.json "$drive"
+  steps_count_mutations "$(jq -r '.mutatingCalls // 0' "$drive" 2>/dev/null || printf '0')"
+  steps_observe_json "$drive"
 }
 
 step_investments() {
@@ -414,6 +430,12 @@ step_investments() {
   steps_observe holdings-pending-unknown "$pending"
   steps_observe holdings-known-value "$known"
   steps_observe holdings-platforms "$platforms"
+
+  local drive=$SCRATCH/investments-drive.json
+  steps_run_command investments-capabilities node "$SCRIPT_DIR/drive-investments.mjs" > "$drive"
+  steps_keep_artifact investments-drive.json "$drive"
+  steps_count_mutations "$(jq -r '.mutatingCalls // 0' "$drive" 2>/dev/null || printf '0')"
+  steps_observe_json "$drive"
 }
 
 step_fx_conversion() {
@@ -442,6 +464,12 @@ step_tax() {
   steps_observe tax-paid-total "$paid"
   steps_observe tax-unpaid-total "$unpaid"
   steps_observe tax-year "$tax_year"
+
+  local drive=$SCRATCH/tax-drive.json
+  steps_run_command tax-capabilities node "$SCRIPT_DIR/drive-tax.mjs" > "$drive"
+  steps_keep_artifact tax-drive.json "$drive"
+  steps_count_mutations "$(jq -r '.mutatingCalls // 0' "$drive" 2>/dev/null || printf '0')"
+  steps_observe_json "$drive"
 }
 
 step_invoices() {
@@ -459,6 +487,12 @@ step_invoices() {
   steps_observe invoice-archived "$archived"
   steps_observe invoice-vendors "$vendors"
   steps_observe invoice-archive-states "$archive_states"
+
+  local drive=$SCRATCH/invoices-drive.json
+  steps_run_command invoices-capabilities node "$SCRIPT_DIR/drive-invoices.mjs" > "$drive"
+  steps_keep_artifact invoices-drive.json "$drive"
+  steps_count_mutations "$(jq -r '.mutatingCalls // 0' "$drive" 2>/dev/null || printf '0')"
+  steps_observe_json "$drive"
 }
 
 mapfile -t PLANNED < <(node "$VERDICT" plan --feature "$FEATURE")

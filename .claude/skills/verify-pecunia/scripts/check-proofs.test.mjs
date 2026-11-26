@@ -495,12 +495,21 @@ const readbackCase = (kind, records, random) => {
   if (kind === 20) {
     const written = pick(random, writtenSteps(records));
     const readback = pick(random, readbacksOf(written));
-    const field = pick(random, readbackFields[written.id]);
     const next = mutated(records);
 
     const matchedObservation = next
       .find((entry) => entry.step === written.id)
       .observations.find((entry) => entry.id === readback.id);
+
+    const fields = readbackFields[written.id];
+
+    if (fields === undefined) {
+      matchedObservation.value = `${matchedObservation.value}-corrupt`;
+
+      return caseResult(readback.id, next);
+    }
+
+    const field = pick(random, fields);
 
     matchedObservation.value = corruptRecords(matchedObservation.value, field);
 

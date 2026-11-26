@@ -66,6 +66,37 @@ Checks this drive runs, on top of the four cross-cutting money checks:
 - `invoice-archive-states`: every document's archive columns match its state.
 - `invoice-vendors`: every vendor belongs to the document's profile.
 
+The same drive calls all seventeen capability handlers against `packages/invoices/src/demo.ts`. Writes stay in that run's memory store:
+
+- `invoices-capability-lists-status`: outgoing payments appear newest first as Excepted, Missing, and Archived.
+- `invoices-capability-counts-coverage`: each month's invoiced, excepted, and missing counts add to its payment count.
+- `invoices-capability-reads-places`: the local demo archive has its root and blocklist.
+- `invoices-capability-reads-sources`: the demo source names its vendor portal.
+- `invoices-capability-proposes-match`: the design receipt matches its payment without attaching it.
+- `invoices-capability-saves-place`: saving the local place preserves its id and trims the new root.
+- `invoices-place-reads-back`: rereading places returns the new root and trimmed blocklist.
+- `invoices-capability-attaches-document`: attaching the EUR receipt to the USD payment preserves its 2765 EUR amount.
+- `invoices-attach-reads-back`: rereading the document returns that attachment, amount, and Unarchived state.
+- `invoices-capability-reserves-archive`: reserving the receipt returns Reserved.
+- `invoices-reserve-reads-back`: rereading returns the reserved file and place, without an archived path.
+- `invoices-capability-records-archive`: recording success returns Archived.
+- `invoices-archive-reads-back`: rereading returns the archived file, timestamp, and dated path under the new root.
+- `invoices-capability-pages-archive`: two one-document pages return the newly archived receipt then the older invoice, without repetition.
+- `invoices-capability-records-exception`: replacing Coffee's exception trims the written reason.
+- `invoices-exception-reads-back`: listing payments returns the new Excepted reason.
+- `invoices-capability-saves-source`: saving the same pattern ignoring case preserves its id.
+- `invoices-source-reads-back`: rereading returns the changed portal, note, and retrieval settings.
+- `invoices-capability-saves-file-once`: saving the same generated demo file twice returns one attached document.
+- `invoices-file-reads-back`: rereading returns its exact size, SHA-256, amount, filename, and attachment.
+- `invoices-capability-registers-legacy-once`: registration returns Existing and Stored, then Existing twice on replay.
+- `invoices-legacy-reads-back`: rereading the new legacy record returns its exact size, SHA-256, and unattached state.
+- `invoices-capability-deletes-source`: deletion names the source that left.
+- `invoices-source-delete-reads-back`: rereading sources returns none.
+- `invoices-capability-removes-document`: removal names the archived receipt that left the book.
+- `invoices-remove-reads-back`: listing payments shows Design missing again and preserves the other payments' statuses.
+
+`invoices-drive.json` holds the observations and successful adapter mutation count. The two new fingerprints come from generated demo text bytes. This proves file metadata and archive records, not object storage, an upload, or a Drive copy.
+
 ## Proof a pull request must attach
 
 1. The demo-book run for this feature with a fresh label, and its evidence committed.
