@@ -1,18 +1,25 @@
 import * as Cloudflare from "@alchemy.run/cloudflare";
-import { toRpc } from "@pecunia/capability/rpc";
-import { flagCapabilities } from "@pecunia/core/flag-capabilities";
 import { eventFlags, Flags } from "@pecunia/core/flags";
 import { DatabaseVendor } from "@pecunia/database";
 import { D1Vendor } from "@pecunia/database/d1";
+import {
+  d1SqliteClientLayer,
+  SqliteClient,
+  SqliteClientError,
+} from "@pecunia/database/sqlite-client";
+import type { D1DatabaseLike } from "@pecunia/database/sqlite-client";
 import { configFlagsLayer } from "@pecunia/flags/config";
 import { retain } from "alchemy/RemovalPolicy";
 import { Stage } from "alchemy/Stage";
-import { Config, Context, Effect, Layer, Predicate } from "effect";
+import { Config, Context, Effect, Layer, Predicate, Schema } from "effect";
 import { identity } from "effect/Function";
-import { RpcSerialization, RpcServer } from "effect/rpc";
 
 import { privateObservability } from "../../site/src/observability.js";
+import { pecuniaRpcHttpEffect, rpcProjection } from "./rpc-handler.js";
 import { bindPlainSetting } from "./settings-binding.js";
+import { WorkerRuntimeUnavailable } from "./worker-runtime-error.js";
+
+export { rpcProjection } from "./rpc-handler.js";
 
 const retainInProd =
   globalThis.__ALCHEMY_RUNTIME__ === true
@@ -24,7 +31,65 @@ const d1DatabaseOf = (vendor: DatabaseVendor["Service"]) =>
     ? Effect.succeed(vendor.database)
     : Effect.die("D1Vendor declares exactly one D1 database");
 
-export const rpcProjection = toRpc(flagCapabilities);
+const isD1Database = (input: unknown): input is D1DatabaseLike =>
+  Predicate.isObject(input) &&
+  Predicate.hasProperty(input, "prepare") &&
+  Predicate.isFunction(input.prepare) &&
+  Predicate.hasProperty(input, "batch") &&
+  Predicate.isFunction(input.batch);
+
+const RuntimeDbModule = Schema.Struct({
+  env: Schema.Struct({
+    DB: Schema.declare<D1DatabaseLike>(isD1Database),
+  }),
+});
+
+const unreadySqliteLayer = Layer.succeed(
+  SqliteClient,
+  SqliteClient.of({
+    batch: (statements) =>
+      Effect.fail(
+        new SqliteClientError({
+          cause:
+            "DB binding is unavailable outside the Cloudflare Worker runtime",
+          operation: "batch",
+          sql: statements.map((statement) => statement.sql).join("; "),
+        })
+      ),
+    execute: (sql) =>
+      Effect.fail(
+        new SqliteClientError({
+          cause:
+            "DB binding is unavailable outside the Cloudflare Worker runtime",
+          operation: "execute",
+          sql,
+        })
+      ),
+    query: (sql) =>
+      Effect.fail(
+        new SqliteClientError({
+          cause:
+            "DB binding is unavailable outside the Cloudflare Worker runtime",
+          operation: "query",
+          sql,
+        })
+      ),
+  })
+);
+
+const runtimeSqliteLayer =
+  globalThis.__ALCHEMY_RUNTIME__ === true
+    ? Layer.unwrap(
+        Effect.tryPromise({
+          catch: (cause) => new WorkerRuntimeUnavailable({ cause }),
+          try: () => import("cloudflare:workers"),
+        }).pipe(
+          Effect.flatMap(Schema.decodeUnknownEffect(RuntimeDbModule)),
+          Effect.map(({ env }) => d1SqliteClientLayer(env.DB)),
+          Effect.orElseSucceed(() => unreadySqliteLayer)
+        )
+      )
+    : unreadySqliteLayer;
 
 export default class PecuniaRpcBackend extends Cloudflare.Workers.RpcWorker<PecuniaRpcBackend>()(
   "PecuniaRpcBackend",
@@ -84,12 +149,9 @@ export default class PecuniaRpcBackend extends Cloudflare.Workers.RpcWorker<Pecu
     );
 
     // @effect-diagnostics-next-line returnEffectInGen:off -- Alchemy's RPC Worker initialization returns its request Effect.
-    return RpcServer.toHttpEffect(rpcProjection.group).pipe(
-      Effect.provide(
-        Layer.mergeAll(rpcProjection.layer, RpcSerialization.layerJson).pipe(
-          Layer.provide(Layer.succeed(Flags, flags))
-        )
-      )
+    return pecuniaRpcHttpEffect(
+      runtimeSqliteLayer,
+      Layer.succeed(Flags, flags)
     );
   })
 ) {}

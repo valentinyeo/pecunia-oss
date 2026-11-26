@@ -19,16 +19,44 @@ const foldkitSeverity = ([rule, severity]: readonly [string, string]) => {
 const foldkitRules = (rules: Readonly<Record<string, string>>) =>
   Object.fromEntries(Object.entries(rules).map(foldkitSeverity));
 
+const effectUiExclusions = [
+  foldkitScope("client/pecunia-ui/**/*.ts"),
+  foldkitScope("features/pecunia-ui/**/*.ts"),
+  foldkitScope("server/app-page.ts"),
+];
+
+const foldkitErrorRules = Object.fromEntries(
+  Object.entries(foldkitRecommended.rules)
+    .map(foldkitSeverity)
+    .filter(([, severity]) => severity === "error")
+);
+
+const foldkitOffRules = Object.fromEntries(
+  Object.entries(foldkitRecommended.rules)
+    .map(foldkitSeverity)
+    .filter(([, severity]) => severity === "off")
+);
+
 const foldkitOverrides = [
   {
+    excludeFiles: effectUiExclusions,
     files: [foldkitScope("**/*.ts")],
-    rules: foldkitRules(foldkitRecommended.rules),
+    rules: foldkitErrorRules,
   },
-  ...foldkitRecommended.overrides.map(({ excludeFiles, files, rules }) => ({
-    excludeFiles: excludeFiles?.map(foldkitScope),
-    files: files.map(foldkitScope),
-    rules: foldkitRules(rules),
-  })),
+  {
+    files: [foldkitScope("**/*.ts")],
+    rules: foldkitOffRules,
+  },
+  ...foldkitRecommended.overrides.map(({ excludeFiles, files, rules }) => {
+    const base = {
+      files: files.map(foldkitScope),
+      rules: foldkitRules(rules),
+    };
+
+    return excludeFiles === undefined
+      ? base
+      : { ...base, excludeFiles: excludeFiles.map(foldkitScope) };
+  }),
 ];
 
 export default defineConfig({

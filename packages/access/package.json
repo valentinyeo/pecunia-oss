@@ -15,6 +15,11 @@
       "import": "./dist/index.js",
       "default": "./dist/index.js"
     },
+    "./d1": {
+      "types": "./src/d1.ts",
+      "import": "./dist/d1.js",
+      "default": "./dist/d1.js"
+    },
     "./devtools": {
       "types": "./src/devtools.ts",
       "import": "./dist/devtools.js",
@@ -32,6 +37,7 @@
     "lint": "oxlint --format agent ."
   },
   "dependencies": {
+    "@pecunia/database": "workspace:*",
     "effect": "4.1.4"
   },
   "devDependencies": {

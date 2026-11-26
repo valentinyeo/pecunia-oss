@@ -270,6 +270,12 @@ importers:
       '@alchemy.run/cloudflare':
         specifier: 2.0.0-beta.87
         version: 2.0.0-beta.87(@effect/platform-bun@4.1.4(effect@4.1.4))(@effect/platform-node@4.1.4(effect@4.1.4)(redis@6.2.1))(@effect/sql-pg@4.1.4(effect@4.1.4))(@types/node@24.19.2)(alchemy@2.0.0-beta.87(@effect/platform-bun@4.1.4(effect@4.1.4))(@effect/platform-node@4.1.4(effect@4.1.4)(redis@6.2.1))(effect@4.1.4)(vite@8.3.8(@types/node@24.19.2)(jiti@2.7.0)(yaml@2.9.1))(ws@8.22.1))(effect@4.1.4)(pg@8.23.1)(typescript@7.0.2)(vite@8.3.8(@types/node@24.19.2)(jiti@2.7.0)(yaml@2.9.1))
+      '@pecunia/access':
+        specifier: workspace:*
+        version: link:../../packages/access
+      '@pecunia/bank-lines':
+        specifier: workspace:*
+        version: link:../../packages/bank-lines
       '@pecunia/capability':
         specifier: workspace:*
         version: link:../../packages/capability
@@ -282,9 +288,18 @@ importers:
       '@pecunia/flags':
         specifier: workspace:*
         version: link:../../packages/flags
+      '@pecunia/reporting':
+        specifier: workspace:*
+        version: link:../../packages/reporting
+      '@pecunia/settings':
+        specifier: workspace:*
+        version: link:../../packages/settings
       '@pecunia/site':
         specifier: workspace:*
         version: link:../site
+      '@pecunia/subscriptions':
+        specifier: workspace:*
+        version: link:../../packages/subscriptions
       alchemy:
         specifier: 2.0.0-beta.87
         version: 2.0.0-beta.87(@effect/platform-bun@4.1.4(effect@4.1.4))(@effect/platform-node@4.1.4(effect@4.1.4)(redis@6.2.1))(effect@4.1.4)(vite@8.3.8(@types/node@24.19.2)(jiti@2.7.0)(yaml@2.9.1))(ws@8.22.1)
@@ -292,12 +307,18 @@ importers:
         specifier: 4.1.4
         version: 4.1.4
     devDependencies:
+      '@effect/vitest':
+        specifier: 4.1.4
+        version: 4.1.4(effect@4.1.4)(vitest@5.1.0(@types/node@24.19.2)(jsdom@31.0.0(@noble/hashes@2.4.0))(vite@8.3.8(@types/node@24.19.2)(jiti@2.7.0)(yaml@2.9.1)))
       '@types/node':
         specifier: 24.19.2
         version: 24.19.2
       typescript:
         specifier: 7.0.2
         version: 7.0.2
+      vitest:
+        specifier: 5.1.0
+        version: 5.1.0(@types/node@24.19.2)(jsdom@31.0.0(@noble/hashes@2.4.0))(vite@8.3.8(@types/node@24.19.2)(jiti@2.7.0)(yaml@2.9.1))
 
   apps/cli:
     dependencies:
@@ -512,6 +533,12 @@ importers:
       '@effect/platform-browser':
         specifier: 4.1.4
         version: 4.1.4(effect@4.1.4)
+      '@effect/ui':
+        specifier: https://pkg.pr.new/Effect-TS/ui/@effect/ui@87a704b
+        version: https://pkg.pr.new/Effect-TS/ui/@effect/ui@87a704b(effect@4.1.4)
+      '@effect/ui-kit':
+        specifier: https://pkg.pr.new/Effect-TS/ui/@effect/ui-kit@87a704b
+        version: https://pkg.pr.new/Effect-TS/ui/@effect/ui-kit@87a704b(@effect/ui@https://pkg.pr.new/Effect-TS/ui/@effect/ui@87a704b(effect@4.1.4))(effect@4.1.4)
       '@foldkit/ui':
         specifier: 0.170.0
         version: 0.170.0(effect@4.1.4)(foldkit@0.170.0(@effect/platform-browser@4.1.4(effect@4.1.4))(effect@4.1.4))
@@ -521,6 +548,9 @@ importers:
       '@pecunia/ai-sorting':
         specifier: workspace:*
         version: link:../../packages/ai-sorting
+      '@pecunia/api':
+        specifier: workspace:*
+        version: link:../api
       '@pecunia/auth':
         specifier: workspace:*
         version: link:../../packages/auth
@@ -536,6 +566,9 @@ importers:
       '@pecunia/core':
         specifier: workspace:*
         version: link:../../packages/core
+      '@pecunia/database':
+        specifier: workspace:*
+        version: link:../../packages/database
       '@pecunia/devtools':
         specifier: workspace:*
         version: link:../../packages/devtools
@@ -545,6 +578,9 @@ importers:
       '@pecunia/motion':
         specifier: workspace:*
         version: link:../../packages/motion
+      '@pecunia/reporting':
+        specifier: workspace:*
+        version: link:../../packages/reporting
       '@pecunia/settings':
         specifier: workspace:*
         version: link:../../packages/settings
@@ -570,6 +606,9 @@ importers:
       '@effect/platform-node':
         specifier: 4.1.4
         version: 4.1.4(effect@4.1.4)(redis@6.2.1)
+      '@effect/ui-devtools':
+        specifier: https://pkg.pr.new/Effect-TS/ui/@effect/ui-devtools@87a704b
+        version: https://pkg.pr.new/Effect-TS/ui/@effect/ui-devtools@87a704b(@effect/platform-node@4.1.4(effect@4.1.4)(redis@6.2.1))(@effect/ui-kit@https://pkg.pr.new/Effect-TS/ui/@effect/ui-kit@87a704b(@effect/ui@https://pkg.pr.new/Effect-TS/ui/@effect/ui@87a704b(effect@4.1.4))(effect@4.1.4))(@effect/ui@https://pkg.pr.new/Effect-TS/ui/@effect/ui@87a704b(effect@4.1.4))(effect@4.1.4)
       '@effect/vitest':
         specifier: 4.1.4
         version: 4.1.4(effect@4.1.4)(vitest@5.1.0(@types/node@24.19.2)(jsdom@31.0.0(@noble/hashes@2.4.0))(vite@8.3.8(@types/node@24.19.2)(jiti@2.7.0)(yaml@2.9.1)))
@@ -603,6 +642,9 @@ importers:
 
   packages/access:
     dependencies:
+      '@pecunia/database':
+        specifier: workspace:*
+        version: link:../database
       effect:
         specifier: 4.1.4
         version: 4.1.4
@@ -767,6 +809,9 @@ importers:
       '@pecunia/capability':
         specifier: workspace:*
         version: link:../capability
+      '@pecunia/database':
+        specifier: workspace:*
+        version: link:../database
       effect:
         specifier: 4.1.4
         version: 4.1.4
@@ -1387,6 +1432,9 @@ importers:
       '@pecunia/core':
         specifier: workspace:*
         version: link:../core
+      '@pecunia/database':
+        specifier: workspace:*
+        version: link:../database
       effect:
         specifier: 4.1.4
         version: 4.1.4
@@ -1434,6 +1482,9 @@ importers:
       '@pecunia/core':
         specifier: workspace:*
         version: link:../core
+      '@pecunia/database':
+        specifier: workspace:*
+        version: link:../database
       effect:
         specifier: 4.1.4
         version: 4.1.4
@@ -1481,6 +1532,9 @@ importers:
       '@pecunia/capability':
         specifier: workspace:*
         version: link:../capability
+      '@pecunia/database':
+        specifier: workspace:*
+        version: link:../database
       effect:
         specifier: 4.1.4
         version: 4.1.4
@@ -2212,6 +2266,32 @@ packages:
   '@effect/tsgo@0.69.0':
     resolution: {integrity: sha512-ypgO19woAyrfAG0LzU2QwQnprMpV2G30nEo9ffd4Bc0ow0vXupcx0mcSLG1EfvmRGl0jhiQ3yAbsCuJhqwnRhg==}
     hasBin: true
+
+  '@effect/ui-devtools@https://pkg.pr.new/Effect-TS/ui/@effect/ui-devtools@87a704b':
+    resolution: {tarball: https://pkg.pr.new/Effect-TS/ui/@effect/ui-devtools@87a704b}
+    version: 0.0.0
+    hasBin: true
+    peerDependencies:
+      '@effect/platform-node': ^4.1.4
+      '@effect/ui': ^0.0.0
+      '@effect/ui-kit': ^0.0.0
+      effect: ^4.1.4
+    peerDependenciesMeta:
+      '@effect/platform-node':
+        optional: true
+
+  '@effect/ui-kit@https://pkg.pr.new/Effect-TS/ui/@effect/ui-kit@87a704b':
+    resolution: {tarball: https://pkg.pr.new/Effect-TS/ui/@effect/ui-kit@87a704b}
+    version: 0.0.0
+    peerDependencies:
+      '@effect/ui': ^0.0.0
+      effect: ^4.1.4
+
+  '@effect/ui@https://pkg.pr.new/Effect-TS/ui/@effect/ui@87a704b':
+    resolution: {tarball: https://pkg.pr.new/Effect-TS/ui/@effect/ui@87a704b}
+    version: 0.0.0
+    peerDependencies:
+      effect: ^4.1.4
 
   '@effect/vitest@4.1.4':
     resolution: {integrity: sha512-AKpZ6zKihCRhY7hDbiQ2yp/krw+afIkxDRjFMwwzMiyhd0iYk0WaHa9J6GGC7TUF/C7HP2dZyMVq5xC0Qm/2/g==}
@@ -3542,30 +3622,48 @@ packages:
     resolution: {integrity: sha512-wfzYR0qEXUm6zJA0+hEwQGkYphhPahuzD3yrJ1s/SGV/b8b5Zv7ZzV6xHUolDI5AcuqNE9Kxji8VI0knebfhGA==}
     cpu: [arm64]
     os: [darwin]
+    deprecated: |-
+      Deprecated in favor of official @effect/tsgo (https://github.com/Effect-TS/tsgo) which ships first-party tsrs support
+          (effect-tsgo tsrs).
 
   '@yielded/effect-tsrs-darwin-x64@0.2.3':
     resolution: {integrity: sha512-CP8tmyZx4eZcQn1K1AUMV5g2E6EB0EA6zKZ/otYqQ/Sh5RX/TKC2GX/x93UJiAaCCAuG1eAQ63ZQRx6ACKkfSw==}
     cpu: [x64]
     os: [darwin]
+    deprecated: |-
+      Deprecated in favor of official @effect/tsgo (https://github.com/Effect-TS/tsgo) which ships first-party tsrs support
+          (effect-tsgo tsrs).
 
   '@yielded/effect-tsrs-linux-arm64@0.2.3':
     resolution: {integrity: sha512-zXXYAymwF6DQMiEXygA/AVv6mWC2gpFET0UzkUIzn+QRwnEIq9RF05SNwMr6CpiAJxGQcsaB+p/U49DdsYIlDA==}
     cpu: [arm64]
     os: [linux]
+    deprecated: |-
+      Deprecated in favor of official @effect/tsgo (https://github.com/Effect-TS/tsgo) which ships first-party tsrs support
+          (effect-tsgo tsrs).
 
   '@yielded/effect-tsrs-linux-x64@0.2.3':
     resolution: {integrity: sha512-R/peZOwSG1pDX9VOqWEEVBslGYqA2kwemWo+ik81AHeuI3BdC2r8vu6DX8uUmZuw+HG6GUdfJjlZl+828DUkiA==}
     cpu: [x64]
     os: [linux]
+    deprecated: |-
+      Deprecated in favor of official @effect/tsgo (https://github.com/Effect-TS/tsgo) which ships first-party tsrs support
+          (effect-tsgo tsrs).
 
   '@yielded/effect-tsrs-win32-x64@0.2.3':
     resolution: {integrity: sha512-ev+HHGlKelDaw9sMtQEkYJE2N1tg8dC/9EwTslVvt22XtD/VQhkXFjAlLTIxEO3xZzXiQsdFHWb8RX+CJLF8FQ==}
     cpu: [x64]
     os: [win32]
+    deprecated: |-
+      Deprecated in favor of official @effect/tsgo (https://github.com/Effect-TS/tsgo) which ships first-party tsrs support
+          (effect-tsgo tsrs).
 
   '@yielded/effect-tsrs@0.2.3':
     resolution: {integrity: sha512-UKEo439hWTpRuFJFjqHpNas3Z1ZVxYV6Mg/A1k3B1lH8PF11JGXKT8Ja+yAa73QDPuFxNFMCQErFUCOSw7wQwQ==}
     engines: {node: '>=22.14'}
+    deprecated: |-
+      Deprecated in favor of official @effect/tsgo (https://github.com/Effect-TS/tsgo) which ships first-party tsrs support
+          (effect-tsgo tsrs).
     hasBin: true
 
   acorn@8.19.0:
@@ -6313,6 +6411,23 @@ snapshots:
       '@effect/tsgo-linux-x64': 0.69.0
       '@effect/tsgo-win32-arm64': 0.69.0
       '@effect/tsgo-win32-x64': 0.69.0
+
+  '@effect/ui-devtools@https://pkg.pr.new/Effect-TS/ui/@effect/ui-devtools@87a704b(@effect/platform-node@4.1.4(effect@4.1.4)(redis@6.2.1))(@effect/ui-kit@https://pkg.pr.new/Effect-TS/ui/@effect/ui-kit@87a704b(@effect/ui@https://pkg.pr.new/Effect-TS/ui/@effect/ui@87a704b(effect@4.1.4))(effect@4.1.4))(@effect/ui@https://pkg.pr.new/Effect-TS/ui/@effect/ui@87a704b(effect@4.1.4))(effect@4.1.4)':
+    dependencies:
+      '@effect/ui': https://pkg.pr.new/Effect-TS/ui/@effect/ui@87a704b(effect@4.1.4)
+      '@effect/ui-kit': https://pkg.pr.new/Effect-TS/ui/@effect/ui-kit@87a704b(@effect/ui@https://pkg.pr.new/Effect-TS/ui/@effect/ui@87a704b(effect@4.1.4))(effect@4.1.4)
+      effect: 4.1.4
+    optionalDependencies:
+      '@effect/platform-node': 4.1.4(effect@4.1.4)(redis@6.2.1)
+
+  '@effect/ui-kit@https://pkg.pr.new/Effect-TS/ui/@effect/ui-kit@87a704b(@effect/ui@https://pkg.pr.new/Effect-TS/ui/@effect/ui@87a704b(effect@4.1.4))(effect@4.1.4)':
+    dependencies:
+      '@effect/ui': https://pkg.pr.new/Effect-TS/ui/@effect/ui@87a704b(effect@4.1.4)
+      effect: 4.1.4
+
+  '@effect/ui@https://pkg.pr.new/Effect-TS/ui/@effect/ui@87a704b(effect@4.1.4)':
+    dependencies:
+      effect: 4.1.4
 
   '@effect/vitest@4.1.4(effect@4.1.4)(vitest@5.1.0(@types/node@24.19.2)(jsdom@31.0.0(@noble/hashes@2.4.0))(vite@8.3.8(@types/node@24.19.2)(jiti@2.7.0)(yaml@2.9.1)))':
     dependencies:

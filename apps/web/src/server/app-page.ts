@@ -1,33 +1,65 @@
-import { Effect, Option, Predicate } from "effect";
-import type { RenderedApplication } from "foldkit/experimental/server";
-import { Rendered, renderToString } from "foldkit/experimental/server";
-import { fromString } from "foldkit/url";
+import { Router } from "@effect/ui";
+import { HtmlServer } from "@effect/ui/html";
+import { Effect, Layer, Option, Predicate } from "effect";
+import { Rendered } from "foldkit/experimental/server";
 
-import { pecuniaProgram } from "../client/pecunia/program.js";
-import { AppRoute, parseRoute } from "../client/pecunia/route.js";
+import { PECUNIA_STATE_ID } from "../client/pecunia-ui/hydrate.js";
+import { pecuniaDeferredPrerenderLayer } from "../client/pecunia-ui/queries.js";
+import { PecuniaRoute, routeTitle } from "../client/pecunia-ui/route.js";
+import { PecuniaApp } from "../features/pecunia-ui/app.js";
+import { withCustomHead } from "./reader-document.js";
 
 export const appPrerenderPaths = [
   "/app",
   "/app/categories",
+  "/app/settings",
+  "/app/subscriptions",
   "/app/transactions",
 ] as const;
 
-const withAppHead = (application: RenderedApplication) => ({
-  ...application,
-  readerHead: "",
-});
+const routeOf = (request: Request) => {
+  const url = new URL(request.url);
 
-const routeOf = (request: Request) =>
-  Option.match(fromString(request.url), {
-    onNone: () => AppRoute.NotFound({ path: new URL(request.url).pathname }),
-    onSome: parseRoute,
+  return Option.match(PecuniaRoute.resolve(`${url.pathname}${url.search}`), {
+    onNone: () => PecuniaRoute.NotFound({ params: { "*": url.pathname } }),
+    onSome: (resolved) => resolved.route,
   });
+};
 
 export const renderAppPage = (request: Request) =>
-  renderToString(pecuniaProgram, { url: request.url }).pipe(
-    Effect.map((application) =>
-      Rendered(withAppHead(application), {
-        status: Predicate.isTagged(routeOf(request), "NotFound") ? 404 : 200,
-      })
-    )
-  );
+  Effect.gen(function* renderPecuniaApp() {
+    const route = routeOf(request);
+    const url = new URL(request.url);
+
+    const rendered = yield* HtmlServer.renderToHtml(
+      PecuniaApp,
+      Router.props(PecuniaRoute),
+      { budget: "10 millis", static: true }
+    ).pipe(
+      Effect.provide(
+        Layer.mergeAll(
+          Router.static({
+            routes: PecuniaRoute,
+            url: `${url.pathname}${url.search}`,
+          }),
+          pecuniaDeferredPrerenderLayer
+        )
+      )
+    );
+
+    const stateScript = `<script id="${PECUNIA_STATE_ID}" type="application/json">${HtmlServer.serializeState(rendered.state)}</script>`;
+
+    return Rendered(
+      withCustomHead(
+        {
+          html: `<div data-pecunia-ui-root>${rendered.html}</div>`,
+          lang: "en",
+          title: `${routeTitle(route)} · Pecunia`,
+        },
+        stateScript
+      ),
+      {
+        status: Predicate.isTagged(route, "NotFound") ? 404 : 200,
+      }
+    );
+  });

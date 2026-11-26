@@ -1,0 +1,327 @@
+import { Command, Head, UiSchema } from "@effect/ui";
+import { Html } from "@effect/ui/html";
+import { Predicate, Schema } from "effect";
+import { AsyncResult } from "effect/reactivity";
+
+import {
+  EditBankLineNoteCommand,
+  ListBankLinesQuery,
+  ReviewBankLineCommand,
+  ReviewFilterName,
+} from "../../client/pecunia-ui/queries.js";
+import { formatDay } from "../pecunia/day-format.js";
+import { formatMinor } from "../pecunia/money-format.js";
+import { pecuniaUiStyles, styles, sx } from "./styles.js";
+
+const reviewFilters: readonly {
+  readonly id: typeof ReviewFilterName.Type;
+  readonly label: string;
+}[] = [
+  { id: "Any", label: "All" },
+  { id: "Awaiting", label: "Awaiting review" },
+  { id: "Reviewed", label: "Reviewed" },
+];
+
+export const TransactionsMessage = UiSchema.TaggedEnum({
+  ClickedCancelEdit: {},
+  ClickedEdit: { lineId: Schema.String, note: Schema.String },
+  ClickedFilter: { review: ReviewFilterName },
+  ClickedReview: { lineId: Schema.String },
+  FailedMutation: { message: Schema.String },
+  SubmittedNote: {},
+  SucceededMutation: { message: Schema.String },
+  UpdatedNoteDraft: { value: Schema.String },
+  UpdatedSearch: { value: Schema.String },
+});
+
+export const TransactionsPage = Html.component({
+  message: TransactionsMessage,
+  model: Schema.Struct({
+    editingId: Schema.NullOr(Schema.String),
+    feedback: Schema.NullOr(Schema.String),
+    noteDraft: Schema.String,
+    review: ReviewFilterName,
+    search: Schema.String,
+  }),
+  name: "TransactionsPage",
+  props: Schema.Struct({
+    initialReview: ReviewFilterName,
+    profileId: Schema.String,
+    title: Schema.String,
+  }),
+  queries: {
+    page: {
+      args: ({ model, props }) =>
+        props.profileId.length === 0
+          ? undefined
+          : {
+              profileId: props.profileId,
+              review: model.review,
+              search: model.search,
+            },
+      debounce: "150 millis",
+      query: ListBankLinesQuery,
+    },
+  },
+}).make({
+  head: ({ props }) => [Head.title(props.title)],
+  init: ({ props }) => ({
+    editingId: null,
+    feedback: null,
+    noteDraft: "",
+    review: props.initialReview,
+    search: "",
+  }),
+  update: ($, message) =>
+    TransactionsMessage.match(message, {
+      ClickedCancelEdit: () => $.evolve({ editingId: null, noteDraft: "" }),
+      ClickedEdit: ({ lineId, note }) =>
+        $.evolve({ editingId: lineId, feedback: null, noteDraft: note }),
+      ClickedFilter: ({ review }) => $.evolve({ feedback: null, review }),
+      ClickedReview: ({ lineId }) =>
+        $.evolve({ feedback: null }).run(
+          ReviewBankLineCommand.make({
+            lineId,
+            profileId: $.props.profileId,
+          }).pipe(
+            Command.match({
+              onFailure: (error) =>
+                TransactionsMessage.FailedMutation({ message: error.message }),
+              onSuccess: () =>
+                TransactionsMessage.SucceededMutation({
+                  message: "Marked reviewed and saved to D1.",
+                }),
+            })
+          )
+        ),
+      FailedMutation: ({ message: text }) => $.evolve({ feedback: text }),
+      SubmittedNote: () => {
+        const lineId = $.model.editingId;
+
+        if (lineId === null) {
+          return $.model;
+        }
+
+        return $.evolve({ editingId: null, feedback: null }).run(
+          EditBankLineNoteCommand.make({
+            lineId,
+            note: $.model.noteDraft,
+            profileId: $.props.profileId,
+          }).pipe(
+            Command.match({
+              onFailure: (error) =>
+                TransactionsMessage.FailedMutation({ message: error.message }),
+              onSuccess: () =>
+                TransactionsMessage.SucceededMutation({
+                  message: "Note saved to D1.",
+                }),
+            })
+          )
+        );
+      },
+      SucceededMutation: ({ message: text }) => $.evolve({ feedback: text }),
+      UpdatedNoteDraft: ({ value }) => $.evolve({ noteDraft: value }),
+      UpdatedSearch: ({ value }) => $.evolve({ search: value }),
+    }),
+  view: (h, model) =>
+    h.section
+      .attr("aria-label", h.props.title)
+      .class(sx(styles.section, pecuniaUiStyles.stack))
+      .children(
+        h.div.class(sx(pecuniaUiStyles.toolbar)).children(
+          h.h1.class(sx(styles.pageTitle)).children(h.props.title),
+          h.div.class(sx(pecuniaUiStyles.actionRow)).children(
+            h.input
+              .attr("aria-label", "Search bank lines")
+              .attr("placeholder", "Search merchant, description, note…")
+              .attr("type", "search")
+              .class(sx(pecuniaUiStyles.input))
+              .value(model.search)
+              .on("input", ({ value }) =>
+                TransactionsMessage.UpdatedSearch({ value })
+              ),
+            reviewFilters.map((choice) =>
+              h.button
+                .key(choice.id)
+                .attr("type", "button")
+                .attr("aria-pressed", String(model.review === choice.id))
+                .class(
+                  sx(
+                    pecuniaUiStyles.button,
+                    model.review === choice.id && pecuniaUiStyles.buttonActive
+                  )
+                )
+                .on(
+                  "click",
+                  TransactionsMessage.ClickedFilter({ review: choice.id })
+                )
+                .children(choice.label)
+            )
+          )
+        ),
+        model.feedback === null
+          ? null
+          : h.p
+              .attr("role", "status")
+              .class(sx(pecuniaUiStyles.feedback))
+              .children(model.feedback),
+        AsyncResult.match(h.queries.page, {
+          onFailure: ({ cause }) =>
+            h.p
+              .attr("role", "alert")
+              .class(sx(pecuniaUiStyles.feedback))
+              .children(`Could not load transactions: ${String(cause)}`),
+          onInitial: () =>
+            h.p
+              .class(sx(pecuniaUiStyles.muted))
+              .children("Loading bank lines…"),
+          onSuccess: ({ value: page }) =>
+            page.lines.length === 0
+              ? h.p
+                  .class(sx(pecuniaUiStyles.muted))
+                  .children("No bank line matches this search or filter.")
+              : h.table.class(sx(pecuniaUiStyles.table)).children(
+                  h.thead.children(
+                    h.tr.children(
+                      h.th
+                        .class(sx(pecuniaUiStyles.tableHeader))
+                        .children("Date"),
+                      h.th
+                        .class(sx(pecuniaUiStyles.tableHeader))
+                        .children("Description"),
+                      h.th
+                        .class(sx(pecuniaUiStyles.tableHeader))
+                        .children("Review"),
+                      h.th
+                        .class(
+                          sx(
+                            pecuniaUiStyles.tableHeader,
+                            pecuniaUiStyles.tableCellRight
+                          )
+                        )
+                        .children("Amount"),
+                      h.th
+                        .class(sx(pecuniaUiStyles.tableHeader))
+                        .children("Actions")
+                    )
+                  ),
+                  h.tbody.children(
+                    page.lines.map((line) => {
+                      const reviewed = Predicate.isTagged(
+                        line.review,
+                        "Reviewed"
+                      );
+
+                      const title =
+                        line.raw.merchant.length > 0
+                          ? line.raw.merchant
+                          : line.raw.description;
+
+                      const isEditing = model.editingId === line.id;
+
+                      return h.tr.key(line.id).children(
+                        h.td
+                          .class(sx(pecuniaUiStyles.tableCell))
+                          .children(formatDay(line.valueDate)),
+                        h.td.class(sx(pecuniaUiStyles.tableCell)).children(
+                          h.span.class(sx(styles.accountName)).children(title),
+                          line.raw.description.length > 0 &&
+                            line.raw.description !== title
+                            ? h.span
+                                .class(sx(pecuniaUiStyles.rowMeta))
+                                .children(line.raw.description)
+                            : null,
+                          line.note.length > 0
+                            ? h.span
+                                .class(sx(pecuniaUiStyles.rowMeta))
+                                .children(`Note: ${line.note}`)
+                            : null,
+                          isEditing
+                            ? h.form
+                                .class(sx(pecuniaUiStyles.actionRow))
+                                .on(
+                                  "submit",
+                                  TransactionsMessage.SubmittedNote()
+                                )
+                                .children(
+                                  h.input
+                                    .attr("aria-label", "Edit note")
+                                    .attr("type", "text")
+                                    .class(sx(pecuniaUiStyles.input))
+                                    .value(model.noteDraft)
+                                    .on("input", ({ value }) =>
+                                      TransactionsMessage.UpdatedNoteDraft({
+                                        value,
+                                      })
+                                    ),
+                                  h.button
+                                    .attr("type", "submit")
+                                    .class(
+                                      sx(
+                                        pecuniaUiStyles.button,
+                                        pecuniaUiStyles.buttonPrimary
+                                      )
+                                    )
+                                    .children("Save note"),
+                                  h.button
+                                    .attr("type", "button")
+                                    .class(sx(pecuniaUiStyles.button))
+                                    .on(
+                                      "click",
+                                      TransactionsMessage.ClickedCancelEdit()
+                                    )
+                                    .children("Cancel")
+                                )
+                            : null
+                        ),
+                        h.td
+                          .class(sx(pecuniaUiStyles.tableCell))
+                          .children(
+                            h.span
+                              .class(sx(pecuniaUiStyles.badge))
+                              .children(reviewed ? "Reviewed" : "Awaiting")
+                          ),
+                        h.td
+                          .class(
+                            sx(
+                              pecuniaUiStyles.tableCell,
+                              pecuniaUiStyles.tableCellRight
+                            )
+                          )
+                          .children(
+                            `${line.direction === "out" ? "-" : ""}${formatMinor(line.amount.minor, line.amount.currency)}`
+                          ),
+                        h.td.class(sx(pecuniaUiStyles.tableCell)).children(
+                          h.div.class(sx(pecuniaUiStyles.actionRow)).children(
+                            h.button
+                              .attr("type", "button")
+                              .class(sx(pecuniaUiStyles.button))
+                              .on(
+                                "click",
+                                TransactionsMessage.ClickedEdit({
+                                  lineId: line.id,
+                                  note: line.note,
+                                })
+                              )
+                              .children("Edit note"),
+                            reviewed
+                              ? null
+                              : h.button
+                                  .attr("type", "button")
+                                  .class(sx(pecuniaUiStyles.button))
+                                  .on(
+                                    "click",
+                                    TransactionsMessage.ClickedReview({
+                                      lineId: line.id,
+                                    })
+                                  )
+                                  .children("Confirm")
+                          )
+                        )
+                      );
+                    })
+                  )
+                ),
+        })
+      ),
+});

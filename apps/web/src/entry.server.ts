@@ -123,21 +123,38 @@ const renderErrorRoute = Effect.fn("reader.renderErrorRoute")(
   }
 );
 
+const matchesPrefix = (pathname: string, prefix: string): boolean =>
+  pathname === prefix || pathname.startsWith(`${prefix}/`);
+
+const forwardRpc = Effect.fn("reader.forwardRpc")(function* forwardRpc(
+  request: Request,
+  pathname: string
+) {
+  const bindings = yield* WebsiteBindings;
+
+  const response = matchesPrefix(pathname, "/app/rpc")
+    ? yield* bindings.forwardPecunia(request)
+    : yield* bindings.forward(request);
+
+  return yield* responded(request, response);
+});
+
 export const renderReaderPage = Effect.fn("reader.renderPage")(
   function* renderReaderPage(request: Request) {
     const { pathname } = new URL(request.url);
 
-    if (pathname === "/__rat" || pathname.startsWith("/__rat/")) {
+    if (matchesPrefix(pathname, "/__rat")) {
       return yield* responded(
         request,
         new Response("Not found", { status: 404 })
       );
     }
 
-    if (pathname === "/rpc" || pathname.startsWith("/rpc/")) {
-      const bindings = yield* WebsiteBindings;
-
-      return yield* responded(request, yield* bindings.forward(request));
+    if (
+      matchesPrefix(pathname, "/rpc") ||
+      matchesPrefix(pathname, "/app/rpc")
+    ) {
+      return yield* forwardRpc(request, pathname);
     }
 
     if (pathname === readerErrorPath) {

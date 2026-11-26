@@ -25,6 +25,11 @@
       "import": "./dist/contracts.js",
       "default": "./dist/contracts.js"
     },
+    "./d1": {
+      "types": "./src/d1.ts",
+      "import": "./dist/d1.js",
+      "default": "./dist/d1.js"
+    },
     "./demo": {
       "types": "./src/demo.js",
       "import": "./dist/demo.js",
@@ -54,6 +59,7 @@
   "dependencies": {
     "@pecunia/access": "workspace:*",
     "@pecunia/capability": "workspace:*",
+    "@pecunia/database": "workspace:*",
     "effect": "4.1.4"
   },
   "devDependencies": {

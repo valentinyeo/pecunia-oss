@@ -5,12 +5,23 @@
       {
         "name": "@effect/language-service",
         "allowedUnstableApis": [
+          "@effect/vitest",
+          "effect/ai/McpProtocol",
+          "effect/ai/McpServer",
+          "effect/http/FetchHttpClient",
+          "effect/http/HttpRouter",
+          "effect/http/HttpServerRequest",
           "effect/http/HttpServerResponse",
+          "effect/rpc/RpcClient",
           "effect/rpc/RpcSerialization",
           "effect/rpc/RpcServer"
         ]
       }
     ]
   },
-  "include": ["src/**/*.ts", "../site/src/cloudflare-workers.d.ts"]
+  "include": [
+    "src/**/*.ts",
+    "test/**/*.ts",
+    "../site/src/cloudflare-workers.d.ts"
+  ]
 }

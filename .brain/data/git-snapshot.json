@@ -174,7 +174,7 @@
     "apps/web/src/client/docs/command.ts": "14548f3fcb7c2b89897c1e8d7caea20a6e2de2855ce84607e98567dc3dcc04d7",
     "apps/web/src/client/docs/message.ts": "6a881627ecefcb970cb63fd91e8f2b0eec7e12b759907840bcb401ee7898a81b",
     "apps/web/src/client/docs/queries.ts": "58e4d539f93653c664fba726d49e82003bf65cbf3c508280553f8877846cd7c0",
-    "apps/web/src/dev/backend.ts": "c81f06e3affbbc45be4b16d11c7a681822d8400ef425bff1abff83869e55755f",
+    "apps/web/src/dev/backend.ts": "bafdabef1c7946869dc4b0009fccc7593b1ed0616a2ef6c9d3fa51648d1e36c3",
     "apps/web/src/features/app.ts": "3bebe36f98d6306069f3d3c2614c118d23b0523069e918c5b6f3391503982409",
     "apps/web/test/reader.scene.test.ts": "d31452a85c9e17d1dc438f24059d31e71a784b9c8d64b38cc896c13107e97824",
     "packages/basin/src/index.ts": "0b4046c42bb7285c36c87130644e71b1a6b3f067f799d7f2acdc2d3bfdcbb09b",

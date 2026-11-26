@@ -20,6 +20,16 @@
       "import": "./dist/capabilities.js",
       "default": "./dist/capabilities.js"
     },
+    "./contracts": {
+      "types": "./src/contracts.ts",
+      "import": "./dist/contracts.js",
+      "default": "./dist/contracts.js"
+    },
+    "./d1": {
+      "types": "./src/d1.ts",
+      "import": "./dist/d1.js",
+      "default": "./dist/d1.js"
+    },
     "./memory": {
       "types": "./src/settings-memory.ts",
       "import": "./dist/settings-memory.js",
@@ -44,6 +54,7 @@
   "dependencies": {
     "@pecunia/capability": "workspace:*",
     "@pecunia/core": "workspace:*",
+    "@pecunia/database": "workspace:*",
     "effect": "4.1.4"
   },
   "devDependencies": {

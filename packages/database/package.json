@@ -25,6 +25,16 @@
       "types": "./src/hyperdrive-postgres.ts",
       "import": "./dist/hyperdrive-postgres.js",
       "default": "./dist/hyperdrive-postgres.js"
+    },
+    "./node-sqlite": {
+      "types": "./src/node-sqlite.ts",
+      "import": "./dist/node-sqlite.js",
+      "default": "./dist/node-sqlite.js"
+    },
+    "./sqlite-client": {
+      "types": "./src/sqlite-client.ts",
+      "import": "./dist/sqlite-client.js",
+      "default": "./dist/sqlite-client.js"
     }
   },
   "scripts": {

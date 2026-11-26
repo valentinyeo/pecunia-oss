@@ -17,13 +17,22 @@ const iconHead = [
   `<link rel="apple-touch-icon" href="data:image/png;base64,${appleTouchIconPngBase64}">`,
 ].join("\n");
 
+export const withCustomHead = (
+  application: Server.RenderedApplication,
+  readerHead: string
+) => ({
+  ...application,
+  readerHead,
+});
+
 export const withReaderHead = (
   application: Server.RenderedApplication,
   page: ReaderPageFlags
-) => ({
-  ...application,
-  readerHead: readerMetadataHead(page.page.metadata, page.origin),
-});
+) =>
+  withCustomHead(
+    application,
+    readerMetadataHead(page.page.metadata, page.origin)
+  );
 
 export const renderDocument: Server.DocumentRenderer = (application, assets) =>
   Server.renderDocument(application, assets, {

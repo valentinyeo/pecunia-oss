@@ -11,6 +11,14 @@ const WebsiteEnvironment = Schema.Struct({
       Predicate.hasProperty(input, "fetch") &&
       Predicate.isFunction(input.fetch)
   ),
+  PECUNIA_BACKEND: Schema.optionalKey(
+    Schema.declare<{ readonly fetch: BackendFetch }>(
+      (input): input is { readonly fetch: BackendFetch } =>
+        Predicate.isObject(input) &&
+        Predicate.hasProperty(input, "fetch") &&
+        Predicate.isFunction(input.fetch)
+    )
+  ),
   PREVIEW_COMMIT: Schema.optionalKey(
     Schema.String.check(Schema.isPattern(/^[0-9a-f]{40}$/u))
   ),
@@ -65,10 +73,21 @@ export const websiteTelemetry = Layer.unwrap(
   )
 );
 
+const rewritePecuniaRpc = (request: Request): Request => {
+  const url = new URL(request.url);
+
+  url.pathname = url.pathname.replace(/^\/app\/rpc(?=\/|$)/u, "/rpc");
+
+  return new Request(url, request);
+};
+
 export class WebsiteBindings extends Context.Service<
   WebsiteBindings,
   {
     readonly forward: (
+      request: Request
+    ) => Effect.Effect<Response, WebsiteBindingError>;
+    readonly forwardPecunia: (
       request: Request
     ) => Effect.Effect<Response, WebsiteBindingError>;
     readonly previewCommit: Effect.Effect<
@@ -93,6 +112,29 @@ export class WebsiteBindings extends Context.Service<
         try: () => bindings.BACKEND.fetch(request),
       });
     }),
+    forwardPecunia: Effect.fn("WebsiteBindings.forwardPecunia")(
+      function* forwardPecunia(request: Request) {
+        const bindings = yield* runtimeEnvironment;
+        const target = bindings.PECUNIA_BACKEND;
+
+        if (target === undefined) {
+          return new Response(
+            "PecuniaRpcBackend is not bound on this deployment.",
+            { status: 503 }
+          );
+        }
+
+        return yield* Effect.tryPromise({
+          catch: (cause) =>
+            new WebsiteBindingError({
+              cause,
+              message:
+                "PecuniaRpcBackend forwarding failed; inspect the private service binding",
+            }),
+          try: () => target.fetch(rewritePecuniaRpc(request)),
+        });
+      }
+    ),
     previewCommit: runtimeEnvironment.pipe(
       Effect.map((bindings) => bindings.PREVIEW_COMMIT)
     ),

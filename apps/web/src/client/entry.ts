@@ -31,12 +31,12 @@ const readerApplication = () =>
   });
 
 const start = () => {
-  if (isAppPath(window.location.pathname)) {
+  if (isAppPath(window.location.pathname) && container !== null) {
     void Effect.runPromise(
-      Effect.promise(() => import("./pecunia/application.js")).pipe(
-        Effect.flatMap(({ pecuniaApplication }) =>
+      Effect.promise(() => import("./pecunia-ui/hydrate.js")).pipe(
+        Effect.flatMap(({ mountPecuniaUi }) =>
           Effect.sync(() => {
-            Runtime.hydrate(pecuniaApplication(container));
+            Effect.runFork(mountPecuniaUi(container));
           })
         )
       )

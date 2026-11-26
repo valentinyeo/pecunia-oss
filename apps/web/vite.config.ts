@@ -59,6 +59,8 @@ export default defineConfig({
           if (
             pathname !== "/rpc" &&
             !pathname.startsWith("/rpc/") &&
+            pathname !== "/app/rpc" &&
+            !pathname.startsWith("/app/rpc/") &&
             pathname !== "/__rat" &&
             !pathname.startsWith("/__rat/")
           ) {

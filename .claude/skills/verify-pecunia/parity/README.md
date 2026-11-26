@@ -114,8 +114,8 @@ Every place the old app put a behaviour. A place with no row is a behaviour nobo
 | A switcher in the header chooses which book every page shows, and the browser remembers it | shell: every page | planned | no ticket yet |
 | An outside login gate in front of the whole app decides who gets in | shell: every page | dropped | the new app signs people in itself with email and password, so the outside gate has no job left to do |
 | Money in, money out and the net for a chosen period | route: dashboard | built | capability:readDashboard |
-| The dashboard screen's figures come from the stored book rather than a fixture | route: dashboard | planned | no ticket yet |
-| A period picker on the dashboard screen that changes the figures it shows | route: dashboard | planned | no ticket yet |
+| The dashboard screen's figures come from the stored book rather than a fixture | route: dashboard | built | file:apps/web/src/features/pecunia-ui/dashboard.ts |
+| A period picker on the dashboard screen that changes the figures it shows | route: dashboard | built | file:apps/web/src/features/pecunia-ui/dashboard.ts |
 | Total balance across every account and savings jar, converted to one currency | route: dashboard | built | capability:readDashboard |
 | Spend split by the currency it was paid in | route: dashboard | built | capability:readDashboard |
 | A daily spending chart for the chosen period | route: dashboard | built | capability:readDashboard |
@@ -173,7 +173,7 @@ Every place the old app put a behaviour. A place with no row is a behaviour nobo
 | Set a repeat payment's category and push it onto its past payments | route: subscriptions | built | capability:setSubscriptionCategory |
 | Turn tracking of a repeat payment on and off | route: subscriptions | built | capability:changeSubscriptionStatus |
 | Find repeat payments from the payment history | route: subscriptions | built | capability:findRepeatPayments |
-| The subscriptions screen opens and lists the repeat payments | route: subscriptions | planned | no ticket yet |
+| The subscriptions screen opens and lists the repeat payments | route: subscriptions | built | file:apps/web/src/features/pecunia-ui/subscriptions.ts |
 | A six month spend projection from the repeat payments | route: forecast | dropped | the app never served this page, because the router never mounted it, so no user could open it and there is no user behaviour to carry over |
 | Holdings grouped by platform with price, value and gain | route: investments | built | capability:readInvestmentPortfolio |
 | Add a holding by hand | route: investments | built | capability:addHolding |
@@ -227,7 +227,7 @@ Every place the old app put a behaviour. A place with no row is a behaviour nobo
 | Existing invoice files are registered with a fingerprint so none is stored twice | import: legacy invoices | planned | ticket:SOFT-2493 |
 | Each invoice document is archived to one folder tree with one reserved file id | import: archive to drive | planned | ticket:SOFT-2493 |
 | Every capability is also a tool an assistant can call over MCP | tool: every tool | built | command:mcp |
-| A shared bearer token guards the assistant door | tool: every tool | planned | ticket:SOFT-2401 |
+| A shared bearer token guards the assistant door | tool: every tool | built | file:apps/api/src/mcp-handler.ts, file:apps/api/src/mcp-worker.ts |
 | An assistant call can read across every profile at once | tool: every tool | dropped | the new app scopes every call to one profile, so there is no all-profiles mode, and an assistant names the profile it means |
 | An assistant runs read-only SQL against the book | tool: raw query | dropped | the new app answers only through typed capabilities, so an assistant never reaches the database directly |
 | An assistant asks for spend by category over a date range | tool: spending summary | built | capability:spendingSummary |
@@ -236,7 +236,7 @@ Every place the old app put a behaviour. A place with no row is a behaviour nobo
 | An assistant asks for the Self Assessment payments due | tool: tax due | planned | ticket:SOFT-2398 |
 | An assistant asks for income by client | tool: income summary | built | capability:incomeSummary |
 | An assistant asks for month by month money in, money out and net | tool: monthly totals | built | capability:monthlyTotals |
-| An assistant asks for the active repeat payments | tool: subscriptions | planned | ticket:SOFT-2395 |
+| An assistant asks for the active repeat payments | tool: subscriptions | built | capability:listSubscriptions, file:apps/api/src/mcp-handler.ts |
 | An assistant searches payments by merchant, reference or description | tool: payment search | built | capability:list_lines |
 | An assistant asks which payments in a month still need an invoice | tool: missing invoices | planned | ticket:SOFT-2493 |
 | An assistant saves one invoice file against a payment | tool: invoice attach | built | capability:attachInvoice, file:packages/invoices/src/capabilities.ts |

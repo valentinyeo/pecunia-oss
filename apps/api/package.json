@@ -4,10 +4,30 @@
   "private": true,
   "type": "module",
   "exports": {
+    "./capabilities": {
+      "types": "./src/capabilities.ts",
+      "import": "./src/capabilities.ts",
+      "default": "./src/capabilities.ts"
+    },
+    "./contracts": {
+      "types": "./src/contracts.ts",
+      "import": "./src/contracts.ts",
+      "default": "./src/contracts.ts"
+    },
+    "./mcp-handler": {
+      "types": "./src/mcp-handler.ts",
+      "import": "./src/mcp-handler.ts",
+      "default": "./src/mcp-handler.ts"
+    },
     "./mcp-worker": {
       "types": "./src/mcp-worker.ts",
       "import": "./src/mcp-worker.ts",
       "default": "./src/mcp-worker.ts"
+    },
+    "./rpc-handler": {
+      "types": "./src/rpc-handler.ts",
+      "import": "./src/rpc-handler.ts",
+      "default": "./src/rpc-handler.ts"
     },
     "./rpc-worker": {
       "types": "./src/rpc-worker.ts",
@@ -19,21 +39,29 @@
     "typecheck": "effect-tsrs diagnostics --project tsconfig.json --strict --type-check",
     "typecheck:tsc": "tsc --noEmit -p tsconfig.json",
     "typecheck:fast": "tsrs --noEmit -p tsconfig.json",
+    "test": "vitest run",
     "check": "pnpm run typecheck",
     "lint": "oxlint --format agent ."
   },
   "dependencies": {
     "@alchemy.run/cloudflare": "2.0.0-beta.87",
+    "@pecunia/access": "workspace:*",
+    "@pecunia/bank-lines": "workspace:*",
     "@pecunia/capability": "workspace:*",
     "@pecunia/core": "workspace:*",
     "@pecunia/database": "workspace:*",
     "@pecunia/flags": "workspace:*",
+    "@pecunia/reporting": "workspace:*",
+    "@pecunia/settings": "workspace:*",
     "@pecunia/site": "workspace:*",
+    "@pecunia/subscriptions": "workspace:*",
     "alchemy": "2.0.0-beta.87",
     "effect": "4.1.4"
   },
   "devDependencies": {
+    "@effect/vitest": "4.1.4",
     "@types/node": "24.19.2",
-    "typescript": "7.0.2"
+    "typescript": "7.0.2",
+    "vitest": "5.1.0"
   }
 }
