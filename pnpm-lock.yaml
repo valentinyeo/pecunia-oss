@@ -273,6 +273,9 @@ importers:
       '@pecunia/access':
         specifier: workspace:*
         version: link:../../packages/access
+      '@pecunia/bank-import':
+        specifier: workspace:*
+        version: link:../../packages/bank-import
       '@pecunia/bank-lines':
         specifier: workspace:*
         version: link:../../packages/bank-lines
@@ -288,6 +291,9 @@ importers:
       '@pecunia/flags':
         specifier: workspace:*
         version: link:../../packages/flags
+      '@pecunia/investments':
+        specifier: workspace:*
+        version: link:../../packages/investments
       '@pecunia/reporting':
         specifier: workspace:*
         version: link:../../packages/reporting
@@ -554,6 +560,9 @@ importers:
       '@pecunia/auth':
         specifier: workspace:*
         version: link:../../packages/auth
+      '@pecunia/bank-import':
+        specifier: workspace:*
+        version: link:../../packages/bank-import
       '@pecunia/bank-lines':
         specifier: workspace:*
         version: link:../../packages/bank-lines
@@ -775,6 +784,9 @@ importers:
       '@pecunia/core':
         specifier: workspace:*
         version: link:../core
+      '@pecunia/database':
+        specifier: workspace:*
+        version: link:../database
       '@xstate/effect':
         specifier: 1.0.0-beta.0
         version: 1.0.0-beta.0(@oxlint/plugins@1.93.0)(effect@4.1.4)(xstate@6.0.0-beta.1)
@@ -1268,6 +1280,9 @@ importers:
       '@pecunia/core':
         specifier: workspace:*
         version: link:../core
+      '@pecunia/database':
+        specifier: workspace:*
+        version: link:../database
       '@xstate/effect':
         specifier: 1.0.0-beta.0
         version: 1.0.0-beta.0(@oxlint/plugins@1.93.0)(effect@4.1.4)(xstate@6.0.0-beta.1)

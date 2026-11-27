@@ -5,13 +5,16 @@ export const PecuniaRoute = Route.union({
   Budgets: Route.make("/app/budgets"),
   Categories: Route.make("/app/categories"),
   Dashboard: Route.make("/app"),
+  Income: Route.make("/app/income"),
   Investments: Route.make("/app/investments"),
   Merchants: Route.make("/app/merchants"),
+  Months: Route.make("/app/months"),
   NotFound: Route.make("/*"),
   Review: Route.make("/app/review"),
   Rules: Route.make("/app/rules"),
   Search: Route.make("/app/search"),
   Settings: Route.make("/app/settings"),
+  Spending: Route.make("/app/spending"),
   Subscriptions: Route.make("/app/subscriptions"),
   Transactions: Route.make("/app/transactions"),
 });
@@ -21,7 +24,7 @@ export type PecuniaRouteValue = typeof PecuniaRoute.Type;
 export interface NavItem {
   readonly label: string;
   readonly route: PecuniaRouteValue;
-  readonly section: "Account" | "Money" | "Sorting";
+  readonly section: "Account" | "Analytics" | "Money" | "Sorting";
 }
 
 export const navItems: readonly NavItem[] = [
@@ -32,8 +35,6 @@ export const navItems: readonly NavItem[] = [
     section: "Money",
   },
   { label: "Review", route: PecuniaRoute.Review(), section: "Money" },
-  { label: "Search", route: PecuniaRoute.Search(), section: "Money" },
-  { label: "Budgets", route: PecuniaRoute.Budgets(), section: "Money" },
   {
     label: "Subscriptions",
     route: PecuniaRoute.Subscriptions(),
@@ -44,6 +45,9 @@ export const navItems: readonly NavItem[] = [
     route: PecuniaRoute.Investments(),
     section: "Money",
   },
+  { label: "Spending", route: PecuniaRoute.Spending(), section: "Analytics" },
+  { label: "Income", route: PecuniaRoute.Income(), section: "Analytics" },
+  { label: "Monthly", route: PecuniaRoute.Months(), section: "Analytics" },
   { label: "Categories", route: PecuniaRoute.Categories(), section: "Sorting" },
   { label: "Rules", route: PecuniaRoute.Rules(), section: "Sorting" },
   { label: "Aliases", route: PecuniaRoute.Aliases(), section: "Sorting" },
@@ -51,7 +55,12 @@ export const navItems: readonly NavItem[] = [
   { label: "Settings", route: PecuniaRoute.Settings(), section: "Account" },
 ];
 
-export const navSections = ["Money", "Sorting", "Account"] as const;
+export const navSections = [
+  "Money",
+  "Analytics",
+  "Sorting",
+  "Account",
+] as const;
 
 export const routeTitle = (route: PecuniaRouteValue): string =>
   PecuniaRoute.match(route, {
@@ -59,13 +68,16 @@ export const routeTitle = (route: PecuniaRouteValue): string =>
     Budgets: () => "Budgets",
     Categories: () => "Categories",
     Dashboard: () => "Dashboard",
+    Income: () => "Income",
     Investments: () => "Investments",
     Merchants: () => "Merchants",
+    Months: () => "Monthly",
     NotFound: () => "Page not found",
     Review: () => "Review",
     Rules: () => "Rules",
     Search: () => "Search",
     Settings: () => "Settings",
+    Spending: () => "Spending",
     Subscriptions: () => "Subscriptions",
     Transactions: () => "Transactions",
   });

@@ -8,6 +8,8 @@
           "@effect/vitest",
           "effect/ai/McpProtocol",
           "effect/ai/McpServer",
+          "effect/crypto/Digest",
+          "effect/crypto/WebCrypto",
           "effect/http/FetchHttpClient",
           "effect/http/HttpRouter",
           "effect/http/HttpServerRequest",

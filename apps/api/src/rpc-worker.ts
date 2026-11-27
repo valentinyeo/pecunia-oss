@@ -11,7 +11,15 @@ import type { D1DatabaseLike } from "@pecunia/database/sqlite-client";
 import { configFlagsLayer } from "@pecunia/flags/config";
 import { retain } from "alchemy/RemovalPolicy";
 import { Stage } from "alchemy/Stage";
-import { Config, Context, Effect, Layer, Predicate, Schema } from "effect";
+import {
+  Config,
+  Context,
+  Effect,
+  Layer,
+  Option,
+  Predicate,
+  Schema,
+} from "effect";
 import { identity } from "effect/Function";
 
 import { privateObservability } from "../../site/src/observability.js";
@@ -38,11 +46,19 @@ const isD1Database = (input: unknown): input is D1DatabaseLike =>
   Predicate.hasProperty(input, "batch") &&
   Predicate.isFunction(input.batch);
 
-const RuntimeDbModule = Schema.Struct({
+const RuntimeEnvModule = Schema.Struct({
   env: Schema.Struct({
+    ACCESS_AUDIENCE: Schema.optional(Schema.NonEmptyString),
+    ACCESS_TEAM_DOMAIN: Schema.optional(Schema.NonEmptyString),
     DB: Schema.declare<D1DatabaseLike>(isD1Database),
   }),
 });
+
+const readRuntimeEnv = () =>
+  Effect.tryPromise({
+    catch: (cause) => new WorkerRuntimeUnavailable({ cause }),
+    try: () => import("cloudflare:workers"),
+  }).pipe(Effect.flatMap(Schema.decodeUnknownEffect(RuntimeEnvModule)));
 
 const unreadySqliteLayer = Layer.succeed(
   SqliteClient,
@@ -80,16 +96,38 @@ const unreadySqliteLayer = Layer.succeed(
 const runtimeSqliteLayer =
   globalThis.__ALCHEMY_RUNTIME__ === true
     ? Layer.unwrap(
-        Effect.tryPromise({
-          catch: (cause) => new WorkerRuntimeUnavailable({ cause }),
-          try: () => import("cloudflare:workers"),
-        }).pipe(
-          Effect.flatMap(Schema.decodeUnknownEffect(RuntimeDbModule)),
+        readRuntimeEnv().pipe(
           Effect.map(({ env }) => d1SqliteClientLayer(env.DB)),
           Effect.orElseSucceed(() => unreadySqliteLayer)
         )
       )
     : unreadySqliteLayer;
+
+const runtimeAccessSettings = (
+  fallbackAudience: Option.Option<string>,
+  fallbackTeamDomain: Option.Option<string>
+) =>
+  Effect.gen(function* resolveAccessSettings() {
+    if (globalThis.__ALCHEMY_RUNTIME__ === true) {
+      const runtime = yield* readRuntimeEnv().pipe(Effect.option);
+
+      if (Option.isSome(runtime)) {
+        const audience = runtime.value.env.ACCESS_AUDIENCE;
+        const teamDomain = runtime.value.env.ACCESS_TEAM_DOMAIN;
+
+        if (audience !== undefined && teamDomain !== undefined) {
+          return { audience, teamDomain };
+        }
+      }
+    }
+
+    return Option.isSome(fallbackAudience) && Option.isSome(fallbackTeamDomain)
+      ? {
+          audience: fallbackAudience.value,
+          teamDomain: fallbackTeamDomain.value,
+        }
+      : undefined;
+  });
 
 export default class PecuniaRpcBackend extends Cloudflare.Workers.RpcWorker<PecuniaRpcBackend>()(
   "PecuniaRpcBackend",
@@ -148,10 +186,16 @@ export default class PecuniaRpcBackend extends Cloudflare.Workers.RpcWorker<Pecu
       Effect.provide(configFlagsLayer(eventFlags))
     );
 
+    const access = yield* runtimeAccessSettings(
+      accessAudience,
+      accessTeamDomain
+    );
+
     // @effect-diagnostics-next-line returnEffectInGen:off -- Alchemy's RPC Worker initialization returns its request Effect.
     return pecuniaRpcHttpEffect(
       runtimeSqliteLayer,
-      Layer.succeed(Flags, flags)
+      Layer.succeed(Flags, flags),
+      access === undefined ? undefined : { access }
     );
   })
 ) {}

@@ -55,6 +55,11 @@ export class Website extends Cloudflare.Website.Foldkit<Website>()(
       Effect.orDie
     );
 
+    const pecuniaStandalone = yield* Config.Boolean("PECUNIA_STANDALONE").pipe(
+      Config.withDefault(false),
+      Effect.orDie
+    );
+
     const publicOrigin = yield* Config.option(
       Config.String("PECUNIA_ORIGIN")
     ).pipe(Effect.orDie);
@@ -66,44 +71,60 @@ export class Website extends Cloudflare.Website.Foldkit<Website>()(
       Option.map((url) => url.hostname)
     );
 
-    const baseEnv = {
-      BACKEND: preview ? PreviewRpcBackend : RpcBackend,
-      CONTENT_GENERATION: generation,
-    };
+    const includePecuniaRpc = pecuniaStandalone || !(demoOnly || preview);
 
-    const includePecuniaRpc = !(demoOnly || preview);
+    const baseEnv = pecuniaStandalone
+      ? {
+          CONTENT_GENERATION: generation,
+          PECUNIA_BACKEND: PecuniaRpcBackend,
+        }
+      : {
+          BACKEND: preview ? PreviewRpcBackend : RpcBackend,
+          CONTENT_GENERATION: generation,
+        };
+
+    const runWorkerFirst = (() => {
+      if (pecuniaStandalone) {
+        return ["/app/rpc", "/app/rpc/*", "/__error"];
+      }
+
+      if (includePecuniaRpc) {
+        return [
+          "/rpc",
+          "/rpc/*",
+          "/app/rpc",
+          "/app/rpc/*",
+          "/__error",
+          "/__rat",
+          "/__rat/*",
+          "/prompts",
+          "/prompts/*",
+        ];
+      }
+
+      return [
+        "/rpc",
+        "/rpc/*",
+        "/__error",
+        "/__rat",
+        "/__rat/*",
+        "/prompts",
+        "/prompts/*",
+      ];
+    })();
 
     const props = {
       assets: {
         htmlHandling: "drop-trailing-slash",
-        runWorkerFirst: includePecuniaRpc
-          ? [
-              "/rpc",
-              "/rpc/*",
-              "/app/rpc",
-              "/app/rpc/*",
-              "/__error",
-              "/__rat",
-              "/__rat/*",
-              "/prompts",
-              "/prompts/*",
-            ]
-          : [
-              "/rpc",
-              "/rpc/*",
-              "/__error",
-              "/__rat",
-              "/__rat/*",
-              "/prompts",
-              "/prompts/*",
-            ],
+        runWorkerFirst,
       },
-      env: includePecuniaRpc
-        ? { ...baseEnv, PECUNIA_BACKEND: PecuniaRpcBackend }
-        : baseEnv,
+      env:
+        !pecuniaStandalone && includePecuniaRpc
+          ? { ...baseEnv, PECUNIA_BACKEND: PecuniaRpcBackend }
+          : baseEnv,
       observability: traceObservability(traces),
       rootDir: "../web",
-      workersDev: false,
+      workersDev: pecuniaStandalone && Option.isNone(publicHost),
     } satisfies Cloudflare.Website.FoldkitProps;
 
     const tracedProps = traces.enabled

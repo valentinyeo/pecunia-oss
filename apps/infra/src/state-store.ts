@@ -5,3 +5,8 @@ export const ratstackStateStoreName =
 
 export const ratstackState = (state = Cloudflare.state) =>
   state({ workerName: ratstackStateStoreName });
+
+export const pecuniaStateStoreName = "alchemy-state-store-pecunia-state-store";
+
+export const pecuniaState = (state = Cloudflare.state) =>
+  state({ workerName: pecuniaStateStoreName });

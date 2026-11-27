@@ -12,7 +12,11 @@ import { withCustomHead } from "./reader-document.js";
 export const appPrerenderPaths = [
   "/app",
   "/app/categories",
+  "/app/income",
+  "/app/investments",
+  "/app/months",
   "/app/settings",
+  "/app/spending",
   "/app/subscriptions",
   "/app/transactions",
 ] as const;

@@ -47,6 +47,22 @@ export const pecuniaUiStyles = stylex.create({
     borderColor: pecunia.accentText,
     color: "#ffffff",
   },
+  chartSvg: {
+    display: "block",
+    height: "auto",
+    width: "100%",
+  },
+  donutLayout: {
+    alignItems: "center",
+    display: "grid",
+    gap: "1rem",
+    gridTemplateColumns: "minmax(7rem, 9rem) minmax(0, 1fr)",
+  },
+  donutSvg: {
+    display: "block",
+    height: "8.5rem",
+    width: "8.5rem",
+  },
   feedback: {
     backgroundColor: pecunia.surface,
     borderColor: pecunia.rule,
@@ -71,7 +87,7 @@ export const pecuniaUiStyles = stylex.create({
   formGrid: {
     display: "grid",
     gap: "0.9rem",
-    gridTemplateColumns: "repeat(auto-fit, minmax(13rem, 1fr))",
+    gridTemplateColumns: "repeat(auto-fit, minmax(12rem, 1fr))",
     marginBlock: "0.75rem",
   },
   input: {
@@ -86,6 +102,37 @@ export const pecuniaUiStyles = stylex.create({
     minHeight: "2.25rem",
     padding: "0.35rem 0.65rem",
   },
+  legendItem: {
+    alignItems: "center",
+    display: "grid",
+    gap: "0.5rem",
+    gridTemplateColumns: "0.7rem minmax(0, 1fr) auto",
+    paddingBlock: "0.2rem",
+  },
+  legendList: {
+    fontSize: "0.85rem",
+    listStyle: "none",
+    margin: 0,
+    padding: 0,
+  },
+  legendSwatch: {
+    borderRadius: "3px",
+    display: "inline-block",
+    height: "0.7rem",
+    width: "0.7rem",
+  },
+  linkButton: {
+    backgroundColor: "transparent",
+    borderStyle: "none",
+    color: pecunia.accentText,
+    cursor: "pointer",
+    fontFamily: fonts.sans,
+    fontSize: "inherit",
+    fontWeight: 600,
+    padding: 0,
+    textAlign: "start",
+    textDecoration: "underline",
+  },
   monoValue: {
     fontFamily: fonts.mono,
     fontVariantNumeric: "tabular-nums",
@@ -93,6 +140,12 @@ export const pecuniaUiStyles = stylex.create({
   muted: {
     color: pecunia.inkMuted,
     fontSize: "0.85rem",
+  },
+  negative: {
+    color: "#c0392b",
+  },
+  positive: {
+    color: "#1e7e5c",
   },
   profileSelect: {
     backgroundColor: pecunia.surface,
@@ -143,12 +196,30 @@ export const pecuniaUiStyles = stylex.create({
     padding: "0.5rem",
     textAlign: "start",
   },
+  textarea: {
+    backgroundColor: pecunia.surface,
+    borderColor: pecunia.rule,
+    borderRadius: "8px",
+    borderStyle: "solid",
+    borderWidth: "1px",
+    color: pecunia.ink,
+    fontFamily: fonts.mono,
+    fontSize: "0.82rem",
+    minHeight: "7.5rem",
+    padding: "0.55rem 0.65rem",
+    width: "100%",
+  },
   toolbar: {
     alignItems: "center",
     display: "flex",
     flexWrap: "wrap",
     gap: "0.5rem",
     justifyContent: "space-between",
+  },
+  twoCol: {
+    display: "grid",
+    gap: "1rem",
+    gridTemplateColumns: "repeat(auto-fit, minmax(18rem, 1fr))",
   },
 });
 

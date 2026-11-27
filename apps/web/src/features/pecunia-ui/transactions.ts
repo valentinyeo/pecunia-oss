@@ -1,11 +1,15 @@
 import { Command, Head, UiSchema } from "@effect/ui";
 import { Html } from "@effect/ui/html";
-import { Predicate, Schema } from "effect";
+import { PeriodChoiceSchema } from "@pecunia/reporting";
+import { Option, Predicate, Schema } from "effect";
 import { AsyncResult } from "effect/reactivity";
 
 import {
+  DirectionFilterName,
+  EditBankLineCategoryCommand,
   EditBankLineNoteCommand,
   ListBankLinesQuery,
+  ReadCategoriesQuery,
   ReviewBankLineCommand,
   ReviewFilterName,
 } from "../../client/pecunia-ui/queries.js";
@@ -22,8 +26,19 @@ const reviewFilters: readonly {
   { id: "Reviewed", label: "Reviewed" },
 ];
 
+const directionFilters: readonly {
+  readonly id: typeof DirectionFilterName.Type;
+  readonly label: string;
+}[] = [
+  { id: "Any", label: "All flow" },
+  { id: "out", label: "Out" },
+  { id: "in", label: "In" },
+];
+
 export const TransactionsMessage = UiSchema.TaggedEnum({
+  ChangedCategory: { categoryId: Schema.String, lineId: Schema.String },
   ClickedCancelEdit: {},
+  ClickedDirection: { direction: DirectionFilterName },
   ClickedEdit: { lineId: Schema.String, note: Schema.String },
   ClickedFilter: { review: ReviewFilterName },
   ClickedReview: { lineId: Schema.String },
@@ -37,6 +52,7 @@ export const TransactionsMessage = UiSchema.TaggedEnum({
 export const TransactionsPage = Html.component({
   message: TransactionsMessage,
   model: Schema.Struct({
+    direction: DirectionFilterName,
     editingId: Schema.NullOr(Schema.String),
     feedback: Schema.NullOr(Schema.String),
     noteDraft: Schema.String,
@@ -50,11 +66,22 @@ export const TransactionsPage = Html.component({
     title: Schema.String,
   }),
   queries: {
+    categories: {
+      args: ({ props }) =>
+        props.profileId.length === 0
+          ? undefined
+          : {
+              period: PeriodChoiceSchema.cases.All.make({}),
+              profileId: props.profileId,
+            },
+      query: ReadCategoriesQuery,
+    },
     page: {
       args: ({ model, props }) =>
         props.profileId.length === 0
           ? undefined
           : {
+              direction: model.direction,
               profileId: props.profileId,
               review: model.review,
               search: model.search,
@@ -66,6 +93,7 @@ export const TransactionsPage = Html.component({
 }).make({
   head: ({ props }) => [Head.title(props.title)],
   init: ({ props }) => ({
+    direction: "Any",
     editingId: null,
     feedback: null,
     noteDraft: "",
@@ -74,7 +102,26 @@ export const TransactionsPage = Html.component({
   }),
   update: ($, message) =>
     TransactionsMessage.match(message, {
+      ChangedCategory: ({ categoryId, lineId }) =>
+        $.evolve({ feedback: null }).run(
+          EditBankLineCategoryCommand.make({
+            categoryId,
+            lineId,
+            profileId: $.props.profileId,
+          }).pipe(
+            Command.match({
+              onFailure: (error) =>
+                TransactionsMessage.FailedMutation({ message: error.message }),
+              onSuccess: () =>
+                TransactionsMessage.SucceededMutation({
+                  message: "Category updated in D1.",
+                }),
+            })
+          )
+        ),
       ClickedCancelEdit: () => $.evolve({ editingId: null, noteDraft: "" }),
+      ClickedDirection: ({ direction }) =>
+        $.evolve({ direction, feedback: null }),
       ClickedEdit: ({ lineId, note }) =>
         $.evolve({ editingId: lineId, feedback: null, noteDraft: note }),
       ClickedFilter: ({ review }) => $.evolve({ feedback: null, review }),
@@ -123,8 +170,16 @@ export const TransactionsPage = Html.component({
       UpdatedNoteDraft: ({ value }) => $.evolve({ noteDraft: value }),
       UpdatedSearch: ({ value }) => $.evolve({ search: value }),
     }),
-  view: (h, model) =>
-    h.section
+  view: (h, model) => {
+    const categoryOptions = AsyncResult.isSuccess(h.queries.categories)
+      ? h.queries.categories.value.categories.flatMap((row) =>
+          Predicate.isTagged(row.category, "Categorised")
+            ? [{ id: row.category.categoryId, name: row.category.name }]
+            : []
+        )
+      : [];
+
+    return h.section
       .attr("aria-label", h.props.title)
       .class(sx(styles.section, pecuniaUiStyles.stack))
       .children(
@@ -140,9 +195,29 @@ export const TransactionsPage = Html.component({
               .on("input", ({ value }) =>
                 TransactionsMessage.UpdatedSearch({ value })
               ),
-            reviewFilters.map((choice) =>
+            ...directionFilters.map((choice) =>
               h.button
-                .key(choice.id)
+                .key(`dir:${choice.id}`)
+                .attr("type", "button")
+                .attr("aria-pressed", String(model.direction === choice.id))
+                .class(
+                  sx(
+                    pecuniaUiStyles.button,
+                    model.direction === choice.id &&
+                      pecuniaUiStyles.buttonActive
+                  )
+                )
+                .on(
+                  "click",
+                  TransactionsMessage.ClickedDirection({
+                    direction: choice.id,
+                  })
+                )
+                .children(choice.label)
+            ),
+            ...reviewFilters.map((choice) =>
+              h.button
+                .key(`rev:${choice.id}`)
                 .attr("type", "button")
                 .attr("aria-pressed", String(model.review === choice.id))
                 .class(
@@ -191,6 +266,9 @@ export const TransactionsPage = Html.component({
                         .children("Description"),
                       h.th
                         .class(sx(pecuniaUiStyles.tableHeader))
+                        .children("Category"),
+                      h.th
+                        .class(sx(pecuniaUiStyles.tableHeader))
                         .children("Review"),
                       h.th
                         .class(
@@ -218,6 +296,17 @@ export const TransactionsPage = Html.component({
                           : line.raw.description;
 
                       const isEditing = model.editingId === line.id;
+
+                      const currentCategoryId = Option.getOrElse(
+                        line.category,
+                        () => ""
+                      );
+
+                      const hasCurrentInOptions =
+                        currentCategoryId.length === 0 ||
+                        categoryOptions.some(
+                          (option) => option.id === currentCategoryId
+                        );
 
                       return h.tr.key(line.id).children(
                         h.td
@@ -274,6 +363,34 @@ export const TransactionsPage = Html.component({
                                 )
                             : null
                         ),
+                        h.td.class(sx(pecuniaUiStyles.tableCell)).children(
+                          h.select
+                            .attr("aria-label", `Category for ${title}`)
+                            .class(sx(pecuniaUiStyles.profileSelect))
+                            .value(currentCategoryId)
+                            .on("change", ({ value }) =>
+                              TransactionsMessage.ChangedCategory({
+                                categoryId: value,
+                                lineId: line.id,
+                              })
+                            )
+                            .children(
+                              h.option
+                                .attr("value", "")
+                                .children("Uncategorised"),
+                              hasCurrentInOptions
+                                ? null
+                                : h.option
+                                    .attr("value", currentCategoryId)
+                                    .children("Assigned category"),
+                              ...categoryOptions.map((option) =>
+                                h.option
+                                  .key(option.id)
+                                  .attr("value", option.id)
+                                  .children(option.name)
+                              )
+                            )
+                        ),
                         h.td
                           .class(sx(pecuniaUiStyles.tableCell))
                           .children(
@@ -323,5 +440,6 @@ export const TransactionsPage = Html.component({
                   )
                 ),
         })
-      ),
+      );
+  },
 });

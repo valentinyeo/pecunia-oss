@@ -5,11 +5,13 @@ import type { BackendFetch } from "./rpc.js";
 import { WebsiteBindingError } from "./website-binding-error.js";
 
 const WebsiteEnvironment = Schema.Struct({
-  BACKEND: Schema.declare<{ readonly fetch: BackendFetch }>(
-    (input): input is { readonly fetch: BackendFetch } =>
-      Predicate.isObject(input) &&
-      Predicate.hasProperty(input, "fetch") &&
-      Predicate.isFunction(input.fetch)
+  BACKEND: Schema.optionalKey(
+    Schema.declare<{ readonly fetch: BackendFetch }>(
+      (input): input is { readonly fetch: BackendFetch } =>
+        Predicate.isObject(input) &&
+        Predicate.hasProperty(input, "fetch") &&
+        Predicate.isFunction(input.fetch)
+    )
   ),
   PECUNIA_BACKEND: Schema.optionalKey(
     Schema.declare<{ readonly fetch: BackendFetch }>(
@@ -41,7 +43,7 @@ const runtimeEnvironment = importRuntime.pipe(
       new WebsiteBindingError({
         cause,
         message:
-          "Website requires BACKEND and a valid optional PREVIEW_COMMIT binding",
+          "Website requires valid optional BACKEND, PECUNIA_BACKEND, and PREVIEW_COMMIT bindings",
       })
   )
 );
@@ -73,12 +75,18 @@ export const websiteTelemetry = Layer.unwrap(
   )
 );
 
-const rewritePecuniaRpc = (request: Request): Request => {
+const rewritePecuniaRequest = (request: Request): Request => {
   const url = new URL(request.url);
+  const headers = new Headers(request.headers);
 
   url.pathname = url.pathname.replace(/^\/app\/rpc(?=\/|$)/u, "/rpc");
+  headers.set("x-pecunia-surface", "browser");
 
-  return new Request(url, request);
+  return new Request(url, {
+    body: request.body,
+    headers,
+    method: request.method,
+  });
 };
 
 export class WebsiteBindings extends Context.Service<
@@ -101,6 +109,13 @@ export class WebsiteBindings extends Context.Service<
       request: Request
     ) {
       const bindings = yield* runtimeEnvironment;
+      const target = bindings.BACKEND;
+
+      if (target === undefined) {
+        return new Response("RpcBackend is not bound on this deployment.", {
+          status: 503,
+        });
+      }
 
       return yield* Effect.tryPromise({
         catch: (cause) =>
@@ -109,7 +124,7 @@ export class WebsiteBindings extends Context.Service<
             message:
               "RpcBackend forwarding failed; inspect the private service binding",
           }),
-        try: () => bindings.BACKEND.fetch(request),
+        try: () => target.fetch(request),
       });
     }),
     forwardPecunia: Effect.fn("WebsiteBindings.forwardPecunia")(
@@ -131,7 +146,7 @@ export class WebsiteBindings extends Context.Service<
               message:
                 "PecuniaRpcBackend forwarding failed; inspect the private service binding",
             }),
-          try: () => target.fetch(rewritePecuniaRpc(request)),
+          try: () => target.fetch(rewritePecuniaRequest(request)),
         });
       }
     ),

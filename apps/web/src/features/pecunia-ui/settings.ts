@@ -6,10 +6,17 @@ import { AsyncResult } from "effect/reactivity";
 
 import {
   CreateProfileCommand,
+  ImportBankFileCommand,
+  ListImportTargetsQuery,
   ReadSetupQuery,
   SaveSettingsCommand,
 } from "../../client/pecunia-ui/queries.js";
 import { pecuniaUiStyles, styles, sx } from "./styles.js";
+
+const SAMPLE_CSV = [
+  "date,description,amount_minor,currency,reference",
+  "2025-11-18,Demo Stationery,-1950,EUR,INV-101",
+].join("\n");
 
 export const SettingsMessage = UiSchema.TaggedEnum({
   FailedAction: { message: Schema.String },
@@ -20,11 +27,21 @@ export const SettingsMessage = UiSchema.TaggedEnum({
     primaryProfileId: Schema.String,
     timezone: Schema.String,
   },
+  LoadedTargets: { defaultAccountId: Schema.String },
   SubmittedCreateProfile: {},
+  SubmittedImport: {},
   SubmittedSettings: {},
   SucceededCreateProfile: { name: Schema.String },
+  SucceededImport: {
+    alreadyImported: Schema.Int,
+    imported: Schema.Int,
+    rejectedCount: Schema.Int,
+  },
   SucceededSaveSettings: {},
   UpdatedBaseCurrency: { value: Schema.String },
+  UpdatedImportAccountId: { value: Schema.String },
+  UpdatedImportContent: { value: Schema.String },
+  UpdatedImportFileName: { value: Schema.String },
   UpdatedLocale: { value: Schema.String },
   UpdatedNewProfileCurrency: { value: Schema.String },
   UpdatedNewProfileKind: { value: ProfileKindSchema },
@@ -39,6 +56,9 @@ export const SettingsPage = Html.component({
     baseCurrency: Schema.String,
     feedback: Schema.NullOr(Schema.String),
     hydrated: Schema.Boolean,
+    importAccountId: Schema.String,
+    importContent: Schema.String,
+    importFileName: Schema.String,
     locale: Schema.String,
     newProfileCurrency: Schema.String,
     newProfileKind: ProfileKindSchema,
@@ -47,6 +67,9 @@ export const SettingsPage = Html.component({
     timezone: Schema.String,
   }),
   name: "SettingsPage",
+  props: Schema.Struct({
+    profileId: Schema.String,
+  }),
   queries: {
     setup: {
       args: () => ({}),
@@ -67,6 +90,19 @@ export const SettingsPage = Html.component({
           : SettingsMessage.IgnoredSetup(),
       query: ReadSetupQuery,
     },
+    targets: {
+      args: ({ props }) =>
+        props.profileId.length === 0
+          ? undefined
+          : { profileId: props.profileId },
+      onChange: (result) =>
+        AsyncResult.isSuccess(result) && result.value[0] !== undefined
+          ? SettingsMessage.LoadedTargets({
+              defaultAccountId: result.value[0].id,
+            })
+          : SettingsMessage.IgnoredSetup(),
+      query: ListImportTargetsQuery,
+    },
   },
 }).make({
   head: () => [Head.title("Settings")],
@@ -74,6 +110,9 @@ export const SettingsPage = Html.component({
     baseCurrency: "EUR",
     feedback: null,
     hydrated: false,
+    importAccountId: "",
+    importContent: SAMPLE_CSV,
+    importFileName: "statement.csv",
     locale: "en-GB",
     newProfileCurrency: "EUR",
     newProfileKind: "personal",
@@ -95,6 +134,10 @@ export const SettingsPage = Html.component({
               primaryProfileId,
               timezone,
             }),
+      LoadedTargets: ({ defaultAccountId }) =>
+        $.model.importAccountId.length > 0
+          ? $.model
+          : $.evolve({ importAccountId: defaultAccountId }),
       SubmittedCreateProfile: () =>
         $.evolve({ feedback: null }).run(
           CreateProfileCommand.make({
@@ -110,6 +153,36 @@ export const SettingsPage = Html.component({
             })
           )
         ),
+      SubmittedImport: () => {
+        if (
+          $.props.profileId.length === 0 ||
+          $.model.importAccountId.length === 0
+        ) {
+          return $.evolve({
+            feedback: "Select a bank account before importing CSV lines.",
+          });
+        }
+
+        return $.evolve({ feedback: null }).run(
+          ImportBankFileCommand.make({
+            accountId: $.model.importAccountId,
+            content: $.model.importContent,
+            fileName: $.model.importFileName,
+            profileId: $.props.profileId,
+          }).pipe(
+            Command.match({
+              onFailure: (error) =>
+                SettingsMessage.FailedAction({ message: error.message }),
+              onSuccess: (summary) =>
+                SettingsMessage.SucceededImport({
+                  alreadyImported: summary.alreadyImported,
+                  imported: summary.imported,
+                  rejectedCount: summary.rejected.length,
+                }),
+            })
+          )
+        );
+      },
       SubmittedSettings: () =>
         $.evolve({ feedback: null }).run(
           SaveSettingsCommand.make({
@@ -130,9 +203,17 @@ export const SettingsPage = Html.component({
           feedback: `Created profile ${name} in D1.`,
           newProfileName: "",
         }),
+      SucceededImport: ({ alreadyImported, imported, rejectedCount }) =>
+        $.evolve({
+          feedback: `CSV import finished: ${imported} imported, ${alreadyImported} already in D1, ${rejectedCount} rejected.`,
+        }),
       SucceededSaveSettings: () =>
         $.evolve({ feedback: "Settings saved to D1." }),
       UpdatedBaseCurrency: ({ value }) => $.evolve({ baseCurrency: value }),
+      UpdatedImportAccountId: ({ value }) =>
+        $.evolve({ importAccountId: value }),
+      UpdatedImportContent: ({ value }) => $.evolve({ importContent: value }),
+      UpdatedImportFileName: ({ value }) => $.evolve({ importFileName: value }),
       UpdatedLocale: ({ value }) => $.evolve({ locale: value }),
       UpdatedNewProfileCurrency: ({ value }) =>
         $.evolve({ newProfileCurrency: value }),
@@ -142,8 +223,17 @@ export const SettingsPage = Html.component({
         $.evolve({ primaryProfileId: value }),
       UpdatedTimezone: ({ value }) => $.evolve({ timezone: value }),
     }),
-  view: (h, model) =>
-    h.section
+  view: (h, model) => {
+    const targets = AsyncResult.isSuccess(h.queries.targets)
+      ? h.queries.targets.value
+      : [];
+
+    const activeAccountId =
+      model.importAccountId.length > 0
+        ? model.importAccountId
+        : (targets[0]?.id ?? "");
+
+    return h.section
       .attr("aria-label", "Settings")
       .class(sx(styles.section, pecuniaUiStyles.stack))
       .children(
@@ -259,6 +349,75 @@ export const SettingsPage = Html.component({
                     )
                     .children("Save settings")
                 ),
+              h.form
+                .class(sx(styles.card))
+                .on("submit", SettingsMessage.SubmittedImport())
+                .children(
+                  h.h2
+                    .class(sx(styles.sectionTitle))
+                    .children("Import bank CSV"),
+                  h.p
+                    .class(sx(pecuniaUiStyles.muted))
+                    .children(
+                      "Paste a CSV with columns date,description,amount_minor,currency,reference. Each line is SHA-256 fingerprinted so re-importing adds zero duplicates."
+                    ),
+                  h.div.class(sx(pecuniaUiStyles.formGrid)).children(
+                    h.label.class(sx(pecuniaUiStyles.field)).children(
+                      h.span
+                        .class(sx(pecuniaUiStyles.fieldLabel))
+                        .children("Target account"),
+                      h.select
+                        .class(sx(pecuniaUiStyles.input))
+                        .value(activeAccountId)
+                        .on("change", ({ value }) =>
+                          SettingsMessage.UpdatedImportAccountId({ value })
+                        )
+                        .children(
+                          targets.length === 0
+                            ? h.option
+                                .attr("value", "")
+                                .children("No bank accounts for this profile")
+                            : targets.map((target) =>
+                                h.option
+                                  .key(target.id)
+                                  .attr("value", target.id)
+                                  .children(
+                                    `${target.label} (${target.providerLabel} · ${target.baseCurrency})`
+                                  )
+                              )
+                        )
+                    ),
+                    h.label.class(sx(pecuniaUiStyles.field)).children(
+                      h.span
+                        .class(sx(pecuniaUiStyles.fieldLabel))
+                        .children("File name"),
+                      h.input
+                        .attr("type", "text")
+                        .class(sx(pecuniaUiStyles.input))
+                        .value(model.importFileName)
+                        .on("input", ({ value }) =>
+                          SettingsMessage.UpdatedImportFileName({ value })
+                        )
+                    )
+                  ),
+                  h.label.class(sx(pecuniaUiStyles.field)).children(
+                    h.span
+                      .class(sx(pecuniaUiStyles.fieldLabel))
+                      .children("CSV lines"),
+                    h.textarea
+                      .class(sx(pecuniaUiStyles.textarea))
+                      .value(model.importContent)
+                      .on("input", ({ value }) =>
+                        SettingsMessage.UpdatedImportContent({ value })
+                      )
+                  ),
+                  h.button
+                    .attr("type", "submit")
+                    .class(
+                      sx(pecuniaUiStyles.button, pecuniaUiStyles.buttonPrimary)
+                    )
+                    .children("Import CSV")
+                ),
               h.div.class(sx(styles.card)).children(
                 h.h2.class(sx(styles.sectionTitle)).children("Profiles"),
                 h.ul.class(sx(styles.accountList)).children(
@@ -337,5 +496,6 @@ export const SettingsPage = Html.component({
             );
           },
         })
-      ),
+      );
+  },
 });

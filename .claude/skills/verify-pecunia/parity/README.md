@@ -111,7 +111,7 @@ Every place the old app put a behaviour. A place with no row is a behaviour nobo
 | --- | --- | --- | --- |
 | A person signs in, and sees only the profiles they belong to | shell: every page | built | file:packages/auth/src/current-person.ts |
 | Someone with read-only access opens every page and changes nothing | shell: every page | built | file:packages/access/src/authorize.ts |
-| A switcher in the header chooses which book every page shows, and the browser remembers it | shell: every page | planned | no ticket yet |
+| A switcher in the header chooses which book every page shows, and the browser remembers it | shell: every page | built | file:apps/web/src/features/pecunia-ui/app.ts, file:apps/web/src/client/pecunia-ui/queries.ts |
 | An outside login gate in front of the whole app decides who gets in | shell: every page | dropped | the new app signs people in itself with email and password, so the outside gate has no job left to do |
 | Money in, money out and the net for a chosen period | route: dashboard | built | capability:readDashboard |
 | The dashboard screen's figures come from the stored book rather than a fixture | route: dashboard | built | file:apps/web/src/features/pecunia-ui/dashboard.ts |
@@ -154,15 +154,15 @@ Every place the old app put a behaviour. A place with no row is a behaviour nobo
 | Mark every payment from one merchant confirmed | route: merchant detail | planned | no ticket yet |
 | Rename a merchant everywhere it appears | route: merchant detail | planned | no ticket yet |
 | Mark a merchant as a repeat payment, or stop treating it as one | route: merchant detail | built | capability:markRepeatPayment, capability:changeSubscriptionStatus |
-| Personal against business spend for a period | route: spending | built | capability:readSpending |
-| A doughnut by category and a stacked monthly trend | route: spending | built | capability:readSpending |
-| One category's payments, and tagging a payment as reviewed from there | route: spending category | built | capability:readCategoryPayments, capability:reviewBankLine |
-| A category page names the category whose payments it lists | route: spending category | planned | no ticket yet |
-| Income by client, read from the transfer reference rather than the merchant | route: income | built | capability:readIncome |
-| Income narrowed to one client, with a monthly chart | route: income | built | capability:readIncome |
-| Money in that is a refund is kept apart from income | route: income | built | capability:readIncome |
-| One month's statement: spend by category, daily spend, top merchants, repeat payments and every payment | route: months | built | capability:readMonth |
-| A list of the months the book already holds | route: months | built | capability:listMonths |
+| Personal against business spend for a period | route: spending | built | capability:readSpending, file:apps/web/src/features/pecunia-ui/spending.ts |
+| A doughnut by category and a stacked monthly trend | route: spending | built | capability:readSpending, file:apps/web/src/features/pecunia-ui/spending.ts |
+| One category's payments, and tagging a payment as reviewed from there | route: spending category | built | capability:readCategoryPayments, capability:reviewBankLine, file:apps/web/src/features/pecunia-ui/spending.ts |
+| A category page names the category whose payments it lists | route: spending category | built | file:apps/web/src/features/pecunia-ui/spending.ts |
+| Income by client, read from the transfer reference rather than the merchant | route: income | built | capability:readIncome, file:apps/web/src/features/pecunia-ui/income.ts |
+| Income narrowed to one client, with a monthly chart | route: income | built | capability:readIncome, file:apps/web/src/features/pecunia-ui/income.ts |
+| Money in that is a refund is kept apart from income | route: income | built | capability:readIncome, file:apps/web/src/features/pecunia-ui/income.ts |
+| One month's statement: spend by category, daily spend, top merchants, repeat payments and every payment | route: months | built | capability:readMonth, file:apps/web/src/features/pecunia-ui/months.ts |
+| A list of the months the book already holds | route: months | built | capability:listMonths, file:apps/web/src/features/pecunia-ui/months.ts |
 | Merchants with no category, listed so one can be picked | route: review | planned | no ticket yet |
 | Ask a language model to suggest categories for what is left | route: review | planned | no ticket yet |
 | Accept every suggestion waiting for review in one go | route: review | planned | no ticket yet |
@@ -175,10 +175,10 @@ Every place the old app put a behaviour. A place with no row is a behaviour nobo
 | Find repeat payments from the payment history | route: subscriptions | built | capability:findRepeatPayments |
 | The subscriptions screen opens and lists the repeat payments | route: subscriptions | built | file:apps/web/src/features/pecunia-ui/subscriptions.ts |
 | A six month spend projection from the repeat payments | route: forecast | dropped | the app never served this page, because the router never mounted it, so no user could open it and there is no user behaviour to carry over |
-| Holdings grouped by platform with price, value and gain | route: investments | built | capability:readInvestmentPortfolio |
-| Add a holding by hand | route: investments | built | capability:addHolding |
-| Edit a holding | route: investments | built | capability:editHolding |
-| Delete a holding | route: investments | built | capability:deleteHolding |
+| Holdings grouped by platform with price, value and gain | route: investments | built | capability:readInvestmentPortfolio, file:packages/investments/src/d1.ts, file:apps/web/src/features/pecunia-ui/investments.ts |
+| Add a holding by hand | route: investments | built | capability:addHolding, file:apps/web/src/features/pecunia-ui/investments.ts |
+| Edit a holding | route: investments | built | capability:editHolding, file:packages/investments/src/d1.ts |
+| Delete a holding | route: investments | built | capability:deleteHolding, file:apps/web/src/features/pecunia-ui/investments.ts |
 | Value a holding in the profile's currency | route: investments | built | file:packages/investments/src/valuation.ts |
 | A holding with no price yet shows as unknown rather than zero | route: investments | built | capability:readInvestmentPortfolio |
 | The investments page is open to one hard-coded profile | route: investments | dropped | the old page refused everyone but one profile identifier, and the new app scopes every profile the same way, so there is nothing to carry over |

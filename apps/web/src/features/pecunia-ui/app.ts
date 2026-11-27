@@ -3,7 +3,11 @@ import { Html, HtmlHead } from "@effect/ui/html";
 import { Predicate, Schema } from "effect";
 import { AsyncResult } from "effect/reactivity";
 
-import { ReadSetupQuery } from "../../client/pecunia-ui/queries.js";
+import {
+  ReadSavedProfileQuery,
+  ReadSetupQuery,
+  SaveActiveProfileCommand,
+} from "../../client/pecunia-ui/queries.js";
 import {
   navItems,
   navSections,
@@ -12,7 +16,11 @@ import {
 } from "../../client/pecunia-ui/route.js";
 import { CategoriesPage } from "./categories.js";
 import { DashboardPage } from "./dashboard.js";
+import { IncomePage } from "./income.js";
+import { InvestmentsPage } from "./investments.js";
+import { MonthsPage } from "./months.js";
 import { SettingsPage } from "./settings.js";
+import { SpendingPage } from "./spending.js";
 import { darkPecunia, layout, pecuniaUiStyles, styles, sx } from "./styles.js";
 import { SubscriptionsPage } from "./subscriptions.js";
 import { TransactionsPage } from "./transactions.js";
@@ -23,6 +31,7 @@ export const PecuniaAppMessage = UiSchema.TaggedEnum({
   ChangedRoute: { route: PecuniaRoute },
   ClickedBackToDashboard: {},
   ClickedTheme: { theme: ThemeSchema },
+  IgnoredSavedProfile: {},
   SelectedProfile: { profileId: Schema.String },
 });
 
@@ -52,6 +61,10 @@ export const PecuniaApp = Html.component({
     route: PecuniaRoute,
   }),
   queries: {
+    savedProfile: {
+      args: () => ({}),
+      query: ReadSavedProfileQuery,
+    },
     setup: {
       args: () => ({}),
       query: ReadSetupQuery,
@@ -82,16 +95,36 @@ export const PecuniaApp = Html.component({
           )
         ),
       ClickedTheme: ({ theme }) => $.evolve({ theme }),
+      IgnoredSavedProfile: () => $.model,
       SelectedProfile: ({ profileId }) =>
-        $.evolve({ selectedProfileId: profileId }),
+        $.evolve({ selectedProfileId: profileId }).run(
+          SaveActiveProfileCommand.make({ profileId }).pipe(
+            Command.match({
+              onFailure: () => PecuniaAppMessage.IgnoredSavedProfile(),
+              onSuccess: () => PecuniaAppMessage.IgnoredSavedProfile(),
+            })
+          )
+        ),
     }),
   view: (h, model) => {
     const setup = AsyncResult.isSuccess(h.queries.setup)
       ? h.queries.setup.value
       : null;
 
+    const savedProfileId = AsyncResult.isSuccess(h.queries.savedProfile)
+      ? h.queries.savedProfile.value
+      : null;
+
+    const rememberedProfileId =
+      savedProfileId !== null &&
+      setup !== null &&
+      setup.profiles.some((profile) => profile.id === savedProfileId)
+        ? savedProfileId
+        : null;
+
     const activeProfileId =
       model.selectedProfileId ??
+      rememberedProfileId ??
       setup?.setting?.primaryProfileId ??
       setup?.profiles[0]?.id ??
       "";
@@ -111,8 +144,22 @@ export const PecuniaApp = Html.component({
           key: `dashboard:${activeProfileId}`,
           props: { profileId: activeProfileId },
         }),
-      Investments: () => laterScreen(h, "Investments"),
+      Income: () =>
+        IncomePage(h, {
+          key: `income:${activeProfileId}`,
+          props: { profileId: activeProfileId },
+        }),
+      Investments: () =>
+        InvestmentsPage(h, {
+          key: `investments:${activeProfileId}`,
+          props: { profileId: activeProfileId },
+        }),
       Merchants: () => laterScreen(h, "Merchants"),
+      Months: () =>
+        MonthsPage(h, {
+          key: `months:${activeProfileId}`,
+          props: { profileId: activeProfileId },
+        }),
       NotFound: () =>
         h.section
           .attr("aria-label", "Page not found")
@@ -141,7 +188,16 @@ export const PecuniaApp = Html.component({
         }),
       Rules: () => laterScreen(h, "Rules"),
       Search: () => laterScreen(h, "Search"),
-      Settings: () => SettingsPage(h, { key: "settings" }),
+      Settings: () =>
+        SettingsPage(h, {
+          key: `settings:${activeProfileId}`,
+          props: { profileId: activeProfileId },
+        }),
+      Spending: () =>
+        SpendingPage(h, {
+          key: `spending:${activeProfileId}`,
+          props: { profileId: activeProfileId },
+        }),
       Subscriptions: () =>
         SubscriptionsPage(h, {
           key: `subscriptions:${activeProfileId}`,

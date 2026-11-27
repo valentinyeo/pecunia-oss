@@ -1,7 +1,6 @@
 import { Head, UiSchema } from "@effect/ui";
 import { Html } from "@effect/ui/html";
-import type { CategoryReference, PeriodChoice } from "@pecunia/reporting";
-import { PeriodChoiceSchema } from "@pecunia/reporting";
+import type { Forecast } from "@pecunia/reporting";
 import { Match, Schema } from "effect";
 import { AsyncResult } from "effect/reactivity";
 
@@ -11,53 +10,33 @@ import {
 } from "../../client/pecunia-ui/queries.js";
 import { formatDay } from "../pecunia/day-format.js";
 import { formatMinor } from "../pecunia/money-format.js";
+import { dailyBarChart, horizontalShareBar, paletteColor } from "./charts.js";
+import {
+  allPeriodPresets,
+  categoryLabelOf,
+  periodChoiceOf,
+  PeriodPresetSchema,
+  sharePercentOf,
+} from "./period.js";
 import { pecuniaUiStyles, styles, sx } from "./styles.js";
 
-const PeriodPresetSchema = Schema.Literals([
-  "All",
-  "Year",
-  "Quarter",
-  "Month",
-  "Week",
-  "Day",
-]);
-
-type PeriodPreset = typeof PeriodPresetSchema.Type;
-
-const periodPresets: readonly {
-  readonly id: PeriodPreset;
-  readonly label: string;
-}[] = [
-  { id: "All", label: "All time" },
-  { id: "Year", label: "Year" },
-  { id: "Quarter", label: "Quarter" },
-  { id: "Month", label: "Month" },
-  { id: "Week", label: "Week" },
-  { id: "Day", label: "Today" },
-];
-
-const periodChoiceOf = (preset: PeriodPreset): PeriodChoice =>
-  Match.value(preset).pipe(
-    Match.when("All", () => PeriodChoiceSchema.cases.All.make({})),
-    Match.when("Year", () => PeriodChoiceSchema.cases.Year.make({})),
-    Match.when("Quarter", () => PeriodChoiceSchema.cases.Quarter.make({})),
-    Match.when("Month", () => PeriodChoiceSchema.cases.Month.make({})),
-    Match.when("Week", () => PeriodChoiceSchema.cases.Week.make({})),
-    Match.when("Day", () => PeriodChoiceSchema.cases.Day.make({})),
-    Match.exhaustive
-  );
-
-const categoryLabelOf = (category: CategoryReference): string =>
-  Match.value(category).pipe(
+const formatForecast = (forecast: Forecast, currency: string): string =>
+  Match.value(forecast).pipe(
     Match.tags({
-      Categorised: ({ name }) => name,
-      Uncategorised: () => "Uncategorised",
+      Closed: ({ month, spendMinor }) =>
+        `${month} closed at ${formatMinor(spendMinor, currency)}`,
+      Pending: ({ month }) => `${month} has not started yet`,
+      Running: ({
+        averageDailyMinor,
+        elapsedDays,
+        month,
+        projectedSpendMinor,
+        totalDays,
+      }) =>
+        `${month} (day ${elapsedDays}/${totalDays}): projected ${formatMinor(projectedSpendMinor, currency)} (${formatMinor(averageDailyMinor, currency)}/day)`,
     }),
     Match.exhaustive
   );
-
-const sharePercentOf = (basisPoints: number): string =>
-  `${(basisPoints / 100).toFixed(1)}%`;
 
 export const DashboardMessage = UiSchema.TaggedEnum({
   ClickedPeriod: { preset: PeriodPresetSchema },
@@ -113,7 +92,7 @@ export const DashboardPage = Html.component({
             .attr("role", "group")
             .class(sx(pecuniaUiStyles.actionRow))
             .children(
-              periodPresets.map((option) =>
+              allPeriodPresets.map((option) =>
                 h.button
                   .key(option.id)
                   .attr("type", "button")
@@ -214,32 +193,72 @@ export const DashboardPage = Html.component({
                         )
                     )
                 ),
-              h.div.class(sx(styles.card)).children(
-                h.h2.class(sx(styles.sectionTitle)).children("Accounts"),
-                data.balance.accounts.length === 0
-                  ? h.p
-                      .class(sx(pecuniaUiStyles.muted))
-                      .children("No accounts recorded for this profile yet.")
-                  : h.ul.class(sx(styles.accountList)).children(
-                      data.balance.accounts.map((account) =>
-                        h.li
-                          .key(account.accountId)
-                          .class(sx(styles.accountRow))
-                          .children(
-                            h.span
-                              .class(sx(styles.accountName))
-                              .children(account.name),
-                            h.span
-                              .class(sx(styles.accountValue))
-                              .children(
-                                formatMinor(
-                                  account.amount.minor,
-                                  account.amount.currency
+              h.p
+                .class(sx(pecuniaUiStyles.feedback))
+                .children(formatForecast(data.forecast, data.totals.currency)),
+              dailyBarChart(
+                h,
+                data.dailySpend,
+                data.totals.currency,
+                "Daily spend"
+              ),
+              h.div.class(sx(pecuniaUiStyles.twoCol)).children(
+                h.div.class(sx(styles.card)).children(
+                  h.h2.class(sx(styles.sectionTitle)).children("Accounts"),
+                  data.balance.accounts.length === 0
+                    ? h.p
+                        .class(sx(pecuniaUiStyles.muted))
+                        .children("No accounts recorded for this profile yet.")
+                    : h.ul.class(sx(styles.accountList)).children(
+                        data.balance.accounts.map((account) =>
+                          h.li
+                            .key(account.accountId)
+                            .class(sx(styles.accountRow))
+                            .children(
+                              h.span
+                                .class(sx(styles.accountName))
+                                .children(account.name),
+                              h.span
+                                .class(sx(styles.accountValue))
+                                .children(
+                                  formatMinor(
+                                    account.amount.minor,
+                                    account.amount.currency
+                                  )
                                 )
-                              )
-                          )
+                            )
+                        )
                       )
-                    )
+                ),
+                h.div.class(sx(styles.card)).children(
+                  h.h2
+                    .class(sx(styles.sectionTitle))
+                    .children("Spend by currency"),
+                  data.spendByCurrency.length === 0
+                    ? h.p
+                        .class(sx(pecuniaUiStyles.muted))
+                        .children("No multi-currency spend in this period.")
+                    : h.ul.class(sx(styles.accountList)).children(
+                        data.spendByCurrency.map((entry) =>
+                          h.li
+                            .key(entry.currency)
+                            .class(sx(styles.accountRow))
+                            .children(
+                              h.span
+                                .class(sx(styles.accountName))
+                                .children(entry.currency),
+                              h.span
+                                .class(sx(styles.accountValue))
+                                .children(
+                                  formatMinor(
+                                    entry.spendMinor,
+                                    data.totals.currency
+                                  )
+                                )
+                            )
+                        )
+                      )
+                )
               ),
               AsyncResult.match(h.queries.categories, {
                 onFailure: () =>
@@ -260,7 +279,7 @@ export const DashboardPage = Html.component({
                           .class(sx(pecuniaUiStyles.muted))
                           .children("No posted spend in this period.")
                       : h.ul.class(sx(styles.barList)).children(
-                          report.categories.map((row) => {
+                          report.categories.map((row, index) => {
                             const label = categoryLabelOf(row.category);
 
                             return h.li
@@ -270,18 +289,15 @@ export const DashboardPage = Html.component({
                                 h.span
                                   .class(sx(styles.barLabel))
                                   .children(label),
-                                h.span
-                                  .class(sx(pecuniaUiStyles.muted))
-                                  .children(
-                                    sharePercentOf(row.shareBasisPoints)
-                                  ),
+                                horizontalShareBar(
+                                  h,
+                                  row.shareBasisPoints,
+                                  paletteColor(index)
+                                ),
                                 h.span
                                   .class(sx(styles.barAmount))
                                   .children(
-                                    formatMinor(
-                                      row.spendMinor,
-                                      report.totals.currency
-                                    )
+                                    `${formatMinor(row.spendMinor, report.totals.currency)} (${sharePercentOf(row.shareBasisPoints)})`
                                   )
                               );
                           })

@@ -33,6 +33,7 @@
     "@pecunia/ai-sorting": "workspace:*",
     "@pecunia/api": "workspace:*",
     "@pecunia/auth": "workspace:*",
+    "@pecunia/bank-import": "workspace:*",
     "@pecunia/bank-lines": "workspace:*",
     "@pecunia/capability": "workspace:*",
     "@pecunia/categorize": "workspace:*",
